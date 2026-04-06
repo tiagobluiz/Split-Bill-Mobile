@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+dist/
+web-build/
+.metro-health-check*
+
+# Native build outputs
+android/.gradle/
+android/app/build/
+android/build/
+ios/build/
+ios/Pods/
+*.apk
+*.aab
+*.ipa
+
+# Test / coverage output
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment / local config
+.env
+.env.*
+!.env.example
+.npmrc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local screenshots / QA artifacts
+.balance-check.png
+.header-check.png
+current-screen.png
+home-stage-fix-refresh.png
+items-consistency-refresh.png
+items-redesign-refresh.png
+participants-clean-warning.png
+participants-hint-refresh.png
+participants-payer-hints-refresh.png
+participants-screen.png
+payer-disabled-screen.png
+payer-screen.png
+post-regression-fix.png
+refreshed-screen.png
+refreshed-screen-2.png
+tmp-participants-screen.png
+.ui-*.xml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+review-check.png
+ui_*.xml

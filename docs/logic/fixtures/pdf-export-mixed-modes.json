@@ -1,0 +1,117 @@
+{
+  "id": "pdf-export-mixed-modes",
+  "kind": "output-contract",
+  "assumptions": {
+    "locale": "en-US",
+    "date": "2026-03-09T12:00:00.000Z"
+  },
+  "input": {
+    "currency": "EUR",
+    "participants": [
+      { "id": "ana", "name": "Ana" },
+      { "id": "bruno", "name": "Bruno" }
+    ],
+    "payerParticipantId": "ana",
+    "items": [
+      {
+        "id": "even-item",
+        "name": "Milk",
+        "price": "4.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "50", "percentLocked": false },
+          { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "50", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "shares-item",
+        "name": "Cheese",
+        "price": "3.00",
+        "splitMode": "shares",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "2", "percent": "50", "percentLocked": false },
+          { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "50", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "percent-item",
+        "name": "Juice",
+        "price": "5.00",
+        "splitMode": "percent",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "20", "percentLocked": false },
+          { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "80", "percentLocked": false }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "appName": "Split-Bill",
+    "exportDateLabel": "Mar 9, 2026",
+    "fileName": "split-bill-2026-03-09.pdf",
+    "currency": "EUR",
+    "totalCents": 1200,
+    "note": "Item breakdown is provisional. Final leftover cents are balanced in the final balances section.",
+    "payer": {
+      "participantId": "ana",
+      "name": "Ana",
+      "isPayer": true,
+      "paidCents": 1200,
+      "consumedCents": 500,
+      "netCents": 700
+    },
+    "people": [
+      {
+        "participantId": "ana",
+        "name": "Ana",
+        "isPayer": true,
+        "paidCents": 1200,
+        "consumedCents": 500,
+        "netCents": 700
+      },
+      {
+        "participantId": "bruno",
+        "name": "Bruno",
+        "isPayer": false,
+        "paidCents": 0,
+        "consumedCents": 700,
+        "netCents": -700
+      }
+    ],
+    "items": [
+      {
+        "id": "even-item",
+        "name": "Milk",
+        "amountCents": 400,
+        "splitMode": "even",
+        "splitModeLabel": "Even split",
+        "shares": [
+          { "participantId": "ana", "name": "Ana", "amountCents": 200 },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 200 }
+        ]
+      },
+      {
+        "id": "shares-item",
+        "name": "Cheese",
+        "amountCents": 300,
+        "splitMode": "shares",
+        "splitModeLabel": "Share units",
+        "shares": [
+          { "participantId": "ana", "name": "Ana", "amountCents": 200 },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 100 }
+        ]
+      },
+      {
+        "id": "percent-item",
+        "name": "Juice",
+        "amountCents": 500,
+        "splitMode": "percent",
+        "splitModeLabel": "Percent",
+        "shares": [
+          { "participantId": "ana", "name": "Ana", "amountCents": 100 },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 400 }
+        ]
+      }
+    ]
+  }
+}

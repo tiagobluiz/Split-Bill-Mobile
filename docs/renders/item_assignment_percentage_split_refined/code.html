@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Split Item - Cabernet Sauvignon</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#897267",
+                        "background": "#f9f9f9",
+                        "tertiary-container": "#d8996d",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-container": "#eeeeee",
+                        "surface-dim": "#dadada",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-fixed-dim": "#83d5c8",
+                        "secondary": "#006a60",
+                        "on-tertiary-fixed": "#301400",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-variant": "#e2e2e2",
+                        "on-secondary-fixed-variant": "#005048",
+                        "primary-fixed-dim": "#ffb690",
+                        "tertiary": "#85522c",
+                        "on-primary-container": "#672a00",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-secondary-fixed": "#00201c",
+                        "on-background": "#1a1c1c",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "primary-container": "#f98948",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#fcb889",
+                        "on-primary-fixed": "#341100",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "primary": "#9d4401",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#5d310d",
+                        "secondary-fixed": "#9ff2e4",
+                        "surface-bright": "#f9f9f9",
+                        "on-primary-fixed-variant": "#783200",
+                        "surface-tint": "#9d4401",
+                        "on-error": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "outline-variant": "#dcc1b4",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#564339",
+                        "on-secondary-container": "#107166",
+                        "surface-container-low": "#f3f3f3",
+                        "primary-fixed": "#ffdbca",
+                        "on-tertiary-fixed-variant": "#693b17",
+                        "secondary-container": "#9ff2e4",
+                        "inverse-primary": "#ffb690",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary-container/30">
+<!-- Top Navigation Anchor -->
+<header class="bg-[#f9f9f9] dark:bg-gray-950 docked full-width top-0 z-50 sticky">
+<div class="flex justify-between items-center w-full px-6 h-16">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#1a1c1c]/60 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 p-2 rounded-full transition-transform active:scale-95" data-icon="close">close</button>
+<h1 class="font-['Public_Sans'] font-black text-2xl tracking-tight text-[#1a1c1c] dark:text-[#f9f9f9]">Split Item</h1>
+</div>
+<button class="font-label font-bold text-[#9d4401] dark:text-[#f98948] px-4 py-1.5 rounded-full hover:bg-gray-200/50 transition-all">Save</button>
+</div>
+</header>
+<main class="max-w-xl mx-auto px-6 pt-8 pb-48">
+<!-- Hero Section: Editorial Header -->
+<section class="mb-10 text-center md:text-left">
+<div class="inline-flex items-center justify-center bg-primary-container/10 px-4 py-1 rounded-full mb-4">
+<span class="text-primary font-label text-xs font-bold uppercase tracking-widest">Beverage Selection</span>
+</div>
+<h2 class="font-headline font-black text-4xl md:text-5xl text-on-background leading-none mb-2">Cabernet Sauvignon</h2>
+<p class="font-headline font-black text-primary text-3xl md:text-4xl tracking-tighter">€48.00</p>
+</section>
+<!-- Mode Selector: Segmented Control -->
+<nav class="bg-surface-container-low p-1.5 rounded-xl mb-8 flex items-center shadow-inner">
+<button class="flex-1 py-3 px-2 rounded-lg font-label text-sm font-semibold transition-all text-on-surface-variant hover:bg-surface-container-high/50">Equally</button>
+<button class="flex-1 py-3 px-2 rounded-lg font-label text-sm font-bold transition-all bg-surface-container-lowest text-primary shadow-sm">Percentage</button>
+<button class="flex-1 py-3 px-2 rounded-lg font-label text-sm font-semibold transition-all text-on-surface-variant hover:bg-surface-container-high/50">Amount</button>
+<button class="flex-1 py-3 px-2 rounded-lg font-label text-sm font-semibold transition-all text-on-surface-variant hover:bg-surface-container-high/50">Shares</button>
+</nav>
+<!-- Contextual Controls -->
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline font-bold text-lg text-on-surface">Assign by weight</h3>
+<button class="flex items-center gap-2 font-label text-sm font-bold text-primary group">
+<span class="material-symbols-outlined text-xl" data-icon="refresh">refresh</span>
+<span>Reset</span>
+</button>
+</div>
+<!-- Participant Grid: Integrated Percentage Layout -->
+<div class="space-y-4">
+<!-- Row 1 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-[0_12px_32px_rgba(157,68,1,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnyB5475Ky7eWG3qe3a2wdQbegXDHXU_bXJuSAQccu_QiM0e3ohVDDfhtmL-M5xPfOkryVICo480OsYxZsK3Ia9z4ma2bHzBEWEuuLYn1-SHRMJ0TdUveWF1E9foWUw6anqZEhvDuC-SpfaSjC25yzNSoeMewbMGn7LzKVUw_jTLlf_35ZNKKjEmN_U30a7k6WaUWz7PElr-Mysz5mp_-55NciSyke7SmIHEDrqVLUEILXZaZvI27ot-mmJKUltXUpbeHs9f-Pjiw"/>
+</div>
+<div>
+<h3 class="font-label font-bold text-on-surface">Julian Rossi</h3>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Host</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<input class="w-10 bg-transparent border-none text-right font-headline font-black text-2xl text-primary focus:ring-0 p-0" type="text" value="40"/>
+<span class="font-headline font-black text-xl text-primary">%</span>
+</div>
+</div>
+<!-- Precision Progress Slider -->
+<div class="relative h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full w-[40%] bg-gradient-to-r from-primary to-primary-container rounded-full"></div>
+</div>
+<div class="mt-2 flex justify-between text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-tighter">
+<span>€0.00</span>
+<span class="text-on-surface-variant">Allocated: €19.20</span>
+<span>€48.00</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-[0_12px_32px_rgba(157,68,1,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP01p2A4xmvvUtsUnKsT8y8J5PUVb7feLMqtRdjcBGRpDmX_vv3bE0nggMYJLfublLRQTX-xIgbDA8opxDFyHPOfbo8HrJlOVsUstIjluoblGScHzXcyob7x9nkl7u7myNJqzNoRtxWvt7at93jqf4Sio4aO6SYMGAo4Mhi16uUZoDaLg417RV5gIr8J3ALNAMD8I4sylgsSJm4wQpggreVMTCh_4Oto-cOpLDDB9_avKwzlFBvGTk7NLUad7MQEElyt0bQh4o9kI"/>
+</div>
+<div>
+<h3 class="font-label font-bold text-on-surface">Elena Vance</h3>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Member</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<input class="w-10 bg-transparent border-none text-right font-headline font-black text-2xl text-primary focus:ring-0 p-0" type="text" value="35"/>
+<span class="font-headline font-black text-xl text-primary">%</span>
+</div>
+</div>
+<div class="relative h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full w-[35%] bg-gradient-to-r from-primary to-primary-container rounded-full"></div>
+</div>
+<div class="mt-2 flex justify-between text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-tighter">
+<span>€0.00</span>
+<span class="text-on-surface-variant">Allocated: €16.80</span>
+<span>€48.00</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-[0_12px_32px_rgba(157,68,1,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBO2X6gncd0LwzQaDNOj_afN6CSx0YeyLkM6KIYMWqEz2qtmIHlMwW6JGJtFG1pvTWxPCOzRQeFslk0Bf3zGDdm0jcQe6CGJluL9d9TipJSmB5G_-RFzgLXfATyhCp8cYwhPuY05NhkxnFP6wqgHao79Ybkmh0Ne3xw7qPtQ-fT8pFAkE4THbNP5OJIxGEqwxi6F32mmq6DWM8vAMNPBx73kegjtn0LGz8dQLiodhfJeDaAlJlrMl46t-cRiDSvWd2hr-9d9RWBtoE"/>
+</div>
+<div>
+<h3 class="font-label font-bold text-on-surface">Marcus Thorne</h3>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Member</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<input class="w-10 bg-transparent border-none text-right font-headline font-black text-2xl text-primary focus:ring-0 p-0" type="text" value="25"/>
+<span class="font-headline font-black text-xl text-primary">%</span>
+</div>
+</div>
+<div class="relative h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full w-[25%] bg-gradient-to-r from-primary to-primary-container rounded-full"></div>
+</div>
+<div class="mt-2 flex justify-between text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-tighter">
+<span>€0.00</span>
+<span class="text-on-surface-variant">Allocated: €12.00</span>
+<span>€48.00</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Footer CTA -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex flex-col px-6 pb-8 pt-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-[0_-8px_32px_rgba(157,68,1,0.08)] rounded-t-lg">
+<div class="flex items-end mb-4 w-full">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-label text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant leading-tight">Split Status</p>
+<p class="font-headline font-black text-lg text-on-surface leading-tight">Total: 100%</p>
+</div>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary font-headline font-bold text-lg py-4 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+        Confirm Split
+    </button>
+</footer>
+</body></html>

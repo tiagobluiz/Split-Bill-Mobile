@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;800;900&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#dadada",
+                    "tertiary": "#85522c",
+                    "surface-tint": "#9d4401",
+                    "primary-container": "#f98948",
+                    "outline-variant": "#dcc1b4",
+                    "surface-container-lowest": "#ffffff",
+                    "background": "#f9f9f9",
+                    "surface-container": "#eeeeee",
+                    "primary": "#9d4401",
+                    "on-primary-container": "#672a00",
+                    "error-container": "#ffdad6",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed-dim": "#fcb889",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1a1c1c",
+                    "inverse-surface": "#2f3131",
+                    "on-secondary-fixed": "#00201c",
+                    "on-secondary": "#ffffff",
+                    "tertiary-container": "#d8996d",
+                    "surface-container-low": "#f3f3f3",
+                    "on-primary-fixed-variant": "#783200",
+                    "on-background": "#1a1c1c",
+                    "secondary-fixed-dim": "#83d5c8",
+                    "on-tertiary-fixed": "#301400",
+                    "primary-fixed-dim": "#ffb690",
+                    "on-secondary-fixed-variant": "#005048",
+                    "surface": "#f9f9f9",
+                    "on-primary-fixed": "#341100",
+                    "on-surface-variant": "#564339",
+                    "secondary": "#006a60",
+                    "inverse-primary": "#ffb690",
+                    "outline": "#897267",
+                    "primary-fixed": "#ffdbca",
+                    "on-tertiary-fixed-variant": "#693b17",
+                    "secondary-fixed": "#9ff2e4",
+                    "surface-bright": "#f9f9f9",
+                    "secondary-container": "#9ff2e4",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#e8e8e8",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdcc6",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-secondary-container": "#107166",
+                    "on-tertiary-container": "#5d310d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3, .headline-font {
+            font-family: 'Public Sans', sans-serif;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col items-center">
+<!-- TopAppBar -->
+<header class="bg-[#f9f9f9] dark:bg-neutral-900 w-full top-0 sticky z-50">
+<div class="flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-4">
+<button class="hover:bg-[#f98948]/10 dark:hover:bg-[#f98948]/20 transition-colors active:scale-95 duration-200 p-2 rounded-full">
+<span class="material-symbols-outlined text-[#9d4401] dark:text-[#f98948]">arrow_back</span>
+</button>
+<h1 class="font-['Public_Sans'] font-bold text-2xl tracking-tight text-[#9d4401] dark:text-[#f98948]">Final Results</h1>
+</div>
+<div class="style_brand_logo text-[#9d4401] dark:text-[#f98948] font-black uppercase tracking-widest text-lg">MELLOW</div>
+</div>
+</header>
+<main class="w-full max-w-md px-6 py-8 flex flex-col gap-8 pb-48">
+<!-- Total Bill Card (Hero) -->
+<section class="relative overflow-hidden bg-primary p-8 rounded-lg shadow-2xl flex flex-col items-start gap-1">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary-container opacity-20 rounded-full -mr-16 -mt-16"></div>
+<p class="font-label text-sm uppercase tracking-widest text-on-primary/80">Total Bill</p>
+<h2 class="font-headline font-black text-5xl text-on-primary">€84.50</h2>
+<div class="mt-4 flex items-center gap-2 bg-on-primary/10 px-3 py-1 rounded-full border border-on-primary/20">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="text-xs font-medium text-on-primary">Dinner at Bistro 12</span>
+<button class="ml-auto flex items-center gap-1.5 bg-on-primary text-primary px-3 py-1 rounded-full text-xs font-bold shadow-sm hover:bg-on-primary/90 transition-colors active:scale-95"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'wght' 700;">done_all</span>Settled</button></div>
+</section>
+<!-- Mark All as Settled Option -->
+<!-- Payer Info (Editorial Style) -->
+<section class="flex flex-col gap-4">
+<h3 class="font-headline font-bold text-lg text-on-surface-variant flex items-center gap-2">
+                Paid by
+            </h3>
+<div class="bg-surface-container-lowest p-5 rounded-lg flex items-center justify-between shadow-sm border border-surface-container">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img alt="Marco Rossi" class="w-14 h-14 rounded-full object-cover border-2 border-primary-container" data-alt="Close-up portrait of a friendly Italian man with a beard and warm smile in a sunlit outdoor cafe setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUXktSeiMAaXL3MAWXrmZhinlq-0jyI7zCpsvhLijmkyvJpZdRBrdjfhbsnIXfSFOfHQ3dakw-BPsyl6ifWibbWxvWR6baKykPy2emY6OnMdJZUg87XMMS8wpZVG1AtLhax_5jnVh8Gfy2UYDRoFH36VSwjs4cygg40AgPeRvPU5NPihSJAOBoHYRE4mey1PQzDaTC8lPeiAnt7s40xYTJcfA2qLzl8qFUKFQbra06kf-tfgojuzF9T10dnS-CgebXuWfryR7TDU8"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary w-5 h-5 rounded-full flex items-center justify-center border-2 border-surface-container-lowest">
+<span class="material-symbols-outlined text-[12px] text-white" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<div>
+<p class="font-headline font-bold text-on-surface">Marco Rossi</p>
+<p class="font-label text-xs text-on-surface-variant">Group Organizer</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-black text-xl text-primary">€84.50</p>
+<p class="font-label text-[10px] uppercase text-on-surface-variant tracking-tighter">Settled Total</p>
+</div>
+</div>
+</section>
+<!-- Owed List (No-Line Principle) -->
+<section class="flex flex-col gap-4">
+<div class="flex justify-between items-end">
+<h3 class="font-headline font-bold text-lg text-on-surface-variant">Breakdown</h3>
+<p class="font-label text-xs text-secondary font-semibold">4 Contributors</p>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Item 1 -->
+<div class="bg-surface-container-low p-4 rounded-lg flex items-center gap-4 hover:bg-surface-container-highest transition-colors group">
+<img alt="Elena Vance" class="w-12 h-12 rounded-full object-cover" data-alt="Professional young woman with stylish glasses smiling warmly in a bright modern office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkJwcM7YWLbHdgMUHBj9_tm27M-lLERlQU-dx11ZHEUI24noN5a-KCjnAKo9frC4tVjlMFveBPPd7gZJpm4sfNEmV7xaxsBHWkob1U3o2ZR5CB_afp5yVEDg9_lMWfRHiW1_OMjLBK4-RJyFDGNWkNemSb523yNjAOzvZEYEk-poUk5f2f5PtofDmaZ4HSUP8Y0d652w_El9lmHjoJYpE5KkL21s_p13vKpuIyTnVtlX5GMtpM7h8Fm_fr03ADskXLHiZ8W434Ppg"/>
+<div class="flex-1">
+<p class="font-headline font-bold text-on-surface">Elena Vance</p>
+<p class="text-xs text-on-surface-variant">owes Marco Rossi</p>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-headline font-bold text-lg text-primary">€16.80</p>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary hover:border-primary transition-all active:scale-90 bg-primary/5">
+<span class="material-symbols-outlined text-sm">check</span>
+</button>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-surface-container-low p-4 rounded-lg flex items-center gap-4 hover:bg-surface-container-highest transition-colors group">
+<img alt="Julian Peters" class="w-12 h-12 rounded-full object-cover" data-alt="Young man with short curly hair and friendly expression looking directly at camera with neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpNm_L1GMx_bR01soMypMnDbSdDx7jT1nU6V5lP-h40meQ5klwB1odE_hXkemG3OBTERMHr8KspFfvmgWD6BKyqBVD7l_TJaImAUMTvTOzvUDX1jvunN4awwbdgAzwTa2RZyQQ2hbN65mAnhe10AoS6XbJHQUe9GdiZEEXAj9PisxNPMM4HOvvvBfnTH1WfImRf_ooJvEypPw5ZDLkOXm1XVx-YTxtLcZQtozGRm5-uR-6JkPEpWGsjQ8YETyepuIliMYzIL895mg"/>
+<div class="flex-1">
+<p class="font-headline font-bold text-on-surface">Julian Peters</p>
+<p class="text-xs text-on-surface-variant">owes Marco Rossi</p>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-headline font-bold text-lg text-primary">€22.40</p>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary hover:border-primary transition-all active:scale-90 bg-primary/5">
+<span class="material-symbols-outlined text-sm">check</span>
+</button>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="bg-surface-container-low p-4 rounded-lg flex items-center gap-4 hover:bg-surface-container-highest transition-colors group">
+<img alt="Sofia Chen" class="w-12 h-12 rounded-full object-cover" data-alt="Candid portrait of a young woman laughing in a lush green garden during sunset with golden backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7VfpharlO0r1ep6eGpeFqTBZXFMjdW7GutKnLg4XnFcCFAtofn7j-IrScLOMHRtUWZqIS7__AwSTJo-3QcQTxA3OUsvApPtBICfI-p_ju5d0nwFzAEyS3U9agw3Qrz9n4-6gdSzi5ZGIE3_t1zX6xLrlqZRYsQ0YhXP9Wq0dpobIjlV-tROtZZrwnd5-F-U404JpG6gblpgDQoTGfAFflaifGjWdPiAa98SnlDAdZaOzzhSXe8s_Y3msduTwj_7sxIHRywomckbg"/>
+<div class="flex-1">
+<p class="font-headline font-bold text-on-surface">Sofia Chen</p>
+<p class="text-xs text-on-surface-variant">owes Marco Rossi</p>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-headline font-bold text-lg text-primary">€18.90</p>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary hover:border-primary transition-all active:scale-90 bg-primary/5">
+<span class="material-symbols-outlined text-sm">check</span>
+</button>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="bg-surface-container-low p-4 rounded-lg flex items-center gap-4 hover:bg-surface-container-highest transition-colors group">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="text-on-secondary-container font-headline font-bold">AK</span>
+</div>
+<div class="flex-1">
+<p class="font-headline font-bold text-on-surface">Arjun Kapoor</p>
+<p class="text-xs text-on-surface-variant">owes Marco Rossi</p>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-headline font-bold text-lg text-primary">€26.40</p>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary hover:border-primary transition-all active:scale-90 bg-primary/5">
+<span class="material-symbols-outlined text-sm">check</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Actions Container (Glassmorphism) -->
+<div class="fixed bottom-0 left-0 right-0 p-6 flex flex-col gap-3 bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10 z-50">
+<button class="bg-primary text-on-primary w-full h-14 rounded-xl font-headline font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-transform">
+<span class="material-symbols-outlined">share</span>
+            Share Results
+        </button>
+<button class="bg-secondary-container text-on-secondary-container w-full h-14 rounded-xl font-headline font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+            Export as PDF
+        </button>
+</div>
+</body></html>

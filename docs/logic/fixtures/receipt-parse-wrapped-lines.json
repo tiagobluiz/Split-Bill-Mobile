@@ -1,0 +1,12 @@
+{
+  "id": "receipt-parse-wrapped-lines",
+  "kind": "receipt-parse",
+  "input": "Mercearia Doce:\n(C) BOL GULLON AVELA 220G\n2 X 1,49 2,98\n(C) NUGGETS FRANGO CAPITAO IGLO 50U 12,99\n",
+  "expected": {
+    "items": [
+      { "name": "BOL GULLON AVELA 220G", "price": "2.98" },
+      { "name": "NUGGETS FRANGO CAPITAO IGLO 50U", "price": "12.99" }
+    ],
+    "warnings": []
+  }
+}

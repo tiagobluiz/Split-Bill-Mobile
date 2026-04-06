@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "split-even-basic",
+      "kind": "settlement",
+      "file": "split-even-basic.json",
+      "description": "Two-person even split with one payer and one reimbursement."
+    },
+    {
+      "id": "split-shares-payer-bias",
+      "kind": "settlement",
+      "file": "split-shares-payer-bias.json",
+      "description": "One-cent remainder is assigned away from the payer at the item level."
+    },
+    {
+      "id": "split-aggregate-rounding",
+      "kind": "settlement",
+      "file": "split-aggregate-rounding.json",
+      "description": "Final balances are rounded from aggregate exact totals, not by summing item-level rounded shares."
+    },
+    {
+      "id": "percent-rebalance-sequence",
+      "kind": "editing-helper",
+      "file": "percent-rebalance-sequence.json",
+      "description": "Percent edits lock the changed entry and rebalance remaining unlocked allocations."
+    },
+    {
+      "id": "receipt-parse-wrapped-lines",
+      "kind": "receipt-parse",
+      "file": "receipt-parse-wrapped-lines.json",
+      "description": "Wrapped descriptions pair with quantity continuation lines."
+    },
+    {
+      "id": "receipt-parse-footer-noise",
+      "kind": "receipt-parse",
+      "file": "receipt-parse-footer-noise.json",
+      "description": "Portuguese summary and payment footer lines are ignored with a warning."
+    },
+    {
+      "id": "paste-parse-basic",
+      "kind": "paste-parse",
+      "file": "paste-parse-basic.json",
+      "description": "Friendly text, numbered lines, and currency-marked lines are parsed consistently."
+    },
+    {
+      "id": "clipboard-summary-basic",
+      "kind": "output-contract",
+      "file": "clipboard-summary-basic.json",
+      "description": "Clipboard summary text ordering and sentence templates."
+    },
+    {
+      "id": "pdf-export-mixed-modes",
+      "kind": "output-contract",
+      "file": "pdf-export-mixed-modes.json",
+      "description": "PDF export payload for even, shares, and percent item rows."
+    },
+    {
+      "id": "llm-handoff-prompt",
+      "kind": "ai-handoff",
+      "file": "llm-handoff-prompt.json",
+      "description": "Exact prompt and provider launch assumptions for receipt extraction."
+    }
+  ]
+}

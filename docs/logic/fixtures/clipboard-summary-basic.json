@@ -1,0 +1,30 @@
+{
+  "id": "clipboard-summary-basic",
+  "kind": "output-contract",
+  "assumptions": {
+    "locale": "en-US"
+  },
+  "input": {
+    "currency": "EUR",
+    "participants": [
+      { "id": "zoe", "name": "Zoe" },
+      { "id": "mike", "name": "Mike" },
+      { "id": "ana", "name": "Ana" }
+    ],
+    "payerParticipantId": "mike",
+    "items": [
+      {
+        "id": "item-1",
+        "name": "Groceries",
+        "price": "9.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "zoe", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "mike", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      }
+    ]
+  },
+  "expectedText": "Split Bill summary\nMike: paid €9.00 and should get back €6.00.\nAna: owes €3.00.\nZoe: owes €3.00."
+}

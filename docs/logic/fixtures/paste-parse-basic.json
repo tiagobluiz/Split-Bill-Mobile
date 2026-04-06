@@ -1,0 +1,16 @@
+{
+  "id": "paste-parse-basic",
+  "kind": "paste-parse",
+  "input": "Bananas - 2.49\nTomatoes: 1.80\nYogurt 2.10\n1. Milk - 3,40 EUR\n- Bread - 1.20\n",
+  "expected": {
+    "items": [
+      { "name": "Bananas", "price": "2.49" },
+      { "name": "Tomatoes", "price": "1.80" },
+      { "name": "Yogurt", "price": "2.10" },
+      { "name": "Milk", "price": "3.40" },
+      { "name": "Bread", "price": "1.20" }
+    ],
+    "ignoredLines": [],
+    "warnings": []
+  }
+}

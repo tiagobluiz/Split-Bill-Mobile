@@ -1,0 +1,75 @@
+{
+  "id": "split-shares-payer-bias",
+  "kind": "settlement",
+  "input": {
+    "currency": "EUR",
+    "participants": [
+      { "id": "ana", "name": "Ana" },
+      { "id": "bruno", "name": "Bruno" },
+      { "id": "carla", "name": "Carla" }
+    ],
+    "payerParticipantId": "ana",
+    "items": [
+      {
+        "id": "item-1",
+        "name": "Cheese",
+        "price": "1.00",
+        "splitMode": "shares",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "carla", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "parseSplitItemShares": [
+      { "participantId": "ana", "amountCents": 33 },
+      { "participantId": "bruno", "amountCents": 34 },
+      { "participantId": "carla", "amountCents": 33 }
+    ],
+    "computeSettlementPeople": [
+      {
+        "participantId": "ana",
+        "name": "Ana",
+        "consumedCents": 33,
+        "paidCents": 100,
+        "netCents": 67,
+        "isPayer": true
+      },
+      {
+        "participantId": "bruno",
+        "name": "Bruno",
+        "consumedCents": 34,
+        "paidCents": 0,
+        "netCents": -34,
+        "isPayer": false
+      },
+      {
+        "participantId": "carla",
+        "name": "Carla",
+        "consumedCents": 33,
+        "paidCents": 0,
+        "netCents": -33,
+        "isPayer": false
+      }
+    ],
+    "transfers": [
+      {
+        "fromParticipantId": "bruno",
+        "fromName": "Bruno",
+        "toParticipantId": "ana",
+        "toName": "Ana",
+        "amountCents": 34
+      },
+      {
+        "fromParticipantId": "carla",
+        "fromName": "Carla",
+        "toParticipantId": "ana",
+        "toName": "Ana",
+        "amountCents": 33
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "llm-handoff-prompt",
+  "kind": "ai-handoff",
+  "expectedPrompt": "Read the uploaded grocery receipt and extract only the purchased receipt items.\nReturn the result in this exact format, one item per line:\nItem name - 2.49\n\nRules:\n- Keep only real purchasable items.\n- Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.\n- Do not add commentary, numbering, markdown, tables, or explanations.\n- Use a plain decimal number for the price.\n- If the receipt uses comma decimals, convert them to dot decimals.",
+  "providers": {
+    "desktop": {
+      "chatgpt": "https://chatgpt.com/",
+      "claude": "https://claude.ai/",
+      "gemini": "https://gemini.google.com/app"
+    },
+    "mobile": {
+      "chatgpt": "https://chatgpt.com/",
+      "claude": "https://claude.ai/",
+      "gemini": "https://gemini.google.com/"
+    }
+  },
+  "launchTarget": {
+    "mobile": "_self",
+    "nonMobile": "_blank"
+  }
+}

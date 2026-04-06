@@ -1,0 +1,16 @@
+{
+  "id": "receipt-parse-footer-noise",
+  "kind": "receipt-parse",
+  "input": "BOL DIGESTIVE AVEIA CHOCO CNT 1,79\nSUBTOTAL 64,31\nTOTAL A PAGAR 53,09\nContinente Pay (**** 3879) 53,09\n",
+  "expected": {
+    "items": [
+      { "name": "BOL DIGESTIVE AVEIA CHOCO CNT", "price": "1.79" }
+    ],
+    "warnings": [
+      {
+        "code": "ignored-summary-lines",
+        "message": "Ignored 3 total or payment lines."
+      }
+    ]
+  }
+}
