@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Add Item - Mellow Split</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f9f9f9",
+                        "primary-fixed": "#ffdbca",
+                        "inverse-surface": "#2f3131",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#301400",
+                        "tertiary-container": "#d8996d",
+                        "on-error-container": "#93000a",
+                        "background": "#f9f9f9",
+                        "surface-dim": "#dadada",
+                        "surface-variant": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#dcc1b4",
+                        "on-secondary-container": "#107166",
+                        "on-surface-variant": "#564339",
+                        "on-tertiary-container": "#5d310d",
+                        "on-primary-fixed-variant": "#783200",
+                        "secondary": "#006a60",
+                        "surface-container": "#eeeeee",
+                        "primary": "#9d4401",
+                        "on-secondary-fixed-variant": "#005048",
+                        "on-primary": "#ffffff",
+                        "outline": "#897267",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-fixed": "#9ff2e4",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-fixed": "#00201c",
+                        "tertiary": "#85522c",
+                        "on-surface": "#1a1c1c",
+                        "on-primary-fixed": "#341100",
+                        "on-background": "#1a1c1c",
+                        "inverse-primary": "#ffb690",
+                        "inverse-on-surface": "#f1f1f1",
+                        "tertiary-fixed-dim": "#fcb889",
+                        "error": "#ba1a1a",
+                        "primary-container": "#f98948",
+                        "surface-tint": "#9d4401",
+                        "surface-container-high": "#e8e8e8",
+                        "primary-fixed-dim": "#ffb690",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-primary-container": "#672a00",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#ffdcc6",
+                        "on-tertiary-fixed-variant": "#693b17",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#83d5c8",
+                        "secondary-container": "#9ff2e4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tap-highlight-none {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+        }
+        h1, h2, h3 {
+            font-family: 'Public Sans', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-[#f9f9f9] dark:bg-zinc-950 flex items-center justify-between px-6 py-4 w-full docked full-width top-0 sticky z-50 tonal-shift bg-surface">
+<div class="flex items-center gap-4">
+<button class="text-[#9d4401] dark:text-[#f98948] hover:bg-[#f98948]/10 transition-colors p-2 rounded-full scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+<h1 class="font-['Public_Sans'] font-black uppercase tracking-tight text-xl text-[#1a1c1c] dark:text-zinc-100">Mellow Split</h1>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container overflow-hidden">
+<img alt="User" data-alt="close up of a professional user profile avatar with a neutral clean background in warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxnW2gmG8T91mPmZiLJFdOjs5dftp2kZldL26Qk-qqtJ8RjMZTH7xCqRU8-RE_voY78zMyACtgyTH2BZXsN8dqV409UT5xwlomT1rih4aXhukD6-afbMi5N4aCXSUIKWpK2ye7s7-nS_hQT8ciy-TqrqE_EzQtafhYkHA0JkHstrVpDzHe2TfqDlQFM6APEJLCpXfAYEXQbz_yLUbmIC4nbDIGvQiaJzjO42bY44r25P8mV0wK9seHW5y_dVhz2oZeuu4nNnWv0RY"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="max-w-md mx-auto px-6 py-8 pb-32">
+<!-- Header Section -->
+<div class="mb-10">
+<span class="text-primary font-bold tracking-widest text-[11px] uppercase mb-2 block">Manual Entry</span>
+<h2 class="text-4xl font-black text-on-surface leading-tight tracking-tight">Add New <br/>Bill Item</h2>
+</div>
+<!-- Form Section -->
+<div class="space-y-8">
+<!-- Item Name Input -->
+<div class="relative group">
+<label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">Item Description</label>
+<div class="bg-surface-container-low rounded-2xl p-5 focus-within:bg-surface-container transition-all duration-300">
+<input class="w-full bg-transparent border-none p-0 text-lg font-semibold focus:ring-0 placeholder:text-on-surface-variant/30 text-on-surface" placeholder="e.g. Truffle Pasta" type="text"/>
+</div>
+</div>
+<!-- Price Input Group -->
+<div class="relative group">
+<div class="flex justify-between items-end mb-2 ml-1">
+<label class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Price</label>
+<span class="text-[11px] font-bold text-primary uppercase">Currency: EUR (€)</span>
+</div>
+<div class="bg-surface-container-low rounded-2xl p-5 focus-within:bg-surface-container transition-all duration-300 flex items-center gap-3">
+<span class="text-2xl font-black text-primary/40">€</span>
+<input class="w-full bg-transparent border-none p-0 text-3xl font-black focus:ring-0 placeholder:text-on-surface-variant/20 text-on-surface" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+<!-- Contextual Save Button: Placed immediately below interaction point per requirement -->
+<button class="mt-6 w-full bg-primary text-on-primary font-['Public_Sans'] font-black uppercase tracking-widest py-5 rounded-xl shadow-[0_12px_32px_rgba(157,68,1,0.15)] hover:bg-primary-container transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3">
+                    Save Item
+                    <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<!-- Quantity Asymmetric Grid -->
+<div class="grid grid-cols-12 gap-4 mt-12">
+<div class="col-span-4 bg-surface-container-lowest p-6 rounded-2xl shadow-sm">
+<label class="block text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant mb-4">Qty</label>
+<div class="flex flex-col items-center gap-2">
+<button class="text-primary hover:bg-primary/5 p-1 rounded-full"><span class="material-symbols-outlined" data-icon="add">add</span></button>
+<span class="text-2xl font-black">1</span>
+<button class="text-on-surface-variant/40 p-1 rounded-full"><span class="material-symbols-outlined" data-icon="remove">remove</span></button>
+</div>
+</div>
+<!-- Category Bento Card -->
+<div class="col-span-8 bg-surface-container-low p-6 rounded-2xl flex flex-col justify-between">
+<label class="block text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant mb-4">Category</label>
+<div class="flex flex-wrap gap-2">
+<span class="bg-primary-container/20 text-on-primary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Food</span>
+<span class="bg-surface-container-highest text-on-surface-variant/60 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Drink</span>
+<span class="bg-surface-container-highest text-on-surface-variant/60 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Service</span>
+</div>
+</div>
+</div>
+<!-- Visual Decorative Element: Magazine Style -->
+<div class="mt-12 opacity-40">
+<div class="h-[1px] w-full bg-gradient-to-r from-transparent via-outline-variant to-transparent"></div>
+<p class="text-[10px] text-center mt-4 font-label uppercase tracking-[0.2em] text-on-surface-variant/50">Mellow Split • The Social Ledger • Transaction No. 4920</p>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Suppressed for focused task, but kept as reference for structure if needed) -->
+<!-- Navigation is hidden on task-focused sub-pages as per "Shell Visibility & Relevance" rule -->
+<!-- Numeric Helper (Visual Simulation of the requested numeric layout focus) -->
+<div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl px-6 py-4 flex flex-col items-center justify-center border-t border-outline-variant/10 md:hidden">
+<div class="w-12 h-1 bg-surface-container-highest rounded-full mb-4"></div>
+<div class="grid grid-cols-3 gap-y-4 gap-x-12 w-full max-w-xs text-center pb-2">
+<span class="text-xl font-bold text-on-surface">1</span>
+<span class="text-xl font-bold text-on-surface">2</span>
+<span class="text-xl font-bold text-on-surface">3</span>
+<span class="text-xl font-bold text-on-surface">4</span>
+<span class="text-xl font-bold text-on-surface">5</span>
+<span class="text-xl font-bold text-on-surface">6</span>
+<span class="text-xl font-bold text-on-surface">7</span>
+<span class="text-xl font-bold text-on-surface">8</span>
+<span class="text-xl font-bold text-on-surface">9</span>
+<span class="text-xl font-bold text-on-surface">,</span>
+<span class="text-xl font-bold text-on-surface">0</span>
+<span class="material-symbols-outlined text-primary" data-icon="backspace">backspace</span>
+</div>
+</div>
+</body></html>

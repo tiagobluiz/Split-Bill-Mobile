@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Review Items &amp; Progress - Mellow Split</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eeeeee",
+                        "primary": "#9d4401",
+                        "on-secondary-fixed-variant": "#005048",
+                        "on-tertiary-container": "#5d310d",
+                        "on-primary-fixed-variant": "#783200",
+                        "secondary": "#006a60",
+                        "outline": "#897267",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-fixed": "#9ff2e4",
+                        "surface": "#f9f9f9",
+                        "primary-fixed": "#ffdbca",
+                        "inverse-surface": "#2f3131",
+                        "on-tertiary-fixed": "#301400",
+                        "tertiary-container": "#d8996d",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9f9",
+                        "surface-dim": "#dadada",
+                        "outline-variant": "#dcc1b4",
+                        "on-secondary-container": "#107166",
+                        "on-surface-variant": "#564339",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-primary-container": "#672a00",
+                        "surface-container-high": "#e8e8e8",
+                        "primary-fixed-dim": "#ffb690",
+                        "tertiary-fixed": "#ffdcc6",
+                        "on-tertiary-fixed-variant": "#693b17",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#83d5c8",
+                        "secondary-container": "#9ff2e4",
+                        "tertiary": "#85522c",
+                        "on-surface": "#1a1c1c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-fixed": "#00201c",
+                        "on-primary-fixed": "#341100",
+                        "on-background": "#1a1c1c",
+                        "primary-container": "#f98948",
+                        "inverse-primary": "#ffb690",
+                        "inverse-on-surface": "#f1f1f1",
+                        "tertiary-fixed-dim": "#fcb889",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#9d4401"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; color: #1a1c1c; }
+        .font-headline { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface min-h-screen pb-40">
+<!-- TopAppBar Shell -->
+<header class="w-full top-0 sticky z-50 no-border bg-neutral-100 dark:bg-neutral-800 transition-all duration-200 active:scale-95">
+<div class="flex justify-between items-center px-6 h-16 bg-[#f9f9f9] dark:bg-neutral-900">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 text-orange-800 dark:text-orange-400">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Public_Sans'] font-black uppercase tracking-tight text-orange-800 dark:text-orange-400 text-lg">Review Items</h1>
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 text-orange-800 dark:text-orange-400">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<main class="max-w-md mx-auto px-6 pt-6">
+<!-- Progress Header Card -->
+<section class="mb-8">
+<div class="bg-surface-container-lowest rounded-lg p-6 shadow-[0_12px_32px_rgba(157,68,1,0.06)] overflow-hidden relative">
+<div class="flex justify-between items-end mb-4">
+<div>
+<p class="text-on-surface-variant font-label text-sm font-semibold mb-1">Current Progress</p>
+<h2 class="font-headline font-black text-4xl text-primary leading-none">80% Split</h2>
+</div>
+<div class="text-right">
+<span class="text-on-surface-variant font-body text-sm">12 of 15 items assigned</span>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="h-3 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-secondary w-[80%] rounded-full"></div>
+</div>
+<!-- Background Soul Texture -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+</div>
+</section>
+<!-- Item List Section -->
+<section class="space-y-4">
+<h3 class="font-headline font-black text-xs uppercase tracking-widest text-on-surface-variant mb-4 ml-1">Bill Breakdown</h3>
+<!-- Item: Truffle Tagliatelle -->
+<button class="w-full text-left bg-surface-container-low rounded-lg p-5 flex justify-between items-center transition-all duration-200 active:scale-[0.98] hover:bg-surface-container-lowest border border-transparent hover:border-outline-variant/15">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-headline font-bold text-lg text-on-surface">Truffle Tagliatelle</span>
+<span class="material-symbols-outlined text-secondary text-lg" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-body font-medium text-primary">€24.50</p>
+<span class="h-1 w-1 bg-outline-variant rounded-full"></span>
+<p class="font-body text-sm text-on-surface-variant">Split by 3</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</button>
+<!-- Item: Artisan Focaccia (Pending) -->
+<button class="w-full text-left bg-surface-container-lowest rounded-lg p-5 flex justify-between items-center transition-all duration-200 active:scale-[0.98] border border-primary-container/20 shadow-sm">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-headline font-bold text-lg text-on-surface">Artisan Focaccia</span>
+<span class="material-symbols-outlined text-primary-container text-lg" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-body font-medium text-primary">€12.00</p>
+<span class="h-1 w-1 bg-outline-variant rounded-full"></span>
+<p class="font-body text-sm font-bold text-primary-container">Pending Assignment</p>
+</div>
+</div>
+<div class="bg-primary-container text-on-primary-container h-10 px-4 rounded-full flex items-center justify-center font-headline font-black text-xs uppercase tracking-tight">
+                    Assign
+                </div>
+</button>
+<!-- Item: Cabernet Sauvignon -->
+<button class="w-full text-left bg-surface-container-low rounded-lg p-5 flex justify-between items-center transition-all duration-200 active:scale-[0.98] hover:bg-surface-container-lowest border border-transparent hover:border-outline-variant/15">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-headline font-bold text-lg text-on-surface">Cabernet Sauvignon</span>
+<span class="material-symbols-outlined text-secondary text-lg" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="flex items-center gap-3">
+<p class="font-body font-medium text-primary">€48.00</p>
+<span class="h-1 w-1 bg-outline-variant rounded-full"></span>
+<p class="font-body text-sm text-on-surface-variant">Split by 2</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</button>
+<!-- Empty Space for visual breathing room -->
+<div class="py-4 flex justify-center">
+<div class="w-12 h-1 bg-surface-container-highest rounded-full opacity-30"></div>
+</div>
+</section>
+</main>
+<!-- Sticky Footer Summary -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-surface/80 backdrop-blur-xl px-6 pt-6 pb-12 border-t border-outline-variant/10">
+<div class="max-w-md mx-auto">
+<div class="flex justify-between items-center mb-6">
+<div>
+<p class="text-on-surface-variant font-label text-xs uppercase tracking-widest font-bold">Total Settled</p>
+<p class="font-headline font-black text-2xl text-on-surface">€72.50 <span class="text-on-surface-variant font-medium text-lg">/ €84.50</span></p>
+</div>
+<div class="flex -space-x-2">
+<img alt="" class="w-10 h-10 rounded-full border-2 border-surface" data-alt="Portrait of a young woman with a warm smile and professional demeanor in soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfwh08IenO8M73mtudobLS1llUihQejklffkY51DVh4t59YOPTH4t_s5lHFC2o0UdrPhie5yeneFOXV8Jz2cddxRmvrUzcqQdSSSrEZPeQuBefRKYJUMRbBwBEyiAjErsSBs7lLQnJ6dzJWPWXk-nKT78p3cXei4fxfzWKVgNVFR50MyHvhUGC8Gv1AWaP_lEYLX4xTk9DUVy7G8jBFDw8iRnFCL5Pzue-CUu_dNSYPwocpi7f1Hj8qzA1QpqLF_6V27eVXsph8rQ"/>
+<img alt="" class="w-10 h-10 rounded-full border-2 border-surface" data-alt="Close up portrait of a young man with glasses smiling outdoors in a sunlit environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGtUd8jCF57aRT6ib1M_uDMzd9dvVeoPBVrL4ZEdK_ioK2bCcyZpfe11uNkPNag5gr9ZoHLphPsW70BRZ6UIB9YcydmfV1buIbQhBbsKIYnYKT4HBI0UEjp7tuQAB_JgkxHLu4h6Myk-RZ2HPrEJvVSzJP2AoHSaAOkaL11ZNw9l1rguOa9Sxsu4evc4v0etAm3Lq8eA0kcYoG_93cYj11bzvL00LUbEt_21N8TaEnvskzEJCA6uY_VsoZUVGxgKo_x0stgoUC8Ko"/>
+<div class="w-10 h-10 rounded-full border-2 border-surface bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant font-bold text-xs">+3</div>
+</div>
+</div>
+<button class="w-full bg-primary h-16 rounded-xl text-on-primary font-headline font-black text-lg uppercase tracking-tight shadow-[0_12px_32px_rgba(157,68,1,0.15)] flex items-center justify-center gap-3 transition-all active:scale-95">
+                Finalize Bill
+                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- BottomNavBar Shell -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-6 pb-8 pointer-events-none">
+<div class="flex justify-around items-center w-full max-w-md pointer-events-auto bg-white/80 dark:bg-neutral-950/80 backdrop-blur-xl fixed bottom-4 left-4 right-4 rounded-full border border-neutral-200/20 shadow-[0_12px_32px_rgba(157,68,1,0.08)] px-4">
+<a class="flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400 p-3 hover:text-orange-600 transition-transform" href="#">
+<span class="material-symbols-outlined text-[24px]" data-icon="receipt_long">receipt_long</span>
+<span class="font-['Inter'] text-[11px] font-semibold">Ledger</span>
+</a>
+<a class="flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400 p-3 hover:text-orange-600 transition-transform" href="#">
+<span class="material-symbols-outlined text-[24px]" data-icon="Call_split">call_split</span>
+<span class="font-['Inter'] text-[11px] font-semibold">Split</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-orange-500 dark:bg-orange-600 text-white rounded-full p-3 scale-110 transition-transform" href="#">
+<span class="material-symbols-outlined text-[24px]" data-icon="history">history</span>
+<span class="font-['Inter'] text-[11px] font-semibold">Activity</span>
+</a>
+<a class="flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400 p-3 hover:text-orange-600 transition-transform" href="#">
+<span class="material-symbols-outlined text-[24px]" data-icon="person">person</span>
+<span class="font-['Inter'] text-[11px] font-semibold">Profile</span>
+</a>
+</div>
+</nav>
+</body></html>

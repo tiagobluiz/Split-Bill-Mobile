@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Add Participants</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "outline": "#897267",
+                    "secondary": "#006a60",
+                    "on-tertiary-container": "#5d310d",
+                    "on-primary-fixed-variant": "#783200",
+                    "surface-container": "#eeeeee",
+                    "primary": "#9d4401",
+                    "on-secondary-fixed-variant": "#005048",
+                    "secondary-fixed": "#9ff2e4",
+                    "surface-bright": "#f9f9f9",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#d8996d",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#301400",
+                    "surface": "#f9f9f9",
+                    "primary-fixed": "#ffdbca",
+                    "inverse-surface": "#2f3131",
+                    "on-surface-variant": "#564339",
+                    "outline-variant": "#dcc1b4",
+                    "on-secondary-container": "#107166",
+                    "surface-dim": "#dadada",
+                    "background": "#f9f9f9",
+                    "surface-variant": "#e2e2e2",
+                    "on-error": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed": "#ffdcc6",
+                    "on-tertiary-fixed-variant": "#693b17",
+                    "on-tertiary": "#ffffff",
+                    "primary-fixed-dim": "#ffb690",
+                    "surface-container-high": "#e8e8e8",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary-container": "#672a00",
+                    "secondary-container": "#9ff2e4",
+                    "secondary-fixed-dim": "#83d5c8",
+                    "on-primary-fixed": "#341100",
+                    "on-background": "#1a1c1c",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-low": "#f3f3f3",
+                    "on-secondary-fixed": "#00201c",
+                    "tertiary": "#85522c",
+                    "on-surface": "#1a1c1c",
+                    "surface-tint": "#9d4401",
+                    "tertiary-fixed-dim": "#fcb889",
+                    "error": "#ba1a1a",
+                    "inverse-primary": "#ffb690",
+                    "inverse-on-surface": "#f1f1f1",
+                    "primary-container": "#f98948"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            font-family: 'Inter', sans-serif;
+            color: #1a1c1c;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen max-w-md mx-auto relative overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky flex flex-col px-6 py-4 w-full bg-[#f9f9f9] dark:bg-gray-950 z-50">
+<div class="flex items-center">
+<button class="mr-4 text-[#9d4401] dark:text-[#f98948] hover:opacity-80 transition-opacity scale-95 duration-100">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-['Public_Sans'] font-black text-2xl tracking-tight text-[#9d4401] dark:text-[#f98948]">Who's splitting?</h1>
+</div>
+<p class="text-on-surface-variant text-sm mt-1 ml-10">Select friends to share the bill with.</p>
+</header>
+<main class="flex-grow px-6 pt-2 pb-32">
+<!-- Frequent Friends Section -->
+<section class="mb-8">
+<h2 class="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant mb-4 px-1">Frequent Friends</h2>
+<div class="flex overflow-x-auto no-scrollbar gap-5 py-2">
+<!-- Friend 1 -->
+<button class="flex flex-col items-center gap-2 group shrink-0">
+<div class="relative w-14 h-14 rounded-full overflow-hidden ring-2 ring-primary-container ring-offset-2 transition-transform group-active:scale-90">
+<img alt="" class="w-full h-full object-cover" data-alt="Close-up portrait of a young woman with a warm smile and soft outdoor lighting in a lifestyle setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcjWHdRXMIBboY1-wQHSms4Rd2ihnNEMKuHH62eKN8TVJwyeCF7dyM0r16eafK7RsXOUTmdbWIPaKBmrp09xGrop-abTsjZ5X9Pu4QW0yo1psw0BiQ8xcGFjxfOwvNPDH8yuNkPsh1myfepT7llOTFTwfm36pRwt4BDGb1GLm7g1N653lkjM3fF0avIXlCvuxwpUYdZSeV3qW7dta1C4AWHMiWLz5iJnO75kVE0bScFJa9BWjEChlLe8qHekN6hKeSgWPpvilxK3I"/>
+</div>
+<span class="text-[11px] font-medium text-on-surface">Elena</span>
+</button>
+<!-- Friend 2 -->
+<button class="flex flex-col items-center gap-2 group shrink-0">
+<div class="relative w-14 h-14 rounded-full overflow-hidden transition-transform group-active:scale-90">
+<img alt="" class="w-full h-full object-cover" data-alt="Portrait of a friendly young man with light beard against a clean neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNe0JJdkSrFfSpNPJ6JBYIMc2Ryv-HrOhkWhpz-1GKX-3JPFMa9BwdZjSpRfeIXWmF7RQyPIYf0NQqkqBnnmxof1NgzQMwQLYN2EkinHsxXiHIX_oO_2SxeJucxeWywcgL4UCL1TpwzHBgZnoKlr0x_BATMwY52SOcnmO3PlhGXs1R9nIl38Yw92Ymj4EYTtqqTGz1vGaO3a7v3GSgxKNlO-NACr6PXOauAXYdO07mMcZpBO_J7yq8VwK9WEHAqYSEDZ00WCRqWNw"/>
+</div>
+<span class="text-[11px] font-medium text-on-surface">Marcus</span>
+</button>
+<!-- Friend 3 -->
+<button class="flex flex-col items-center gap-2 group shrink-0">
+<div class="relative w-14 h-14 rounded-full overflow-hidden transition-transform group-active:scale-90">
+<img alt="" class="w-full h-full object-cover" data-alt="Candid headshot of a person with stylish glasses in a brightly lit modern office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSbbQSy5gGHOyz6S9bb05WFmTk3N1apm-zMxPFwEGpaUHoBR_hHz_kFM97cuivITeexjR5xPjsKEKgp2UQAENoED9WqPsvuhwLccP3hrzKjLzMIrUb8NLRgxsBDoQOxf5zXuS9nE6M4mahZUYPlueG0Rem0rgYmO_e469phCKdBvU-f_-ha8XxDfBF1o-3R7HDyzG3omo5zgsu26quc3lv50gW3VZjt47XSYpgq51LmZGXZsZgvppfOyaDlV2c0EwI1hlWBFUgvYU"/>
+</div>
+<span class="text-[11px] font-medium text-on-surface">Sarah</span>
+</button>
+<!-- Friend 4 -->
+<button class="flex flex-col items-center gap-2 group shrink-0">
+<div class="relative w-14 h-14 rounded-full overflow-hidden transition-transform group-active:scale-90">
+<img alt="" class="w-full h-full object-cover" data-alt="Young professional man with short dark hair looking directly into the camera with a calm expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlWHh_KT-vxIzYpxzPgktJ1v41Qfci9y-MmQoiful_UU8coAPAzgtV6ib1XG7S5k2YxZTTS0RSm7k-elU-Gsxua6_0_Wf0ASGu4-M45k-3z59H0hrKXoE6fbQCS5BDsEZl0ZQFWOWugdbOu4jeyMwwRPYfytM4ZeEcRBZ-_BcK1YgGkA56kjUb1MOnw66vBWO-VkuLwughfjAY6U_WDRKwMbMtjK4CAH8u2bpItf9SQ33TWWFCupx236tm8veYaHpSkMnrTwTJBIc"/>
+</div>
+<span class="text-[11px] font-medium text-on-surface">David</span>
+</button>
+<!-- Friend 5 -->
+<button class="flex flex-col items-center gap-2 group shrink-0">
+<div class="relative w-14 h-14 rounded-full overflow-hidden transition-transform group-active:scale-90">
+<img alt="" class="w-full h-full object-cover" data-alt="Natural portrait of a woman with curly hair laughing softly, warm afternoon sun hitting her profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQWylzPPmXPcQ5811v7q6BntDVfg16SggvySEM8qPRj3RJmWdZrLAkEy4yfVxS80QfKgQu-WZaiRWBuxFN9kKmJo_WmXo3JxO4HvOfe5VicF8CdDfHabnJ1l0byAiQdAtSN8T4SNbFRbzRgDzJ_9uotDOXY0M8z-nZxsLS54_wnRXkqAvam9GeADnOzgHdvupz3hs-zv8xqsP6t023J-xni7wlc3cDxq9QbzYT6o5Hv2Q-5TRXu_0ySc4adcLFGLBs9NsVDzxsWuQ"/>
+</div>
+<span class="text-[11px] font-medium text-on-surface">Maya</span>
+</button>
+</div>
+</section>
+<!-- Input Section -->
+<section class="mb-8">
+<div class="relative flex items-center">
+<input class="w-full bg-surface-container-low border-none rounded-xl px-5 py-4 text-on-surface placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary-container outline-none font-body transition-all" placeholder="Enter name" type="text"/>
+<button class="absolute right-2 w-11 h-11 bg-primary text-white rounded-[14px] flex items-center justify-center hover:opacity-90 transition-opacity active:scale-95 duration-100">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 600;">add</span>
+</button>
+</div>
+</section>
+<!-- Added Participants List -->
+<section class="flex flex-col gap-3">
+<h2 class="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant mb-1 px-1">Added Participants</h2>
+<!-- Item: You -->
+<div class="bg-surface-container-lowest flex items-center justify-between p-4 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-sm">
+                        Y
+                    </div>
+<div>
+<p class="font-body font-semibold text-on-surface">You</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Organizer</p>
+</div>
+</div>
+</div>
+<!-- Item: Added 1 -->
+<div class="bg-surface-container-lowest flex items-center justify-between p-4 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full overflow-hidden">
+<img alt="" class="w-full h-full object-cover" data-alt="Young woman smiling in a casual setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFi_8rgyEfMLLQKoxwvycPswDmkHiuVigtD3zsLZ2ZKoTfM5U0RzKOSvJCLI_N_9BFJtTuWZlUnjSCamr56KDOcwiWouA6nGE405DbfKQTNNogLeFsi_7Sam75eygv77S-SJBrk_0tjhFA2l7aV3bneIo8Qoah0JAGFyUpxYO8GkEDq_AUhC2-uDTmfVvHbUSJxmq0-WbrPfdkUd4NMLrly8AbIfnS7Q0I9I0jox6ri2JmTWk2ggsbLdUPbdDM5F4xyTC2voMwt3g"/>
+</div>
+<p class="font-body font-medium text-on-surface">Elena</p>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-xl">close</span>
+</button>
+</div>
+<!-- Item: Added 2 -->
+<div class="bg-surface-container-lowest flex items-center justify-between p-4 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-bold text-sm">
+                        JC
+                    </div>
+<p class="font-body font-medium text-on-surface">Jasper Chen</p>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-xl">close</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Fixed Bottom Action -->
+<div class="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-surface via-surface to-transparent pt-12 z-40 max-w-md mx-auto">
+<button class="w-full bg-primary-container text-on-primary-container font-headline font-black text-lg py-5 rounded-xl shadow-[0_12px_32px_rgba(157,68,1,0.15)] flex items-center justify-center gap-2 hover:opacity-95 active:scale-[0.98] transition-all">
+            Continue
+            <span class="material-symbols-outlined" style="font-variation-settings: 'wght' 700;">arrow_forward</span>
+</button>
+</div>
+</body></html>

@@ -1,0 +1,152 @@
+{
+  "id": "split-aggregate-rounding",
+  "kind": "settlement",
+  "input": {
+    "currency": "EUR",
+    "participants": [
+      { "id": "ana", "name": "Ana" },
+      { "id": "tiago", "name": "Tiago" },
+      { "id": "rodrigo", "name": "Rodrigo" }
+    ],
+    "payerParticipantId": "ana",
+    "items": [
+      {
+        "id": "item-1",
+        "name": "Item 1",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-2",
+        "name": "Item 2",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-3",
+        "name": "Item 3",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-4",
+        "name": "Item 4",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-5",
+        "name": "Item 5",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-6",
+        "name": "Item 6",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-7",
+        "name": "Item 7",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      },
+      {
+        "id": "item-8",
+        "name": "Item 8",
+        "price": "1.00",
+        "splitMode": "even",
+        "allocations": [
+          { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "33.34", "percentLocked": false },
+          { "participantId": "tiago", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false },
+          { "participantId": "rodrigo", "evenIncluded": true, "shares": "1", "percent": "33.33", "percentLocked": false }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "perItemShares": [
+      { "participantId": "ana", "amountCents": 33 },
+      { "participantId": "tiago", "amountCents": 34 },
+      { "participantId": "rodrigo", "amountCents": 33 }
+    ],
+    "authoritativePeople": [
+      {
+        "participantId": "ana",
+        "name": "Ana",
+        "consumedCents": 266,
+        "paidCents": 800,
+        "netCents": 534,
+        "isPayer": true
+      },
+      {
+        "participantId": "tiago",
+        "name": "Tiago",
+        "consumedCents": 267,
+        "paidCents": 0,
+        "netCents": -267,
+        "isPayer": false
+      },
+      {
+        "participantId": "rodrigo",
+        "name": "Rodrigo",
+        "consumedCents": 267,
+        "paidCents": 0,
+        "netCents": -267,
+        "isPayer": false
+      }
+    ],
+    "transfers": [
+      {
+        "fromParticipantId": "tiago",
+        "fromName": "Tiago",
+        "toParticipantId": "ana",
+        "toName": "Ana",
+        "amountCents": 267
+      },
+      {
+        "fromParticipantId": "rodrigo",
+        "fromName": "Rodrigo",
+        "toParticipantId": "ana",
+        "toName": "Ana",
+        "amountCents": 267
+      }
+    ]
+  }
+}

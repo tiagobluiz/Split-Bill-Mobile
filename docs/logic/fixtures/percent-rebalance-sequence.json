@@ -1,0 +1,32 @@
+{
+  "id": "percent-rebalance-sequence",
+  "kind": "editing-helper",
+  "initialAllocations": [
+    { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "25", "percentLocked": false },
+    { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "25", "percentLocked": false },
+    { "participantId": "carla", "evenIncluded": true, "shares": "1", "percent": "25", "percentLocked": false },
+    { "participantId": "dina", "evenIncluded": true, "shares": "1", "percent": "25", "percentLocked": false }
+  ],
+  "operations": [
+    {
+      "changedParticipantId": "carla",
+      "nextPercentValue": "50",
+      "expectedAllocations": [
+        { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "16.67", "percentLocked": false },
+        { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "16.67", "percentLocked": false },
+        { "participantId": "carla", "evenIncluded": true, "shares": "1", "percent": "50", "percentLocked": true },
+        { "participantId": "dina", "evenIncluded": true, "shares": "1", "percent": "16.66", "percentLocked": false }
+      ]
+    },
+    {
+      "changedParticipantId": "ana",
+      "nextPercentValue": "20",
+      "expectedAllocations": [
+        { "participantId": "ana", "evenIncluded": true, "shares": "1", "percent": "20", "percentLocked": true },
+        { "participantId": "bruno", "evenIncluded": true, "shares": "1", "percent": "15", "percentLocked": false },
+        { "participantId": "carla", "evenIncluded": true, "shares": "1", "percent": "50", "percentLocked": true },
+        { "participantId": "dina", "evenIncluded": true, "shares": "1", "percent": "15", "percentLocked": false }
+      ]
+    }
+  ]
+}

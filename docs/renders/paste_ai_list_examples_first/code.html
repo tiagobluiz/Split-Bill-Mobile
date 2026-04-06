@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Social Ledger - Paste AI List</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@700;800;900&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#eeeeee",
+                    "tertiary-fixed": "#ffdcc6",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#85522c",
+                    "on-error": "#ffffff",
+                    "on-background": "#1a1c1c",
+                    "error": "#ba1a1a",
+                    "tertiary-container": "#d8996d",
+                    "tertiary-fixed-dim": "#fcb889",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary-container": "#672a00",
+                    "on-primary-fixed": "#341100",
+                    "surface-bright": "#f9f9f9",
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface-dim": "#dadada",
+                    "surface-container-low": "#f3f3f3",
+                    "secondary": "#006a60",
+                    "outline-variant": "#dcc1b4",
+                    "surface-tint": "#9d4401",
+                    "on-tertiary-container": "#5d310d",
+                    "on-primary-fixed-variant": "#783200",
+                    "on-primary": "#ffffff",
+                    "primary-fixed": "#ffdbca",
+                    "outline": "#897267",
+                    "background": "#f9f9f9",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-container": "#9ff2e4",
+                    "on-tertiary-fixed": "#301400",
+                    "on-secondary-container": "#107166",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#2f3131",
+                    "secondary-fixed-dim": "#83d5c8",
+                    "primary-container": "#f98948",
+                    "on-secondary-fixed-variant": "#005048",
+                    "inverse-primary": "#ffb690",
+                    "on-surface": "#1a1c1c",
+                    "on-secondary-fixed": "#00201c",
+                    "surface-variant": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#693b17",
+                    "secondary-fixed": "#9ff2e4",
+                    "error-container": "#ffdad6",
+                    "primary": "#9d4401",
+                    "on-surface-variant": "#564339",
+                    "primary-fixed-dim": "#ffb690",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f9f9f9",
+                    "surface-container-high": "#e8e8e8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+        }
+        h1, h2, h3 {
+            font-family: 'Public Sans', sans-serif;
+        }
+    </style>
+<style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-surface selection:bg-primary-container selection:text-white pb-32">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-6 py-4 w-full z-50 bg-[#f9f9f9] dark:bg-zinc-950 sticky top-0">
+<div class="flex items-center gap-3">
+<button class="mr-1 text-[#9d4401] dark:text-[#f98948] hover:opacity-80 transition-opacity scale-95 duration-100">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline font-black text-2xl tracking-tight text-[#9d4401] dark:text-[#f98948]">Split the Moment.</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-transform duration-200 ease-out scale-95">
+<span class="material-symbols-outlined text-[#9d4401] dark:text-[#f98948]">euro</span>
+</button>
+</header>
+<main class="max-w-xl mx-auto px-6 pt-4 space-y-8">
+<!-- Editorial Subheader -->
+<section class="ml-10">
+<p class="text-on-surface-variant text-sm max-w-sm leading-relaxed">
+                Paste your receipt details below. Our AI treats every financial interaction as a story.
+            </p>
+</section>
+<!-- Bento Examples Grid (Moved Above) -->
+<section class="grid grid-cols-2 gap-4">
+<div class="p-6 bg-surface-container-low rounded-lg space-y-2 border border-outline-variant/10">
+<span class="text-xs font-bold text-primary uppercase tracking-widest">Example 1</span>
+<p class="text-on-surface font-medium">Pasta Carbonara €14.50</p>
+<p class="text-on-surface font-medium">Gelato Scoop €4.00</p>
+</div>
+<div class="p-6 bg-surface-container-low rounded-lg space-y-2 border border-outline-variant/10">
+<span class="text-xs font-bold text-secondary uppercase tracking-widest">Example 2</span>
+<p class="text-on-surface font-medium">Entrance Fee €25.00</p>
+<p class="text-on-surface font-medium">Taxi to Hotel €12.00</p>
+</div>
+</section>
+<!-- Paste Area Section -->
+<section class="relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-primary to-secondary opacity-5 blur-2xl rounded-lg group-focus-within:opacity-10 transition-opacity"></div>
+<div class="relative bg-surface-container-lowest rounded-lg overflow-hidden transition-all duration-300 border border-outline-variant/10">
+<label class="sr-only" for="receipt-paste">Paste receipt text here</label>
+<textarea class="w-full min-h-[280px] p-8 bg-transparent border-none focus:ring-0 text-xl font-medium font-body placeholder:text-surface-dim resize-none" id="receipt-paste" placeholder="Paste items here...
+Pizza Margherita €12.50
+House Red Wine €18.00"></textarea>
+<!-- Format Helper -->
+<div class="px-8 py-4 bg-surface-container-low flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">info</span>
+<span class="text-xs font-semibold uppercase tracking-widest text-on-surface-variant font-label">Accepted Format: Item - € Price</span>
+</div>
+</div>
+</section>
+<!-- CTA Action -->
+<section class="pt-4">
+<button class="w-full py-6 bg-primary text-on-primary rounded-xl font-bold text-xl shadow-[0_12px_32px_rgba(157,68,1,0.15)] flex items-center justify-center gap-3 transition-transform active:scale-95">
+                Import List
+                <span class="material-symbols-outlined" data-weight="fill">receipt_long</span>
+</button>
+<p class="text-center mt-6 text-on-surface-variant text-sm font-medium">
+                AI will automatically group items by category.
+            </p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-4 left-0 right-0 mx-auto w-[90%] max-w-md z-50 flex justify-around items-center p-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-full shadow-[0_12px_32px_rgba(157,68,1,0.08)]">
+<!-- Activity -->
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400 px-5 py-2 hover:text-[#9d4401] dark:hover:text-[#f98948] transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">history</span>
+<span class="text-[11px] font-semibold Inter uppercase tracking-wider mt-1">Activity</span>
+</a>
+<!-- Split (Active) -->
+<a class="flex flex-col items-center justify-center bg-[#f98948] text-white rounded-full px-5 py-2 scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="text-[11px] font-semibold Inter uppercase tracking-wider mt-1">Split</span>
+</a>
+<!-- Groups -->
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400 px-5 py-2 hover:text-[#9d4401] dark:hover:text-[#f98948] transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">group</span>
+<span class="text-[11px] font-semibold Inter uppercase tracking-wider mt-1">Groups</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400 px-5 py-2 hover:text-[#9d4401] dark:hover:text-[#f98948] transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<span class="text-[11px] font-semibold Inter uppercase tracking-wider mt-1">Settings</span>
+</a>
+</nav>
+<!-- Subtle Background Texture -->
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-5 bg-gradient-to-br from-primary to-secondary"></div>
+</body></html>

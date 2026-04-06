@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mellow Split - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f9f9f9",
+                        "primary-fixed": "#ffdbca",
+                        "inverse-surface": "#2f3131",
+                        "on-tertiary-fixed": "#301400",
+                        "tertiary-container": "#d8996d",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9f9",
+                        "surface-dim": "#dadada",
+                        "outline-variant": "#dcc1b4",
+                        "on-secondary-container": "#107166",
+                        "on-surface-variant": "#564339",
+                        "surface-container": "#eeeeee",
+                        "primary": "#9d4401",
+                        "on-secondary-fixed-variant": "#005048",
+                        "on-tertiary-container": "#5d310d",
+                        "on-primary-fixed-variant": "#783200",
+                        "secondary": "#006a60",
+                        "outline": "#897267",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-fixed": "#9ff2e4",
+                        "tertiary": "#85522c",
+                        "on-surface": "#1a1c1c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-fixed": "#00201c",
+                        "on-primary-fixed": "#341100",
+                        "on-background": "#1a1c1c",
+                        "primary-container": "#f98948",
+                        "inverse-primary": "#ffb690",
+                        "inverse-on-surface": "#f1f1f1",
+                        "tertiary-fixed-dim": "#fcb889",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#9d4401",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-primary-container": "#672a00",
+                        "surface-container-high": "#e8e8e8",
+                        "primary-fixed-dim": "#ffb690",
+                        "tertiary-fixed": "#ffdcc6",
+                        "on-tertiary-fixed-variant": "#693b17",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#83d5c8",
+                        "secondary-container": "#9ff2e4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; }
+        h1, h2, .font-headline { font-family: 'Public Sans', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col pb-32">
+<!-- TopAppBar -->
+<header class="bg-[#f9f9f9] dark:bg-stone-950 flex justify-between items-center px-6 py-4 w-full sticky top-0 z-40">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 overflow-hidden">
+<img alt="User portrait" class="w-full h-full object-cover" data-alt="Close-up portrait of a stylish young adult with warm lighting and a soft focus background, editorial photography style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLB1dQcdtYU9H1h-dBhkizfQiwJhZb_TBx-UPrX0ix5uP6Ma233I4MBamJQ-S_TGIVWTrzgGYrHx7jxLKX71Kd_EAbuS8g3lJQt77uiVjgVHrHuXOvaAGivTMu-oUyvuZQcteiESi9oSkYUa_Ghw-sZnoX3ZFitH2PtkYWGTgZINL7YpLmfjDcdZ2Nh7PBNz1cOWJQqtvzSArsxhK6QWh1MXQ0gyu13uJ_FXJ6mC5cmWpcEjpIQG29SryTXpMaMLoNhbgLAaaOd2Q"/>
+</div>
+<h1 class="font-headline font-black tracking-tighter text-xl text-orange-900 dark:text-orange-500 uppercase italic">Mellow Split</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-stone-500 dark:text-stone-400 hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<main class="flex-1 px-6 pt-2 space-y-8">
+<!-- Hero CTA: Start New Split -->
+<section class="relative group">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary to-secondary opacity-10 rounded-lg -rotate-1 scale-105"></div>
+<button class="relative w-full aspect-[16/8] bg-primary text-on-primary rounded-lg shadow-[0_12px_32px_rgba(157,68,1,0.15)] flex flex-col items-center justify-center gap-2 overflow-hidden active:scale-95 transition-transform group">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe.png')] opacity-20"></div>
+<span class="material-symbols-outlined text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+<span class="font-headline font-black text-2xl tracking-tight">Start New Split</span>
+<span class="text-xs uppercase tracking-[0.2em] opacity-80 font-medium">Create Shared Memory</span>
+</button>
+</section>
+<!-- Balance Card -->
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between h-32">
+<span class="text-[10px] font-bold uppercase tracking-widest text-secondary font-label">You are owed</span>
+<p class="text-2xl font-headline font-black text-on-surface tracking-tighter leading-none">$240.00</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between h-32">
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary font-label">You owe</span>
+<p class="text-2xl font-headline font-black text-on-surface tracking-tighter leading-none">$45.50</p>
+</div>
+</section>
+<!-- Recent Activity Section -->
+<section class="space-y-6">
+<div class="flex justify-between items-end">
+<h2 class="font-headline font-black text-3xl text-on-surface-variant tracking-tighter">Recent</h2>
+<button class="text-primary text-sm font-bold tracking-tight">View All</button>
+</div>
+<div class="space-y-4">
+<!-- Activity Item 1 -->
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest">
+<img alt="Balthazar Dinner" class="w-full h-full object-cover" data-alt="A blurry interior of a classic French bistro with amber lighting and white tablecloths, sophisticated atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9g0ueEl0pdd4v7lOYIaIMZjyRdUKKNCC0Zq2ELvtvBZJc2GdXhwYaBnLyju5D15tMfRKUMK9Enn3DoxKMLGQwlxIt3OKeNNDOnO3qTZhMShkFCo_DtEe4pxX-ndRRPNct1x41D36XaLtGXMPXgflIL8_SFfzPVU7hn8Cx9fK3y59g87aFR3ml6ml5iiF2lYfDmKQUCNY5c8rje7hXe8to7bK270RQcUgHX2JbUNm2N7ptjmSyj84AT_2I9I0UxQiCwcEVqPJ8FO8"/>
+</div>
+<div>
+<p class="font-headline font-bold text-lg text-on-surface leading-none">Balthazar Dinner</p>
+<span class="text-xs font-semibold uppercase tracking-widest text-secondary mt-1 block">Settled</span>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-black text-lg text-on-surface">+$84.00</p>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest">
+<img alt="Whole Foods" class="w-full h-full object-cover" data-alt="Vibrant fresh organic produce arranged artistically on a wooden grocery shelf, bright natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBM_X6dRse17M3wv0bZe5l1045BuWB47en_dkNw8g5L_Rr5gh89tZS1Lo8N92E7bLMBI7-BuAKcW32rGpR25xC32Z4sF4kznacJA0CyGd5aXVMP9nFy73RLnWVodD4a4ItiHDeHvohAhUqe63MVd0mNIAbS3inQQvwx57MdSEIPUiEbWs-1Z7HYZlVv_Lo0RdvmJMF8XFBJ_TOGTJsi-KOL4EVESW-COzVL6zQF37TjmkUNoQokJYMFIsvarkrh7vD6tZbgYY9gBjI"/>
+</div>
+<div>
+<p class="font-headline font-bold text-lg text-on-surface leading-none">Whole Foods</p>
+<span class="text-xs font-semibold uppercase tracking-widest text-primary mt-1 block">Pending</span>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-black text-lg text-on-surface">-$12.40</p>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest">
+<img alt="Movie Night" class="w-full h-full object-cover" data-alt="Soft glow from a cinema screen lighting up popcorn and cinema seats in the dark, moody blue and purple tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcQZTOLnd5ZicRZ2m0L1XvJ23xE1k8VX02hHBhtCVeoGwdbW_KqikzlNoG1AEwFHXIUHBl7YDPLE86CJwsK996v1kQY1r4kN-egSmVodcAVx-haWnyXZcFMMQE16BCI2r0N5iF_-fB0zKq9Ta9nzGhhQ9I9KXl-Z81Uz1ezRcdLAA0ZKv7PuQpidpJHTAmRWodylk0HJEd_U5SN5l3MPodZvMqAdCSCLv14fQZaDqfqwmLgzQNoL8i-T0LQqMspb3SpaoBjnMJMDg"/>
+</div>
+<div>
+<p class="font-headline font-bold text-lg text-on-surface leading-none">Movie Night</p>
+<span class="text-xs font-semibold uppercase tracking-widest text-outline mt-1 block">2 friends unpaid</span>
+</div>
+</div>
+<div class="text-right">
+<div class="flex -space-x-2 justify-end mb-1">
+<div class="w-6 h-6 rounded-full border-2 border-surface bg-slate-200"></div>
+<div class="w-6 h-6 rounded-full border-2 border-surface bg-stone-200"></div>
+</div>
+<p class="font-headline font-black text-lg text-on-surface">+$32.00</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-8 pb-10 bg-white/80 dark:bg-stone-900/80 backdrop-blur-lg">
+<!-- Home Tab (Active) -->
+<a class="flex flex-col items-center justify-center bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full px-4 py-2 Active: scale-90 duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-['Inter'] text-[10px] font-semibold uppercase tracking-widest mt-1">Home</span>
+</a>
+<!-- Activity Tab -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-4 py-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-['Inter'] text-[10px] font-semibold uppercase tracking-widest mt-1">Activity</span>
+</a>
+<!-- Groups Tab -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-4 py-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-['Inter'] text-[10px] font-semibold uppercase tracking-widest mt-1">Groups</span>
+</a>
+<!-- Settings Tab -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-4 py-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-['Inter'] text-[10px] font-semibold uppercase tracking-widest mt-1">Settings</span>
+</a>
+<!-- Glassmorphism Shell Anchor -->
+<div class="absolute bottom-6 inset-x-6 rounded-full border border-orange-100/20 shadow-[0_12px_32px_rgba(157,68,1,0.08)] pointer-events-none -z-10 h-16"></div>
+</nav>
+</body></html>
