@@ -18,6 +18,7 @@ import {
   ClipboardCopy,
   Equal,
   FileJson,
+  Filter,
   Hash,
   Home,
   Minus,
@@ -91,7 +92,9 @@ const STEP_LABELS = {
 } as const;
 const MAX_SPLIT_NAME_LENGTH = 20;
 const MAX_OWNER_NAME_LENGTH = 12;
+const MAX_ITEM_NAME_LENGTH = 25;
 const ITEM_CATEGORY_OPTIONS = [
+  "General",
   "Produce",
   "Bakery",
   "Dairy",
@@ -178,8 +181,9 @@ function getAssignedParticipantCount(item: DraftRecord["values"]["items"][number
   return item.allocations.filter((allocation) => (parseFloat(allocation.percent) || 0) > 0).length;
 }
 
-function getFirstPendingSplitItem(record: DraftRecord) {
-  return record.values.items.find((item) => isVisibleItem(item) && !isItemAssigned(item)) ?? null;
+function getLatestPendingSplitItem(record: DraftRecord) {
+  const pendingItems = record.values.items.filter((item) => isVisibleItem(item) && !isItemAssigned(item));
+  return pendingItems[pendingItems.length - 1] ?? null;
 }
 
 function getNextVisibleItemId(record: DraftRecord, currentItemId: string) {
@@ -322,7 +326,7 @@ function useRecord(draftId: string) {
   const record = records.find((item) => item.id === draftId) ?? null;
 
   useEffect(() => {
-    if (!draftId || record || activeRecordId === draftId || requestedDraftIdsRef.current.includes(draftId)) {
+    if (!draftId || activeRecordId === draftId || requestedDraftIdsRef.current.includes(draftId)) {
       return;
     }
 
@@ -364,6 +368,36 @@ function getAvatarTone(name: string) {
   }
 
   return FREQUENT_FRIEND_COLORS[hash % FREQUENT_FRIEND_COLORS.length]!;
+}
+
+function ParticipantAvatar({
+  name,
+  ownerName,
+  ownerProfileImageUri,
+  style,
+  label,
+  textSize = 15,
+}: {
+  name: string;
+  ownerName: string;
+  ownerProfileImageUri?: string;
+  style: any;
+  label: string;
+  textSize?: number;
+}) {
+  const imageUri = ownerProfileImageUri?.trim();
+  if (isOwnerReference(name, ownerName) && imageUri) {
+    return <Image accessibilityLabel={label} source={{ uri: imageUri }} style={[style, screenStyles.avatarImage]} />;
+  }
+
+  const tone = getAvatarTone(name);
+  return (
+    <View accessibilityLabel={label} style={[style, { backgroundColor: tone.background }]}>
+      <Text fontFamily={FONTS.bodyBold} fontSize={textSize} color={tone.foreground}>
+        {getInitials(name)}
+      </Text>
+    </View>
+  );
 }
 
 function getCurrencyOptions(
@@ -689,31 +723,26 @@ function getFrequentFriends(records: DraftRecord[], activeDraftId: string, owner
 function ParticipantRow({
   participant,
   ownerName,
+  ownerProfileImageUri,
   onRemove,
 }: {
   participant: ParticipantFormValue;
   ownerName: string;
+  ownerProfileImageUri?: string;
   onRemove: () => void;
 }) {
-  const initials = getInitials(participant.name);
-  const tone = getAvatarTone(participant.name);
   const displayName = getParticipantDisplayName(participant.name, ownerName);
 
   return (
     <XStack alignItems="center" justifyContent="space-between" gap="$4" style={screenStyles.participantPill}>
       <XStack alignItems="center" gap="$3.5" flex={1}>
-        <View
-          accessibilityLabel={`Participant avatar ${participant.name.trim() || "unknown"}`}
-          style={[screenStyles.participantAvatar, { backgroundColor: tone.background }]}
-        >
-          <Text
-            fontFamily={FONTS.bodyBold}
-            fontSize={15}
-            color={tone.foreground}
-          >
-            {initials}
-          </Text>
-        </View>
+        <ParticipantAvatar
+          name={participant.name}
+          ownerName={ownerName}
+          ownerProfileImageUri={ownerProfileImageUri}
+          style={screenStyles.participantAvatar}
+          label={`Participant avatar ${participant.name.trim() || "unknown"}`}
+        />
         <YStack flex={1}>
           <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface}>
             {displayName}
@@ -859,19 +888,15 @@ function ConfirmChoiceModal({
   body,
   confirmLabel,
   discardLabel,
-  cancelLabel,
   onConfirm,
   onDiscard,
-  onCancel,
 }: {
   title: string;
   body: string;
   confirmLabel: string;
   discardLabel: string;
-  cancelLabel: string;
   onConfirm: () => void;
   onDiscard: () => void;
-  onCancel: () => void;
 }) {
   return (
     <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
@@ -895,11 +920,6 @@ function ConfirmChoiceModal({
                 {discardLabel}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} style={screenStyles.actionSheetButton} onPress={onCancel}>
-              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onSurfaceVariant}>
-                {cancelLabel}
-              </Text>
-            </Pressable>
           </YStack>
         </YStack>
       </View>
@@ -913,7 +933,6 @@ function RecordRow({
   ownerName,
   settings,
   onDelete,
-  wrapped = false,
 }: {
   record: DraftRecord;
   index: number;
@@ -922,7 +941,6 @@ function RecordRow({
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   };
   onDelete: (recordId: string, title: string) => void;
-  wrapped?: boolean;
 }) {
   const meta = getRecentRowMeta(record, ownerName, settings);
   const title = getRecordTitle(record);
@@ -944,33 +962,34 @@ function RecordRow({
         </Pressable>
       )}
     >
-      <Pressable onPress={() => router.push(buildRecordRoute(record))} style={[screenStyles.recentRow, wrapped ? screenStyles.itemsListCard : null]}>
-        <XStack alignItems="center" justifyContent="space-between" gap="$3">
-          <XStack alignItems="center" gap="$4" flex={1}>
-            <AvatarBadge label={getInitials(title)} accent={index % 2 === 0} />
-            <YStack flex={1} gap="$1">
-              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                {title}
-              </Text>
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={12}
-                color={meta.statusColor}
-                textTransform="uppercase"
-                letterSpacing={1.8}
-              >
-                {meta.statusLabel}
+      <View style={screenStyles.recentShadowWrap}>
+        <Pressable onPress={() => router.push(buildRecordRoute(record))} style={[screenStyles.recentRow, screenStyles.itemsListCard]}>
+          <XStack alignItems="center" justifyContent="space-between" gap="$3">
+            <XStack alignItems="center" gap="$4" flex={1}>
+              <AvatarBadge label={getInitials(title)} accent={index % 2 === 0} />
+              <YStack flex={1} gap="$1">
+                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                  {title}
+                </Text>
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={12}
+                  color={meta.statusColor}
+                  textTransform="uppercase"
+                  letterSpacing={1.8}
+                >
+                  {meta.statusLabel}
+                </Text>
+              </YStack>
+            </XStack>
+            <YStack alignItems="flex-end" justifyContent="center">
+              <Text fontFamily={FONTS.headlineBlack} fontSize={18} color={PALETTE.onSurface}>
+                {meta.amount}
               </Text>
             </YStack>
           </XStack>
-          <YStack alignItems="flex-end" gap="$1.5">
-            <View style={screenStyles.unpaidDotSpacer} />
-            <Text fontFamily={FONTS.headlineBlack} fontSize={18} color={PALETTE.onSurface}>
-              {meta.amount}
-            </Text>
-          </YStack>
-        </XStack>
-      </Pressable>
+        </Pressable>
+      </View>
     </Swipeable>
   );
 }
@@ -1220,141 +1239,158 @@ export function HomeScreen() {
   const renderHomeContent = () => (
     <ScrollView
       style={screenStyles.flex}
+      stickyHeaderIndices={[0]}
       contentContainerStyle={[
-        screenStyles.homeScrollContent,
+        screenStyles.mainTabScrollContent,
         {
-          paddingTop: Math.max(insets.top + 8, 18),
-          paddingBottom: 148 + Math.max(insets.bottom, 12),
+          paddingBottom: 196 + Math.max(insets.bottom, 12),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={screenStyles.homeHeader}>
-        <Text
-          fontFamily={FONTS.headlineBlack}
-          fontSize={28}
-          color={PALETTE.primary}
-          textTransform="uppercase"
-          fontStyle="italic"
-          letterSpacing={-1.2}
-        >
-          Split Bill
-        </Text>
-      </View>
-
-      <View style={screenStyles.ctaHalo}>
-        <Pressable
-          style={screenStyles.homeCta}
-          onPress={async () => {
-            const draft = await createDraft();
-            router.push(`/split/${draft.id}/setup`);
-          }}
-        >
-          <View style={screenStyles.homeCtaIconWrap}>
-            <Plus color={PALETTE.primary} size={20} />
-          </View>
-          <Text fontFamily={FONTS.headlineBlack} fontSize={26} color={PALETTE.onPrimary} letterSpacing={-1}>
-            Start New Split
-          </Text>
+      <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+        <View style={screenStyles.homeHeader}>
           <Text
-            fontFamily={FONTS.bodyMedium}
-            fontSize={12}
-            color="rgba(255,255,255,0.82)"
+            fontFamily={FONTS.headlineBlack}
+            fontSize={28}
+            color={PALETTE.primary}
             textTransform="uppercase"
-            letterSpacing={3}
+            fontStyle="italic"
+            letterSpacing={-1.2}
           >
-            Create Shared Memory
+            Split Bill
           </Text>
-        </Pressable>
+        </View>
       </View>
-
-      {settings.balanceFeatureEnabled ? (
-        <XStack gap="$4" alignItems="stretch">
-          <View style={screenStyles.homeBalanceCardWrap}>
-            <SectionCard>
-              <View style={screenStyles.homeBalanceCardContent}>
-                <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.secondary} textTransform="uppercase" letterSpacing={2}>
-                  You are owed
-                </Text>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurface} letterSpacing={-1.5}>
-                  {formatAppMoney(balances.owedCents, balances.currency, locale, settings)}
-                </Text>
-              </View>
-            </SectionCard>
-          </View>
-          <View style={screenStyles.homeBalanceCardWrap}>
-            <SectionCard>
-              <View style={screenStyles.homeBalanceCardContent}>
-                <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.primary} textTransform="uppercase" letterSpacing={2}>
-                  You owe
-                </Text>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurface} letterSpacing={-1.5}>
-                  {formatAppMoney(balances.oweCents, balances.currency, locale, settings)}
-                </Text>
-              </View>
-            </SectionCard>
-          </View>
-        </XStack>
-      ) : null}
 
       <YStack gap="$5">
-        <XStack justifyContent="space-between" alignItems="flex-end">
-          <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurfaceVariant} letterSpacing={-1.2}>
-            Recent
-          </Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="View all splits" onPress={() => setActiveTab("splits")}>
-            <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.primary}>
-              View All
+        <View style={screenStyles.ctaHalo}>
+          <Pressable
+            style={screenStyles.homeCta}
+            onPress={async () => {
+              const draft = await createDraft();
+              router.push(`/split/${draft.id}/setup`);
+            }}
+          >
+            <View style={screenStyles.homeCtaIconWrap}>
+              <Plus color={PALETTE.primary} size={20} />
+            </View>
+            <Text fontFamily={FONTS.headlineBlack} fontSize={26} color={PALETTE.onPrimary} letterSpacing={-1}>
+              Start New Split
+            </Text>
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={12}
+              color="rgba(255,255,255,0.82)"
+              textTransform="uppercase"
+              letterSpacing={3}
+            >
+              Create Shared Memory
             </Text>
           </Pressable>
-        </XStack>
+        </View>
 
-        {recentRecords.length === 0 ? (
-          <EmptyState title="No splits yet" description="Start a new split to create your first shared memory." />
-        ) : (
-          <YStack gap="$4">
-            {recentRecords.map((record, index) => (
-              <RecordRow
-                key={record.id}
-                record={record}
-                index={index}
-                ownerName={settings.ownerName}
-                settings={settings}
-                onDelete={queueDelete}
-              />
-            ))}
-          </YStack>
-        )}
+        {settings.balanceFeatureEnabled ? (
+          <XStack gap="$4" alignItems="stretch">
+            <View style={screenStyles.homeBalanceCardWrap}>
+              <SectionCard>
+                <View style={screenStyles.homeBalanceCardContent}>
+                  <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.secondary} textTransform="uppercase" letterSpacing={2}>
+                    You are owed
+                  </Text>
+                  <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurface} letterSpacing={-1.5}>
+                    {formatAppMoney(balances.owedCents, balances.currency, locale, settings)}
+                  </Text>
+                </View>
+              </SectionCard>
+            </View>
+            <View style={screenStyles.homeBalanceCardWrap}>
+              <SectionCard>
+                <View style={screenStyles.homeBalanceCardContent}>
+                  <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.primary} textTransform="uppercase" letterSpacing={2}>
+                    You owe
+                  </Text>
+                  <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurface} letterSpacing={-1.5}>
+                    {formatAppMoney(balances.oweCents, balances.currency, locale, settings)}
+                  </Text>
+                </View>
+              </SectionCard>
+            </View>
+          </XStack>
+        ) : null}
+
+        <YStack gap="$5">
+          <XStack justifyContent="space-between" alignItems="flex-end">
+            <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurfaceVariant} letterSpacing={-1.2}>
+              Recent
+            </Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="View all splits" onPress={() => setActiveTab("splits")}>
+              <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.primary}>
+                View All
+              </Text>
+            </Pressable>
+          </XStack>
+
+          {recentRecords.length === 0 ? (
+            <EmptyState title="No splits yet" description="Start a new split to create your first shared memory." />
+          ) : (
+            <YStack gap="$3">
+              {recentRecords.map((record, index) => (
+                <RecordRow
+                  key={record.id}
+                  record={record}
+                  index={index}
+                  ownerName={settings.ownerName}
+                  settings={settings}
+                  onDelete={queueDelete}
+                />
+              ))}
+            </YStack>
+          )}
+        </YStack>
       </YStack>
     </ScrollView>
   );
 
   const renderSplitsContent = () => (
-    <FlatList
-      data={pagedSplitRecords}
-      keyExtractor={(item) => item.id}
-      onEndReached={() => {
-        if (visibleSplitCount < filteredSplitRecords.length) {
-          setVisibleSplitCount((current) => current + 20);
-        }
-      }}
-      onEndReachedThreshold={0.35}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={[
-        screenStyles.homeScrollContent,
-        {
-          paddingTop: Math.max(insets.top + 8, 18),
-          paddingBottom: 148 + Math.max(insets.bottom, 12),
-          gap: 22,
-        },
-      ]}
-      ListHeaderComponent={
-        <YStack gap="$5">
-          <View style={screenStyles.homeHeader}>
-            <Text fontFamily={FONTS.headlineBlack} fontSize={28} color={PALETTE.primary} letterSpacing={-1.2}>
-              Splits
-            </Text>
+    <YStack flex={1}>
+      <ScrollView
+        style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={({ nativeEvent }) => {
+          const distanceFromBottom =
+            nativeEvent.contentSize.height - (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
+          if (distanceFromBottom < 240 && visibleSplitCount < filteredSplitRecords.length) {
+            setVisibleSplitCount((current) => current + 20);
+          }
+        }}
+        contentContainerStyle={[
+          screenStyles.homeScrollContent,
+          {
+            paddingBottom: 148 + Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        <View style={screenStyles.mainTabHeaderWrap}>
+          <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+            <View style={screenStyles.homeHeader}>
+              <Text
+                fontFamily={FONTS.headlineBlack}
+                fontSize={28}
+                color={PALETTE.primary}
+                textTransform="uppercase"
+                fontStyle="italic"
+                letterSpacing={-1.2}
+              >
+                Split Bill
+              </Text>
+            </View>
           </View>
+        </View>
+
+        <YStack gap="$5">
           {settings.balanceFeatureEnabled ? (
             <>
               <XStack gap="$4" alignItems="stretch">
@@ -1396,7 +1432,7 @@ export function HomeScreen() {
               ]}
               onPress={() => setFiltersExpanded((value) => !value)}
             >
-              <Settings color={PALETTE.primary} size={18} />
+              <Filter color={PALETTE.primary} size={18} />
             </Pressable>
           </XStack>
           {filtersExpanded ? (
@@ -1429,42 +1465,54 @@ export function HomeScreen() {
               </YStack>
             </SectionCard>
           ) : null}
+
+          {pagedSplitRecords.length === 0 ? (
+            <EmptyState title="No splits here" description="Try a different filter or start a new split." />
+          ) : (
+            <YStack gap="$3">
+              {pagedSplitRecords.map((item, index) => (
+                <RecordRow
+                  key={item.id}
+                  record={item}
+                  index={index}
+                  ownerName={settings.ownerName}
+                  settings={settings}
+                  onDelete={queueDelete}
+                />
+              ))}
+            </YStack>
+          )}
         </YStack>
-      }
-      ListEmptyComponent={
-        <EmptyState title="No splits here" description="Try a different filter or start a new split." />
-      }
-      renderItem={({ item, index }) => (
-        <RecordRow
-          record={item}
-          index={index}
-          ownerName={settings.ownerName}
-          settings={settings}
-          onDelete={queueDelete}
-          wrapped
-        />
-      )}
-      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-    />
+      </ScrollView>
+    </YStack>
   );
 
   const renderSettingsContent = () => (
     <ScrollView
       style={screenStyles.flex}
+      stickyHeaderIndices={[0]}
       contentContainerStyle={[
-        screenStyles.homeScrollContent,
+        screenStyles.mainTabScrollContent,
         {
-          paddingTop: Math.max(insets.top + 8, 18),
-          paddingBottom: 148 + Math.max(insets.bottom, 12),
+          paddingBottom: 196 + Math.max(insets.bottom, 12),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <YStack gap="$5">
-        <View style={screenStyles.homeHeader}>
-          <Text fontFamily={FONTS.headlineBlack} fontSize={28} color={PALETTE.primary} letterSpacing={-1.2}>
-            Settings
-          </Text>
+      <YStack gap="$3.5">
+        <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+          <View style={screenStyles.homeHeader}>
+            <Text
+              fontFamily={FONTS.headlineBlack}
+              fontSize={28}
+              color={PALETTE.primary}
+              textTransform="uppercase"
+              fontStyle="italic"
+              letterSpacing={-1.2}
+            >
+              Split Bill
+            </Text>
+          </View>
         </View>
 
         <YStack gap="$5">
@@ -1737,7 +1785,6 @@ export function HomeScreen() {
           body="You changed your settings. Save them now or discard them before leaving this page."
           confirmLabel="Save changes"
           discardLabel="Discard changes"
-          cancelLabel="Stay here"
           onConfirm={() => {
             void saveSettings().then((saved) => {
               if (saved) {
@@ -1749,8 +1796,8 @@ export function HomeScreen() {
           onDiscard={() => {
             discardSettingsDraft();
             setActiveTab(pendingTabChange);
+            setPendingTabChange(null);
           }}
-          onCancel={() => setPendingTabChange(null)}
         />
       ) : null}
     </AppScreen>
@@ -1834,16 +1881,17 @@ export function SetupScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        keyboardShouldPersistTaps="always"
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 172 + Math.max(insets.bottom, 14),
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$2.5">
             <XStack alignItems="center" justifyContent="space-between">
               <XStack alignItems="center" gap="$3">
@@ -1862,7 +1910,9 @@ export function SetupScreen({ draftId }: { draftId: string }) {
               Give this split a name and choose the currency.
             </Text>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           <YStack gap="$4">
             <YStack gap="$2">
               <FieldLabel>Split name</FieldLabel>
@@ -1947,7 +1997,12 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
   const [name, setName] = useState("");
   const [participantsNoticeMessages, setParticipantsNoticeMessages] = useState<string[]>([]);
   const participantInputRef = useRef<TextInput>(null);
+  const participantNameRef = useRef(name);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    participantNameRef.current = name;
+  }, [name]);
 
   if (!record) {
     return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
@@ -1970,7 +2025,9 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
     setParticipantsNoticeMessages([]);
     setName("");
     if (options?.keepKeyboardOpen) {
-      participantInputRef.current?.focus();
+      requestAnimationFrame(() => {
+        participantInputRef.current?.focus();
+      });
     } else {
       Keyboard.dismiss();
     }
@@ -2015,16 +2072,17 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        keyboardShouldPersistTaps="always"
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 172 + Math.max(insets.bottom, 14),
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$2.5">
             <XStack alignItems="center" justifyContent="space-between">
               <XStack alignItems="center" gap="$3">
@@ -2059,7 +2117,9 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
               Select friends to share the bill with.
             </Text>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           {frequentFriends.length > 0 ? (
             <YStack gap="$4">
               <Text
@@ -2081,14 +2141,14 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
                     onPress={() => void addParticipant(friend.name, { keepKeyboardOpen: false })}
                   >
                     <View style={[screenStyles.frequentFriendFrame, friend.selected ? screenStyles.frequentFriendFrameSelected : null]}>
-                      <View
-                        accessibilityLabel={`Frequent friend avatar ${friend.name}`}
+                      <ParticipantAvatar
+                        name={friend.name}
+                        ownerName={settings.ownerName}
+                        ownerProfileImageUri={settings.ownerProfileImageUri}
                         style={[screenStyles.frequentFriendAvatar, { backgroundColor: friend.background }]}
-                      >
-                        <Text fontFamily={FONTS.bodyBold} fontSize={18} color={friend.foreground}>
-                          {getInitials(friend.name)}
-                        </Text>
-                      </View>
+                        label={`Frequent friend avatar ${friend.name}`}
+                        textSize={18}
+                      />
                     </View>
                     <Text fontFamily={FONTS.bodyMedium} fontSize={12} color={PALETTE.onSurface}>
                       {friend.name}
@@ -2103,8 +2163,11 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
             <TextInput
               ref={participantInputRef}
               value={name}
-              onChangeText={setName}
-              onSubmitEditing={() => void addParticipant(name, { keepKeyboardOpen: true })}
+              onChangeText={(value) => {
+                participantNameRef.current = value;
+                setName(value);
+              }}
+              onSubmitEditing={() => void addParticipant(participantNameRef.current, { keepKeyboardOpen: true })}
               blurOnSubmit={false}
               returnKeyType="done"
               placeholder="Enter name"
@@ -2115,7 +2178,7 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
               accessibilityRole="button"
               accessibilityLabel="Add person"
               style={screenStyles.participantAddButton}
-              onPress={() => void addParticipant(name, { keepKeyboardOpen: true })}
+              onPress={() => void addParticipant(participantNameRef.current, { keepKeyboardOpen: true })}
             >
               <Plus color={PALETTE.onPrimary} size={20} />
             </Pressable>
@@ -2141,6 +2204,7 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
                       key={participant.id}
                       participant={participant}
                       ownerName={settings.ownerName}
+                      ownerProfileImageUri={settings.ownerProfileImageUri}
                       onRemove={() =>
                         void updateParticipants(record.values.participants.filter((entry) => entry.id !== participant.id))
                       }
@@ -2212,17 +2276,17 @@ export function PayerScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 172 + Math.max(insets.bottom, 14),
             gap: 26,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$4">
             <XStack alignItems="center" justifyContent="space-between">
               <XStack alignItems="center" gap="$3">
@@ -2256,11 +2320,12 @@ export function PayerScreen({ draftId }: { draftId: string }) {
               Select the person who payed the bill.
             </Text>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           <YStack gap="$3.5">
             {record.values.participants.map((participant) => {
               const selected = participant.id === record.values.payerParticipantId;
-              const tone = getAvatarTone(participant.name);
 
               return (
                 <Pressable
@@ -2271,14 +2336,14 @@ export function PayerScreen({ draftId }: { draftId: string }) {
                   onPress={() => void setPayer(participant.id)}
                 >
                   <XStack alignItems="center" gap="$3.5" flex={1}>
-                    <View
-                      accessibilityLabel={`Payer avatar ${participant.name}`}
-                      style={[screenStyles.payerAvatar, { backgroundColor: tone.background }]}
-                    >
-                      <Text fontFamily={FONTS.bodyBold} fontSize={16} color={tone.foreground}>
-                        {getInitials(participant.name)}
-                      </Text>
-                    </View>
+                    <ParticipantAvatar
+                      name={participant.name}
+                      ownerName={settings.ownerName}
+                      ownerProfileImageUri={settings.ownerProfileImageUri}
+                      style={screenStyles.payerAvatar}
+                      label={`Payer avatar ${participant.name}`}
+                      textSize={16}
+                    />
                     <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface}>
                       {getParticipantDisplayName(participant.name, settings.ownerName)}
                     </Text>
@@ -2295,9 +2360,9 @@ export function PayerScreen({ draftId }: { draftId: string }) {
             })}
           </YStack>
 
-          <ErrorList messages={showPayerHint ? payerErrors : []} />
         </YStack>
       </ScrollView>
+      <SplitNoticeModal messages={showPayerHint ? payerErrors : []} onDismiss={() => setShowPayerHint(false)} />
     </AppScreen>
   );
 }
@@ -2428,7 +2493,7 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
                   return;
                 }
                   await setStep(5);
-                  const nextItem = getFirstPendingSplitItem(record);
+                  const nextItem = getLatestPendingSplitItem(record);
                 router.push(nextItem ? `/split/${draftId}/split/${nextItem.id}` : `/split/${draftId}/overview`);
               }}
             >
@@ -2449,17 +2514,17 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 188 + Math.max(insets.bottom, 14),
             gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$3">
             <XStack alignItems="center" justifyContent="space-between">
               <XStack alignItems="center" gap="$3">
@@ -2493,7 +2558,9 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
               </Text>
             </YStack>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           <View style={screenStyles.itemsImportCard}>
             <XStack alignItems="center" gap="$3">
               <View style={screenStyles.itemsImportIconWrap}>
@@ -2745,22 +2812,43 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
     removeItem: state.removeItem,
     updateItemField: state.updateItemField,
   })));
-  const [newItem, setNewItem] = useState<DraftRecord["values"]["items"][number] | null>(null);
+  const [editorItem, setEditorItem] = useState<DraftRecord["values"]["items"][number] | null>(null);
+  const [assignNoticeMessages, setAssignNoticeMessages] = useState<string[]>([]);
+  const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
+  const [showDeleteItemModal, setShowDeleteItemModal] = useState(false);
   const nameInputRef = useRef<TextInput>(null);
   const priceInputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    if (itemId === "new" && record && !newItem) {
-      setNewItem(createEmptyItem(record.values.participants));
+    if (!record) {
+      return;
     }
-  }, [itemId, newItem, record]);
+
+    if (itemId === "new") {
+      setEditorItem((current) => current ?? { ...createEmptyItem(record.values.participants), category: "General" });
+      return;
+    }
+
+    const sourceItem = record.values.items.find((entry) => entry.id === itemId);
+    if (sourceItem) {
+      setEditorItem((current) => {
+        if (current?.id === sourceItem.id) {
+          return current;
+        }
+        return { ...sourceItem };
+      });
+      return;
+    }
+    setEditorItem(null);
+  }, [itemId, record]);
 
   if (!record) {
     return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
   }
 
-  const item = itemId === "new" ? newItem : record.values.items.find((entry) => entry.id === itemId);
+  const sourceItem = itemId === "new" ? null : record.values.items.find((entry) => entry.id === itemId);
+  const item = editorItem;
   if (!item) {
     return <AppScreen scroll={false}><EmptyState title="Item missing" description="This item no longer exists in the draft." /></AppScreen>;
   }
@@ -2768,39 +2856,83 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
   const locale = getDeviceLocale();
   const zeroMoney = formatMoney(0, record.values.currency, locale);
   const isNewItem = itemId === "new";
-  const shouldDiscardEmptyItem = !item.name.trim() && !item.price.trim() && !(item.category?.trim());
-
-  const updateWorkingItemField = async (field: "name" | "price" | "category", value: string) => {
-    if (isNewItem) {
-      setNewItem((current) => ({ ...current!, [field]: value }));
-      return;
+  const effectiveCategory = item.category?.trim() || "General";
+  const sourceCategory = sourceItem?.category?.trim() ?? "";
+  const initialCategory = sourceCategory || "General";
+  const isDirty =
+    isNewItem
+      ? item.name.trim().length > 0 || item.price.trim().length > 0
+      : Boolean(sourceItem) && (
+          sourceItem.name !== item.name ||
+          sourceItem.price !== item.price ||
+          initialCategory !== effectiveCategory
+        );
+  const parsedItemPriceCents = item.price.trim().length > 0 ? parseMoneyToCents(item.price) : null;
+  const hasValidPrice = parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
+  const duplicateItemExists = record.values.items.some((existingItem) => {
+    if (!isNewItem && existingItem.id === item.id) {
+      return false;
     }
 
-    await updateItemField(item.id, field, value);
+    return (
+      existingItem.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
+      existingItem.price.trim() === item.price.trim() &&
+      (existingItem.category?.trim() || "General").toLowerCase() === effectiveCategory.toLowerCase()
+    );
+  });
+
+  const updateWorkingItemField = async (field: "name" | "price" | "category", value: string) => {
+    setAssignNoticeMessages([]);
+    const nextValue = field === "name" ? value.slice(0, MAX_ITEM_NAME_LENGTH) : value;
+    setEditorItem((current) => ({ ...current!, [field]: nextValue }));
   };
 
   const closeEditor = async () => {
-    if (isNewItem) {
-      router.back();
+    if (isDirty) {
+      setShowDiscardChangesModal(true);
       return;
     }
 
-    if (shouldDiscardEmptyItem) {
-      await removeItem(item.id);
+    if (isNewItem) {
+      router.back();
+      return;
     }
     router.back();
   };
 
   const saveEditor = async () => {
+    if (!hasValidPrice) {
+      setAssignNoticeMessages(["Add a valid price before saving this item."]);
+      return;
+    }
+
+    if (duplicateItemExists) {
+      setAssignNoticeMessages(["This item already exists. Change the name, price, or category."]);
+      return;
+    }
+
     if (isNewItem) {
-      if (!shouldDiscardEmptyItem && newItem) {
-        await createItem(newItem);
-      }
+      await createItem({ ...item, category: effectiveCategory });
       router.back();
       return;
     }
 
-    await closeEditor();
+    const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
+    if (persistedSourceItem.name !== item.name) {
+      await updateItemField(item.id, "name", item.name);
+    }
+    if (persistedSourceItem.price !== item.price) {
+      await updateItemField(item.id, "price", item.price);
+    }
+    if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
+      await updateItemField(item.id, "category", effectiveCategory);
+    }
+
+    router.back();
+  };
+
+  const deleteEditorItem = async () => {
+    setShowDeleteItemModal(true);
   };
 
   return (
@@ -2808,35 +2940,55 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
       scroll={false}
       footer={
         <FloatingFooter>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Save Item"
-            style={screenStyles.itemsNextButton}
-            onPress={() => void saveEditor()}
-          >
-            <XStack alignItems="center" justifyContent="center" gap="$2.5">
-              <Text fontFamily={FONTS.headlineBlack} fontSize={18} color={PALETTE.onPrimary}>
-                Save Item
-              </Text>
-              <ArrowRight color={PALETTE.onPrimary} size={20} />
-            </XStack>
-          </Pressable>
+          <XStack gap="$3" alignItems="center">
+            {!isNewItem ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete Item"
+                style={screenStyles.itemDeleteButton}
+                onPress={() => void deleteEditorItem()}
+              >
+                <Trash2 color={PALETTE.danger} size={18} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Save Item"
+              style={[
+                isNewItem ? screenStyles.itemSaveButtonFull : screenStyles.itemSaveButton,
+                screenStyles.itemsNextButton,
+                !hasValidPrice ? screenStyles.participantsContinueButtonDisabled : null,
+              ]}
+              onPress={() => void saveEditor()}
+            >
+              <XStack alignItems="center" justifyContent="center" gap="$2.5">
+                <Text
+                  fontFamily={FONTS.headlineBlack}
+                  fontSize={18}
+                  color={!hasValidPrice ? PALETTE.onSurfaceVariant : PALETTE.onPrimary}
+                >
+                  Save Item
+                </Text>
+                <ArrowRight color={!hasValidPrice ? PALETTE.onSurfaceVariant : PALETTE.onPrimary} size={20} />
+              </XStack>
+            </Pressable>
+          </XStack>
         </FloatingFooter>
       }
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 164 + Math.max(insets.bottom, 14),
             gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$3.5">
             <XStack alignItems="center" justifyContent="space-between">
               <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => void closeEditor()}>
@@ -2864,7 +3016,9 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
               </Text>
             </YStack>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           <YStack gap="$3.5">
             <YStack gap="$2">
               <Text
@@ -2881,6 +3035,7 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
                   ref={nameInputRef}
                   accessibilityLabel="Item name"
                   value={item.name}
+                  maxLength={MAX_ITEM_NAME_LENGTH}
                   onChangeText={(value) => void updateWorkingItemField("name", value)}
                   onSubmitEditing={() => priceInputRef.current?.focus()}
                   placeholder="e.g. Truffle Pasta"
@@ -2934,7 +3089,7 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
             <FieldLabel>Category</FieldLabel>
             <XStack flexWrap="wrap" gap="$2.5">
               {ITEM_CATEGORY_OPTIONS.map((option) => {
-                const selected = item.category === option;
+                const selected = effectiveCategory === option;
                 return (
                   <Pressable
                     key={option}
@@ -2960,6 +3115,39 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
           </SectionCard>
         </YStack>
       </ScrollView>
+      {showDiscardChangesModal ? (
+        <ConfirmChoiceModal
+          title="Discard changes?"
+          body="You started this item but have not saved it yet."
+          confirmLabel="Discard changes"
+          discardLabel="Keep editing"
+          onConfirm={() => {
+            setShowDiscardChangesModal(false);
+            if (!isNewItem && sourceItem) {
+              setEditorItem({ ...sourceItem });
+            }
+            if (isNewItem) {
+              setEditorItem({ ...createEmptyItem(record.values.participants), category: "General" });
+            }
+            router.back();
+          }}
+          onDiscard={() => setShowDiscardChangesModal(false)}
+        />
+      ) : null}
+      {showDeleteItemModal ? (
+        <ConfirmChoiceModal
+          title="Delete item?"
+          body="This will remove the item from the bill."
+          confirmLabel="Delete item"
+          discardLabel="Keep item"
+          onConfirm={() => {
+            setShowDeleteItemModal(false);
+            void removeItem(item.id).then(() => router.back());
+          }}
+          onDiscard={() => setShowDeleteItemModal(false)}
+        />
+      ) : null}
+      <SplitNoticeModal messages={assignNoticeMessages} onDismiss={() => setAssignNoticeMessages([])} />
     </AppScreen>
   );
 }
@@ -3350,19 +3538,21 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: splitScrollBottomPadding,
             gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <FlowScreenHeader title="Split Item" onBack={() => router.replace(`/split/${draftId}/overview`)} />
+        </View>
 
+        <YStack gap="$5">
           <YStack gap="$2" alignItems="center">
             <View style={screenStyles.splitCategoryPill}>
               <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.primary} textTransform="uppercase" letterSpacing={1.8}>
@@ -3430,12 +3620,14 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
                 return (
                   <View key={participant.id} style={screenStyles.splitParticipantCard}>
                     <XStack alignItems="center" justifyContent="space-between" gap="$3">
-                      <XStack alignItems="center" gap="$3" flex={1}>
-                        <View style={[screenStyles.splitAvatar, { backgroundColor: getAvatarTone(participant.name).background }]}>
-                          <Text fontFamily={FONTS.bodyBold} fontSize={15} color={getAvatarTone(participant.name).foreground}>
-                            {getInitials(participant.name)}
-                          </Text>
-                        </View>
+                    <XStack alignItems="center" gap="$3" flex={1}>
+                        <ParticipantAvatar
+                          name={participant.name}
+                          ownerName={settings.ownerName}
+                          ownerProfileImageUri={settings.ownerProfileImageUri}
+                          style={screenStyles.splitAvatar}
+                          label={`Split avatar ${participant.name}`}
+                        />
                         <YStack flex={1} gap="$1">
                           <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
                             {getParticipantDisplayName(participant.name, settings.ownerName)}
@@ -3707,17 +3899,17 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 172 + Math.max(insets.bottom, 14),
             gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <YStack gap="$3">
             <XStack alignItems="center" justifyContent="space-between">
               <XStack alignItems="center" gap="$3">
@@ -3751,7 +3943,9 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
               </Text>
             </YStack>
           </YStack>
+        </View>
 
+        <YStack gap="$5">
           <View style={screenStyles.itemsImportCard}>
             <SectionEyebrow>Current progress</SectionEyebrow>
             <XStack alignItems="flex-end" justifyContent="space-between" gap="$3" marginTop="$2">
@@ -3875,7 +4069,6 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
   const owingPeople = settlement.data.people.filter((person) => !person.isPayer && person.netCents < 0);
   const settledParticipantIds = getSettledParticipantIds(record);
   const insets = useSafeAreaInsets();
-  const firstItemLabel = record.values.items.find(isVisibleItem)?.name?.trim() || "Split Bill";
   const pdfData = getPdfExportPreview(record);
   const payerConsumedCents = Math.max(0, payer.paidCents - payer.netCents);
   const totalOwedCents = owingPeople.reduce((sum, person) => sum + Math.abs(person.netCents), 0);
@@ -3934,19 +4127,21 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
     >
       <ScrollView
         style={screenStyles.flex}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: Math.max(insets.top + 10, 28),
             paddingBottom: 186 + Math.max(insets.bottom, 14),
             gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
+        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
           <FlowScreenHeader title="Final Results" onBack={() => router.replace(`/split/${draftId}/overview`)} />
+        </View>
 
+        <YStack gap="$5">
           <View style={screenStyles.resultsHeroCard}>
             <View style={screenStyles.resultsHeroGlow} />
             <YStack gap="$2">
@@ -3987,11 +4182,6 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                   </Text>
                 </Pressable>
               ) : null}
-              <View style={screenStyles.resultsHeroChipMuted}>
-                <Text fontFamily={FONTS.bodyBold} fontSize={11} color="rgba(255,255,255,0.88)">
-                  {firstItemLabel}
-                </Text>
-              </View>
             </XStack>
           </View>
 
@@ -4002,11 +4192,13 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
             <View style={screenStyles.resultsPaidCard}>
               <XStack alignItems="center" justifyContent="space-between" gap="$3">
                 <XStack alignItems="center" gap="$3" flex={1}>
-                  <View style={[screenStyles.resultsAvatar, { backgroundColor: getAvatarTone(payer.name).background }]}>
-                    <Text fontFamily={FONTS.bodyBold} fontSize={15} color={getAvatarTone(payer.name).foreground}>
-                      {getInitials(payer.name)}
-                    </Text>
-                  </View>
+                  <ParticipantAvatar
+                    name={payer.name}
+                    ownerName={settings.ownerName}
+                    ownerProfileImageUri={settings.ownerProfileImageUri}
+                    style={screenStyles.resultsAvatar}
+                    label={`Results avatar ${payer.name}`}
+                  />
                   <YStack flex={1}>
                     <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
                       {getParticipantDisplayName(payer.name, settings.ownerName)}
@@ -4040,11 +4232,13 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                 >
                   <XStack alignItems="center" justifyContent="space-between" gap="$3">
                     <XStack alignItems="center" gap="$3" flex={1}>
-                      <View style={[screenStyles.resultsAvatar, { backgroundColor: getAvatarTone(person.name).background }]}>
-                        <Text fontFamily={FONTS.bodyBold} fontSize={15} color={getAvatarTone(person.name).foreground}>
-                          {getInitials(person.name)}
-                        </Text>
-                      </View>
+                      <ParticipantAvatar
+                        name={person.name}
+                        ownerName={settings.ownerName}
+                        ownerProfileImageUri={settings.ownerProfileImageUri}
+                        style={screenStyles.resultsAvatar}
+                        label={`Results avatar ${person.name}`}
+                      />
                       <YStack flex={1}>
                         <Text fontFamily={FONTS.headlineBold} fontSize={17} color={PALETTE.onSurface}>
                           {getParticipantDisplayName(person.name, settings.ownerName)}
@@ -4133,6 +4327,17 @@ const screenStyles = StyleSheet.create({
   },
   reviewScrollContent: {
     paddingHorizontal: 24,
+  },
+  stickyFlowHeader: {
+    backgroundColor: PALETTE.surface,
+    paddingBottom: 18,
+    zIndex: 5,
+  },
+  stickyHomeHeader: {
+    backgroundColor: PALETTE.surface,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+    zIndex: 5,
   },
   frequentFriendsRow: {
     gap: 18,
@@ -4373,6 +4578,23 @@ const screenStyles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 5,
+  },
+  itemDeleteButton: {
+    minHeight: 54,
+    width: 54,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "rgba(186,26,26,0.24)",
+    backgroundColor: "#fff4f3",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  itemSaveButton: {
+    flex: 1,
+  },
+  itemSaveButtonFull: {
+    width: "100%",
   },
   assignHeaderSpacer: {
     width: 22,
@@ -4717,6 +4939,10 @@ const screenStyles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    overflow: "hidden",
   },
   resultsCheckBubble: {
     width: 28,
@@ -4792,6 +5018,12 @@ const screenStyles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 28,
   },
+  mainTabScrollContent: {
+    paddingHorizontal: 20,
+  },
+  mainTabHeaderWrap: {
+    paddingHorizontal: 20,
+  },
   homeHeader: {
     minHeight: 48,
     justifyContent: "center",
@@ -4825,7 +5057,12 @@ const screenStyles = StyleSheet.create({
     marginBottom: 4,
   },
   recentRow: {
-    paddingVertical: 2,
+    paddingVertical: 0,
+  },
+  recentShadowWrap: {
+    paddingBottom: 6,
+    marginBottom: -6,
+    overflow: "visible",
   },
   settingsInlineAction: {
     width: 40,
@@ -4883,9 +5120,6 @@ const screenStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: PALETTE.surface,
   },
-  unpaidDotSpacer: {
-    height: 20,
-  },
   homeTabShell: {
     backgroundColor: "rgba(255,255,255,0.84)",
     borderRadius: 36,
@@ -4921,7 +5155,7 @@ const screenStyles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    marginTop: 28,
+    marginTop: 24,
     backgroundColor: "rgba(249,137,72,0.16)",
     borderWidth: 1,
     borderColor: "rgba(249,137,72,0.2)",

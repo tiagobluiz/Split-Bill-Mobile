@@ -199,8 +199,8 @@ describe("split screens", () => {
     mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true });
     mockLaunchCameraAsync.mockResolvedValue({ canceled: true, assets: [] });
     mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
-    jest.spyOn(Alert, "alert").mockImplementation((title?: string, message?: string) => {
-      mockAlert(title, message);
+    jest.spyOn(Alert, "alert").mockImplementation((title?: string, message?: string, buttons?: any) => {
+      mockAlert(title, message, buttons);
     });
     jest.spyOn(Keyboard, "dismiss").mockImplementation(() => undefined);
     jest.spyOn(Share, "share").mockImplementation(async (value: any) => {
@@ -721,18 +721,38 @@ describe("split screens", () => {
     expect(screen.getByText("Split 1")).toBeTruthy();
     expect(screen.queryByText("Split 21")).toBeNull();
 
-    let list = view.UNSAFE_root.find((node: any) => typeof node.props.onEndReached === "function");
-    expect(list.props.data).toHaveLength(20);
+    let list = view.UNSAFE_root.find((node: any) => typeof node.props.onScroll === "function");
     act(() => {
-      list.props.onEndReached();
+      list.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 100 },
+          layoutMeasurement: { height: 800 },
+          contentSize: { height: 1900 },
+        },
+      });
     });
-    list = view.UNSAFE_root.find((node: any) => typeof node.props.onEndReached === "function");
-    expect(list.props.data).toHaveLength(22);
+    expect(screen.queryByText("Split 21")).toBeNull();
     act(() => {
-      list.props.onEndReached();
+      list.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 1000 },
+          layoutMeasurement: { height: 800 },
+          contentSize: { height: 1900 },
+        },
+      });
     });
-    list = view.UNSAFE_root.find((node: any) => typeof node.props.onEndReached === "function");
-    expect(list.props.data).toHaveLength(22);
+    expect(screen.getByText("Split 21")).toBeTruthy();
+    act(() => {
+      list.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 1100 },
+          layoutMeasurement: { height: 800 },
+          contentSize: { height: 1900 },
+        },
+      });
+    });
+    list = view.UNSAFE_root.find((node: any) => typeof node.props.onScroll === "function");
+    expect(list).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Show filters"));
     expect(screen.getByText("Filters")).toBeTruthy();
@@ -747,6 +767,13 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Oldest"));
     expect(screen.getByText("Split 22")).toBeTruthy();
+  });
+
+  it("shows the empty state on the splits tab when no records match", () => {
+    mockStoreState.records = [];
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    expect(screen.getByText("No splits here")).toBeTruthy();
   });
 
   it("renders settings drafts, opens profile actions, and saves everything together", async () => {
@@ -981,7 +1008,7 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago!");
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.getByText("Save your changes?")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Stay here"));
+    fireEvent.press(screen.getByLabelText("Discard changes"));
     expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
     expect(screen.queryByText("Save your changes?")).toBeNull();
   });
@@ -1284,17 +1311,87 @@ describe("split screens", () => {
     expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(2);
   });
 
+  it("submits from the add-person button with the keyboard still open", async () => {
+    render(<ParticipantsScreen draftId="draft-1" />);
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "Maya");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add person"));
+    });
+
+    expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.updateParticipants).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ name: "Maya" })])
+    );
+  });
+
   it("opens the requested draft when the active record differs", async () => {
-    mockStoreState.records = [];
+    mockStoreState.records = [buildRecord()];
     mockStoreState.activeRecordId = "other-draft";
+    let resolveOpenRecord: ((value: any) => void) | null = null;
+    mockStoreState.openRecord = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveOpenRecord = resolve;
+        })
+    );
+
     const { rerender } = render(<ParticipantsScreen draftId="draft-1" />);
     expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
     await act(async () => {
+      resolveOpenRecord?.(buildRecord());
       await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     mockStoreState.records = [buildRecord()];
     rerender(<ParticipantsScreen draftId="draft-1" />);
+  });
+
+  it("cleans up pending draft-open requests after a missing draft finishes opening", async () => {
+    mockStoreState.records = [];
+    mockStoreState.activeRecordId = "other-draft";
+    let resolveOpenRecord: ((value: any) => void) | null = null;
+    mockStoreState.openRecord = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveOpenRecord = resolve;
+        })
+    );
+
+    render(<ParticipantsScreen draftId="draft-1" />);
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
+
+    await act(async () => {
+      resolveOpenRecord?.(buildRecord());
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it("saves a new item into the requested draft even when another draft was active", async () => {
+    mockStoreState.records = [buildRecord()];
+    mockStoreState.activeRecordId = "other-draft";
+
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
+
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Truffle Pasta"), "Milk");
+    fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "2.50");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Milk",
+        price: "2.50",
+        category: "General",
+      })
+    );
   });
 
   it("handles participants validation and suggestion actions", async () => {
@@ -1925,6 +2022,54 @@ describe("split screens", () => {
     });
   });
 
+  it("uses the saved owner photo inside split flows", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///owner-photo.png",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    const { unmount } = render(<PayerScreen draftId="draft-1" />);
+    expect(screen.getByLabelText("Payer avatar Ana").props.source).toEqual({ uri: "file:///owner-photo.png" });
+
+    unmount();
+
+    render(<ResultsScreen draftId="draft-1" />);
+    expect(screen.getByLabelText("Results avatar Ana").props.source).toEqual({ uri: "file:///owner-photo.png" });
+  });
+
+  it("uses the saved owner photo in the frequent participants strip", () => {
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      ownerProfileImageUri: "file:///owner-photo.png",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          participants: [{ id: "bruno", name: "Bruno" }],
+          payerParticipantId: "",
+        },
+      }),
+      buildRecord({
+        id: "draft-history",
+        updatedAt: "2026-04-03T10:00:00.000Z",
+        values: {
+          ...buildRecord().values,
+          participants: [{ id: "owner", name: "Tiago" }, { id: "maya", name: "Maya" }],
+        },
+      }),
+    ];
+
+    render(<ParticipantsScreen draftId="draft-1" />);
+    expect(screen.getByLabelText("Frequent friend avatar Tiago").props.source).toEqual({ uri: "file:///owner-photo.png" });
+  });
+
   it("alerts when payer is missing", () => {
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, payerParticipantId: "" } })];
     render(<PayerScreen draftId="draft-1" />);
@@ -1932,8 +2077,10 @@ describe("split screens", () => {
     expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
     expect(screen.getByLabelText("Next: Add Items")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Add Items"));
-    expect(screen.getByText("Not there yet...")).toBeTruthy();
+    expect(screen.getByText("Almost there")).toBeTruthy();
     expect(screen.getByText("Choose who paid the bill.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockStoreState.setStep).not.toHaveBeenCalled();
   });
@@ -2040,7 +2187,7 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
   });
 
-  it("routes from items into the first pending split when an item is still unassigned", async () => {
+  it("routes from items into the latest pending split when an item is still unassigned", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -2048,6 +2195,16 @@ describe("split screens", () => {
           items: [
             {
               ...buildRecord().values.items[0],
+              id: "item-1",
+              allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+            {
+              ...buildRecord().values.items[0],
+              id: "item-2",
+              name: "Bread",
               allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
                 ...allocation,
                 evenIncluded: false,
@@ -2062,7 +2219,7 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Split Bill"));
     });
-    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-1");
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-2");
   });
 
   it("commits a queued item deletion after the undo window expires and clears timers on unmount", async () => {
@@ -2156,8 +2313,75 @@ describe("split screens", () => {
       expect.objectContaining({
         name: "Soup",
         price: "12.50",
+        category: "General",
       })
     );
+  });
+
+  it("limits item names to 25 characters before saving", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "123456789012345678901234567890");
+    fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "4.50");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "1234567890123456789012345",
+      })
+    );
+  });
+
+  it("shows General as the default category and lets existing items be deleted from the editor", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+    expect(screen.getByText("General").props.color).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Delete Item"));
+    });
+    expect(screen.getByText("Delete item?")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Delete item"));
+    });
+
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("writes the default General category back when saving an older blank-category item", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [{ ...buildRecord().values.items[0], category: "" }],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "category", "General");
+  });
+
+  it("does not overwrite a chosen category when saving an existing categorized item", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [{ ...buildRecord().values.items[0], category: "Produce" }],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalledWith("item-1", "category", "General");
   });
 
   it("does not persist a blank new item when leaving the new-item editor", async () => {
@@ -2166,6 +2390,8 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Back"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    expect(mockAlert).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
   });
 
   it("does not persist a blank new item when saving it", async () => {
@@ -2174,7 +2400,124 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+  });
+
+  it("does not allow saving a new zero-price item and keeps the editor open", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item price"), "0");
+    });
+
+    expect(screen.getByLabelText("Save Item").props.style).toEqual(
+      expect.arrayContaining([expect.any(Object), expect.any(Object)])
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+  });
+
+  it("does not allow saving a duplicate item with the same name, price, and category", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Groceries");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "9.00");
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Groceries")).toBeTruthy();
+      expect(screen.getByDisplayValue("9.00")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByText("This item already exists. Change the name, price, or category.")).toBeTruthy();
+  });
+
+  it("prompts before discarding a dirty new item from the back button", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Bread");
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Back"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Discard changes"));
+    });
+
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("keeps the dirty new item editor open when discard is canceled", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Bread");
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Back"));
+    });
+
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Keep editing"));
+    });
+
+    expect(screen.queryByLabelText("Delete Item")).toBeNull();
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("keeps the discard-changes modal open flow reversible without leaving", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Bread");
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Back"));
+    });
+
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Keep editing"));
+    });
+
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when item deletion is canceled", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Delete Item"));
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Keep item"));
+    });
+
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it("moves from item name to price on submit and dismisses the keyboard from the price submit", () => {
@@ -2233,12 +2576,13 @@ describe("split screens", () => {
     expect(screen.getByText("Category")).toBeTruthy();
     fireEvent.changeText(screen.getByDisplayValue("Groceries"), "Bread");
     fireEvent.changeText(screen.getByDisplayValue("9.00"), "12.00");
-    expect(mockStoreState.updateItemField).toHaveBeenCalledTimes(2);
     fireEvent.press(screen.getByLabelText("Choose category Produce"));
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "category", "Produce");
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "name", "Bread");
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "price", "12.00");
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "category", "Produce");
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -2289,7 +2633,7 @@ describe("split screens", () => {
     expect(screen.getByText("Item missing")).toBeTruthy();
   });
 
-  it("discards blank items when leaving the editor through back or save", async () => {
+  it("does not auto-save existing item edits when backing out and can discard them", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -2301,20 +2645,91 @@ describe("split screens", () => {
 
     const { rerender } = render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
     await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Bread");
+    });
+    await act(async () => {
       fireEvent.press(screen.getByLabelText("Back"));
     });
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Discard changes"));
+    });
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
 
     mockStoreState.removeItem.mockClear();
+    mockStoreState.updateItemField.mockClear();
     mockBack.mockClear();
 
     rerender(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+  });
+
+  it("does not allow saving an existing zero-price item and keeps the editor open", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [{ ...buildRecord().values.items[0], price: "0" }],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+  });
+
+  it("keeps existing item edits local until save and allows discarding them from back", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Edited");
+    });
+
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Back"));
+    });
+
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    expect(mockBack).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Keep editing"));
+    });
+
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
+  });
+
+  it("keeps local existing-item edits when the same item record rerenders", async () => {
+    const { rerender } = render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Local edit");
+    });
+
+    mockStoreState.records = [buildRecord()];
+    rerender(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+
+    expect(screen.getByDisplayValue("Local edit")).toBeTruthy();
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
   });
 
   it("renders assign-item fallback copy without split controls", () => {
@@ -3657,7 +4072,6 @@ describe("split screens", () => {
     ];
 
     render(<ResultsScreen draftId="draft-1" />);
-    expect(screen.getByText("Split Bill")).toBeTruthy();
     fireEvent.press(screen.getByText("Export as PDF"));
     expect(mockSetStringAsync).not.toHaveBeenCalled();
   });
