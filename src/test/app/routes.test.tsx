@@ -153,9 +153,13 @@ describe("app routes", () => {
   });
 
   it("falls back when overview route params are arrays or missing", () => {
-    mockParams = { draftId: ["draft-5a"] };
+    mockParams = { draftId: ["", "draft-5a"] };
     const { rerender } = render(<OverviewRoute />);
     expect(screen.getByText("review:draft-5a")).toBeTruthy();
+
+    mockParams = { draftId: [""] };
+    rerender(<OverviewRoute />);
+    expect(screen.getByText("review:")).toBeTruthy();
 
     mockParams = {};
     rerender(<OverviewRoute />);

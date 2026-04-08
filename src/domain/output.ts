@@ -32,20 +32,36 @@ export function buildClipboardSummary(
       return person;
     })
     .sort(comparePeopleBySummaryOrder);
-  const unsettledDebtCents = people
-    .filter((person) => !person.isPayer && person.netCents < 0)
-    .reduce((sum, person) => sum + Math.abs(person.netCents), 0);
+  const adjustedPeople = people.map((person) => {
+    if (!person.isPayer) {
+      return person;
+    }
+
+    const nonPayerNetCents = people
+      .filter((entry) => !entry.isPayer)
+      .reduce((sum, entry) => sum + entry.netCents, 0);
+
+    return {
+      ...person,
+      netCents: -nonPayerNetCents,
+    };
+  });
   const lines = ["Split Bill summary"];
 
-  people.forEach((person) => {
+  adjustedPeople.forEach((person) => {
     if (person.isPayer) {
-      lines.push(
-        `${person.name}: paid ${formatMoney(person.paidCents, settlement.data.currency, locale)} and should get back ${formatMoney(
-          unsettledDebtCents,
-          settlement.data.currency,
-          locale
-        )}.`
-      );
+      const paidLabel = `${person.name}: paid ${formatMoney(person.paidCents, settlement.data.currency, locale)}`;
+      if (person.netCents > 0) {
+        lines.push(
+          `${paidLabel} and should get back ${formatMoney(person.netCents, settlement.data.currency, locale)}.`
+        );
+      } else if (person.netCents < 0) {
+        lines.push(
+          `${paidLabel} and still owes ${formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}.`
+        );
+      } else {
+        lines.push(`${paidLabel}.`);
+      }
       return;
     }
 
@@ -53,7 +69,12 @@ export function buildClipboardSummary(
       return;
     }
 
-    lines.push(`${person.name}: owes ${formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}.`);
+    if (person.netCents < 0) {
+      lines.push(`${person.name}: owes ${formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}.`);
+      return;
+    }
+
+    lines.push(`${person.name}: gets back ${formatMoney(person.netCents, settlement.data.currency, locale)}.`);
   });
 
   return lines.join("\n");

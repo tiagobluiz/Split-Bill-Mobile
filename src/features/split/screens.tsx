@@ -579,26 +579,37 @@ function getRecordMoneyPreview(record: DraftRecord, ownerName: string) {
   };
 }
 
-function getHomeBalanceCards(records: DraftRecord[], ownerName: string) {
+function getHomeBalanceCards(records: DraftRecord[], ownerName: string, preferredCurrency?: string) {
   const previews = records
     .map((record) => getRecordMoneyPreview(record, ownerName))
     .filter(Boolean);
 
-  const currency = previews[0]?.currency ?? records[0]?.values.currency ?? "USD";
-  let owedCents = 0;
-  let oweCents = 0;
+  const totalsByCurrency = new Map<string, { owedCents: number; oweCents: number }>();
 
   for (const preview of previews) {
+    const normalizedCurrency = preview.currency.trim().toUpperCase();
+    const nextTotals = totalsByCurrency.get(normalizedCurrency) ?? { owedCents: 0, oweCents: 0 };
+
     if (preview.ownerRelation === "payer") {
-      owedCents += preview.ownerNetCents;
+      nextTotals.owedCents += preview.ownerNetCents;
     }
 
     if (preview.ownerRelation === "debtor") {
-      oweCents += preview.ownerNetCents;
+      nextTotals.oweCents += preview.ownerNetCents;
     }
+
+    totalsByCurrency.set(normalizedCurrency, nextTotals);
   }
 
-  return { currency, owedCents, oweCents };
+  const preferredKey = preferredCurrency?.trim().toUpperCase() ?? "";
+  const currency =
+    (preferredKey && totalsByCurrency.has(preferredKey) ? preferredKey : null) ??
+    previews[0]?.currency ??
+    records[0]?.values.currency ??
+    "USD";
+  const totals = totalsByCurrency.get(currency.trim().toUpperCase()) ?? { owedCents: 0, oweCents: 0 };
+
+  return { currency, owedCents: totals.owedCents, oweCents: totals.oweCents };
 }
 
 function getRecentRowMeta(
@@ -1030,7 +1041,7 @@ export function HomeScreen() {
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
 
   const visibleRecords = pendingDelete ? records.filter((record) => record.id !== pendingDelete.id) : records;
-  const balances = getHomeBalanceCards(visibleRecords, settings.ownerName);
+  const balances = getHomeBalanceCards(visibleRecords, settings.ownerName, settings.defaultCurrency);
   const recentRecords = visibleRecords.slice(0, 5);
   const filteredSplitRecords = useMemo(() => {
     const byState = visibleRecords.filter((record) => {
@@ -1107,11 +1118,6 @@ export function HomeScreen() {
     const trimmedName = ownerNameDraft.trim();
     if (!trimmedName) {
       setSettingsNoticeMessages(["Please choose a short name for yourself."]);
-      return false;
-    }
-
-    if (trimmedName.length > MAX_OWNER_NAME_LENGTH) {
-      setSettingsNoticeMessages([`Name must be ${MAX_OWNER_NAME_LENGTH} characters or less.`]);
       return false;
     }
 
@@ -1218,9 +1224,14 @@ export function HomeScreen() {
     const existingCodes = new Set(getCurrencyOptions({ customCurrencies: customCurrenciesDraft }).map((entry) => entry.code));
     let nextCode = normalizedCode;
     let suffix = 2;
-    while (existingCodes.has(nextCode)) {
-      nextCode = `${normalizedCode.slice(0, 2)}${suffix}`.slice(0, 3);
+    while (existingCodes.has(nextCode) && suffix <= 999) {
+      const suffixToken = String(suffix);
+      nextCode = `${normalizedCode.slice(0, Math.max(0, 3 - suffixToken.length))}${suffixToken}`;
       suffix += 1;
+    }
+
+    if (existingCodes.has(nextCode)) {
+      nextCode = createId().replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 3) || "CUR";
     }
 
     const nextCustomCurrencies = [
@@ -3853,6 +3864,7 @@ export function OverviewScreen({ draftId }: { draftId: string }) {
 
 export function ReviewScreen({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
+  const insets = useSafeAreaInsets();
   const settlement = useMemo(() => {
     if (!record) {
       return null;
@@ -3876,7 +3888,6 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
     ...validateStepThree(record.values),
   ].map((error) => error.message);
   const locale = getDeviceLocale();
-  const insets = useSafeAreaInsets();
 
   return (
     <AppScreen
@@ -4028,6 +4039,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
 }
 export function ResultsScreen({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
+  const insets = useSafeAreaInsets();
   const { markCompleted, settings, markBillPaid, revertBillPaid, toggleParticipantPaid } = useSplitStore(useShallow((state) => ({
     markCompleted: state.markCompleted,
     settings: state.settings,
@@ -4068,7 +4080,6 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
   const payer = settlement.data.people.find((person) => person.isPayer)!;
   const owingPeople = settlement.data.people.filter((person) => !person.isPayer && person.netCents < 0);
   const settledParticipantIds = getSettledParticipantIds(record);
-  const insets = useSafeAreaInsets();
   const pdfData = getPdfExportPreview(record);
   const payerConsumedCents = Math.max(0, payer.paidCents - payer.netCents);
   const totalOwedCents = owingPeople.reduce((sum, person) => sum + Math.abs(person.netCents), 0);

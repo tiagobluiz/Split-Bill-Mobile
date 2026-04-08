@@ -184,34 +184,95 @@ describe("output contracts", () => {
   it("covers default PDF export arguments and payer-first sorting through the public API", () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-02-03T12:00:00.000Z"));
 
-    const data = buildPdfExportData({
-      currency: "EUR",
-      payerParticipantId: "payer",
-      participants: [
-        { id: "guest-b", name: "Bob" },
-        { id: "payer", name: "Payer" },
-        { id: "guest-a", name: "Ada" },
-      ],
-      items: [
+    try {
+      const data = buildPdfExportData({
+        currency: "EUR",
+        payerParticipantId: "payer",
+        participants: [
+          { id: "guest-b", name: "Bob" },
+          { id: "payer", name: "Payer" },
+          { id: "guest-a", name: "Ada" },
+        ],
+        items: [
+          {
+            id: "item-1",
+            name: "Fruit",
+            price: "9.00",
+            splitMode: "even",
+            allocations: [
+              { participantId: "guest-b", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
+              { participantId: "payer", evenIncluded: true, shares: "1", percent: "33.34", percentLocked: false },
+              { participantId: "guest-a", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
+            ],
+          },
+        ],
+      });
+
+      expect(buildPdfFilename()).toBe("split-bill-2026-02-03.pdf");
+      expect(data.fileName).toBe("split-bill-2026-02-03.pdf");
+      expect(data.exportDateLabel).toBeTruthy();
+      expect(data.people.map((person) => person.name)).toEqual(["Payer", "Ada", "Bob"]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("uses sign-aware clipboard wording for non-payer credits and payer debts", () => {
+    expect(
+      buildClipboardSummary(
         {
-          id: "item-1",
-          name: "Fruit",
-          price: "9.00",
-          splitMode: "even",
-          allocations: [
-            { participantId: "guest-b", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
-            { participantId: "payer", evenIncluded: true, shares: "1", percent: "33.34", percentLocked: false },
-            { participantId: "guest-a", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
+          currency: "EUR",
+          payerParticipantId: "payer",
+          participants: [
+            { id: "payer", name: "Payer" },
+            { id: "creditor", name: "Creditor" },
+            { id: "debtor", name: "Debtor" },
+          ],
+          items: [
+            {
+              id: "discount",
+              name: "Discount",
+              price: "-1.00",
+              splitMode: "even",
+              allocations: [
+                { participantId: "payer", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
+                { participantId: "creditor", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+                { participantId: "debtor", evenIncluded: false, shares: "0", percent: "50", percentLocked: false },
+              ],
+            },
           ],
         },
-      ],
-    });
+        "en-US"
+      )
+    ).toBe("Split Bill summary\nPayer: paid -€1.00 and still owes €1.00.\nCreditor: gets back €1.00.");
+  });
 
-    expect(buildPdfFilename()).toBe("split-bill-2026-02-03.pdf");
-    expect(data.fileName).toBe("split-bill-2026-02-03.pdf");
-    expect(data.exportDateLabel).toBeTruthy();
-    expect(data.people.map((person) => person.name)).toEqual(["Payer", "Ada", "Bob"]);
-
-    jest.useRealTimers();
+  it("reduces payer output to a paid-only line when nobody still owes anything", () => {
+    expect(
+      buildClipboardSummary(
+        {
+          currency: "EUR",
+          payerParticipantId: "ana",
+          participants: [
+            { id: "ana", name: "Ana" },
+            { id: "bruno", name: "Bruno" },
+          ],
+          items: [
+            {
+              id: "item-1",
+              name: "Dinner",
+              price: "10.00",
+              splitMode: "even",
+              allocations: [
+                { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+                { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+              ],
+            },
+          ],
+        },
+        "en-US",
+        { settledParticipantIds: ["bruno"] }
+      )
+    ).toBe("Split Bill summary\nAna: paid €10.00.");
   });
 });

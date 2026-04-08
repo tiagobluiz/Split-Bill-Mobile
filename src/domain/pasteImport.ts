@@ -58,7 +58,13 @@ function parseLineFormat(line: string) {
 
   const name = separatorMatch[1]?.trim();
   const price = normalizePrice(separatorMatch[2]);
-  if (!name || !price) {
+  const normalizedName = name?.replace(/[:\-]+$/, "").trim().toLowerCase();
+  if (
+    !name ||
+    !price ||
+    !normalizedName ||
+    PASTE_SUMMARY_LABELS.some((label) => normalizedName === label || normalizedName.startsWith(`${label} `))
+  ) {
     return null;
   }
 
@@ -101,7 +107,7 @@ function parseTrailingPriceLine(line: string) {
 
   const name = trailingPriceMatch[1]?.trim();
   const price = normalizePrice(trailingPriceMatch[2]);
-  const normalizedName = name?.toLowerCase();
+  const normalizedName = name?.replace(/[:\-]+$/, "").trim().toLowerCase();
 
   if (
     !name ||

@@ -139,4 +139,48 @@ describe("settings storage", () => {
       customCurrencies: [],
     });
   });
+
+  it("falls back to defaults when the stored payload is not valid JSON", async () => {
+    const { settingsModule } = await loadModule({
+      row: {
+        key: "app-settings",
+        payload: "{broken",
+      },
+    });
+
+    await settingsModule.initializeSettingsStorage();
+    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+      ownerName: "You",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    });
+  });
+
+  it("retries opening the database after a previous open failure", async () => {
+    jest.resetModules();
+    const database = {
+      execAsync: jest.fn(async () => undefined),
+      getFirstAsync: jest.fn(async () => null),
+      runAsync: jest.fn(async () => undefined),
+    };
+    const openDatabaseAsync = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValue(database);
+
+    jest.doMock("expo-sqlite", () => ({
+      openDatabaseAsync,
+    }));
+
+    let settingsModule: typeof import("./settings");
+    jest.isolateModules(() => {
+      settingsModule = require("./settings");
+    });
+
+    await expect(settingsModule!.initializeSettingsStorage()).rejects.toThrow("boom");
+    await expect(settingsModule!.initializeSettingsStorage()).resolves.toBeUndefined();
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+  });
 });

@@ -39,17 +39,18 @@ describe("splitter domain", () => {
 
   it("uses crypto ids when available and falls back otherwise", () => {
     const originalCrypto = globalThis.crypto;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).crypto = { randomUUID: () => "crypto-id" };
+      expect(createId()).toBe("crypto-id");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).crypto = { randomUUID: () => "crypto-id" };
-    expect(createId()).toBe("crypto-id");
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (globalThis as any).crypto;
-    expect(createId()).toMatch(/^id-/);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).crypto = originalCrypto;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (globalThis as any).crypto;
+      expect(createId()).toMatch(/^id-/);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).crypto = originalCrypto;
+    }
   });
 
   it("matches the even split fixture", () => {
@@ -176,15 +177,17 @@ describe("splitter domain", () => {
 
   it("falls back when Intl formatting throws", () => {
     const originalNumberFormat = Intl.NumberFormat;
-    // @ts-expect-error test override
-    Intl.NumberFormat = jest.fn(() => {
-      throw new Error("boom");
-    });
+    try {
+      // @ts-expect-error test override
+      Intl.NumberFormat = jest.fn(() => {
+        throw new Error("boom");
+      });
 
-    expect(formatMoney(1234, "PTS", "en-US")).toBe("PTS 12.34");
-    expect(formatMoneyTrailingSymbol(1234, "PTS", "en-US")).toBe("12.34PTS");
-
-    Intl.NumberFormat = originalNumberFormat;
+      expect(formatMoney(1234, "PTS", "en-US")).toBe("PTS 12.34");
+      expect(formatMoneyTrailingSymbol(1234, "PTS", "en-US")).toBe("12.34PTS");
+    } finally {
+      Intl.NumberFormat = originalNumberFormat;
+    }
   });
 
   it("covers validation failures and invalid settlement branches", () => {
@@ -632,4 +635,5 @@ describe("splitter domain", () => {
       )
     ).toContain("Unknown");
   });
+
 });

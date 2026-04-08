@@ -77,4 +77,21 @@ describe("paste import parser", () => {
     expect(trailingMalformed.items).toEqual([]);
     expect(trailingMalformed.ignoredLines).toEqual(["Milk EUR"]);
   });
+
+  it("rejects summary labels for colon and hyphen rows too", () => {
+    expect(parsePastedItems("Total: 42.00\nSubtotal - 20.00")).toEqual({
+      items: [],
+      ignoredLines: ["Total: 42.00", "Subtotal - 20.00"],
+      warnings: [
+        {
+          code: "ignored-paste-lines",
+          message: "Ignored 2 pasted lines that did not match the expected format.",
+        },
+        {
+          code: "no-items-detected",
+          message: "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+        },
+      ],
+    });
+  });
 });

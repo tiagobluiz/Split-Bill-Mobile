@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 const mockBootstrap = jest.fn(async () => undefined);
 const mockUseFonts = jest.fn();
@@ -76,5 +76,39 @@ describe("root layout", () => {
     await waitFor(() => {
       expect(splashScreen.hideAsync).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("shows a retry UI when bootstrap fails and retries on demand", async () => {
+    mockUseFonts.mockReturnValue([true]);
+    mockBootstrap.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(undefined);
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(screen.getByText("We couldn't open Split Bill")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Retry app bootstrap"));
+    });
+
+    expect(mockBootstrap).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the retry UI visible when retry also fails", async () => {
+    mockUseFonts.mockReturnValue([true]);
+    mockBootstrap.mockRejectedValue(new Error("boom"));
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(screen.getByText("We couldn't open Split Bill")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Retry app bootstrap"));
+    });
+
+    expect(screen.getByText("We couldn't open Split Bill")).toBeTruthy();
   });
 });

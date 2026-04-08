@@ -23,7 +23,10 @@ let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 async function getDatabase() {
   if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME);
+    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME).catch((error) => {
+      databasePromise = null;
+      throw error;
+    });
   }
 
   return databasePromise;
@@ -72,8 +75,14 @@ function getDefaultSettlementState() {
   };
 }
 
-function mapRow(row: DatabaseRow): DraftRecord {
-  const parsedPayload = JSON.parse(row.payload) as SplitFormValues | { values?: SplitFormValues; settlementState?: { settledParticipantIds?: string[] } };
+function mapRow(row: DatabaseRow): DraftRecord | null {
+  let parsedPayload: SplitFormValues | { values?: SplitFormValues; settlementState?: { settledParticipantIds?: string[] } };
+  try {
+    parsedPayload = JSON.parse(row.payload) as SplitFormValues | { values?: SplitFormValues; settlementState?: { settledParticipantIds?: string[] } };
+  } catch {
+    console.warn(`Failed to parse record payload for record ${row.id}.`);
+    return null;
+  }
   const values =
     parsedPayload && typeof parsedPayload === "object" && "values" in parsedPayload
       ? (parsedPayload.values as SplitFormValues)
@@ -93,8 +102,8 @@ function mapRow(row: DatabaseRow): DraftRecord {
     status: row.status,
     step: row.step,
     values: {
-      splitName: typeof values.splitName === "string" ? values.splitName : "",
       ...values,
+      splitName: typeof values.splitName === "string" ? values.splitName : "",
       items,
     },
     settlementState,
@@ -109,7 +118,7 @@ export async function listRecords() {
   const rows = await db.getAllAsync<DatabaseRow>(
     "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
   );
-  return rows.map(mapRow);
+  return rows.map(mapRow).filter((row): row is DraftRecord => Boolean(row));
 }
 
 export async function getRecordById(id: string) {

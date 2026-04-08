@@ -534,7 +534,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
 
         draft.values.items =
           mode === "replace"
-            ? importedItems
+            ? importedItems.length > 0
+              ? importedItems
+              : draft.values.items
             : [...draft.values.items.filter((item) => item.name.trim() || item.price.trim()), ...importedItems];
       })
     );

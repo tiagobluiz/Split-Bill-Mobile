@@ -888,4 +888,24 @@ describe("split store", () => {
     expect(domainMocks.buildClipboardSummary).toHaveBeenCalled();
     expect(domainMocks.buildPdfExportData).toHaveBeenCalled();
   });
+
+  it("keeps existing items when a replace import parses zero rows", async () => {
+    const record = createRecord();
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+      parseResult: {
+        items: [],
+        warnings: [{ code: "no-items-detected", message: "No items." }],
+      },
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+    });
+
+    await storeModule.useSplitStore.getState().importPastedList("totals only", "replace");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual(record.values.items);
+  });
 });

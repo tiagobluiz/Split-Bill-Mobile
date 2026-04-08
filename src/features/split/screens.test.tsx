@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import * as domain from "../../domain";
 
 import {
   AssignItemScreen,
@@ -515,6 +516,110 @@ describe("split screens", () => {
     expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
   });
 
+  it("scopes home balances to the selected default currency when records mix currencies", () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockImplementation((record: any) => {
+      if (!record) {
+        return null;
+      }
+
+      if (record.id === "usd-record") {
+        return {
+          ok: true,
+          data: {
+            currency: "USD",
+            totalCents: 1200,
+            itemBreakdown: [],
+            people: [
+              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1200, consumedCents: 0, netCents: 1200 },
+              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 1200, netCents: -1200 },
+            ],
+            transfers: [],
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          currency: "EUR",
+          totalCents: 300,
+          itemBreakdown: [],
+          people: [
+            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 300, consumedCents: 0, netCents: 300 },
+            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
+          ],
+          transfers: [],
+        },
+      };
+    });
+
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+    mockStoreState.records = [
+      buildRecord({ id: "usd-record", values: { ...buildRecord().values, currency: "USD" } }),
+      buildRecord({ id: "eur-record" }),
+    ];
+
+    render(<HomeScreen />);
+    expect(screen.getAllByText(/3,00|3.00/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("$12.00")).toBeNull();
+  });
+
+  it("covers denied camera/library permissions and custom currency collision fallbacks", async () => {
+    const collisionCodes = ["CUR", ...Array.from({ length: 999 }, (_, index) => {
+      const suffix = String(index + 1);
+      return `${"CUR".slice(0, Math.max(0, 3 - suffix.length))}${suffix}`;
+    })];
+
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: collisionCodes.map((code, index) => ({
+        code,
+        name: `Currency ${index}`,
+        symbol: `$${index}`,
+      })),
+    };
+    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false });
+    mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: false });
+    const createIdSpy = jest.spyOn(domain, "createId").mockReturnValue("!!!");
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Profile picture options"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Upload photo"));
+    });
+    expect(screen.getByText("Please allow photo access to choose a profile picture.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+
+    fireEvent.press(screen.getByLabelText("Profile picture options"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Take photo"));
+    });
+    expect(screen.getByText("Please allow camera access to take a profile picture.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Choose default currency"));
+    });
+    fireEvent.press(screen.getByLabelText("Choose other currency"));
+    fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Cur");
+    fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "#");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save custom currency"));
+    });
+    expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
+    createIdSpy.mockRestore();
+  });
+
   it("opens completed records, falls back unknown draft routes, and starts a split from the hero card", async () => {
     mockStoreState.records = [
       buildRecord({
@@ -814,7 +919,7 @@ describe("split screens", () => {
 
   it("shows settings validation popups and supports custom/default currency updates", async () => {
     mockStoreState.settings = {
-      ownerName: "LongerThanTwelve",
+      ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "",
@@ -824,11 +929,13 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+    });
     await act(async () => {
       fireEvent.press(screen.getByText("Save Settings"));
     });
-    expect(screen.getByText("Name must be 12 characters or less.")).toBeTruthy();
+    expect(screen.getByText("Please choose a default currency first.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
@@ -868,18 +975,18 @@ describe("split screens", () => {
     expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
       ownerName: "Tiago",
       ownerProfileImageUri: "",
-      balanceFeatureEnabled: true,
+      balanceFeatureEnabled: false,
       defaultCurrency: "PO2",
       customCurrencies: [
         { code: "POI", name: "Points", symbol: "P" },
         { code: "PO2", name: "Points", symbol: "P" },
       ],
+      });
     });
-  });
 
-  it("shows a simple popup for a missing profile name and ignores canceled image picking", async () => {
-    mockStoreState.settings = {
-      ownerName: "You",
+    it("shows a simple popup for a missing profile name and ignores canceled image picking", async () => {
+      mockStoreState.settings = {
+        ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",

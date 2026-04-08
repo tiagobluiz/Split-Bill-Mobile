@@ -706,10 +706,10 @@ export function computeSettlement(values: SplitFormValues) {
   });
 
   const roundedTotals = roundAggregateShares(
-      parsed.data.participants.map((participant) => ({
-        participantId: participant.id,
-        amountCents: exactTotalsByParticipant.get(participant.id)!,
-      })),
+    parsed.data.participants.map((participant) => ({
+      participantId: participant.id,
+      amountCents: exactTotalsByParticipant.get(participant.id)!,
+    })),
     parsed.data.participants,
     totalCents
   );

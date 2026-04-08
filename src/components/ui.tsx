@@ -119,6 +119,9 @@ export function PrimaryButton({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         styles.button,

@@ -381,4 +381,71 @@ describe("records storage", () => {
       })
     );
   });
+
+  it("skips malformed JSON rows instead of crashing the record list", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { recordsModule } = await loadModule({
+      rows: [
+        {
+          id: "broken",
+          status: "draft",
+          step: 1,
+          payload: "{not-json",
+          created_at: "2026-04-04T09:00:00.000Z",
+          updated_at: "2026-04-04T10:00:00.000Z",
+          completed_at: null,
+        },
+      ],
+    });
+
+    await recordsModule.initializeRecordsStorage();
+    await expect(recordsModule.listRecords()).resolves.toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith("Failed to parse record payload for record broken.");
+  });
+
+  it("returns null for a malformed single-record payload", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { recordsModule } = await loadModule({
+      row: {
+        id: "broken-one",
+        status: "draft",
+        step: 1,
+        payload: "{broken",
+        created_at: "2026-04-04T09:00:00.000Z",
+        updated_at: "2026-04-04T10:00:00.000Z",
+        completed_at: null,
+      },
+    });
+
+    await recordsModule.initializeRecordsStorage();
+    await expect(recordsModule.getRecordById("broken-one")).resolves.toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith("Failed to parse record payload for record broken-one.");
+  });
+
+  it("retries opening the records database after an earlier open failure", async () => {
+    jest.resetModules();
+    const database = {
+      execAsync: jest.fn(async () => undefined),
+      getAllAsync: jest.fn(async () => []),
+      getFirstAsync: jest.fn(async () => null),
+      runAsync: jest.fn(async () => undefined),
+    };
+    const openDatabaseAsync = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValue(database);
+
+    jest.doMock("expo-sqlite", () => ({
+      openDatabaseAsync,
+    }));
+
+    let recordsModule: typeof import("./records");
+    jest.isolateModules(() => {
+      recordsModule = require("./records");
+    });
+
+    await expect(recordsModule!.initializeRecordsStorage()).rejects.toThrow("boom");
+    await expect(recordsModule!.initializeRecordsStorage()).resolves.toBeUndefined();
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+  });
 });

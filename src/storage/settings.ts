@@ -29,7 +29,10 @@ function getDefaultSettings(): AppSettings {
 
 async function getDatabase() {
   if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME);
+    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME).catch((error) => {
+      databasePromise = null;
+      throw error;
+    });
   }
 
   return databasePromise;
@@ -60,7 +63,12 @@ export async function getAppSettings() {
     return getDefaultSettings();
   }
 
-  const parsed = JSON.parse(row.payload) as Partial<AppSettings>;
+  let parsed: Partial<AppSettings>;
+  try {
+    parsed = JSON.parse(row.payload) as Partial<AppSettings>;
+  } catch {
+    return getDefaultSettings();
+  }
   return {
     ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName : "You",
     ownerProfileImageUri:
