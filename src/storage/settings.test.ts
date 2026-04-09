@@ -158,6 +158,28 @@ describe("settings storage", () => {
     });
   });
 
+  it("falls back to defaults when the stored payload parses to a non-object value", async () => {
+    const objectLikePayloads = ["null", "[]", "\"hello\"", "5", "true"];
+
+    for (const payload of objectLikePayloads) {
+      const { settingsModule } = await loadModule({
+        row: {
+          key: "app-settings",
+          payload,
+        },
+      });
+
+      await settingsModule.initializeSettingsStorage();
+      await expect(settingsModule.getAppSettings()).resolves.toEqual({
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        customCurrencies: [],
+      });
+    }
+  });
+
   it("retries opening the database after a previous open failure", async () => {
     jest.resetModules();
     const database = {

@@ -517,6 +517,78 @@ describe("split screens", () => {
     expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
   });
 
+  it("preserves payer debt direction in home balances and recent rows when the payer owes others", () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockImplementation((record: any) => {
+      if (!record) {
+        return null;
+      }
+
+      return {
+        ok: true,
+        data: {
+          currency: "EUR",
+          totalCents: 200,
+          itemBreakdown: [],
+          people: [
+            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
+            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
+            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+          ],
+          transfers: [],
+        },
+      };
+    });
+
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+    };
+    mockStoreState.records = [buildRecord({ id: "reverse-payer" })];
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByText(/-1,50|-1.50/)).toBeTruthy();
+  });
+
+  it("shows the owner as owed when a non-payer creditor is due money from the payer", () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockImplementation((record: any) => {
+      if (!record) {
+        return null;
+      }
+
+      return {
+        ok: true,
+        data: {
+          currency: "EUR",
+          totalCents: 200,
+          itemBreakdown: [],
+          people: [
+            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
+            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
+            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+          ],
+          transfers: [],
+        },
+      };
+    });
+
+    mockStoreState.settings = {
+      ownerName: "Bruno",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+    };
+    mockStoreState.records = [buildRecord({ id: "reverse-creditor" })];
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText("You are owed")).toBeTruthy();
+    expect(screen.getByText(/\+0,50|\+0.50/)).toBeTruthy();
+  });
+
   it("scopes home balances to the selected default currency when records mix currencies", () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
@@ -2465,6 +2537,32 @@ describe("split screens", () => {
     );
   });
 
+  it("normalizes a new integer item price before saving", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Water");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "1");
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Water",
+        price: "1.00",
+      })
+    );
+  });
+
+  it("normalizes an existing integer item price before updating", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "1");
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith("item-1", "price", "1.00");
+  });
+
   it("limits item names to 25 characters before saving", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     fireEvent.changeText(screen.getByLabelText("Item name"), "123456789012345678901234567890");
@@ -2934,6 +3032,10 @@ describe("split screens", () => {
               ...buildRecord().values.items[0],
               id: "item-2",
               name: "Bread",
+              allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
             },
           ],
         },
@@ -3842,6 +3944,26 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
   });
 
+  it("only enables review scrolling when the content overflows the screen", () => {
+    render(<ReviewScreen draftId="draft-1" />);
+
+    let reviewScroll = screen.getByTestId("review-scroll");
+    expect(reviewScroll.props.scrollEnabled).toBe(false);
+
+    act(() => {
+      reviewScroll.props.onLayout({ nativeEvent: { layout: { height: 700 } } });
+      reviewScroll.props.onContentSizeChange(320, 620);
+    });
+    reviewScroll = screen.getByTestId("review-scroll");
+    expect(reviewScroll.props.scrollEnabled).toBe(false);
+
+    act(() => {
+      reviewScroll.props.onContentSizeChange(320, 920);
+    });
+    reviewScroll = screen.getByTestId("review-scroll");
+    expect(reviewScroll.props.scrollEnabled).toBe(true);
+  });
+
   it("renders review rows for shares and percent items", () => {
     mockStoreState.records = [
       buildRecord({
@@ -4144,6 +4266,41 @@ describe("split screens", () => {
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
     fireEvent.press(screen.getByLabelText("Mark Zoe as paid"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe");
+  });
+
+  it("renders reverse-settlement breakdowns using the people owed by the payer", async () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockReturnValueOnce({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 200,
+        itemBreakdown: [],
+        people: [
+          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
+          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
+          { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+        ],
+        transfers: [],
+      },
+    });
+    mockStoreState.records = [
+      buildRecord({
+        settlementState: {
+          settledParticipantIds: ["bruno"],
+        },
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Bruno")).toBeTruthy();
+    expect(screen.getByText("Zoe")).toBeTruthy();
+    expect(screen.getByText("Settled")).toBeTruthy();
+    expect(screen.getByText("Owed")).toBeTruthy();
   });
 
   it("hides balance controls on results when the balance feature is disabled", async () => {

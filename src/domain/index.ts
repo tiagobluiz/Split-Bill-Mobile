@@ -18,6 +18,7 @@ import {
   detectCurrency as detectCurrencyValue,
   formatMoney as formatMoneyValue,
   formatMoneyTrailingSymbol as formatMoneyTrailingSymbolValue,
+  normalizeMoneyInput as normalizeMoneyInputValue,
   parseMoneyToCents as parseMoneyToCentsValue,
   parseSplit as parseSplitValue,
   rebalancePercentAllocations as rebalancePercentAllocationsValue,
@@ -65,6 +66,7 @@ export const createId = createIdValue;
 export const detectCurrency = detectCurrencyValue;
 export const formatMoney = formatMoneyValue;
 export const formatMoneyTrailingSymbol = formatMoneyTrailingSymbolValue;
+export const normalizeMoneyInput = normalizeMoneyInputValue;
 export const parseMoneyToCents = parseMoneyToCentsValue;
 export const parseSplit = parseSplitValue;
 export const rebalancePercentAllocations = rebalancePercentAllocationsValue;

@@ -136,8 +136,14 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
     return [];
   }
 
+  const payer = settlement.data.people.find((person) => person.isPayer);
+  if (!payer || payer.netCents === 0) {
+    return [];
+  }
+
+  const targetNetSign = payer.netCents > 0 ? -1 : 1;
   return settlement.data.people
-    .filter((person) => !person.isPayer && person.netCents < 0)
+    .filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign)
     .map((person) => person.participantId);
 }
 

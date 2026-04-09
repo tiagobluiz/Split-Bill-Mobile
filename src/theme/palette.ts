@@ -22,6 +22,11 @@ export const PALETTE = {
   shadow: "rgba(157, 68, 1, 0.12)",
   softShadow: "rgba(157, 68, 1, 0.08)",
   glass: "rgba(255,255,255,0.86)",
+  heroEyebrow: "rgba(255,255,255,0.78)",
+  heroSubtitle: "rgba(255,255,255,0.82)",
+  heroGlow: "rgba(255,255,255,0.16)",
+  inputPlaceholder: "rgba(86, 67, 57, 0.55)",
+  footerGlass: "rgba(249,249,249,0.96)",
 } as const;
 
 export const FONTS = {

@@ -65,7 +65,11 @@ export async function getAppSettings() {
 
   let parsed: Partial<AppSettings>;
   try {
-    parsed = JSON.parse(row.payload) as Partial<AppSettings>;
+    const payload = JSON.parse(row.payload) as unknown;
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      return getDefaultSettings();
+    }
+    parsed = payload as Partial<AppSettings>;
   } catch {
     return getDefaultSettings();
   }

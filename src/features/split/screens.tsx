@@ -54,6 +54,7 @@ import {
   createEmptyItem,
   createId,
   formatMoney,
+  normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
   resetShareAllocations,
@@ -186,14 +187,11 @@ function getLatestPendingSplitItem(record: DraftRecord) {
   return pendingItems[pendingItems.length - 1] ?? null;
 }
 
-function getNextVisibleItemId(record: DraftRecord, currentItemId: string) {
-  const visibleItems = record.values.items.filter(isVisibleItem);
-  const currentIndex = visibleItems.findIndex((item) => item.id === currentItemId);
-  if (currentIndex === -1) {
-    return null;
-  }
-
-  return visibleItems[currentIndex + 1]?.id ?? null;
+function getLatestPendingSplitItemId(record: DraftRecord, currentItemId?: string) {
+  const pendingItems = record.values.items.filter(
+    (item) => isVisibleItem(item) && !isItemAssigned(item) && item.id !== currentItemId
+  );
+  return pendingItems[pendingItems.length - 1]?.id ?? null;
 }
 
 function cloneItem(item: DraftRecord["values"]["items"][number]) {
@@ -528,6 +526,16 @@ function getSettledParticipantIds(record: DraftRecord) {
   return new Set(record.settlementState?.settledParticipantIds ?? []);
 }
 
+function getOwingPeople(people: Array<{ isPayer: boolean; netCents: number }>) {
+  const payer = people.find((person) => person.isPayer);
+  if (!payer || payer.netCents === 0) {
+    return [];
+  }
+
+  const targetNetSign = payer.netCents > 0 ? -1 : 1;
+  return people.filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign);
+}
+
 function getRecordMoneyPreview(record: DraftRecord, ownerName: string) {
   const settlement = getSettlementPreview(record);
   if (!settlement?.ok) {
@@ -540,7 +548,7 @@ function getRecordMoneyPreview(record: DraftRecord, ownerName: string) {
   }
 
   const owner = settlement.data.people.find((person) => isOwnerReference(person.name, ownerName));
-  const debtorPeople = settlement.data.people.filter((person) => !person.isPayer && person.netCents < 0);
+  const debtorPeople = getOwingPeople(settlement.data.people);
   const settledIds = getSettledParticipantIds(record);
   const totalDebtCents = debtorPeople.reduce((sum, person) => sum + Math.abs(person.netCents), 0);
   const settledDebtCents = debtorPeople.reduce(
@@ -562,15 +570,27 @@ function getRecordMoneyPreview(record: DraftRecord, ownerName: string) {
     };
   }
 
+  const ownerDebt = debtorPeople.find((person) => person.participantId === owner.participantId);
+  const ownerRelation =
+    owner.isPayer && payer.netCents !== 0
+      ? payer.netCents > 0
+        ? ("creditor" as const)
+        : ("debtor" as const)
+      : ownerDebt
+        ? owner.netCents > 0
+          ? ("creditor" as const)
+          : ("debtor" as const)
+        : ("none" as const);
+
   return {
     currency: settlement.data.currency,
     ownerNetCents:
       owner.isPayer
         ? unsettledDebtCents
-        : owner.netCents < 0 && !settledIds.has(owner.participantId)
-          ? Math.abs(owner.netCents)
+        : ownerDebt && !settledIds.has(owner.participantId)
+          ? Math.abs(ownerDebt.netCents)
           : 0,
-    ownerRelation: owner.isPayer ? ("payer" as const) : owner.netCents < 0 ? ("debtor" as const) : ("none" as const),
+    ownerRelation,
     payerName: payer.name,
     totalDebtCents,
     settledDebtCents,
@@ -590,7 +610,7 @@ function getHomeBalanceCards(records: DraftRecord[], ownerName: string, preferre
     const normalizedCurrency = preview.currency.trim().toUpperCase();
     const nextTotals = totalsByCurrency.get(normalizedCurrency) ?? { owedCents: 0, oweCents: 0 };
 
-    if (preview.ownerRelation === "payer") {
+    if (preview.ownerRelation === "creditor") {
       nextTotals.owedCents += preview.ownerNetCents;
     }
 
@@ -2774,7 +2794,8 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
           sourceItem.price !== item.price ||
           initialCategory !== effectiveCategory
         );
-  const parsedItemPriceCents = item.price.trim().length > 0 ? parseMoneyToCents(item.price) : null;
+  const normalizedItemPrice = item.price.trim().length > 0 ? normalizeMoneyInput(item.price) : "";
+  const parsedItemPriceCents = normalizedItemPrice ? parseMoneyToCents(normalizedItemPrice) : null;
   const hasValidPrice = parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
   const duplicateItemExists = record.values.items.some((existingItem) => {
     if (!isNewItem && existingItem.id === item.id) {
@@ -2783,7 +2804,7 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
 
     return (
       existingItem.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
-      existingItem.price.trim() === item.price.trim() &&
+      normalizeMoneyInput(existingItem.price) === normalizedItemPrice &&
       (existingItem.category?.trim() || "General").toLowerCase() === effectiveCategory.toLowerCase()
     );
   });
@@ -2819,7 +2840,7 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
     }
 
     if (isNewItem) {
-      await createItem({ ...item, category: effectiveCategory });
+      await createItem({ ...item, price: normalizedItemPrice, category: effectiveCategory });
       router.back();
       return;
     }
@@ -2828,8 +2849,8 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
     if (persistedSourceItem.name !== item.name) {
       await updateItemField(item.id, "name", item.name);
     }
-    if (persistedSourceItem.price !== item.price) {
-      await updateItemField(item.id, "price", item.price);
+    if (normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice) {
+      await updateItemField(item.id, "price", normalizedItemPrice);
     }
     if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
       await updateItemField(item.id, "category", effectiveCategory);
@@ -3091,8 +3112,8 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
 
   const locale = getDeviceLocale();
   const splitErrors = validateStepThree({ ...record.values, items: [item] }).map((error) => error.message);
-  const nextItemId = getNextVisibleItemId(record, item.id);
-  const ctaLabel = nextItemId ? "Confirm & Split Next" : "Confirm & Review";
+  const pendingNextItemId = getLatestPendingSplitItemId(record, item.id);
+  const ctaLabel = pendingNextItemId ? "Confirm & Split Next" : "Confirm & Review";
   const totalShares = item.allocations.reduce((sum, allocation) => sum + (parseFloat(allocation.shares) || 0), 0);
   const shareValue = totalShares > 0 ? (parseMoneyToCents(item.price) ?? 0) / totalShares : 0;
   const assignedCount = getAssignedParticipantCount(item);
@@ -3353,8 +3374,18 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
         : item;
 
     await saveItemSplit(item.id, committedItem);
-    if (nextItemId) {
-      router.push(`/split/${draftId}/split/${nextItemId}`);
+    const nextPendingItemId = getLatestPendingSplitItemId(
+      {
+        ...record,
+        values: {
+          ...record.values,
+          items: record.values.items.map((candidate) => (candidate.id === item.id ? committedItem : candidate)),
+        },
+      },
+      item.id
+    );
+    if (nextPendingItemId) {
+      router.push(`/split/${draftId}/split/${nextPendingItemId}`);
       return;
     }
 
@@ -3747,6 +3778,8 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
     return computeSettlement(record.values);
   }, [record]);
   const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>([]);
+  const [reviewViewportHeight, setReviewViewportHeight] = useState(0);
+  const [reviewContentHeight, setReviewContentHeight] = useState(0);
 
   if (!record) {
     return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
@@ -3762,6 +3795,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
     ...validateStepThree(record.values),
   ].map((error) => error.message);
   const locale = getDeviceLocale();
+  const isReviewScrollable = reviewContentHeight > reviewViewportHeight + 1;
 
   return (
     <AppScreen
@@ -3783,45 +3817,52 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
       }
     >
       <ScrollView
+        testID="review-scroll"
         style={screenStyles.flex}
+        scrollEnabled={isReviewScrollable}
         stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
             paddingBottom: 172 + Math.max(insets.bottom, 14),
-            gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
+        onLayout={(event) => {
+          setReviewViewportHeight(event.nativeEvent.layout.height);
+        }}
+        onContentSizeChange={(_, height) => {
+          setReviewContentHeight(height);
+        }}
       >
-        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <FlowScreenHeader title="Review Items" onBack={() => router.replace(`/split/${draftId}/items`)} />
+        <View style={[screenStyles.stickyReviewHeaderWrap, { paddingTop: Math.max(insets.top + 10, 28) }]}>
+          <YStack gap="$5">
+            <FlowScreenHeader title="Review Items" onBack={() => router.replace(`/split/${draftId}/items`)} />
+            <View style={screenStyles.itemsImportCard}>
+              <SectionEyebrow>Current progress</SectionEyebrow>
+              <XStack alignItems="flex-end" justifyContent="space-between" gap="$3" marginTop="$2">
+                <YStack>
+                  <Text fontFamily={FONTS.headlineBlack} fontSize={34} lineHeight={36} color={PALETTE.primary}>
+                    {progressPercent}%
+                  </Text>
+                  <Text fontFamily={FONTS.headlineBlack} fontSize={26} lineHeight={28} color={PALETTE.primary}>
+                    Split
+                  </Text>
+                </YStack>
+                <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={21} color={PALETTE.onSurfaceVariant} textAlign="right">
+                  {assignedCount} of {visibleItems.length} items assigned
+                </Text>
+              </XStack>
+              <View style={screenStyles.reviewProgressTrack}>
+                <View style={[screenStyles.reviewProgressFill, { width: `${progressPercent}%` }]} />
+              </View>
+            </View>
+            <View style={screenStyles.reviewStickySeparator} />
+          </YStack>
         </View>
 
-        <YStack gap="$5">
-          <View style={screenStyles.itemsImportCard}>
-            <SectionEyebrow>Current progress</SectionEyebrow>
-            <XStack alignItems="flex-end" justifyContent="space-between" gap="$3" marginTop="$2">
-              <YStack>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={34} lineHeight={36} color={PALETTE.primary}>
-                  {progressPercent}%
-                </Text>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={26} lineHeight={28} color={PALETTE.primary}>
-                  Split
-                </Text>
-              </YStack>
-              <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={21} color={PALETTE.onSurfaceVariant} textAlign="right">
-                {assignedCount} of {visibleItems.length} items assigned
-              </Text>
-            </XStack>
-            <View style={screenStyles.reviewProgressTrack}>
-              <View style={[screenStyles.reviewProgressFill, { width: `${progressPercent}%` }]} />
-            </View>
-          </View>
-
-          <View style={screenStyles.itemsSectionSeparator} />
-
-          <YStack gap="$3">
+        <View style={screenStyles.reviewListViewport}>
+          <YStack gap="$3" style={screenStyles.reviewListContent}>
             {visibleItems.map((item) => {
               const assigned = isItemAssigned(item);
               const itemLabel = item.name.trim() || "Untitled item";
@@ -3873,7 +3914,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
               );
             })}
           </YStack>
-        </YStack>
+        </View>
       </ScrollView>
       <SplitNoticeModal messages={reviewNoticeMessages} onDismiss={() => setReviewNoticeMessages([])} />
     </AppScreen>
@@ -3920,7 +3961,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
   }
 
   const payer = settlement.data.people.find((person) => person.isPayer)!;
-  const owingPeople = settlement.data.people.filter((person) => !person.isPayer && person.netCents < 0);
+  const owingPeople = getOwingPeople(settlement.data.people);
   const settledParticipantIds = getSettledParticipantIds(record);
   const pdfData = getPdfExportPreview(record);
   const payerConsumedCents = Math.max(0, payer.paidCents - payer.netCents);
@@ -4186,6 +4227,17 @@ const screenStyles = StyleSheet.create({
     paddingBottom: 18,
     zIndex: 5,
   },
+  stickyReviewHeaderWrap: {
+    backgroundColor: PALETTE.surface,
+    paddingBottom: 0,
+    zIndex: 5,
+  },
+  reviewListViewport: {
+    overflow: "hidden",
+  },
+  reviewListContent: {
+    paddingTop: 20,
+  },
   stickyHomeHeader: {
     backgroundColor: PALETTE.surface,
     paddingHorizontal: 20,
@@ -4390,6 +4442,10 @@ const screenStyles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(220,193,180,0.32)",
     marginTop: 4,
+  },
+  reviewStickySeparator: {
+    height: 1,
+    backgroundColor: "rgba(220,193,180,0.32)",
   },
   itemsListCard: {
     borderRadius: 24,

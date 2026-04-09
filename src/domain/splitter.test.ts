@@ -14,6 +14,7 @@ import {
   detectCurrency,
   formatMoney,
   formatMoneyTrailingSymbol,
+  normalizeMoneyInput,
   parseMoneyToCents,
   parseSplit,
   rebalancePercentAllocations,
@@ -31,6 +32,7 @@ describe("splitter domain", () => {
   it("parses money inputs documented in the contract", () => {
     expect(parseMoneyToCents("3.49")).toBe(349);
     expect(parseMoneyToCents("3,49")).toBe(349);
+    expect(parseMoneyToCents("1")).toBe(100);
     expect(parseMoneyToCents(" 1 234,56 ")).toBe(123456);
     expect(parseMoneyToCents("-0.75")).toBe(-75);
     expect(parseMoneyToCents("")).toBeNull();
@@ -190,6 +192,12 @@ describe("splitter domain", () => {
     }
   });
 
+  it("normalizes saved money inputs to two decimals", () => {
+    expect(normalizeMoneyInput("1")).toBe("1.00");
+    expect(normalizeMoneyInput("1,2")).toBe("1.20");
+    expect(normalizeMoneyInput("12.")).toBe("12.");
+  });
+
   it("covers validation failures and invalid settlement branches", () => {
     const invalidValues: SplitFormValues = {
       currency: "EUR",
@@ -296,6 +304,15 @@ describe("splitter domain", () => {
         "60"
       )
     ).toBeNull();
+    expect(
+      rebalancePercentAllocations(
+        [{ participantId: "ana", evenIncluded: true, shares: "1", percent: "100", percentLocked: false }],
+        "ana",
+        "100"
+      )
+    ).toEqual([
+      { participantId: "ana", evenIncluded: true, shares: "1", percent: "100", percentLocked: true },
+    ]);
   });
 
   it("covers aggregate helpers and trailing blank removal", () => {

@@ -121,16 +121,31 @@ describe("ui primitives", () => {
     rerender(<PrimaryButton label="Disabled" onPress={onPrimary} disabled />);
     fireEvent.press(screen.getByText("Disabled"));
     expect(onPrimary).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <>
+        <SecondaryButton label="Secondary disabled" onPress={onSecondary} disabled />
+        <QuietButton label="Quiet disabled" onPress={onQuiet} disabled />
+      </>
+    );
+    fireEvent.press(screen.getByText("Secondary disabled"));
+    fireEvent.press(screen.getByText("Quiet disabled"));
+    expect(onSecondary).toHaveBeenCalledTimes(1);
+    expect(onQuiet).toHaveBeenCalledTimes(1);
   });
 
   it("covers pressed-state style callbacks for pressable buttons", () => {
     const primaryStyle = (PrimaryButton({ label: "Primary" }) as any).props.style({ pressed: true });
     const secondaryStyle = (SecondaryButton({ label: "Secondary" }) as any).props.style({ pressed: true });
     const quietStyle = (QuietButton({ label: "Quiet" }) as any).props.style({ pressed: true });
+    const disabledSecondaryStyle = (SecondaryButton({ label: "Disabled secondary", disabled: true }) as any).props.style({ pressed: true });
+    const disabledQuietStyle = (QuietButton({ label: "Disabled quiet", disabled: true }) as any).props.style({ pressed: true });
 
     expect(primaryStyle).toEqual(expect.arrayContaining([styles.buttonPressed]));
     expect(secondaryStyle).toEqual(expect.arrayContaining([styles.buttonPressed]));
     expect(quietStyle).toEqual(expect.arrayContaining([{ opacity: 0.7 }]));
+    expect(disabledSecondaryStyle).not.toEqual(expect.arrayContaining([styles.buttonPressed]));
+    expect(disabledQuietStyle).not.toEqual(expect.arrayContaining([{ opacity: 0.7 }]));
   });
 
   it("supports single-line and multiline input changes", () => {

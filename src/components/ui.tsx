@@ -6,7 +6,10 @@ import { Circle, Paragraph, Text, XStack, YStack } from "tamagui";
 
 import { FONTS, PALETTE } from "../theme/palette";
 
-const NON_SCROLL_FOOTER_SPACER = 132;
+const FOOTER_PADDING_TOP = 18;
+const FOOTER_PADDING_BOTTOM = 28;
+const FOOTER_OVERLAY_HEIGHT = 132;
+const SCROLL_BOTTOM_SPACER = FOOTER_OVERLAY_HEIGHT + FOOTER_PADDING_TOP + FOOTER_PADDING_BOTTOM + 20;
 
 export function AppScreen({
   children,
@@ -71,9 +74,9 @@ export function HeroCard({
 }>) {
   return (
     <LinearGradient colors={[PALETTE.primary, PALETTE.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-      <View style={styles.heroGlow} />
+        <View style={styles.heroGlow} />
       {eyebrow ? (
-        <Text fontFamily={FONTS.bodyBold} fontSize={11} color="rgba(255,255,255,0.78)" textTransform="uppercase" letterSpacing={2}>
+        <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.heroEyebrow} textTransform="uppercase" letterSpacing={2}>
           {eyebrow}
         </Text>
       ) : null}
@@ -81,7 +84,7 @@ export function HeroCard({
         {title}
       </Text>
       {subtitle ? (
-        <Paragraph color="rgba(255,255,255,0.82)" fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22}>
+        <Paragraph color={PALETTE.heroSubtitle} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22}>
           {subtitle}
         </Paragraph>
       ) : null}
@@ -145,13 +148,21 @@ export function SecondaryButton({
   label,
   onPress,
   icon,
+  disabled,
 }: {
   label: string;
   onPress?: () => void;
   icon?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.button, styles.secondaryButton, pressed ? styles.buttonPressed : null]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
+      style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && !disabled ? styles.buttonPressed : null]}
+    >
       <XStack alignItems="center" justifyContent="center" gap="$2">
         {icon}
         <Text color={PALETTE.onSecondaryContainer} fontFamily={FONTS.headlineBold} fontSize={17}>
@@ -162,9 +173,15 @@ export function SecondaryButton({
   );
 }
 
-export function QuietButton({ label, onPress }: { label: string; onPress?: () => void }) {
+export function QuietButton({ label, onPress, disabled }: { label: string; onPress?: () => void; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.quietButton, pressed ? { opacity: 0.7 } : null]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
+      style={({ pressed }) => [styles.quietButton, pressed && !disabled ? { opacity: 0.7 } : null]}
+    >
       <Text color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
         {label}
       </Text>
@@ -194,7 +211,7 @@ export function SoftInput({
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor="rgba(86, 67, 57, 0.55)"
+      placeholderTextColor={PALETTE.inputPlaceholder}
       keyboardType={keyboardType}
       multiline={multiline}
       style={[styles.input, multiline ? styles.multiline : null]}
@@ -272,9 +289,9 @@ export function EmptyState({
 export const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: PALETTE.surface },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 180, gap: 24 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: SCROLL_BOTTOM_SPACER, gap: 24 },
   nonScrollContentWithFooter: {
-    paddingBottom: NON_SCROLL_FOOTER_SPACER,
+    paddingBottom: FOOTER_OVERLAY_HEIGHT,
   },
   hero: {
     borderRadius: 28,
@@ -295,7 +312,7 @@ export const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: PALETTE.heroGlow,
   },
   cardShadow: {
     shadowColor: PALETTE.primary,
@@ -333,9 +350,9 @@ export const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 28,
-    backgroundColor: "rgba(249,249,249,0.96)",
+    paddingTop: FOOTER_PADDING_TOP,
+    paddingBottom: FOOTER_PADDING_BOTTOM,
+    backgroundColor: PALETTE.footerGlass,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },

@@ -148,6 +148,15 @@ export function parseMoneyToCents(value: string) {
   return Math.round(Number(normalized) * 100);
 }
 
+export function normalizeMoneyInput(value: string) {
+  const amountCents = parseMoneyToCents(value);
+  if (amountCents === null) {
+    return value.trim().replace(/\s/g, "").replace(",", ".");
+  }
+
+  return (amountCents / 100).toFixed(2);
+}
+
 function parseDecimal(value: string) {
   const normalized = value.trim().replace(/\s/g, "").replace(",", ".");
   if (!normalized) {
