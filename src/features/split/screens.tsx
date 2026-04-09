@@ -2077,7 +2077,7 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <FlowScreenHeader title="Who&apos;s splitting?" onBack={() => router.replace(`/split/${draftId}/setup`)} />
+          <FlowScreenHeader title="Who's splitting?" onBack={() => router.replace(`/split/${draftId}/setup`)} />
         </View>
 
         <YStack gap="$5">
