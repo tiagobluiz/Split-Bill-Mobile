@@ -2212,7 +2212,7 @@ describe("split screens", () => {
 
   it("renders items flow and paste navigation", async () => {
     render(<ItemsScreen draftId="draft-1" />);
-    expect(screen.getByText("What's on the bill?")).toBeTruthy();
+    expect(screen.getByText("Add Items")).toBeTruthy();
     expect(screen.getByText("Import Receipt")).toBeTruthy();
     expect(screen.queryByText("Fast & accurate")).toBeNull();
     expect(screen.queryByText("Items Added")).toBeNull();
@@ -2329,6 +2329,44 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-2");
   });
 
+  it("ignores queued item deletions when advancing from items into split", async () => {
+    jest.useFakeTimers();
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...buildRecord().values.items[0],
+              id: "item-1",
+              allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+            {
+              ...buildRecord().values.items[0],
+              id: "item-2",
+              name: "Bread",
+              allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<ItemsScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("Delete item Bread"));
+    await act(async () => {
+      fireEvent.press(screen.getByText("Next: Split Bill"));
+    });
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-1");
+    jest.useRealTimers();
+  });
+
   it("commits a queued item deletion after the undo window expires and clears timers on unmount", async () => {
     jest.useFakeTimers();
     mockStoreState.records = [
@@ -2408,10 +2446,9 @@ describe("split screens", () => {
 
   it("creates a new item from inside the editor route instead of pre-creating it on the items screen", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
-    expect(screen.getByText("Split Bill")).toBeTruthy();
-    expect(screen.getByText(/Add New/)).toBeTruthy();
+    expect(screen.getByText("Add Item")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Truffle Pasta"), "Soup");
-    expect(screen.getByText(/Add New/)).toBeTruthy();
+    expect(screen.getByText("Add Item")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "12.50");
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
@@ -2679,7 +2716,7 @@ describe("split screens", () => {
 
   it("renders assign-item variants and triggers metadata actions", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Split Bill")).toBeTruthy();
+    expect(screen.getByText("Edit Item")).toBeTruthy();
     expect(screen.getByText("Category")).toBeTruthy();
     fireEvent.changeText(screen.getByDisplayValue("Groceries"), "Bread");
     fireEvent.changeText(screen.getByDisplayValue("9.00"), "12.00");
@@ -2861,7 +2898,7 @@ describe("split screens", () => {
     ];
 
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Edit Bill Item")).toBeTruthy();
+    expect(screen.getByText("Edit Item")).toBeTruthy();
     expect(screen.getByPlaceholderText("e.g. Truffle Pasta")).toBeTruthy();
     expect(screen.queryByText("Shares")).toBeNull();
     expect(screen.queryByText("Percent")).toBeNull();
@@ -3795,7 +3832,7 @@ describe("split screens", () => {
   it("renders review progress and proceeds when valid", () => {
     render(<ReviewScreen draftId="draft-1" />);
     expect(screen.getByText("Current progress")).toBeTruthy();
-    expect(screen.getByText("How is the bill split?")).toBeTruthy();
+    expect(screen.getByText("Review Items")).toBeTruthy();
     expect(screen.getByText("1 of 1 items assigned")).toBeTruthy();
     expect(screen.queryByText("Total settled")).toBeNull();
     fireEvent.press(screen.getByText("Show Results"));

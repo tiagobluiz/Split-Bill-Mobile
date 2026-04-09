@@ -1505,7 +1505,7 @@ export function HomeScreen() {
       contentContainerStyle={[
         screenStyles.mainTabScrollContent,
         {
-          paddingBottom: 196 + Math.max(insets.bottom, 12),
+          paddingBottom: 268 + Math.max(insets.bottom, 20),
         },
       ]}
       showsVerticalScrollIndicator={false}
@@ -1889,11 +1889,11 @@ export function SetupScreen({ draftId }: { draftId: string }) {
           </Pressable>
         </FloatingFooter>
       }
-    >
-      <ScrollView
-        style={screenStyles.flex}
-        keyboardShouldPersistTaps="always"
-        stickyHeaderIndices={[0]}
+      >
+        <ScrollView
+          style={screenStyles.flex}
+          keyboardShouldPersistTaps="always"
+          stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
@@ -1901,26 +1901,9 @@ export function SetupScreen({ draftId }: { draftId: string }) {
           },
         ]}
         showsVerticalScrollIndicator={false}
-      >
+        >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$2.5">
-            <XStack alignItems="center" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => router.replace("/")}>
-                  <ArrowLeft color={PALETTE.primary} size={22} />
-                </Pressable>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={25} color={PALETTE.primary} letterSpacing={-1.1}>
-                  New Split
-                </Text>
-              </XStack>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={() => router.replace("/")}>
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <Text paddingLeft={34} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color="rgba(86, 67, 57, 0.8)">
-              Give this split a name and choose the currency.
-            </Text>
-          </YStack>
+          <FlowScreenHeader title="New Split" onBack={() => router.replace("/")} />
         </View>
 
         <YStack gap="$5">
@@ -2094,40 +2077,7 @@ export function ParticipantsScreen({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$2.5">
-            <XStack alignItems="center" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Back"
-                  hitSlop={8}
-                  onPress={() => router.replace(`/split/${draftId}/setup`)}
-                >
-                  <ArrowLeft color={PALETTE.primary} size={22} />
-                </Pressable>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={25} color={PALETTE.primary} letterSpacing={-1.1}>
-                  Who&apos;s splitting?
-                </Text>
-              </XStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={8}
-                onPress={() => router.replace("/")}
-              >
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <Text
-              paddingLeft={34}
-              fontFamily={FONTS.bodyMedium}
-              fontSize={15}
-              lineHeight={22}
-              color="rgba(86, 67, 57, 0.8)"
-            >
-              Select friends to share the bill with.
-            </Text>
-          </YStack>
+          <FlowScreenHeader title="Who&apos;s splitting?" onBack={() => router.replace(`/split/${draftId}/setup`)} />
         </View>
 
         <YStack gap="$5">
@@ -2298,39 +2248,7 @@ export function PayerScreen({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$4">
-            <XStack alignItems="center" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Back"
-                  hitSlop={8}
-                  onPress={() => router.replace(`/split/${draftId}/participants`)}
-                >
-                  <ArrowLeft color={PALETTE.primary} size={22} />
-                </Pressable>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={25} color={PALETTE.primary} letterSpacing={-1.1}>
-                  Who paid?
-                </Text>
-              </XStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={8}
-                onPress={() => router.replace("/")}
-              >
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <Text
-              fontFamily={FONTS.bodyMedium}
-              fontSize={15}
-              lineHeight={22}
-              color="rgba(86, 67, 57, 0.8)"
-            >
-              Select the person who payed the bill.
-            </Text>
-          </YStack>
+          <FlowScreenHeader title="Who paid?" onBack={() => router.replace(`/split/${draftId}/participants`)} />
         </View>
 
         <YStack gap="$5">
@@ -2402,9 +2320,19 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
   }
 
   const stepTwoErrors = [...new Set(validateStepTwo(record.values).map((error) => error.message))];
-  const isItemsStepReady = stepTwoErrors.length === 0;
   const locale = getDeviceLocale();
   const visibleItems = record.values.items.filter(isVisibleItem);
+  const effectiveRecordForStep = pendingItemDelete
+    ? {
+        ...record,
+        values: {
+          ...record.values,
+          items: record.values.items.filter((item) => item.id !== pendingItemDelete.id),
+        },
+      }
+    : record;
+  const effectiveStepTwoErrors = [...new Set(validateStepTwo(effectiveRecordForStep.values).map((error) => error.message))];
+  const isItemsStepReady = effectiveStepTwoErrors.length === 0;
   const runningTotal = formatMoney(
     visibleItems.reduce((sum, item) => sum + (parseMoneyToCents(item.price) ?? 0), 0),
     record.values.currency,
@@ -2499,12 +2427,12 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
                 !isItemsStepReady ? screenStyles.participantsContinueButtonDisabled : null,
               ]}
               onPress={async () => {
-              if (!isItemsStepReady) {
-                  setItemsNoticeMessages([...new Set(stepTwoErrors.map(getFriendlySplitMessage))]);
+                if (!isItemsStepReady) {
+                  setItemsNoticeMessages([...new Set(effectiveStepTwoErrors.map(getFriendlySplitMessage))]);
                   return;
                 }
-                  await setStep(5);
-                  const nextItem = getLatestPendingSplitItem(record);
+                await setStep(5);
+                const nextItem = getLatestPendingSplitItem(effectiveRecordForStep);
                 router.push(nextItem ? `/split/${draftId}/split/${nextItem.id}` : `/split/${draftId}/overview`);
               }}
             >
@@ -2536,39 +2464,7 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$3">
-            <XStack alignItems="center" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Back"
-                  hitSlop={8}
-                  onPress={() => router.replace(`/split/${draftId}/payer`)}
-                >
-                  <ArrowLeft color={PALETTE.primary} size={22} />
-                </Pressable>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={25} color={PALETTE.primary} letterSpacing={-1.1}>
-                  Add Items
-                </Text>
-              </XStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={8}
-                onPress={() => router.replace("/")}
-              >
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <YStack gap="$1.5" paddingTop="$2">
-              <Text fontFamily={FONTS.headlineBlack} fontSize={28} color={PALETTE.onSurface} letterSpacing={-1.3}>
-                What&apos;s on the bill?
-              </Text>
-              <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color="rgba(86, 67, 57, 0.8)">
-                Add items manually or import from a receipt.
-              </Text>
-            </YStack>
-          </YStack>
+          <FlowScreenHeader title="Add Items" onBack={() => router.replace(`/split/${draftId}/payer`)} />
         </View>
 
         <YStack gap="$5">
@@ -2780,7 +2676,6 @@ export function PasteImportScreen({ draftId }: { draftId: string }) {
     >
       <ScreenHeader
         title="Paste item list"
-        subtitle="Use clean lines like `Bananas - 2.49`, `Milk 3.40`, or `item,price`."
         trailing={
           <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={() => router.replace("/")}>
             <X color={PALETTE.primary} size={22} />
@@ -3000,33 +2895,7 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$3.5">
-            <XStack alignItems="center" justifyContent="space-between">
-              <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => void closeEditor()}>
-                <ArrowLeft color={PALETTE.primary} size={22} />
-              </Pressable>
-              <Text fontFamily={FONTS.headlineBlack} fontSize={22} color={PALETTE.onSurface}>
-                Split Bill
-              </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={() => router.replace("/")}>
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <YStack gap="$1.5">
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={11}
-                color={PALETTE.primary}
-                textTransform="uppercase"
-                letterSpacing={2.1}
-              >
-                Manual entry
-              </Text>
-              <Text fontFamily={FONTS.headlineBlack} fontSize={34} color={PALETTE.onSurface} lineHeight={40} letterSpacing={-1.5}>
-                {isNewItem ? "Add New\nBill Item" : "Edit Bill Item"}
-              </Text>
-            </YStack>
-          </YStack>
+          <FlowScreenHeader title={isNewItem ? "Add Item" : "Edit Item"} onBack={() => void closeEditor()} />
         </View>
 
         <YStack gap="$5">
@@ -3203,7 +3072,11 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
       };
       setWorkingItem(cloneItem(sourceItem));
       setSplitNoticeMessages([]);
+      return;
     }
+    modeAllocationsRef.current = null;
+    setWorkingItem(null);
+    setSplitNoticeMessages([]);
   }, [itemId, record]);
 
   if (!record) {
@@ -3921,39 +3794,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$3">
-            <XStack alignItems="center" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Back"
-                  hitSlop={8}
-                  onPress={() => router.replace(`/split/${draftId}/items`)}
-                >
-                  <ArrowLeft color={PALETTE.primary} size={22} />
-                </Pressable>
-                <Text fontFamily={FONTS.headlineBlack} fontSize={25} color={PALETTE.primary} letterSpacing={-1.1}>
-                  Review Items
-                </Text>
-              </XStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={8}
-                onPress={() => router.replace("/")}
-              >
-                <X color={PALETTE.primary} size={22} />
-              </Pressable>
-            </XStack>
-            <YStack gap="$1.5" paddingTop="$2">
-              <Text fontFamily={FONTS.headlineBlack} fontSize={28} color={PALETTE.onSurface} letterSpacing={-1.3}>
-                How is the bill split?
-              </Text>
-              <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color="rgba(86, 67, 57, 0.8)">
-                Review each item before showing results.
-              </Text>
-            </YStack>
-          </YStack>
+          <FlowScreenHeader title="Review Items" onBack={() => router.replace(`/split/${draftId}/items`)} />
         </View>
 
         <YStack gap="$5">
