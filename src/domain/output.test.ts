@@ -92,7 +92,9 @@ describe("output contracts", () => {
           },
         ],
       })
-    ).toContain("Zed:");
+    ).toBe(
+      "Split Bill summary\nZed: paid €9.00 and should get back €6.00.\nAda: owes €3.00.\nBob: owes €3.00."
+    );
   });
 
   it("throws when pdf export is requested for an invalid split", () => {

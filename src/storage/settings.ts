@@ -70,7 +70,7 @@ export async function getAppSettings() {
     return getDefaultSettings();
   }
   return {
-    ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName : "You",
+    ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
     ownerProfileImageUri:
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
     balanceFeatureEnabled:

@@ -32,13 +32,16 @@ describe("ui primitives", () => {
   });
 
   it("renders app screen without scroll when requested", () => {
-    render(
-      <AppScreen scroll={false}>
+    const view = render(
+      <AppScreen scroll={false} footer={<Text>footer</Text>}>
         <Text>static content</Text>
       </AppScreen>
     );
 
     expect(screen.getByText("static content")).toBeTruthy();
+    expect(screen.getByText("footer")).toBeTruthy();
+    const contentParent = view.getByText("static content").parent?.parent;
+    expect(contentParent?.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ paddingBottom: 132 })]));
   });
 
   it("renders the screen header with and without optional content", () => {

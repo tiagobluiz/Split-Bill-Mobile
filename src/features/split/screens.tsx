@@ -622,8 +622,9 @@ function getRecentRowMeta(
   const preview = getRecordMoneyPreview(record, ownerName);
   const locale = getDeviceLocale();
   const currency = preview?.currency ?? record.values.currency;
-  const rawAmountCents = preview?.ownerNetCents ?? 0;
-  const amountPrefix = rawAmountCents > 0 ? "+" : "";
+  const baseAmountCents = preview?.ownerNetCents ?? 0;
+  const rawAmountCents = preview?.ownerRelation === "debtor" ? -baseAmountCents : baseAmountCents;
+  const amountPrefix = rawAmountCents > 0 ? "+" : rawAmountCents < 0 ? "-" : "";
   const amount = `${amountPrefix}${formatAppMoney(Math.abs(rawAmountCents), currency, locale, settings)}`;
   const pendingStep = getDraftPendingStep(record);
 
@@ -2319,9 +2320,7 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
     return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
   }
 
-  const stepTwoErrors = [...new Set(validateStepTwo(record.values).map((error) => error.message))];
   const locale = getDeviceLocale();
-  const visibleItems = record.values.items.filter(isVisibleItem);
   const effectiveRecordForStep = pendingItemDelete
     ? {
         ...record,
@@ -2331,6 +2330,8 @@ export function ItemsScreen({ draftId }: { draftId: string }) {
         },
       }
     : record;
+  const stepTwoErrors = [...new Set(validateStepTwo(record.values).map((error) => error.message))];
+  const visibleItems = effectiveRecordForStep.values.items.filter(isVisibleItem);
   const effectiveStepTwoErrors = [...new Set(validateStepTwo(effectiveRecordForStep.values).map((error) => error.message))];
   const isItemsStepReady = effectiveStepTwoErrors.length === 0;
   const runningTotal = formatMoney(

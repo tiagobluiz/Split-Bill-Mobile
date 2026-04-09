@@ -151,8 +151,9 @@ async function loadStore(options?: {
     getAppSettings: storageMocks.getAppSettings,
     saveAppSettings: storageMocks.saveAppSettings,
   }));
+  const actualDevice = jest.requireActual("../../lib/device");
   jest.doMock("../../lib/device", () => ({
-    cloneDeep: <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T,
+    ...actualDevice,
     getDeviceLocale: () => "en-US",
   }));
   jest.doMock("../../domain", () => ({

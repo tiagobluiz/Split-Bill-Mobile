@@ -449,6 +449,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "owner-debtor" })];
     const { rerender } = render(<HomeScreen />);
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/-45,50|-45.50/)).toBeTruthy();
 
     mockStoreState.settings = {
       ownerName: "Tiago",
@@ -2261,7 +2262,7 @@ describe("split screens", () => {
     jest.useFakeTimers();
     fireEvent.press(screen.getByLabelText("Delete item Groceries"));
     expect(screen.getByText("Item deleted")).toBeTruthy();
-    expect(screen.getByLabelText("Delete item Groceries")).toBeTruthy();
+    expect(screen.queryByLabelText("Delete item Groceries")).toBeNull();
     expect(screen.getAllByText("Groceries").length).toBeGreaterThan(0);
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
 
@@ -2360,6 +2361,8 @@ describe("split screens", () => {
 
     render(<ItemsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Delete item Bread"));
+    expect(screen.queryByLabelText("Delete item Bread")).toBeNull();
+    expect(screen.getByText("1 item")).toBeTruthy();
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Split Bill"));
     });
@@ -2388,7 +2391,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Delete item Bread"));
     expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
-    expect(screen.getByLabelText("Delete item Bread")).toBeTruthy();
+    expect(screen.queryByLabelText("Delete item Bread")).toBeNull();
 
     await act(async () => {
       jest.advanceTimersByTime(4000);

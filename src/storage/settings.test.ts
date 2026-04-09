@@ -32,7 +32,7 @@ describe("settings storage", () => {
     const savedRow = {
       key: "app-settings",
       payload: JSON.stringify({
-        ownerName: "Tiago",
+        ownerName: " Tiago ",
         ownerProfileImageUri: "file:///profile.png",
         balanceFeatureEnabled: false,
         defaultCurrency: "USD",

@@ -6,6 +6,8 @@ import { Circle, Paragraph, Text, XStack, YStack } from "tamagui";
 
 import { FONTS, PALETTE } from "../theme/palette";
 
+const NON_SCROLL_FOOTER_SPACER = 132;
+
 export function AppScreen({
   children,
   scroll = true,
@@ -20,7 +22,7 @@ export function AppScreen({
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.flex}>{children}</View>
+    <View style={[styles.flex, footer ? styles.nonScrollContentWithFooter : null]}>{children}</View>
   );
 
   return (
@@ -271,6 +273,9 @@ export const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: PALETTE.surface },
   scrollContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 180, gap: 24 },
+  nonScrollContentWithFooter: {
+    paddingBottom: NON_SCROLL_FOOTER_SPACER,
+  },
   hero: {
     borderRadius: 28,
     paddingHorizontal: 24,
