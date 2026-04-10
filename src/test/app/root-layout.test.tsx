@@ -95,6 +95,15 @@ describe("root layout", () => {
     });
   });
 
+  it("keeps the app in loading state while bootstrap is still in progress", () => {
+    mockUseFonts.mockReturnValue([true]);
+
+    const view = render(<RootLayout />);
+
+    expect(view.toJSON()).toBeNull();
+    expect(screen.queryByText("We couldn't open Split Bill")).toBeNull();
+  });
+
   it("shows a retry UI when bootstrap fails and retries on demand", async () => {
     mockUseFonts.mockReturnValue([true]);
     mockStoreState.bootstrap

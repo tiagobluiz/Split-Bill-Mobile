@@ -41,7 +41,11 @@ export default function RootLayout() {
     return null;
   }
 
-  if (!ready) {
+  if (!ready && !bootstrapFailed) {
+    return null;
+  }
+
+  if (bootstrapFailed) {
     return (
       <AppThemeProvider>
         <View style={{ flex: 1, backgroundColor: PALETTE.surface, paddingHorizontal: 24, justifyContent: "center" }}>
