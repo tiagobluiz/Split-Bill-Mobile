@@ -35,6 +35,7 @@ describe("settings storage", () => {
         ownerName: " Tiago ",
         ownerProfileImageUri: "file:///profile.png",
         balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: false,
         defaultCurrency: "USD",
         customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
       }),
@@ -50,6 +51,7 @@ describe("settings storage", () => {
       ownerName: "Ana",
       ownerProfileImageUri: "file:///ana.png",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
@@ -64,6 +66,7 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
@@ -75,6 +78,7 @@ describe("settings storage", () => {
           ownerName: "Ana",
           ownerProfileImageUri: "file:///ana.png",
           balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
         }),
@@ -90,6 +94,7 @@ describe("settings storage", () => {
           ownerName: "",
           ownerProfileImageUri: 123,
           balanceFeatureEnabled: "wrong",
+          trackPaymentsFeatureEnabled: "wrong",
           defaultCurrency: "",
           customCurrencies: [{ code: "", name: " ", symbol: "" }],
         }),
@@ -101,6 +106,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -111,6 +117,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -124,6 +131,7 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "file:///profile.png",
           balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
           customCurrencies: "wrong-shape",
         }),
@@ -135,6 +143,7 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -153,6 +162,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -174,6 +184,7 @@ describe("settings storage", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         customCurrencies: [],
       });

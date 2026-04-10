@@ -246,6 +246,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     ownerName: "You",
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
+    trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     customCurrencies: [],
   },

@@ -101,6 +101,7 @@ async function loadStore(options?: {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     })),
@@ -243,6 +244,7 @@ describe("split store", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -250,6 +252,7 @@ describe("split store", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -378,6 +381,7 @@ describe("split store", () => {
         ownerName: undefined,
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         customCurrencies: [],
       } as any,
@@ -385,6 +389,7 @@ describe("split store", () => {
 
     await storeModule.useSplitStore.getState().updateSettings({
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
     });
     expect(storeModule.useSplitStore.getState().records[0]).toEqual(record);
 
@@ -417,7 +422,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "GBP", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "GBP", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().updateDraftMeta("Trip", "usd");
@@ -661,7 +666,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
@@ -702,7 +707,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().markBillPaid();
@@ -729,7 +734,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("ana");
@@ -768,7 +773,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
@@ -787,7 +792,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
@@ -811,7 +816,7 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
     });
 
     await storeModule.useSplitStore.getState().markBillPaid();
@@ -842,7 +847,14 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        customCurrencies: [],
+      },
     });
 
     await storeModule.useSplitStore.getState().markBillPaid();

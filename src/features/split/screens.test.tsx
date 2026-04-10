@@ -141,6 +141,7 @@ function buildStore(overrides: Partial<any> = {}) {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     },
@@ -985,6 +986,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///camera-profile.png",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -1049,6 +1051,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "PO2",
       customCurrencies: [
         { code: "POI", name: "Points", symbol: "P" },
@@ -1132,6 +1135,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "CUR",
       customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
     });
@@ -1162,6 +1166,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "USD",
       customCurrencies: [],
     });
@@ -1249,6 +1254,7 @@ describe("split screens", () => {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "TOK",
       customCurrencies: [{ code: "TOK", name: "Token", symbol: "ABC" }],
     });
@@ -4341,11 +4347,13 @@ describe("split screens", () => {
     expect(screen.getByText("Owed")).toBeTruthy();
   });
 
-  it("hides balance controls on results when the balance feature is disabled", async () => {
+  it("hides payment controls on results when track payments is disabled", async () => {
     mockStoreState.settings = {
       ownerName: "Ana",
-      balanceFeatureEnabled: false,
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: false,
       defaultCurrency: "EUR",
+      customCurrencies: [],
     };
 
     render(<ResultsScreen draftId="draft-1" />);
@@ -4357,6 +4365,120 @@ describe("split screens", () => {
     expect(screen.queryByText("Revert Mark as Paid")).toBeNull();
     expect(screen.queryByText("Settled")).toBeNull();
     expect(screen.queryByText("Owed")).toBeNull();
+    expect(screen.getByText("Total bill")).toBeTruthy();
+  });
+
+  it("keeps payment controls hidden on results when track payments is disabled but still shows balances elsewhere", async () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: false,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(screen.getByText("Final Results")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Mark as Paid")).toBeNull();
+    expect(screen.queryByText("Revert Mark as Paid")).toBeNull();
+    expect(screen.queryByText("Settled")).toBeNull();
+    expect(screen.queryByText("Owed")).toBeNull();
+    expect(screen.getByText("Total bill")).toBeTruthy();
+  });
+
+  it("shows the new feature rows in settings and saves both balance toggles", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+    fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    fireEvent.press(screen.getByText("Why do I need this?"));
+    expect(screen.getByText("Soon")).toBeTruthy();
+    expect(screen.getByText("All your Split Bill data lives only on this phone for now. Without backup, losing the phone means losing the data too.")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: false,
+      })
+    );
+  });
+
+  it("closes the custom currency popup from cancel and clears its validation state", () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+    fireEvent.press(screen.getByLabelText("Choose default currency"));
+    fireEvent.press(screen.getByLabelText("Choose other currency"));
+    fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "");
+    fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "");
+    fireEvent.press(screen.getByLabelText("Save custom currency"));
+    expect(screen.getByText("Almost there")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Cancel custom currency"));
+
+    expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("Choose default currency"));
+    fireEvent.press(screen.getByLabelText("Choose other currency"));
+    expect(screen.getByPlaceholderText("Currency name").props.value).toBe("");
+    expect(screen.getByPlaceholderText("Currency symbol").props.value).toBe("");
+  });
+
+  it("defaults missing feature flags to on in settings and restores them on discard", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    } as any;
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+    expect(screen.getAllByText("On")).toHaveLength(2);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Ana Maria");
+    fireEvent.press(screen.getByLabelText("Open Home"));
+    fireEvent.press(screen.getByLabelText("Discard changes"));
+    fireEvent.press(screen.getByText("Settings"));
+    expect(screen.getByPlaceholderText("e.g. Tiago").props.value).toBe("Ana");
+    expect(screen.getAllByText("On")).toHaveLength(2);
+  });
+
+  it("hides split balances when the balance feature is disabled", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Splits"));
+    expect(screen.getByLabelText("Show filters")).toBeTruthy();
+    expect(screen.queryByText("You are owed")).toBeNull();
+    expect(screen.queryByText("You owe")).toBeNull();
+  });
+
+  it("shows split balances when the balance feature flag is missing and falls back to on", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    } as any;
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Splits"));
+    expect(screen.getByLabelText("Show filters")).toBeTruthy();
+    expect(screen.getByText("You are owed")).toBeTruthy();
+    expect(screen.getByText("You owe")).toBeTruthy();
   });
 
   it("renders zero settlement progress when nobody owes anything", async () => {

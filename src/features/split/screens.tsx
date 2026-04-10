@@ -1053,7 +1053,10 @@ export function HomeScreen() {
   const [settingsNoticeMessages, setSettingsNoticeMessages] = useState<string[]>([]);
   const [ownerNameDraft, setOwnerNameDraft] = useState(settings.ownerName ?? "");
   const [ownerProfileImageUriDraft, setOwnerProfileImageUriDraft] = useState(settings.ownerProfileImageUri ?? "");
-  const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(settings.balanceFeatureEnabled);
+  const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(settings.balanceFeatureEnabled ?? true);
+  const [trackPaymentsFeatureEnabledDraft, setTrackPaymentsFeatureEnabledDraft] = useState(
+    settings.trackPaymentsFeatureEnabled ?? true
+  );
   const [defaultCurrencyDraft, setDefaultCurrencyDraft] = useState(settings.defaultCurrency ?? "");
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(settings.customCurrencies ?? []);
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
@@ -1096,7 +1099,8 @@ export function HomeScreen() {
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !== (settings.ownerProfileImageUri ?? "") ||
-    balanceFeatureEnabledDraft !== settings.balanceFeatureEnabled ||
+    balanceFeatureEnabledDraft !== (settings.balanceFeatureEnabled ?? true) ||
+    trackPaymentsFeatureEnabledDraft !== (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !== (settings.defaultCurrency ?? "") ||
     JSON.stringify(customCurrenciesDraft) !== JSON.stringify(settings.customCurrencies ?? []);
 
@@ -1134,10 +1138,11 @@ export function HomeScreen() {
   useEffect(() => {
     setOwnerNameDraft(settings.ownerName ?? "");
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled);
+    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
+    setTrackPaymentsFeatureEnabledDraft(settings.trackPaymentsFeatureEnabled ?? true);
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
-  }, [settings.balanceFeatureEnabled, settings.customCurrencies, settings.defaultCurrency, settings.ownerName, settings.ownerProfileImageUri]);
+  }, [settings.balanceFeatureEnabled, settings.trackPaymentsFeatureEnabled, settings.customCurrencies, settings.defaultCurrency, settings.ownerName, settings.ownerProfileImageUri]);
 
   useEffect(() => {
     setVisibleSplitCount(20);
@@ -1159,6 +1164,7 @@ export function HomeScreen() {
       ownerName: trimmedName,
       ownerProfileImageUri: ownerProfileImageUriDraft.trim(),
       balanceFeatureEnabled: balanceFeatureEnabledDraft,
+      trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
       defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
       customCurrencies: customCurrenciesDraft,
     });
@@ -1170,7 +1176,8 @@ export function HomeScreen() {
   const discardSettingsDraft = () => {
     setOwnerNameDraft(settings.ownerName ?? "");
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled);
+    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
+    setTrackPaymentsFeatureEnabledDraft(settings.trackPaymentsFeatureEnabled ?? true);
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
     setCustomCurrencyName("");
@@ -1288,18 +1295,20 @@ export function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
-        <View style={screenStyles.homeHeader}>
-          <Text
-            fontFamily={FONTS.headlineBlack}
-            fontSize={28}
-            color={PALETTE.primary}
-            textTransform="uppercase"
-            fontStyle="italic"
-            letterSpacing={-1.2}
-          >
-            Split Bill
-          </Text>
+      <View style={screenStyles.mainTabHeaderWrap}>
+        <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+          <View style={screenStyles.homeHeader}>
+            <Text
+              fontFamily={FONTS.headlineBlack}
+              fontSize={28}
+              color={PALETTE.primary}
+              textTransform="uppercase"
+              fontStyle="italic"
+              letterSpacing={-1.2}
+            >
+              Split Bill
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -1330,7 +1339,7 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        {settings.balanceFeatureEnabled ? (
+        {(settings.balanceFeatureEnabled ?? true) ? (
           <XStack gap="$4" alignItems="stretch">
             <View style={screenStyles.homeBalanceCardWrap}>
               <SectionCard>
@@ -1431,7 +1440,7 @@ export function HomeScreen() {
         </View>
 
         <YStack gap="$5">
-          {settings.balanceFeatureEnabled ? (
+          {(settings.balanceFeatureEnabled ?? true) ? (
             <>
               <XStack gap="$4" alignItems="stretch">
                 <View style={screenStyles.homeBalanceCardWrap}>
@@ -1534,24 +1543,26 @@ export function HomeScreen() {
       contentContainerStyle={[
         screenStyles.mainTabScrollContent,
         {
-          paddingBottom: 268 + Math.max(insets.bottom, 20),
+          paddingBottom: 360 + Math.max(insets.bottom, 32),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
       <YStack gap="$3.5">
-        <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
-          <View style={screenStyles.homeHeader}>
-            <Text
-              fontFamily={FONTS.headlineBlack}
-              fontSize={28}
-              color={PALETTE.primary}
-              textTransform="uppercase"
-              fontStyle="italic"
-              letterSpacing={-1.2}
-            >
-              Split Bill
-            </Text>
+        <View style={screenStyles.mainTabHeaderWrap}>
+          <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+            <View style={screenStyles.homeHeader}>
+              <Text
+                fontFamily={FONTS.headlineBlack}
+                fontSize={28}
+                color={PALETTE.primary}
+                textTransform="uppercase"
+                fontStyle="italic"
+                letterSpacing={-1.2}
+              >
+                Split Bill
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -1680,6 +1691,66 @@ export function HomeScreen() {
                   {balanceFeatureEnabledDraft ? "On" : "Off"}
                 </Text>
               </Pressable>
+            </View>
+            <View style={screenStyles.settingsFeatureRow}>
+              <YStack gap="$2.5" flex={1}>
+                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                  Track payments
+                </Text>
+                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                  Turn this on if you want to mark people as paid inside one split after money has been settled.
+                </Text>
+              </YStack>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Toggle track payments"
+                style={[
+                  screenStyles.settingsFeatureToggle,
+                  trackPaymentsFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
+                ]}
+                onPress={() => setTrackPaymentsFeatureEnabledDraft((value) => !value)}
+              >
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={12}
+                  color={trackPaymentsFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
+                  textTransform="uppercase"
+                  letterSpacing={1.6}
+                >
+                  {trackPaymentsFeatureEnabledDraft ? "On" : "Off"}
+                </Text>
+              </Pressable>
+            </View>
+            <View style={screenStyles.settingsFeatureRow}>
+              <YStack gap="$2.5" flex={1}>
+                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                  Backup data
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Why do I need backup data"
+                  onPress={() =>
+                    setSettingsNoticeMessages([
+                      "All your Split Bill data lives only on this phone for now. Without backup, losing the phone means losing the data too.",
+                    ])
+                  }
+                >
+                  <Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.primary}>
+                    Why do I need this?
+                  </Text>
+                </Pressable>
+              </YStack>
+              <View style={[screenStyles.settingsFeatureToggle, screenStyles.settingsFeatureToggleSoon]}>
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={12}
+                  color={PALETTE.primary}
+                  textTransform="uppercase"
+                  letterSpacing={1.6}
+                >
+                  Soon
+                </Text>
+              </View>
             </View>
           </YStack>
         </YStack>
@@ -4046,9 +4117,9 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
             <View style={screenStyles.resultsHeroGlow} />
             <YStack gap="$2">
               <Text fontFamily={FONTS.bodyBold} fontSize={11} color="rgba(255,255,255,0.78)" textTransform="uppercase" letterSpacing={1.8}>
-                {settings.balanceFeatureEnabled ? "Total settled" : "Total bill"}
+                {(settings.trackPaymentsFeatureEnabled ?? true) ? "Total settled" : "Total bill"}
               </Text>
-              {settings.balanceFeatureEnabled ? (
+              {(settings.trackPaymentsFeatureEnabled ?? true) ? (
                 <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
                   <Text fontFamily={FONTS.headlineBlack} fontSize={32} color={PALETTE.onPrimary} letterSpacing={-1.2}>
                     {formatMoney(settledOwedCents, settlement.data.currency, locale)}
@@ -4063,13 +4134,13 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                 </Text>
               )}
             </YStack>
-            {settings.balanceFeatureEnabled ? (
+            {(settings.trackPaymentsFeatureEnabled ?? true) ? (
               <View style={screenStyles.resultsProgressTrack}>
                 <View style={[screenStyles.resultsProgressFill, { width: `${settlementProgressPercent}%` }]} />
               </View>
             ) : null}
             <XStack alignItems="center" gap="$2.5" paddingTop="$3">
-              {settings.balanceFeatureEnabled ? (
+              {(settings.trackPaymentsFeatureEnabled ?? true) ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={allPaid ? "Revert Mark as Paid" : "Mark as Paid"}
@@ -4127,7 +4198,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                   key={person.participantId}
                   style={[
                     screenStyles.resultsBreakdownCard,
-                    settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
+                    (settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
                   ]}
                 >
                   <XStack alignItems="center" justifyContent="space-between" gap="$3">
@@ -4151,11 +4222,11 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           fontFamily={FONTS.headlineBold}
                           fontSize={20}
                           color={PALETTE.primary}
-                          textDecorationLine={settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
+                          textDecorationLine={(settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
                         >
                           {formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}
                         </Text>
-                        {settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? (
+                        {(settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4165,7 +4236,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           >
                             Settled
                           </Text>
-                        ) : settings.balanceFeatureEnabled ? (
+                        ) : (settings.trackPaymentsFeatureEnabled ?? true) ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4177,7 +4248,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           </Text>
                         ) : null}
                       </YStack>
-                      {settings.balanceFeatureEnabled ? (
+                      {(settings.trackPaymentsFeatureEnabled ?? true) ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={
@@ -4937,7 +5008,10 @@ const screenStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   mainTabHeaderWrap: {
+    marginHorizontal: -20,
     paddingHorizontal: 20,
+    backgroundColor: PALETTE.surface,
+    zIndex: 5,
   },
   homeHeader: {
     minHeight: 48,
