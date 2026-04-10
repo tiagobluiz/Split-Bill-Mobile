@@ -161,6 +161,12 @@ function resolveDraftStep(record: DraftRecord) {
 function normalizeActiveRecordMutation(record: DraftRecord, mutator: (draft: DraftRecord) => void) {
   const nextRecord = cloneDeep(record);
   mutator(nextRecord);
+  const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
+  nextRecord.settlementState = {
+    settledParticipantIds: (nextRecord.settlementState?.settledParticipantIds ?? []).filter((participantId) =>
+      validSettledIds.has(participantId)
+    ),
+  };
   nextRecord.step = resolveDraftStep(nextRecord);
   nextRecord.updatedAt = nowIso();
   return nextRecord;

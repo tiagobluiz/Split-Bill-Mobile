@@ -739,6 +739,63 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
   });
 
+  it("drops stale settled ids when an edit changes who still owes money", async () => {
+    const record = createRecord({
+      settlementState: {
+        settledParticipantIds: ["bruno"],
+      },
+    });
+    const { storeModule, domainMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    domainMocks.computeSettlement.mockReturnValue({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 1000,
+        itemBreakdown: [],
+        people: [
+          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1000, consumedCents: 400, netCents: 600 },
+          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 400, netCents: 0 },
+          { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 200, netCents: -200 },
+        ],
+        transfers: [],
+      },
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+    });
+
+    await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+  });
+
+  it("creates an empty settled state when an edited record had none", async () => {
+    const record = createRecord({
+      settlementState: undefined,
+    });
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", customCurrencies: [] },
+    });
+
+    await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState).toEqual({
+      settledParticipantIds: [],
+    });
+  });
+
   it("keeps bill-paid settlement empty when the current draft cannot be settled", async () => {
     const record = createRecord();
     const { storeModule, domainMocks } = await loadStore({

@@ -4140,6 +4140,27 @@ describe("split screens", () => {
     expect(mockReplace).toHaveBeenCalledWith("/");
   });
 
+  it("renders reverse-settlement labels correctly in overview totals", () => {
+    const computeSettlementSpy = jest.spyOn(domain, "computeSettlement").mockReturnValueOnce({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 200,
+        itemBreakdown: [],
+        people: [
+          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
+          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
+          { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+        ],
+        transfers: [],
+      },
+    });
+
+    render(<OverviewScreen draftId="draft-1" />);
+    expect(screen.getAllByText("Payer owes them").length).toBeGreaterThan(0);
+    computeSettlementSpy.mockRestore();
+  });
+
   it("renders zero-progress overview and review states when there are no visible items", () => {
     mockStoreState.records = [
       buildRecord({
@@ -4205,6 +4226,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord()];
     rerender(<ResultsScreen draftId="draft-1" />);
     expect(screen.getByText("Split invalid")).toBeTruthy();
+    expect(mockStoreState.markCompleted).not.toHaveBeenCalled();
   });
 
   it("renders results actions and completion effect", async () => {
@@ -4245,6 +4267,22 @@ describe("split screens", () => {
     expect(screen.getByText("Revert Mark as Paid")).toBeTruthy();
     fireEvent.press(screen.getByText("Revert Mark as Paid"));
     expect(mockStoreState.revertBillPaid).toHaveBeenCalled();
+  });
+
+  it("does not auto-complete again when the record is already completed", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        status: "completed",
+        step: 6,
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(screen.getByText("Final Results")).toBeTruthy();
+    });
+    expect(screen.getByLabelText("Share Results")).toBeTruthy();
+    expect(mockStoreState.markCompleted).not.toHaveBeenCalled();
   });
 
   it("supports participant-level paid toggles and settled styling", async () => {

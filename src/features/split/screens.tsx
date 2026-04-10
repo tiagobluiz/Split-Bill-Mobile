@@ -536,6 +536,14 @@ function getOwingPeople(people: Array<{ isPayer: boolean; netCents: number }>) {
   return people.filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign);
 }
 
+function getOverviewSettlementLabel(person: { isPayer: boolean; netCents: number }) {
+  if (person.isPayer) {
+    return "Payer";
+  }
+
+  return person.netCents < 0 ? "Owes payer" : "Payer owes them";
+}
+
 function getRecordMoneyPreview(record: DraftRecord, ownerName: string) {
   const settlement = getSettlementPreview(record);
   if (!settlement?.ok) {
@@ -3655,6 +3663,7 @@ export function SplitItemScreen({ draftId, itemId }: { draftId: string; itemId: 
 export function OverviewScreen({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
   const settings = useSplitStore((state) => state.settings);
+  const insets = useSafeAreaInsets();
   const settlement = useMemo(() => {
     if (!record) {
       return null;
@@ -3678,7 +3687,6 @@ export function OverviewScreen({ draftId }: { draftId: string }) {
   ].map((error) => error.message);
 
   const locale = getDeviceLocale();
-  const insets = useSafeAreaInsets();
 
   return (
     <AppScreen
@@ -3727,7 +3735,7 @@ export function OverviewScreen({ draftId }: { draftId: string }) {
                       {getParticipantDisplayName(person.name, settings.ownerName)}
                     </Text>
                     <Text fontFamily={FONTS.bodyMedium} fontSize={12} color={PALETTE.onSurfaceVariant}>
-                      {person.isPayer ? "Payer" : "Owes payer"}
+                      {getOverviewSettlementLabel(person)}
                     </Text>
                   </YStack>
                   <Text fontFamily={FONTS.headlineBold} fontSize={18} color={person.isPayer ? PALETTE.secondary : PALETTE.primary}>
@@ -3931,26 +3939,24 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
     toggleParticipantPaid: state.toggleParticipantPaid,
   })));
   const hasAutoCompletedRef = useRef<string | null>(null);
+  const settlement = getSettlementPreview(record);
+  const summary = getClipboardSummaryPreview(record);
+  const locale = getDeviceLocale();
 
   useEffect(() => {
-    if (record && record.status !== "completed" && hasAutoCompletedRef.current !== record.id) {
-      hasAutoCompletedRef.current = record.id;
-      void (async () => {
-        await markCompleted();
-      })();
+    if (!record || !settlement?.ok || !summary || record.status === "completed" || hasAutoCompletedRef.current === record.id) {
+      return;
     }
-    if (record?.status === "completed") {
-      hasAutoCompletedRef.current = record.id;
-    }
-  }, [markCompleted, record]);
+
+    hasAutoCompletedRef.current = record.id;
+    void (async () => {
+      await markCompleted();
+    })();
+  }, [markCompleted, record, settlement, summary]);
 
   if (!record) {
     return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
   }
-
-  const settlement = getSettlementPreview(record);
-  const summary = getClipboardSummaryPreview(record);
-  const locale = getDeviceLocale();
 
   if (!settlement?.ok || !summary) {
     return (
