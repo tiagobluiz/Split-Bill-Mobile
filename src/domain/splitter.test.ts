@@ -175,6 +175,26 @@ describe("splitter domain", () => {
     expect(formatMoneyTrailingSymbol(349, "EUR")).toBeTruthy();
     expect(formatMoney(349, "EUR", "en-US")).toBe("€3.49");
     expect(formatMoneyTrailingSymbol(349, "EUR", "pt-PT")).toContain("€");
+
+    const percentSynced = syncItemAllocations(
+      [
+        {
+          ...item,
+          splitMode: "percent",
+          allocations: [
+            { participantId: "ana", evenIncluded: false, shares: "0", percent: "50", percentLocked: true },
+            { participantId: "bruno", evenIncluded: false, shares: "0", percent: "50", percentLocked: false },
+          ],
+        },
+      ],
+      [
+        { id: "ana", name: "Ana" },
+        { id: "bruno", name: "Bruno" },
+        { id: "zoe", name: "Zoe" },
+      ]
+    );
+    expect(percentSynced[0].allocations.map((allocation) => allocation.percent)).toEqual(["33.34", "33.33", "33.33"]);
+    expect(percentSynced[0].allocations.every((allocation) => allocation.percentLocked === false)).toBe(true);
   });
 
   it("falls back when Intl formatting throws", () => {

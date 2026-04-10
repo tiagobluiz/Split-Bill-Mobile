@@ -324,6 +324,16 @@ export function syncItemAllocations(items: ItemFormValue[], participants: Partic
 
   return items.map((item) => {
     const allocationByParticipant = new Map(item.allocations.map((allocation) => [allocation.participantId, allocation]));
+    const participantSetChanged =
+      item.allocations.length !== participants.length ||
+      item.allocations.some((allocation) => !participants.some((participant) => participant.id === allocation.participantId));
+
+    if (item.splitMode === "percent" && participantSetChanged) {
+      return {
+        ...item,
+        allocations: resetPercentAllocations(participants.map((participant) => createAllocation(participant.id))),
+      };
+    }
 
     return {
       ...item,

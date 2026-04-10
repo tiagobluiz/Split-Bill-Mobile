@@ -161,11 +161,16 @@ export function SecondaryButton({
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && !disabled ? styles.buttonPressed : null]}
+      style={({ pressed }) => [
+        styles.button,
+        styles.secondaryButton,
+        disabled ? styles.secondaryButtonDisabled : null,
+        pressed && !disabled ? styles.buttonPressed : null,
+      ]}
     >
       <XStack alignItems="center" justifyContent="center" gap="$2">
         {icon}
-        <Text color={PALETTE.onSecondaryContainer} fontFamily={FONTS.headlineBold} fontSize={17}>
+        <Text color={disabled ? PALETTE.onSurfaceVariant : PALETTE.onSecondaryContainer} fontFamily={FONTS.headlineBold} fontSize={17}>
           {label}
         </Text>
       </XStack>
@@ -180,9 +185,13 @@ export function QuietButton({ label, onPress, disabled }: { label: string; onPre
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [styles.quietButton, pressed && !disabled ? { opacity: 0.7 } : null]}
+      style={({ pressed }) => [
+        styles.quietButton,
+        disabled ? styles.quietButtonDisabled : null,
+        pressed && !disabled ? { opacity: 0.7 } : null,
+      ]}
     >
-      <Text color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
+      <Text color={disabled ? PALETTE.onSurfaceVariant : PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
         {label}
       </Text>
     </Pressable>
@@ -335,12 +344,18 @@ export const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: PALETTE.secondaryContainer,
   },
+  secondaryButtonDisabled: {
+    backgroundColor: PALETTE.surfaceContainerHighest,
+  },
   buttonPressed: {
     transform: [{ scale: 0.985 }],
   },
   quietButton: {
     alignSelf: "flex-start",
     paddingVertical: 6,
+  },
+  quietButtonDisabled: {
+    opacity: 0.72,
   },
   footerHost: {
     position: "absolute",

@@ -144,6 +144,8 @@ describe("ui primitives", () => {
     expect(primaryStyle).toEqual(expect.arrayContaining([styles.buttonPressed]));
     expect(secondaryStyle).toEqual(expect.arrayContaining([styles.buttonPressed]));
     expect(quietStyle).toEqual(expect.arrayContaining([{ opacity: 0.7 }]));
+    expect(disabledSecondaryStyle).toEqual(expect.arrayContaining([styles.secondaryButtonDisabled]));
+    expect(disabledQuietStyle).toEqual(expect.arrayContaining([styles.quietButtonDisabled]));
     expect(disabledSecondaryStyle).not.toEqual(expect.arrayContaining([styles.buttonPressed]));
     expect(disabledQuietStyle).not.toEqual(expect.arrayContaining([{ opacity: 0.7 }]));
   });
