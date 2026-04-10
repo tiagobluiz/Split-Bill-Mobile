@@ -4,6 +4,7 @@ export type AppSettings = {
   ownerName: string;
   ownerProfileImageUri: string;
   balanceFeatureEnabled: boolean;
+  trackPaymentsFeatureEnabled: boolean;
   defaultCurrency: string;
   customCurrencies: Array<{
     code: string;
@@ -22,6 +23,7 @@ function getDefaultSettings(): AppSettings {
     ownerName: "You",
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
+    trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     customCurrencies: [],
   };
@@ -79,6 +81,8 @@ export async function getAppSettings() {
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
     balanceFeatureEnabled:
       typeof parsed.balanceFeatureEnabled === "boolean" ? parsed.balanceFeatureEnabled : true,
+    trackPaymentsFeatureEnabled:
+      typeof parsed.trackPaymentsFeatureEnabled === "boolean" ? parsed.trackPaymentsFeatureEnabled : true,
     defaultCurrency:
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
