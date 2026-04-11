@@ -13,6 +13,29 @@ export type AppSettings = {
   }>;
 };
 
+type FeatureFlags = Pick<AppSettings, "balanceFeatureEnabled" | "trackPaymentsFeatureEnabled">;
+
+export function normalizeFeatureFlags(flags: FeatureFlags): FeatureFlags {
+  if (!flags.trackPaymentsFeatureEnabled) {
+    return {
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+    };
+  }
+
+  if (flags.balanceFeatureEnabled) {
+    return {
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+    };
+  }
+
+  return {
+    balanceFeatureEnabled: false,
+    trackPaymentsFeatureEnabled: true,
+  };
+}
+
 const DATABASE_NAME = "split-bill-mobile.db";
 const SETTINGS_KEY = "app-settings";
 
@@ -75,14 +98,19 @@ export async function getAppSettings() {
   } catch {
     return getDefaultSettings();
   }
-  return {
-    ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
-    ownerProfileImageUri:
-      typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
+  const normalizedFlags = normalizeFeatureFlags({
     balanceFeatureEnabled:
       typeof parsed.balanceFeatureEnabled === "boolean" ? parsed.balanceFeatureEnabled : true,
     trackPaymentsFeatureEnabled:
       typeof parsed.trackPaymentsFeatureEnabled === "boolean" ? parsed.trackPaymentsFeatureEnabled : true,
+  });
+
+  return {
+    ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
+    ownerProfileImageUri:
+      typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
+    balanceFeatureEnabled: normalizedFlags.balanceFeatureEnabled,
+    trackPaymentsFeatureEnabled: normalizedFlags.trackPaymentsFeatureEnabled,
     defaultCurrency:
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
@@ -108,10 +136,18 @@ export async function getAppSettings() {
 }
 
 export async function saveAppSettings(settings: AppSettings) {
+  const normalizedFlags = normalizeFeatureFlags({
+    balanceFeatureEnabled: settings.balanceFeatureEnabled,
+    trackPaymentsFeatureEnabled: settings.trackPaymentsFeatureEnabled,
+  });
+  const payload: AppSettings = {
+    ...settings,
+    ...normalizedFlags,
+  };
   const db = await getDatabase();
   await db.runAsync(
     `INSERT OR REPLACE INTO app_settings (key, payload)
      VALUES (?, ?)`,
-    [SETTINGS_KEY, JSON.stringify(settings)]
+    [SETTINGS_KEY, JSON.stringify(payload)]
   );
 }

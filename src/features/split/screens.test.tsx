@@ -4396,7 +4396,11 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Toggle track payments"));
     fireEvent.press(screen.getByText("Why do I need this?"));
     expect(screen.getByText("Soon")).toBeTruthy();
-    expect(screen.getByText("All your Split Bill data lives only on this phone for now. Without backup, losing the phone means losing the data too.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too."
+      )
+    ).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Settings"));
@@ -4406,6 +4410,94 @@ describe("split screens", () => {
       expect.objectContaining({
         balanceFeatureEnabled: false,
         trackPaymentsFeatureEnabled: false,
+      })
+    );
+  });
+
+  it("enforces balance and track-payments toggle dependencies in settings", async () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+
+    fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+      })
+    );
+
+    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: false,
+      })
+    );
+  });
+
+  it("disables balance helper immediately when track payments is turned off", async () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: false,
+      })
+    );
+  });
+
+  it("can enable track payments without enabling balance helper", async () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    };
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByText("Settings"));
+    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: true,
       })
     );
   });

@@ -1051,6 +1051,7 @@ export function HomeScreen() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [visibleSplitCount, setVisibleSplitCount] = useState(20);
   const [settingsNoticeMessages, setSettingsNoticeMessages] = useState<string[]>([]);
+  const [settingsNoticeTitle, setSettingsNoticeTitle] = useState("Almost there");
   const [ownerNameDraft, setOwnerNameDraft] = useState(settings.ownerName ?? "");
   const [ownerProfileImageUriDraft, setOwnerProfileImageUriDraft] = useState(settings.ownerProfileImageUri ?? "");
   const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(settings.balanceFeatureEnabled ?? true);
@@ -1151,11 +1152,13 @@ export function HomeScreen() {
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     if (!trimmedName) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a short name for yourself."]);
       return false;
     }
 
     if (!defaultCurrencyDraft.trim()) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a default currency first."]);
       return false;
     }
@@ -1169,6 +1172,7 @@ export function HomeScreen() {
       customCurrencies: customCurrenciesDraft,
     });
     setCurrencyMenuOpen(false);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
     return true;
   };
@@ -1187,6 +1191,7 @@ export function HomeScreen() {
     setProfileActionMenuOpen(false);
     setCustomCurrencyErrors({ name: false, symbol: false });
     setPendingTabChange(null);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1207,6 +1212,7 @@ export function HomeScreen() {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages([
         mode === "camera"
           ? "Please allow camera access to take a profile picture."
@@ -1235,6 +1241,7 @@ export function HomeScreen() {
     }
 
     setOwnerProfileImageUriDraft(result.assets[0].uri);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1248,6 +1255,7 @@ export function HomeScreen() {
     setCustomCurrencyErrors(nextErrors);
 
     if (nextErrors.name || nextErrors.symbol) {
+      setSettingsNoticeTitle("Almost there");
       if (!trimmedName) {
         setSettingsNoticeMessages(["Please add a currency name first."]);
       } else {
@@ -1280,6 +1288,7 @@ export function HomeScreen() {
     setCustomCurrencySymbol("");
     setCustomCurrencyErrors({ name: false, symbol: false });
     setCurrencyModalOpen(false);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1539,6 +1548,7 @@ export function HomeScreen() {
   const renderSettingsContent = () => (
     <ScrollView
       style={screenStyles.flex}
+      nestedScrollEnabled
       stickyHeaderIndices={[0]}
       contentContainerStyle={[
         screenStyles.mainTabScrollContent,
@@ -1548,211 +1558,221 @@ export function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <YStack gap="$3.5">
-        <View style={screenStyles.mainTabHeaderWrap}>
-          <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
-            <View style={screenStyles.homeHeader}>
+      <View style={screenStyles.mainTabHeaderWrap}>
+        <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+          <View style={screenStyles.homeHeader}>
+            <Text
+              fontFamily={FONTS.headlineBlack}
+              fontSize={28}
+              color={PALETTE.primary}
+              textTransform="uppercase"
+              fontStyle="italic"
+              letterSpacing={-1.2}
+            >
+              Split Bill
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <YStack gap="$5">
+        <YStack gap="$4">
+          <SectionEyebrow>User profile</SectionEyebrow>
+          <XStack gap="$4" alignItems="flex-start">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Profile picture options"
+              style={screenStyles.settingsAvatarWrap}
+              onPress={() => setProfileActionMenuOpen(true)}
+            >
+              {ownerProfileImageUriDraft ? (
+                <Image source={{ uri: ownerProfileImageUriDraft }} style={screenStyles.settingsAvatarImage} />
+              ) : (
+                <Text fontFamily={FONTS.headlineBlack} fontSize={22} color={PALETTE.primary}>
+                  {getInitials(ownerNameDraft || settings.ownerName)}
+                </Text>
+              )}
+            </Pressable>
+            <YStack flex={1} gap="$2">
+              <FieldLabel>Your name</FieldLabel>
+              <View style={screenStyles.assignInputShell}>
+                <TextInput
+                  value={ownerNameDraft}
+                  onChangeText={(value) => setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))}
+                  placeholder="e.g. Tiago"
+                  placeholderTextColor="rgba(86,67,57,0.35)"
+                  style={screenStyles.assignInput}
+                  maxLength={MAX_OWNER_NAME_LENGTH}
+                />
+              </View>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                This is the name the app uses for your own spot in a split, like `Tiago (You)`.
+              </Text>
+            </YStack>
+          </XStack>
+        </YStack>
+
+        <View style={screenStyles.itemsSectionSeparator} />
+
+        <YStack gap="$4">
+          <SectionEyebrow>Default currency</SectionEyebrow>
+          <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+            New splits start with this money type, but you can still change it for one split when you begin.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose default currency"
+            style={screenStyles.selectRow}
+            onPress={() => setCurrencyMenuOpen((value) => !value)}
+          >
+            <XStack alignItems="center" justifyContent="space-between" gap="$3">
+              <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
+                {getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })}
+              </Text>
+              <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+            </XStack>
+          </Pressable>
+          {currencyMenuOpen ? (
+            <YStack gap="$2">
+              {draftCurrencyOptions.map((option) => {
+                const active = defaultCurrencyDraft === option.code;
+                return (
+                  <Pressable
+                    key={option.code}
+                    style={[screenStyles.selectRow, active ? screenStyles.selectRowActive : null]}
+                    onPress={() => {
+                      setDefaultCurrencyDraft(option.code);
+                      setCurrencyMenuOpen(false);
+                    }}
+                  >
+                    <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={active ? PALETTE.primary : PALETTE.onSurface}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Choose other currency"
+                style={screenStyles.selectRow}
+                onPress={() => {
+                  setCurrencyMenuOpen(false);
+                  setCurrencyModalOpen(true);
+                }}
+              >
+                <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.primary}>
+                  Other
+                </Text>
+              </Pressable>
+            </YStack>
+          ) : null}
+        </YStack>
+
+        <View style={screenStyles.itemsSectionSeparator} />
+
+        <YStack gap="$4">
+          <SectionEyebrow>Features</SectionEyebrow>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Track payments
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Turn this on if you want to mark people as paid inside one split after money has been settled.
+              </Text>
+            </YStack>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Toggle track payments"
+              style={[
+                screenStyles.settingsFeatureToggle,
+                trackPaymentsFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
+              ]}
+              onPress={() => {
+                const nextTrackPayments = !trackPaymentsFeatureEnabledDraft;
+                setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
+                setBalanceFeatureEnabledDraft((value) => (nextTrackPayments ? value : false));
+              }}
+            >
               <Text
-                fontFamily={FONTS.headlineBlack}
-                fontSize={28}
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={trackPaymentsFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
+                textTransform="uppercase"
+                letterSpacing={1.6}
+              >
+                {trackPaymentsFeatureEnabledDraft ? "On" : "Off"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Balance helper
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Turn this on if you want to track how much you owe and are owed.
+              </Text>
+            </YStack>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Toggle balance helper"
+              style={[
+                screenStyles.settingsFeatureToggle,
+                balanceFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
+              ]}
+              onPress={() => {
+                const nextBalance = !balanceFeatureEnabledDraft;
+                setBalanceFeatureEnabledDraft(nextBalance);
+                setTrackPaymentsFeatureEnabledDraft((value) => (nextBalance ? true : value));
+              }}
+            >
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={balanceFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
+                textTransform="uppercase"
+                letterSpacing={1.6}
+              >
+                {balanceFeatureEnabledDraft ? "On" : "Off"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Backup data
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Keep your splits safe in the cloud so you can recover them if you lose this phone.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Why do I need backup data"
+                onPress={() => {
+                  setSettingsNoticeTitle("Under development");
+                  setSettingsNoticeMessages([
+                    "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too.",
+                  ]);
+                }}
+              >
+                <Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.primary}>
+                  Why do I need this?
+                </Text>
+              </Pressable>
+            </YStack>
+            <View style={[screenStyles.settingsFeatureToggle, screenStyles.settingsFeatureToggleSoon]}>
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
                 color={PALETTE.primary}
                 textTransform="uppercase"
-                fontStyle="italic"
-                letterSpacing={-1.2}
+                letterSpacing={1.6}
               >
-                Split Bill
+                Soon
               </Text>
             </View>
           </View>
-        </View>
-
-        <YStack gap="$5">
-          <YStack gap="$4">
-            <SectionEyebrow>User profile</SectionEyebrow>
-            <XStack gap="$4" alignItems="flex-start">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Profile picture options"
-                style={screenStyles.settingsAvatarWrap}
-                onPress={() => setProfileActionMenuOpen(true)}
-              >
-                {ownerProfileImageUriDraft ? (
-                  <Image source={{ uri: ownerProfileImageUriDraft }} style={screenStyles.settingsAvatarImage} />
-                ) : (
-                  <Text fontFamily={FONTS.headlineBlack} fontSize={22} color={PALETTE.primary}>
-                    {getInitials(ownerNameDraft || settings.ownerName)}
-                  </Text>
-                )}
-              </Pressable>
-              <YStack flex={1} gap="$2">
-                <FieldLabel>Your name</FieldLabel>
-                <View style={screenStyles.assignInputShell}>
-                  <TextInput
-                    value={ownerNameDraft}
-                    onChangeText={(value) => setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))}
-                    placeholder="e.g. Tiago"
-                    placeholderTextColor="rgba(86,67,57,0.35)"
-                    style={screenStyles.assignInput}
-                    maxLength={MAX_OWNER_NAME_LENGTH}
-                  />
-                </View>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-                  This is the name the app uses for your own spot in a split, like `Tiago (You)`.
-                </Text>
-              </YStack>
-            </XStack>
-          </YStack>
-
-          <View style={screenStyles.itemsSectionSeparator} />
-
-            <YStack gap="$4">
-              <SectionEyebrow>Default currency</SectionEyebrow>
-            <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-              New splits start with this money type, but you can still change it for one split when you begin.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Choose default currency"
-              style={screenStyles.selectRow}
-              onPress={() => setCurrencyMenuOpen((value) => !value)}
-            >
-              <XStack alignItems="center" justifyContent="space-between" gap="$3">
-                <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
-                  {getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })}
-                </Text>
-                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-              </XStack>
-            </Pressable>
-            {currencyMenuOpen ? (
-              <YStack gap="$2">
-                {draftCurrencyOptions.map((option) => {
-                  const active = defaultCurrencyDraft === option.code;
-                  return (
-                    <Pressable
-                      key={option.code}
-                      style={[screenStyles.selectRow, active ? screenStyles.selectRowActive : null]}
-                      onPress={() => {
-                        setDefaultCurrencyDraft(option.code);
-                        setCurrencyMenuOpen(false);
-                      }}
-                    >
-                      <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={active ? PALETTE.primary : PALETTE.onSurface}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose other currency"
-                  style={screenStyles.selectRow}
-                  onPress={() => {
-                    setCurrencyMenuOpen(false);
-                    setCurrencyModalOpen(true);
-                  }}
-                >
-                  <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.primary}>
-                    Other
-                  </Text>
-                </Pressable>
-              </YStack>
-            ) : null}
-          </YStack>
-
-          <View style={screenStyles.itemsSectionSeparator} />
-
-          <YStack gap="$4">
-            <SectionEyebrow>Features</SectionEyebrow>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                  Balance helper
-                </Text>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-                  Turn this on if you want the app to remember simple open money, like `you owe` and `you are owed`.
-                </Text>
-              </YStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Toggle balance helper"
-                style={[
-                  screenStyles.settingsFeatureToggle,
-                  balanceFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
-                ]}
-                onPress={() => setBalanceFeatureEnabledDraft((value) => !value)}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={balanceFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {balanceFeatureEnabledDraft ? "On" : "Off"}
-                </Text>
-              </Pressable>
-            </View>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                  Track payments
-                </Text>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-                  Turn this on if you want to mark people as paid inside one split after money has been settled.
-                </Text>
-              </YStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Toggle track payments"
-                style={[
-                  screenStyles.settingsFeatureToggle,
-                  trackPaymentsFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
-                ]}
-                onPress={() => setTrackPaymentsFeatureEnabledDraft((value) => !value)}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={trackPaymentsFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {trackPaymentsFeatureEnabledDraft ? "On" : "Off"}
-                </Text>
-              </Pressable>
-            </View>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                  Backup data
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Why do I need backup data"
-                  onPress={() =>
-                    setSettingsNoticeMessages([
-                      "All your Split Bill data lives only on this phone for now. Without backup, losing the phone means losing the data too.",
-                    ])
-                  }
-                >
-                  <Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.primary}>
-                    Why do I need this?
-                  </Text>
-                </Pressable>
-              </YStack>
-              <View style={[screenStyles.settingsFeatureToggle, screenStyles.settingsFeatureToggleSoon]}>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  Soon
-                </Text>
-              </View>
-            </View>
-          </YStack>
         </YStack>
       </YStack>
     </ScrollView>
@@ -1801,7 +1821,14 @@ export function HomeScreen() {
       {activeTab === "home" ? renderHomeContent() : null}
       {activeTab === "splits" ? renderSplitsContent() : null}
       {activeTab === "settings" ? renderSettingsContent() : null}
-      <SplitNoticeModal messages={settingsNoticeMessages} onDismiss={() => setSettingsNoticeMessages([])} />
+      <SplitNoticeModal
+        title={settingsNoticeTitle}
+        messages={settingsNoticeMessages}
+        onDismiss={() => {
+          setSettingsNoticeTitle("Almost there");
+          setSettingsNoticeMessages([]);
+        }}
+      />
       {profileActionMenuOpen ? (
         <ActionSheetModal
           title="Profile picture"
@@ -2711,9 +2738,11 @@ function FlowScreenHeader({
 }
 
 function SplitNoticeModal({
+  title = "Almost there",
   messages,
   onDismiss,
 }: {
+  title?: string;
   messages: string[];
   onDismiss: () => void;
 }) {
@@ -2727,7 +2756,7 @@ function SplitNoticeModal({
       <View style={screenStyles.splitNoticeCard}>
         <YStack gap="$3">
           <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
-            Almost there
+            {title}
           </Text>
           {messages.map((message) => (
             <Text key={message} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>
@@ -5110,7 +5139,7 @@ const screenStyles = StyleSheet.create({
     borderColor: PALETTE.surface,
   },
   homeTabShell: {
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: PALETTE.surfaceContainerLowest,
     borderRadius: 36,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -5121,6 +5150,7 @@ const screenStyles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
+    overflow: "hidden",
   },
   homeTabButton: {
     flex: 1,

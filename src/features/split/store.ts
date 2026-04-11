@@ -29,6 +29,7 @@ import {
 import {
   getAppSettings,
   initializeSettingsStorage,
+  normalizeFeatureFlags,
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
@@ -298,9 +299,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateSettings(partial) {
     const previousOwnerName = get().settings.ownerName || "";
-    const nextSettings = {
+    const mergedSettings = {
       ...get().settings,
       ...partial,
+    };
+    const normalizedFlags = normalizeFeatureFlags({
+      balanceFeatureEnabled: mergedSettings.balanceFeatureEnabled,
+      trackPaymentsFeatureEnabled: mergedSettings.trackPaymentsFeatureEnabled,
+    });
+    const nextSettings = {
+      ...mergedSettings,
+      ...normalizedFlags,
     };
     const nextOwnerName = nextSettings.ownerName || "";
     const nextRecords = normalizeOwnerName(previousOwnerName) !== normalizeOwnerName(nextOwnerName)

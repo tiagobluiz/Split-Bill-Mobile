@@ -216,4 +216,38 @@ describe("settings storage", () => {
     await expect(settingsModule!.initializeSettingsStorage()).resolves.toBeUndefined();
     expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
   });
+
+  it("normalizes feature flag combinations", async () => {
+    const { settingsModule } = await loadModule({ row: null });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+    });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: false,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+    });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: true,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
+    });
+  });
 });
