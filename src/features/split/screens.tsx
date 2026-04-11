@@ -1682,8 +1682,9 @@ export function HomeScreen() {
               </Text>
             </YStack>
             <Pressable
-              accessibilityRole="button"
+              accessibilityRole="switch"
               accessibilityLabel="Toggle track payments"
+              accessibilityState={{ checked: trackPaymentsFeatureEnabledDraft }}
               style={[
                 screenStyles.settingsFeatureToggle,
                 trackPaymentsFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
@@ -1715,8 +1716,9 @@ export function HomeScreen() {
               </Text>
             </YStack>
             <Pressable
-              accessibilityRole="button"
+              accessibilityRole="switch"
               accessibilityLabel="Toggle balance helper"
+              accessibilityState={{ checked: balanceFeatureEnabledDraft }}
               style={[
                 screenStyles.settingsFeatureToggle,
                 balanceFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
@@ -4079,6 +4081,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
   const unsettledPeople = owingPeople.filter((person) => !settledParticipantIds.has(person.participantId));
   const allPaid = owingPeople.length > 0 && unsettledPeople.length === 0;
   const settlementProgressPercent = totalOwedCents > 0 ? Math.round((settledOwedCents / totalOwedCents) * 100) : 0;
+  const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
 
   return (
     <AppScreen
@@ -4146,9 +4149,9 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
             <View style={screenStyles.resultsHeroGlow} />
             <YStack gap="$2">
               <Text fontFamily={FONTS.bodyBold} fontSize={11} color="rgba(255,255,255,0.78)" textTransform="uppercase" letterSpacing={1.8}>
-                {(settings.trackPaymentsFeatureEnabled ?? true) ? "Total settled" : "Total bill"}
+                {trackPaymentsEnabled ? "Total settled" : "Total bill"}
               </Text>
-              {(settings.trackPaymentsFeatureEnabled ?? true) ? (
+              {trackPaymentsEnabled ? (
                 <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
                   <Text fontFamily={FONTS.headlineBlack} fontSize={32} color={PALETTE.onPrimary} letterSpacing={-1.2}>
                     {formatMoney(settledOwedCents, settlement.data.currency, locale)}
@@ -4163,13 +4166,13 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                 </Text>
               )}
             </YStack>
-            {(settings.trackPaymentsFeatureEnabled ?? true) ? (
+            {trackPaymentsEnabled ? (
               <View style={screenStyles.resultsProgressTrack}>
                 <View style={[screenStyles.resultsProgressFill, { width: `${settlementProgressPercent}%` }]} />
               </View>
             ) : null}
             <XStack alignItems="center" gap="$2.5" paddingTop="$3">
-              {(settings.trackPaymentsFeatureEnabled ?? true) ? (
+              {trackPaymentsEnabled ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={allPaid ? "Revert Mark as Paid" : "Mark as Paid"}
@@ -4227,7 +4230,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                   key={person.participantId}
                   style={[
                     screenStyles.resultsBreakdownCard,
-                    (settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
+                    trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
                   ]}
                 >
                   <XStack alignItems="center" justifyContent="space-between" gap="$3">
@@ -4251,11 +4254,11 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           fontFamily={FONTS.headlineBold}
                           fontSize={20}
                           color={PALETTE.primary}
-                          textDecorationLine={(settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
+                          textDecorationLine={trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
                         >
                           {formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}
                         </Text>
-                        {(settings.trackPaymentsFeatureEnabled ?? true) && settledParticipantIds.has(person.participantId) ? (
+                        {trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4265,7 +4268,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           >
                             Settled
                           </Text>
-                        ) : (settings.trackPaymentsFeatureEnabled ?? true) ? (
+                        ) : trackPaymentsEnabled ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4277,7 +4280,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           </Text>
                         ) : null}
                       </YStack>
-                      {(settings.trackPaymentsFeatureEnabled ?? true) ? (
+                      {trackPaymentsEnabled ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={

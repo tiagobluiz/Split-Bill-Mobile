@@ -86,6 +86,28 @@ describe("settings storage", () => {
     );
   });
 
+  it("normalizes feature flags before saving settings payloads", async () => {
+    const { database, settingsModule } = await loadModule({ row: null });
+
+    await settingsModule.initializeSettingsStorage();
+    await settingsModule.saveAppSettings({
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///ana.png",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: false,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    });
+
+    expect(database.runAsync).toHaveBeenCalledTimes(1);
+    const saveArgs = database.runAsync.mock.calls[0] as unknown as [string, [string, string]];
+    const persistedPayload = JSON.parse(saveArgs[1][1]);
+    expect(persistedPayload).toMatchObject({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+    });
+  });
+
   it("falls back to defaults when settings do not exist or are malformed", async () => {
     const { settingsModule } = await loadModule({
       row: {

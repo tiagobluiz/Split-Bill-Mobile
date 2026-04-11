@@ -148,27 +148,11 @@ async function loadStore(options?: {
 
   jest.doMock("../../storage/records", () => storageMocks);
   jest.doMock("../../storage/settings", () => ({
+    ...jest.requireActual("../../storage/settings"),
     initializeSettingsStorage: storageMocks.initializeSettingsStorage,
     getAppSettings: storageMocks.getAppSettings,
     saveAppSettings: storageMocks.saveAppSettings,
-    normalizeFeatureFlags: jest.fn((flags: { balanceFeatureEnabled: boolean; trackPaymentsFeatureEnabled: boolean }) => {
-      if (!flags.trackPaymentsFeatureEnabled) {
-        return {
-          balanceFeatureEnabled: false,
-          trackPaymentsFeatureEnabled: false,
-        };
-      }
-      if (flags.balanceFeatureEnabled) {
-        return {
-          balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
-        };
-      }
-      return {
-        balanceFeatureEnabled: false,
-        trackPaymentsFeatureEnabled: true,
-      };
-    }),
+    normalizeFeatureFlags: jest.requireActual("../../storage/settings").normalizeFeatureFlags,
   }));
   const actualDevice = jest.requireActual("../../lib/device");
   jest.doMock("../../lib/device", () => ({
