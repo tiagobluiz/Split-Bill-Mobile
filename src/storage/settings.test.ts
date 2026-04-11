@@ -35,6 +35,7 @@ describe("settings storage", () => {
         ownerName: " Tiago ",
         ownerProfileImageUri: "file:///profile.png",
         balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: false,
         defaultCurrency: "USD",
         customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
       }),
@@ -50,6 +51,7 @@ describe("settings storage", () => {
       ownerName: "Ana",
       ownerProfileImageUri: "file:///ana.png",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
@@ -64,6 +66,7 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
@@ -75,11 +78,34 @@ describe("settings storage", () => {
           ownerName: "Ana",
           ownerProfileImageUri: "file:///ana.png",
           balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
         }),
       ]
     );
+  });
+
+  it("normalizes feature flags before saving settings payloads", async () => {
+    const { database, settingsModule } = await loadModule({ row: null });
+
+    await settingsModule.initializeSettingsStorage();
+    await settingsModule.saveAppSettings({
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///ana.png",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: false,
+      defaultCurrency: "EUR",
+      customCurrencies: [],
+    });
+
+    expect(database.runAsync).toHaveBeenCalledTimes(1);
+    const saveArgs = database.runAsync.mock.calls[0] as unknown as [string, [string, string]];
+    const persistedPayload = JSON.parse(saveArgs[1][1]);
+    expect(persistedPayload).toMatchObject({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+    });
   });
 
   it("falls back to defaults when settings do not exist or are malformed", async () => {
@@ -90,6 +116,7 @@ describe("settings storage", () => {
           ownerName: "",
           ownerProfileImageUri: 123,
           balanceFeatureEnabled: "wrong",
+          trackPaymentsFeatureEnabled: "wrong",
           defaultCurrency: "",
           customCurrencies: [{ code: "", name: " ", symbol: "" }],
         }),
@@ -101,6 +128,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -111,6 +139,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -124,6 +153,7 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "file:///profile.png",
           balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
           customCurrencies: "wrong-shape",
         }),
@@ -135,6 +165,7 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -153,6 +184,7 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
     });
@@ -174,6 +206,7 @@ describe("settings storage", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         customCurrencies: [],
       });
@@ -204,5 +237,39 @@ describe("settings storage", () => {
     await expect(settingsModule!.initializeSettingsStorage()).rejects.toThrow("boom");
     await expect(settingsModule!.initializeSettingsStorage()).resolves.toBeUndefined();
     expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it("normalizes feature flag combinations", async () => {
+    const { settingsModule } = await loadModule({ row: null });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+    });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: false,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: false,
+    });
+
+    expect(
+      settingsModule.normalizeFeatureFlags({
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: true,
+      })
+    ).toEqual({
+      balanceFeatureEnabled: false,
+      trackPaymentsFeatureEnabled: true,
+    });
   });
 });

@@ -1051,9 +1051,13 @@ export function HomeScreen() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [visibleSplitCount, setVisibleSplitCount] = useState(20);
   const [settingsNoticeMessages, setSettingsNoticeMessages] = useState<string[]>([]);
+  const [settingsNoticeTitle, setSettingsNoticeTitle] = useState("Almost there");
   const [ownerNameDraft, setOwnerNameDraft] = useState(settings.ownerName ?? "");
   const [ownerProfileImageUriDraft, setOwnerProfileImageUriDraft] = useState(settings.ownerProfileImageUri ?? "");
-  const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(settings.balanceFeatureEnabled);
+  const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(settings.balanceFeatureEnabled ?? true);
+  const [trackPaymentsFeatureEnabledDraft, setTrackPaymentsFeatureEnabledDraft] = useState(
+    settings.trackPaymentsFeatureEnabled ?? true
+  );
   const [defaultCurrencyDraft, setDefaultCurrencyDraft] = useState(settings.defaultCurrency ?? "");
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(settings.customCurrencies ?? []);
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
@@ -1096,7 +1100,8 @@ export function HomeScreen() {
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !== (settings.ownerProfileImageUri ?? "") ||
-    balanceFeatureEnabledDraft !== settings.balanceFeatureEnabled ||
+    balanceFeatureEnabledDraft !== (settings.balanceFeatureEnabled ?? true) ||
+    trackPaymentsFeatureEnabledDraft !== (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !== (settings.defaultCurrency ?? "") ||
     JSON.stringify(customCurrenciesDraft) !== JSON.stringify(settings.customCurrencies ?? []);
 
@@ -1134,10 +1139,11 @@ export function HomeScreen() {
   useEffect(() => {
     setOwnerNameDraft(settings.ownerName ?? "");
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled);
+    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
+    setTrackPaymentsFeatureEnabledDraft(settings.trackPaymentsFeatureEnabled ?? true);
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
-  }, [settings.balanceFeatureEnabled, settings.customCurrencies, settings.defaultCurrency, settings.ownerName, settings.ownerProfileImageUri]);
+  }, [settings.balanceFeatureEnabled, settings.trackPaymentsFeatureEnabled, settings.customCurrencies, settings.defaultCurrency, settings.ownerName, settings.ownerProfileImageUri]);
 
   useEffect(() => {
     setVisibleSplitCount(20);
@@ -1146,11 +1152,13 @@ export function HomeScreen() {
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     if (!trimmedName) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a short name for yourself."]);
       return false;
     }
 
     if (!defaultCurrencyDraft.trim()) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a default currency first."]);
       return false;
     }
@@ -1159,10 +1167,12 @@ export function HomeScreen() {
       ownerName: trimmedName,
       ownerProfileImageUri: ownerProfileImageUriDraft.trim(),
       balanceFeatureEnabled: balanceFeatureEnabledDraft,
+      trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
       defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
       customCurrencies: customCurrenciesDraft,
     });
     setCurrencyMenuOpen(false);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
     return true;
   };
@@ -1170,7 +1180,8 @@ export function HomeScreen() {
   const discardSettingsDraft = () => {
     setOwnerNameDraft(settings.ownerName ?? "");
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled);
+    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
+    setTrackPaymentsFeatureEnabledDraft(settings.trackPaymentsFeatureEnabled ?? true);
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
     setCustomCurrencyName("");
@@ -1180,6 +1191,7 @@ export function HomeScreen() {
     setProfileActionMenuOpen(false);
     setCustomCurrencyErrors({ name: false, symbol: false });
     setPendingTabChange(null);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1200,6 +1212,7 @@ export function HomeScreen() {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
+      setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages([
         mode === "camera"
           ? "Please allow camera access to take a profile picture."
@@ -1228,6 +1241,7 @@ export function HomeScreen() {
     }
 
     setOwnerProfileImageUriDraft(result.assets[0].uri);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1241,6 +1255,7 @@ export function HomeScreen() {
     setCustomCurrencyErrors(nextErrors);
 
     if (nextErrors.name || nextErrors.symbol) {
+      setSettingsNoticeTitle("Almost there");
       if (!trimmedName) {
         setSettingsNoticeMessages(["Please add a currency name first."]);
       } else {
@@ -1273,6 +1288,7 @@ export function HomeScreen() {
     setCustomCurrencySymbol("");
     setCustomCurrencyErrors({ name: false, symbol: false });
     setCurrencyModalOpen(false);
+    setSettingsNoticeTitle("Almost there");
     setSettingsNoticeMessages([]);
   };
 
@@ -1288,18 +1304,20 @@ export function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
-        <View style={screenStyles.homeHeader}>
-          <Text
-            fontFamily={FONTS.headlineBlack}
-            fontSize={28}
-            color={PALETTE.primary}
-            textTransform="uppercase"
-            fontStyle="italic"
-            letterSpacing={-1.2}
-          >
-            Split Bill
-          </Text>
+      <View style={screenStyles.mainTabHeaderWrap}>
+        <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
+          <View style={screenStyles.homeHeader}>
+            <Text
+              fontFamily={FONTS.headlineBlack}
+              fontSize={28}
+              color={PALETTE.primary}
+              textTransform="uppercase"
+              fontStyle="italic"
+              letterSpacing={-1.2}
+            >
+              Split Bill
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -1330,7 +1348,7 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        {settings.balanceFeatureEnabled ? (
+        {(settings.balanceFeatureEnabled ?? true) ? (
           <XStack gap="$4" alignItems="stretch">
             <View style={screenStyles.homeBalanceCardWrap}>
               <SectionCard>
@@ -1431,7 +1449,7 @@ export function HomeScreen() {
         </View>
 
         <YStack gap="$5">
-          {settings.balanceFeatureEnabled ? (
+          {(settings.balanceFeatureEnabled ?? true) ? (
             <>
               <XStack gap="$4" alignItems="stretch">
                 <View style={screenStyles.homeBalanceCardWrap}>
@@ -1530,16 +1548,17 @@ export function HomeScreen() {
   const renderSettingsContent = () => (
     <ScrollView
       style={screenStyles.flex}
+      nestedScrollEnabled
       stickyHeaderIndices={[0]}
       contentContainerStyle={[
         screenStyles.mainTabScrollContent,
         {
-          paddingBottom: 268 + Math.max(insets.bottom, 20),
+          paddingBottom: 360 + Math.max(insets.bottom, 32),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <YStack gap="$3.5">
+      <View style={screenStyles.mainTabHeaderWrap}>
         <View style={[screenStyles.stickyHomeHeader, { paddingTop: Math.max(insets.top + 8, 18) }]}>
           <View style={screenStyles.homeHeader}>
             <Text
@@ -1554,134 +1573,208 @@ export function HomeScreen() {
             </Text>
           </View>
         </View>
+      </View>
 
-        <YStack gap="$5">
-          <YStack gap="$4">
-            <SectionEyebrow>User profile</SectionEyebrow>
-            <XStack gap="$4" alignItems="flex-start">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Profile picture options"
-                style={screenStyles.settingsAvatarWrap}
-                onPress={() => setProfileActionMenuOpen(true)}
-              >
-                {ownerProfileImageUriDraft ? (
-                  <Image source={{ uri: ownerProfileImageUriDraft }} style={screenStyles.settingsAvatarImage} />
-                ) : (
-                  <Text fontFamily={FONTS.headlineBlack} fontSize={22} color={PALETTE.primary}>
-                    {getInitials(ownerNameDraft || settings.ownerName)}
-                  </Text>
-                )}
-              </Pressable>
-              <YStack flex={1} gap="$2">
-                <FieldLabel>Your name</FieldLabel>
-                <View style={screenStyles.assignInputShell}>
-                  <TextInput
-                    value={ownerNameDraft}
-                    onChangeText={(value) => setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))}
-                    placeholder="e.g. Tiago"
-                    placeholderTextColor="rgba(86,67,57,0.35)"
-                    style={screenStyles.assignInput}
-                    maxLength={MAX_OWNER_NAME_LENGTH}
-                  />
-                </View>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-                  This is the name the app uses for your own spot in a split, like `Tiago (You)`.
-                </Text>
-              </YStack>
-            </XStack>
-          </YStack>
-
-          <View style={screenStyles.itemsSectionSeparator} />
-
-            <YStack gap="$4">
-              <SectionEyebrow>Default currency</SectionEyebrow>
-            <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-              New splits start with this money type, but you can still change it for one split when you begin.
-            </Text>
+      <YStack gap="$5">
+        <YStack gap="$4">
+          <SectionEyebrow>User profile</SectionEyebrow>
+          <XStack gap="$4" alignItems="flex-start">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Choose default currency"
-              style={screenStyles.selectRow}
-              onPress={() => setCurrencyMenuOpen((value) => !value)}
+              accessibilityLabel="Profile picture options"
+              style={screenStyles.settingsAvatarWrap}
+              onPress={() => setProfileActionMenuOpen(true)}
             >
-              <XStack alignItems="center" justifyContent="space-between" gap="$3">
-                <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
-                  {getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })}
+              {ownerProfileImageUriDraft ? (
+                <Image source={{ uri: ownerProfileImageUriDraft }} style={screenStyles.settingsAvatarImage} />
+              ) : (
+                <Text fontFamily={FONTS.headlineBlack} fontSize={22} color={PALETTE.primary}>
+                  {getInitials(ownerNameDraft || settings.ownerName)}
                 </Text>
-                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-              </XStack>
+              )}
             </Pressable>
-            {currencyMenuOpen ? (
-              <YStack gap="$2">
-                {draftCurrencyOptions.map((option) => {
-                  const active = defaultCurrencyDraft === option.code;
-                  return (
-                    <Pressable
-                      key={option.code}
-                      style={[screenStyles.selectRow, active ? screenStyles.selectRowActive : null]}
-                      onPress={() => {
-                        setDefaultCurrencyDraft(option.code);
-                        setCurrencyMenuOpen(false);
-                      }}
-                    >
-                      <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={active ? PALETTE.primary : PALETTE.onSurface}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose other currency"
-                  style={screenStyles.selectRow}
-                  onPress={() => {
-                    setCurrencyMenuOpen(false);
-                    setCurrencyModalOpen(true);
-                  }}
-                >
-                  <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.primary}>
-                    Other
-                  </Text>
-                </Pressable>
-              </YStack>
-            ) : null}
-          </YStack>
+            <YStack flex={1} gap="$2">
+              <FieldLabel>Your name</FieldLabel>
+              <View style={screenStyles.assignInputShell}>
+                <TextInput
+                  value={ownerNameDraft}
+                  onChangeText={(value) => setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))}
+                  placeholder="e.g. Tiago"
+                  placeholderTextColor="rgba(86,67,57,0.35)"
+                  style={screenStyles.assignInput}
+                  maxLength={MAX_OWNER_NAME_LENGTH}
+                />
+              </View>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                This is the name the app uses for your own spot in a split, like `Tiago (You)`.
+              </Text>
+            </YStack>
+          </XStack>
+        </YStack>
 
-          <View style={screenStyles.itemsSectionSeparator} />
+        <View style={screenStyles.itemsSectionSeparator} />
 
-          <YStack gap="$4">
-            <SectionEyebrow>Features</SectionEyebrow>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                  Balance helper
-                </Text>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
-                  Turn this on if you want the app to remember simple open money, like `you owe` and `you are owed`.
-                </Text>
-              </YStack>
+        <YStack gap="$4">
+          <SectionEyebrow>Default currency</SectionEyebrow>
+          <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+            New splits start with this money type, but you can still change it for one split when you begin.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose default currency"
+            style={screenStyles.selectRow}
+            onPress={() => setCurrencyMenuOpen((value) => !value)}
+          >
+            <XStack alignItems="center" justifyContent="space-between" gap="$3">
+              <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
+                {getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })}
+              </Text>
+              <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+            </XStack>
+          </Pressable>
+          {currencyMenuOpen ? (
+            <YStack gap="$2">
+              {draftCurrencyOptions.map((option) => {
+                const active = defaultCurrencyDraft === option.code;
+                return (
+                  <Pressable
+                    key={option.code}
+                    style={[screenStyles.selectRow, active ? screenStyles.selectRowActive : null]}
+                    onPress={() => {
+                      setDefaultCurrencyDraft(option.code);
+                      setCurrencyMenuOpen(false);
+                    }}
+                  >
+                    <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={active ? PALETTE.primary : PALETTE.onSurface}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Toggle balance helper"
-                style={[
-                  screenStyles.settingsFeatureToggle,
-                  balanceFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
-                ]}
-                onPress={() => setBalanceFeatureEnabledDraft((value) => !value)}
+                accessibilityLabel="Choose other currency"
+                style={screenStyles.selectRow}
+                onPress={() => {
+                  setCurrencyMenuOpen(false);
+                  setCurrencyModalOpen(true);
+                }}
               >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={balanceFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {balanceFeatureEnabledDraft ? "On" : "Off"}
+                <Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.primary}>
+                  Other
                 </Text>
               </Pressable>
+            </YStack>
+          ) : null}
+        </YStack>
+
+        <View style={screenStyles.itemsSectionSeparator} />
+
+        <YStack gap="$4">
+          <SectionEyebrow>Features</SectionEyebrow>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Track payments
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Turn this on if you want to mark people as paid inside one split after money has been settled.
+              </Text>
+            </YStack>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Toggle track payments"
+              accessibilityState={{ checked: trackPaymentsFeatureEnabledDraft }}
+              style={[
+                screenStyles.settingsFeatureToggle,
+                trackPaymentsFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
+              ]}
+              onPress={() => {
+                const nextTrackPayments = !trackPaymentsFeatureEnabledDraft;
+                setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
+                setBalanceFeatureEnabledDraft((value) => (nextTrackPayments ? value : false));
+              }}
+            >
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={trackPaymentsFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
+                textTransform="uppercase"
+                letterSpacing={1.6}
+              >
+                {trackPaymentsFeatureEnabledDraft ? "On" : "Off"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Balance helper
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Turn this on if you want to track how much you owe and are owed.
+              </Text>
+            </YStack>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Toggle balance helper"
+              accessibilityState={{ checked: balanceFeatureEnabledDraft }}
+              style={[
+                screenStyles.settingsFeatureToggle,
+                balanceFeatureEnabledDraft ? screenStyles.settingsFeatureToggleActive : null,
+              ]}
+              onPress={() => {
+                const nextBalance = !balanceFeatureEnabledDraft;
+                setBalanceFeatureEnabledDraft(nextBalance);
+                setTrackPaymentsFeatureEnabledDraft((value) => (nextBalance ? true : value));
+              }}
+            >
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={balanceFeatureEnabledDraft ? PALETTE.onPrimary : PALETTE.primary}
+                textTransform="uppercase"
+                letterSpacing={1.6}
+              >
+                {balanceFeatureEnabledDraft ? "On" : "Off"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={screenStyles.settingsFeatureRow}>
+            <YStack gap="$2.5" flex={1}>
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                Backup data
+              </Text>
+              <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21} color={PALETTE.onSurfaceVariant}>
+                Keep your splits safe in the cloud so you can recover them if you lose this phone.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Why do I need backup data"
+                onPress={() => {
+                  setSettingsNoticeTitle("Under development");
+                  setSettingsNoticeMessages([
+                    "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too.",
+                  ]);
+                }}
+              >
+                <Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.primary}>
+                  Why do I need this?
+                </Text>
+              </Pressable>
+            </YStack>
+            <View style={[screenStyles.settingsFeatureToggle, screenStyles.settingsFeatureToggleSoon]}>
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={PALETTE.primary}
+                textTransform="uppercase"
+                letterSpacing={1.6}
+              >
+                Soon
+              </Text>
             </View>
-          </YStack>
+          </View>
         </YStack>
       </YStack>
     </ScrollView>
@@ -1730,7 +1823,14 @@ export function HomeScreen() {
       {activeTab === "home" ? renderHomeContent() : null}
       {activeTab === "splits" ? renderSplitsContent() : null}
       {activeTab === "settings" ? renderSettingsContent() : null}
-      <SplitNoticeModal messages={settingsNoticeMessages} onDismiss={() => setSettingsNoticeMessages([])} />
+      <SplitNoticeModal
+        title={settingsNoticeTitle}
+        messages={settingsNoticeMessages}
+        onDismiss={() => {
+          setSettingsNoticeTitle("Almost there");
+          setSettingsNoticeMessages([]);
+        }}
+      />
       {profileActionMenuOpen ? (
         <ActionSheetModal
           title="Profile picture"
@@ -2640,9 +2740,11 @@ function FlowScreenHeader({
 }
 
 function SplitNoticeModal({
+  title = "Almost there",
   messages,
   onDismiss,
 }: {
+  title?: string;
   messages: string[];
   onDismiss: () => void;
 }) {
@@ -2656,7 +2758,7 @@ function SplitNoticeModal({
       <View style={screenStyles.splitNoticeCard}>
         <YStack gap="$3">
           <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
-            Almost there
+            {title}
           </Text>
           {messages.map((message) => (
             <Text key={message} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>
@@ -3979,6 +4081,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
   const unsettledPeople = owingPeople.filter((person) => !settledParticipantIds.has(person.participantId));
   const allPaid = owingPeople.length > 0 && unsettledPeople.length === 0;
   const settlementProgressPercent = totalOwedCents > 0 ? Math.round((settledOwedCents / totalOwedCents) * 100) : 0;
+  const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
 
   return (
     <AppScreen
@@ -4046,9 +4149,9 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
             <View style={screenStyles.resultsHeroGlow} />
             <YStack gap="$2">
               <Text fontFamily={FONTS.bodyBold} fontSize={11} color="rgba(255,255,255,0.78)" textTransform="uppercase" letterSpacing={1.8}>
-                {settings.balanceFeatureEnabled ? "Total settled" : "Total bill"}
+                {trackPaymentsEnabled ? "Total settled" : "Total bill"}
               </Text>
-              {settings.balanceFeatureEnabled ? (
+              {trackPaymentsEnabled ? (
                 <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
                   <Text fontFamily={FONTS.headlineBlack} fontSize={32} color={PALETTE.onPrimary} letterSpacing={-1.2}>
                     {formatMoney(settledOwedCents, settlement.data.currency, locale)}
@@ -4063,13 +4166,13 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                 </Text>
               )}
             </YStack>
-            {settings.balanceFeatureEnabled ? (
+            {trackPaymentsEnabled ? (
               <View style={screenStyles.resultsProgressTrack}>
                 <View style={[screenStyles.resultsProgressFill, { width: `${settlementProgressPercent}%` }]} />
               </View>
             ) : null}
             <XStack alignItems="center" gap="$2.5" paddingTop="$3">
-              {settings.balanceFeatureEnabled ? (
+              {trackPaymentsEnabled ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={allPaid ? "Revert Mark as Paid" : "Mark as Paid"}
@@ -4127,7 +4230,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                   key={person.participantId}
                   style={[
                     screenStyles.resultsBreakdownCard,
-                    settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
+                    trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? screenStyles.resultsBreakdownCardSettled : null,
                   ]}
                 >
                   <XStack alignItems="center" justifyContent="space-between" gap="$3">
@@ -4151,11 +4254,11 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           fontFamily={FONTS.headlineBold}
                           fontSize={20}
                           color={PALETTE.primary}
-                          textDecorationLine={settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
+                          textDecorationLine={trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? "line-through" : "none"}
                         >
                           {formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}
                         </Text>
-                        {settings.balanceFeatureEnabled && settledParticipantIds.has(person.participantId) ? (
+                        {trackPaymentsEnabled && settledParticipantIds.has(person.participantId) ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4165,7 +4268,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           >
                             Settled
                           </Text>
-                        ) : settings.balanceFeatureEnabled ? (
+                        ) : trackPaymentsEnabled ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -4177,7 +4280,7 @@ export function ResultsScreen({ draftId }: { draftId: string }) {
                           </Text>
                         ) : null}
                       </YStack>
-                      {settings.balanceFeatureEnabled ? (
+                      {trackPaymentsEnabled ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={
@@ -4937,7 +5040,10 @@ const screenStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   mainTabHeaderWrap: {
+    marginHorizontal: -20,
     paddingHorizontal: 20,
+    backgroundColor: PALETTE.surface,
+    zIndex: 5,
   },
   homeHeader: {
     minHeight: 48,
@@ -5036,7 +5142,7 @@ const screenStyles = StyleSheet.create({
     borderColor: PALETTE.surface,
   },
   homeTabShell: {
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: PALETTE.surfaceContainerLowest,
     borderRadius: 36,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -5047,6 +5153,7 @@ const screenStyles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
+    overflow: "hidden",
   },
   homeTabButton: {
     flex: 1,
