@@ -21,13 +21,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B3F15"
       },
-      "statusBar": {
-        "backgroundColor": "#f9f9f9",
-        "barStyle": "dark-content"
-      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.splitbillmobile"
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#f9f9f9",
+      "barStyle": "dark-content"
     },
     "web": {
       "favicon": "./assets/favicon.png"
