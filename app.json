@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Split-Bill Mobile",
+    "name": "Split Bill",
     "slug": "split-bill-mobile",
     "scheme": "split-bill-mobile",
     "version": "1.0.0",
@@ -20,6 +20,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B3F15"
+      },
+      "statusBar": {
+        "backgroundColor": "#f9f9f9",
+        "barStyle": "dark-content"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
