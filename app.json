@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Split-Bill Mobile",
+    "name": "Split Bill",
     "slug": "split-bill-mobile",
     "scheme": "split-bill-mobile",
     "version": "1.0.0",
@@ -24,6 +24,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.splitbillmobile"
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#f9f9f9",
+      "barStyle": "dark-content"
     },
     "web": {
       "favicon": "./assets/favicon.png"
