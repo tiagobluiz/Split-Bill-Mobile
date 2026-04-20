@@ -175,14 +175,25 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     title: string;
   }>(null);
   const itemDeleteTimeoutRef = useRef<any>(null);
+  const pendingItemDeleteRef = useRef<null | { id: string; title: string }>(
+    null,
+  );
   const insets = useSafeAreaInsets();
+  useEffect(() => {
+    pendingItemDeleteRef.current = pendingItemDelete;
+  }, [pendingItemDelete]);
   useEffect(() => {
     return () => {
       if (itemDeleteTimeoutRef.current) {
         clearTimeout(itemDeleteTimeoutRef.current);
+        itemDeleteTimeoutRef.current = null;
+      }
+      const pendingDelete = pendingItemDeleteRef.current;
+      if (pendingDelete) {
+        void removeItem(pendingDelete.id);
       }
     };
-  }, []);
+  }, [removeItem]);
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -346,6 +357,9 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   ]);
                   return;
                 }
+                if (pendingItemDelete) {
+                  await commitPendingItemDelete(pendingItemDelete);
+                }
                 await setStep(5);
                 const nextItem = getLatestPendingSplitItem(
                   effectiveRecordForStep,
@@ -503,6 +517,8 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   )}
                 >
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open item ${item.name.trim() || `Item ${index + 1}`}`}
                     style={screenStyles.itemsListCard}
                     onPress={() =>
                       router.push(`/split/${draftId}/assign/${item.id}`)

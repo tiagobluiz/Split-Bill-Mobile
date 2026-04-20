@@ -1384,7 +1384,7 @@ describe("split screens", () => {
     act(() => {
       jest.advanceTimersByTime(4000);
     });
-    expect(mockStoreState.removeItem).not.toHaveBeenCalled();
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
     jest.useRealTimers();
   });
 

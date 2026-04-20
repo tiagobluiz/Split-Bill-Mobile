@@ -141,6 +141,7 @@ export function HomeScreenView() {
     null,
   );
   const deleteTimeoutRef = useRef<any>(null);
+  const pendingDeleteRef = useRef<null | { id: string; title: string }>(null);
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
   const visibleRecords = pendingDelete
     ? records.filter((record) => record.id !== pendingDelete.id)
@@ -192,7 +193,9 @@ export function HomeScreenView() {
     clearTimeout(deleteTimeoutRef.current);
     deleteTimeoutRef.current = null;
     await removeRecord(nextPending.id);
-    setPendingDelete(null);
+    setPendingDelete((current) =>
+      current?.id === nextPending.id ? null : current,
+    );
   };
   const queueDelete = (recordId: string, title: string) => {
     if (pendingDelete?.id && pendingDelete.id !== recordId) {
@@ -208,12 +211,20 @@ export function HomeScreenView() {
     }, 4000);
   };
   useEffect(() => {
+    pendingDeleteRef.current = pendingDelete;
+  }, [pendingDelete]);
+  useEffect(() => {
     return () => {
+      const pendingDeleteOnUnmount = pendingDeleteRef.current;
       if (deleteTimeoutRef.current) {
         clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = null;
+      }
+      if (pendingDeleteOnUnmount) {
+        void removeRecord(pendingDeleteOnUnmount.id);
       }
     };
-  }, []);
+  }, [removeRecord]);
   useEffect(() => {
     setOwnerNameDraft(settings.ownerName ?? "");
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
@@ -246,18 +257,28 @@ export function HomeScreenView() {
       setSettingsNoticeMessages(["Please choose a default currency first."]);
       return false;
     }
-    await updateSettings({
-      ownerName: trimmedName,
-      ownerProfileImageUri: ownerProfileImageUriDraft.trim(),
-      balanceFeatureEnabled: balanceFeatureEnabledDraft,
-      trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
-      defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
-      customCurrencies: customCurrenciesDraft,
-    });
-    setCurrencyMenuOpen(false);
-    setSettingsNoticeTitle("Almost there");
-    setSettingsNoticeMessages([]);
-    return true;
+    try {
+      await updateSettings({
+        ownerName: trimmedName,
+        ownerProfileImageUri: ownerProfileImageUriDraft.trim(),
+        balanceFeatureEnabled: balanceFeatureEnabledDraft,
+        trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
+        defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
+        customCurrencies: customCurrenciesDraft,
+      });
+      setCurrencyMenuOpen(false);
+      setSettingsNoticeTitle("Almost there");
+      setSettingsNoticeMessages([]);
+      return true;
+    } catch (error) {
+      setSettingsNoticeTitle("Could not save settings");
+      setSettingsNoticeMessages([
+        error instanceof Error && error.message
+          ? error.message
+          : "Please try again.",
+      ]);
+      return false;
+    }
   };
   const discardSettingsDraft = () => {
     setOwnerNameDraft(settings.ownerName ?? "");

@@ -371,6 +371,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
           <View style={screenStyles.participantInputShell}>
             <TextInput
               ref={participantInputRef}
+              accessibilityLabel="Participant name"
               value={name}
               onChangeText={(value) => {
                 participantNameRef.current = value;

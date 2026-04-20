@@ -155,7 +155,17 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               accessibilityRole="button"
               accessibilityLabel="Share Results"
               style={screenStyles.resultsPrimaryButton}
-              onPress={() => void Share.share({ message: summary })}
+              onPress={async () => {
+                try {
+                  await Share.share({ message: summary });
+                } catch (error) {
+                  console.warn("Failed to share split results", error);
+                  Alert.alert(
+                    "Share failed",
+                    "Could not open the share sheet.",
+                  );
+                }
+              }}
             >
               <XStack alignItems="center" justifyContent="center" gap="$2.5">
                 <Share2 color={PALETTE.onPrimary} size={18} />

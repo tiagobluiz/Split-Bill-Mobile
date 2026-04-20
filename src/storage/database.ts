@@ -17,10 +17,21 @@ export async function getAppDatabase() {
 
 function isRetryableSqliteHandleError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return message.includes("NativeDatabase.prepareAsync") || message.includes("NullPointerException");
+  return (
+    message.includes("NativeDatabase.prepareAsync") ||
+    message.includes("NullPointerException")
+  );
 }
 
-export async function withAppDatabaseRetry<T>(operation: (db: SQLite.SQLiteDatabase) => Promise<T>) {
+/**
+ * Runs a SQLite operation against the shared app database and retries once when
+ * Expo SQLite reports a stale native handle.
+ *
+ * Keep operations idempotent/retry-safe because the callback may execute twice.
+ */
+export async function withAppDatabaseRetry<T>(
+  operation: (db: SQLite.SQLiteDatabase) => Promise<T>,
+) {
   const db = await getAppDatabase();
   try {
     return await operation(db);
