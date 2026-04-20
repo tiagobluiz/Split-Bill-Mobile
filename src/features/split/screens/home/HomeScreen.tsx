@@ -435,8 +435,18 @@ export function HomeScreenView() {
             <Pressable
               style={screenStyles.homeCta}
               onPress={async () => {
-                const draft = await createDraft();
-                router.push(`/split/${draft.id}/setup`);
+                try {
+                  const draft = await createDraft();
+                  router.push(`/split/${draft.id}/setup`);
+                } catch (error) {
+                  console.warn("Failed to create draft split", error);
+                  Alert.alert(
+                    "Could not create split",
+                    error instanceof Error && error.message
+                      ? error.message
+                      : "Please try again.",
+                  );
+                }
               }}
             >
               <View style={screenStyles.homeCtaIconWrap}>

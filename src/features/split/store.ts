@@ -46,19 +46,42 @@ type SplitStore = {
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
   updateDraftMeta: (splitName: string, currency: string) => Promise<void>;
   setStep: (step: number) => Promise<void>;
-  updateParticipants: (participants: DraftRecord["values"]["participants"]) => Promise<void>;
+  updateParticipants: (
+    participants: DraftRecord["values"]["participants"],
+  ) => Promise<void>;
   setPayer: (participantId: string) => Promise<void>;
   createItem: (item: DraftRecord["values"]["items"][number]) => Promise<void>;
-  saveItemSplit: (itemId: string, item: DraftRecord["values"]["items"][number]) => Promise<void>;
-  updateItemField: (itemId: string, field: "name" | "price" | "category", value: string) => Promise<void>;
+  saveItemSplit: (
+    itemId: string,
+    item: DraftRecord["values"]["items"][number],
+  ) => Promise<void>;
+  updateItemField: (
+    itemId: string,
+    field: "name" | "price" | "category",
+    value: string,
+  ) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   setItemSplitMode: (itemId: string, splitMode: SplitMode) => Promise<void>;
   toggleEvenIncluded: (itemId: string, participantId: string) => Promise<void>;
-  setItemSharesValue: (itemId: string, participantId: string, nextValue: string) => Promise<void>;
-  setItemPercentValue: (itemId: string, participantId: string, nextValue: string) => Promise<boolean>;
+  setItemSharesValue: (
+    itemId: string,
+    participantId: string,
+    nextValue: string,
+  ) => Promise<void>;
+  setItemPercentValue: (
+    itemId: string,
+    participantId: string,
+    nextValue: string,
+  ) => Promise<boolean>;
   resetItemAllocations: (itemId: string) => Promise<void>;
-  focusOnlyParticipant: (itemId: string, participantId: string) => Promise<void>;
-  importPastedList: (rawInput: string, mode: ImportMode) => Promise<{ warningMessages: string[] }>;
+  focusOnlyParticipant: (
+    itemId: string,
+    participantId: string,
+  ) => Promise<void>;
+  importPastedList: (
+    rawInput: string,
+    mode: ImportMode,
+  ) => Promise<{ warningMessages: string[] }>;
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
@@ -95,7 +118,9 @@ async function persistRecord(record: DraftRecord) {
 
 function nextRecords(records: DraftRecord[], record: DraftRecord) {
   const otherRecords = records.filter((entry) => entry.id !== record.id);
-  return [record, ...otherRecords].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  return [record, ...otherRecords].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  );
 }
 
 function getSettledDebtorIds(values: DraftRecord["values"]) {
@@ -111,18 +136,24 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
 
   const targetNetSign = payer.netCents > 0 ? -1 : 1;
   return settlement.data.people
-    .filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign)
+    .filter(
+      (person) =>
+        !person.isPayer && Math.sign(person.netCents) === targetNetSign,
+    )
     .map((person) => person.participantId);
 }
 
-function normalizeActiveRecordMutation(record: DraftRecord, mutator: (draft: DraftRecord) => void) {
+function normalizeActiveRecordMutation(
+  record: DraftRecord,
+  mutator: (draft: DraftRecord) => void,
+) {
   const nextRecord = cloneDeep(record);
   mutator(nextRecord);
   const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
   nextRecord.settlementState = {
-    settledParticipantIds: (nextRecord.settlementState?.settledParticipantIds ?? []).filter((participantId) =>
-      validSettledIds.has(participantId)
-    ),
+    settledParticipantIds: (
+      nextRecord.settlementState?.settledParticipantIds ?? []
+    ).filter((participantId) => validSettledIds.has(participantId)),
   };
   nextRecord.step = resolveDraftStep(nextRecord);
   nextRecord.updatedAt = nowIso();
@@ -149,24 +180,30 @@ function isOwnerAlias(name: string, ownerName: string) {
   return normalized === normalizeOwnerName(ownerName) || normalized === "you";
 }
 
-function renameOwnerReferences(record: DraftRecord, previousOwnerName: string, nextOwnerName: string) {
+function renameOwnerReferences(
+  record: DraftRecord,
+  previousOwnerName: string,
+  nextOwnerName: string,
+) {
   if (!nextOwnerName.trim()) {
     return record;
   }
 
   const nextRecord = cloneDeep(record);
   let changed = false;
-  nextRecord.values.participants = nextRecord.values.participants.map((participant) => {
-    if (!isOwnerAlias(participant.name, previousOwnerName)) {
-      return participant;
-    }
+  nextRecord.values.participants = nextRecord.values.participants.map(
+    (participant) => {
+      if (!isOwnerAlias(participant.name, previousOwnerName)) {
+        return participant;
+      }
 
-    changed = true;
-    return {
-      ...participant,
-      name: nextOwnerName,
-    };
-  });
+      changed = true;
+      return {
+        ...participant,
+        name: nextOwnerName,
+      };
+    },
+  );
 
   if (changed) {
     nextRecord.values = ensureItemsAligned(nextRecord.values);
@@ -179,7 +216,7 @@ function renameOwnerReferences(record: DraftRecord, previousOwnerName: string, n
 async function withActiveRecord(
   set: (partial: Partial<SplitStore>) => void,
   get: () => SplitStore,
-  mutator: (record: DraftRecord) => DraftRecord
+  mutator: (record: DraftRecord) => DraftRecord,
 ) {
   const active = get().getActiveRecord();
   if (!active) {
@@ -210,7 +247,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async bootstrap() {
     await initializeSettingsStorage();
     await initializeRecordsStorage();
-    const [records, settings] = await Promise.all([listRecords(), getAppSettings()]);
+    const [records, settings] = await Promise.all([
+      listRecords(),
+      getAppSettings(),
+    ]);
     set({
       ready: true,
       records,
@@ -220,11 +260,21 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async createDraft() {
     const draft = createDraftRecord(get().settings.defaultCurrency);
+    const previousRecords = get().records;
+    const previousActiveRecordId = get().activeRecordId;
     set({
       activeRecordId: draft.id,
-      records: nextRecords(get().records, draft),
+      records: nextRecords(previousRecords, draft),
     });
-    await persistRecord(draft);
+    try {
+      await persistRecord(draft);
+    } catch (error) {
+      set({
+        activeRecordId: previousActiveRecordId,
+        records: previousRecords,
+      });
+      throw error;
+    }
     return draft;
   },
   async openRecord(id) {
@@ -250,7 +300,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     const next = get().records.filter((record) => record.id !== id);
     set({
       records: next,
-      activeRecordId: get().activeRecordId === id ? next[0]?.id ?? null : get().activeRecordId,
+      activeRecordId:
+        get().activeRecordId === id
+          ? (next[0]?.id ?? null)
+          : get().activeRecordId,
     });
   },
   async updateSettings(partial) {
@@ -268,9 +321,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       ...normalizedFlags,
     };
     const nextOwnerName = nextSettings.ownerName || "";
-    const nextRecords = normalizeOwnerName(previousOwnerName) !== normalizeOwnerName(nextOwnerName)
-      ? get().records.map((record) => renameOwnerReferences(record, previousOwnerName, nextOwnerName))
-      : get().records;
+    const nextRecords =
+      normalizeOwnerName(previousOwnerName) !==
+      normalizeOwnerName(nextOwnerName)
+        ? get().records.map((record) =>
+            renameOwnerReferences(record, previousOwnerName, nextOwnerName),
+          )
+        : get().records;
 
     set({
       settings: nextSettings,
@@ -283,68 +340,86 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.splitName = splitName.slice(0, 20);
-        draft.values.currency = currency.trim().toUpperCase() || get().settings.defaultCurrency;
-      })
+        draft.values.currency =
+          currency.trim().toUpperCase() || get().settings.defaultCurrency;
+      }),
     );
   },
   async setStep(step) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.step = step;
-      })
+      }),
     );
   },
   async updateParticipants(participants) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.participants = participants;
-        if (!participants.some((participant) => participant.id === draft.values.payerParticipantId)) {
+        if (
+          !participants.some(
+            (participant) => participant.id === draft.values.payerParticipantId,
+          )
+        ) {
           draft.values.payerParticipantId = "";
         }
-        draft.settlementState.settledParticipantIds = draft.settlementState.settledParticipantIds.filter((participantId) =>
-          participants.some((participant) => participant.id === participantId)
-        );
+        draft.settlementState.settledParticipantIds =
+          draft.settlementState.settledParticipantIds.filter((participantId) =>
+            participants.some(
+              (participant) => participant.id === participantId,
+            ),
+          );
         draft.values = ensureItemsAligned(draft.values);
-      })
+      }),
     );
   },
   async setPayer(participantId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.payerParticipantId = participantId;
-      })
+      }),
     );
   },
   async createItem(item) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        const [syncedItem] = syncItemAllocations([item], draft.values.participants);
+        const [syncedItem] = syncItemAllocations(
+          [item],
+          draft.values.participants,
+        );
         draft.values.items.push(syncedItem);
-      })
+      }),
     );
   },
   async saveItemSplit(itemId, item) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        const [syncedItem] = syncItemAllocations([{ ...item, id: itemId }], draft.values.participants);
-        draft.values.items = draft.values.items.map((entry) => (entry.id === itemId ? syncedItem : entry));
-      })
+        const [syncedItem] = syncItemAllocations(
+          [{ ...item, id: itemId }],
+          draft.values.participants,
+        );
+        draft.values.items = draft.values.items.map((entry) =>
+          entry.id === itemId ? syncedItem : entry,
+        );
+      }),
     );
   },
   async updateItemField(itemId, field, value) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.items = draft.values.items.map((item) =>
-          item.id === itemId ? { ...item, [field]: value } : item
+          item.id === itemId ? { ...item, [field]: value } : item,
         );
-      })
+      }),
     );
   },
   async removeItem(itemId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.filter((item) => item.id !== itemId);
-      })
+        draft.values.items = draft.values.items.filter(
+          (item) => item.id !== itemId,
+        );
+      }),
     );
   },
   async setItemSplitMode(itemId, splitMode) {
@@ -356,11 +431,19 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           }
 
           if (splitMode === "percent") {
-            return { ...item, splitMode, allocations: resetPercentAllocations(item.allocations) };
+            return {
+              ...item,
+              splitMode,
+              allocations: resetPercentAllocations(item.allocations),
+            };
           }
 
           if (splitMode === "shares") {
-            return { ...item, splitMode, allocations: resetShareAllocations(item.allocations) };
+            return {
+              ...item,
+              splitMode,
+              allocations: resetShareAllocations(item.allocations),
+            };
           }
 
           return {
@@ -372,7 +455,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      })
+      }),
     );
   },
   async toggleEvenIncluded(itemId, participantId) {
@@ -385,12 +468,12 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
                 allocations: item.allocations.map((allocation) =>
                   allocation.participantId === participantId
                     ? { ...allocation, evenIncluded: !allocation.evenIncluded }
-                    : allocation
+                    : allocation,
                 ),
               }
-            : item
+            : item,
         );
-      })
+      }),
     );
   },
   async setItemSharesValue(itemId, participantId, nextValue) {
@@ -401,12 +484,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ? {
                 ...item,
                 allocations: item.allocations.map((allocation) =>
-                  allocation.participantId === participantId ? { ...allocation, shares: nextValue } : allocation
+                  allocation.participantId === participantId
+                    ? { ...allocation, shares: nextValue }
+                    : allocation,
                 ),
               }
-            : item
+            : item,
         );
-      })
+      }),
     );
   },
   async setItemPercentValue(itemId, participantId, nextValue) {
@@ -418,7 +503,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             return item;
           }
 
-          const nextAllocations = rebalancePercentAllocations(item.allocations, participantId, nextValue);
+          const nextAllocations = rebalancePercentAllocations(
+            item.allocations,
+            participantId,
+            nextValue,
+          );
           if (!nextAllocations) {
             return item;
           }
@@ -426,7 +515,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           didChange = true;
           return { ...item, allocations: nextAllocations };
         });
-      })
+      }),
     );
     return didChange;
   },
@@ -439,11 +528,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           }
 
           if (item.splitMode === "percent") {
-            return { ...item, allocations: resetPercentAllocations(item.allocations) };
+            return {
+              ...item,
+              allocations: resetPercentAllocations(item.allocations),
+            };
           }
 
           if (item.splitMode === "shares") {
-            return { ...item, allocations: resetShareAllocations(item.allocations) };
+            return {
+              ...item,
+              allocations: resetShareAllocations(item.allocations),
+            };
           }
 
           return {
@@ -454,7 +549,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      })
+      }),
     );
   },
   async focusOnlyParticipant(itemId, participantId) {
@@ -494,7 +589,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      })
+      }),
     );
   },
   async importPastedList(rawInput, mode) {
@@ -515,23 +610,32 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ? importedItems.length > 0
               ? importedItems
               : draft.values.items
-            : [...draft.values.items.filter((item) => item.name.trim() || item.price.trim()), ...importedItems];
-      })
+            : [
+                ...draft.values.items.filter(
+                  (item) => item.name.trim() || item.price.trim(),
+                ),
+                ...importedItems,
+              ];
+      }),
     );
-    return { warningMessages: parsed.warnings.map((warning) => warning.message) };
+    return {
+      warningMessages: parsed.warnings.map((warning) => warning.message),
+    };
   },
   async markBillPaid() {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.settlementState.settledParticipantIds = getSettledDebtorIds(draft.values);
-      })
+        draft.settlementState.settledParticipantIds = getSettledDebtorIds(
+          draft.values,
+        );
+      }),
     );
   },
   async revertBillPaid() {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = [];
-      })
+      }),
     );
   },
   async toggleParticipantPaid(participantId) {
@@ -548,7 +652,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           settledIds.add(participantId);
         }
         draft.settlementState.settledParticipantIds = [...settledIds];
-      })
+      }),
     );
   },
   async markCompleted() {
@@ -557,11 +661,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.status = "completed";
         draft.completedAt = draft.completedAt ?? nowIso();
         draft.step = 6;
-      })
+      }),
     );
   },
   getActiveRecord() {
-    return get().records.find((record) => record.id === get().activeRecordId) ?? null;
+    return (
+      get().records.find((record) => record.id === get().activeRecordId) ?? null
+    );
   },
 }));
 

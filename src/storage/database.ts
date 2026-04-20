@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 
 const DATABASE_NAME = "split-bill-mobile.db";
+const MAX_RETRY_ATTEMPTS = 2;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -16,11 +17,25 @@ export async function getAppDatabase() {
 }
 
 function isRetryableSqliteHandleError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = (
+    error instanceof Error ? error.message : String(error)
+  ).toLowerCase();
   return (
-    message.includes("NativeDatabase.prepareAsync") ||
-    message.includes("NullPointerException")
+    message.includes("nativedatabase.prepareasync") ||
+    message.includes("nullpointerexception")
   );
+}
+
+async function resetDatabaseHandle(db: SQLite.SQLiteDatabase) {
+  const maybeClose = (db as { closeAsync?: () => Promise<void> }).closeAsync;
+  if (typeof maybeClose === "function") {
+    try {
+      await maybeClose.call(db);
+    } catch {
+      // Ignore close failures and force a fresh open below.
+    }
+  }
+  databasePromise = null;
 }
 
 /**
@@ -32,15 +47,18 @@ function isRetryableSqliteHandleError(error: unknown) {
 export async function withAppDatabaseRetry<T>(
   operation: (db: SQLite.SQLiteDatabase) => Promise<T>,
 ) {
-  const db = await getAppDatabase();
-  try {
-    return await operation(db);
-  } catch (error) {
-    if (!isRetryableSqliteHandleError(error)) {
-      throw error;
+  for (let attempt = 0; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
+    const db = await getAppDatabase();
+    try {
+      return await operation(db);
+    } catch (error) {
+      const canRetry =
+        attempt < MAX_RETRY_ATTEMPTS && isRetryableSqliteHandleError(error);
+      if (!canRetry) {
+        throw error;
+      }
+      await resetDatabaseHandle(db);
     }
-    databasePromise = null;
-    const retryDb = await getAppDatabase();
-    return operation(retryDb);
   }
+  throw new Error("SQLite operation retry loop terminated unexpectedly.");
 }
