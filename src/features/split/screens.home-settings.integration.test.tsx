@@ -763,21 +763,21 @@ describe("split screens", () => {
     ];
 
     const view = render(<HomeScreen />);
-    fireEvent.press(screen.getByLabelText("Delete draft Delete Me"));
+    fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
     expect(screen.getByText("Draft deleted")).toBeTruthy();
-    expect(screen.queryByLabelText("Delete draft Delete Me")).toBeNull();
+    expect(screen.queryByLabelText("Delete split Delete Me")).toBeNull();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalledWith("/split/draft-delete-me/overview");
 
     fireEvent.press(screen.getByLabelText("Undo delete"));
     expect(screen.queryByText("Draft deleted")).toBeNull();
-    expect(screen.getByLabelText("Delete draft Delete Me")).toBeTruthy();
+    expect(screen.getByLabelText("Delete split Delete Me")).toBeTruthy();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByLabelText("Delete draft Delete Me"));
-    fireEvent.press(screen.getByLabelText("Delete draft Delete Next"));
+    fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
+    fireEvent.press(screen.getByLabelText("Delete split Delete Next"));
     expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-delete-me");
-    expect(screen.queryByLabelText("Delete draft Delete Next")).toBeNull();
+    expect(screen.queryByLabelText("Delete split Delete Next")).toBeNull();
 
     view.unmount();
     act(() => {
@@ -800,7 +800,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    fireEvent.press(screen.getByLabelText("Delete draft Expire Delete"));
+    fireEvent.press(screen.getByLabelText("Delete split Expire Delete"));
     expect(screen.getByText("Draft deleted")).toBeTruthy();
 
     await act(async () => {

@@ -78,6 +78,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const allPaid = owingPeople.length > 0 && unsettledPeople.length === 0;
   const settlementProgressPercent = totalOwedCents > 0 ? Math.round((settledOwedCents / totalOwedCents) * 100) : 0;
   const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
+  const runPaymentAction = async (action: () => Promise<void>, failureMessage: string) => {
+    try {
+      await action();
+    } catch (error) {
+      console.warn(failureMessage, error);
+      Alert.alert("Update failed", failureMessage);
+    }
+  };
 
   return (
     <AppScreen
@@ -180,7 +188,12 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   accessibilityRole="button"
                   accessibilityLabel={allPaid ? "Revert Mark as Paid" : "Mark as Paid"}
                   style={screenStyles.resultsHeroChip}
-                  onPress={() => void (allPaid ? revertBillPaid() : markBillPaid())}
+                  onPress={() =>
+                    void runPaymentAction(
+                      allPaid ? revertBillPaid : markBillPaid,
+                      "Could not update the bill payment status."
+                    )
+                  }
                 >
                   {allPaid ? <RotateCcw color={PALETTE.primary} size={12} /> : <Check color={PALETTE.primary} size={12} />}
                   <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.primary}>
@@ -295,7 +308,12 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                             screenStyles.resultsCheckBubble,
                             settledParticipantIds.has(person.participantId) ? screenStyles.resultsCheckBubbleSettled : null,
                           ]}
-                          onPress={() => void toggleParticipantPaid(person.participantId)}
+                          onPress={() =>
+                            void runPaymentAction(
+                              () => toggleParticipantPaid(person.participantId),
+                              `Could not update ${person.name}'s payment status.`
+                            )
+                          }
                         >
                           {settledParticipantIds.has(person.participantId) ? (
                             <Minus color={PALETTE.onPrimary} size={14} />

@@ -96,7 +96,7 @@ export function RecordRow({
       renderRightActions={() => (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Delete draft ${title}`}
+          accessibilityLabel={`Delete split ${title}`}
           style={screenStyles.recentSwipeDeleteAction}
           onPress={() => onDelete(record.id, title)}
         >

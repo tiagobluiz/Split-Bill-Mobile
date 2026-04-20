@@ -1024,5 +1024,43 @@ describe("split screens", () => {
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+
+  it("shows feedback when mark bill paid update fails", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockStoreState.markBillPaid = jest.fn(async () => {
+      throw new Error("write failed");
+    });
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    fireEvent.press(screen.getByText("Mark as Paid"));
+    await waitFor(() => {
+      expect(mockAlert).toHaveBeenCalledWith("Update failed", "Could not update the bill payment status.", undefined);
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("shows feedback when participant paid toggle update fails", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockStoreState.toggleParticipantPaid = jest.fn(async () => {
+      throw new Error("toggle failed");
+    });
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    fireEvent.press(screen.getByLabelText("Mark Bruno as paid"));
+    await waitFor(() => {
+      expect(mockAlert).toHaveBeenCalledWith("Update failed", "Could not update Bruno's payment status.", undefined);
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });
 
