@@ -1,0 +1,212 @@
+import { computeSettlement, formatMoney } from "../../../../domain";
+import type { DraftRecord } from "../../../../storage/records";
+import { getDeviceLocale } from "../../../../lib/device";
+import { PALETTE } from "../../../../theme/palette";
+import { isOwnerReference } from "./participantUtils";
+import { getDraftPendingStep } from "./recordUtils";
+
+const STEP_LABELS = {
+  1: "Setup",
+  2: "Participants",
+  3: "Payer",
+  4: "Items",
+  5: "Split",
+  6: "Settle",
+} as const;
+
+type SettlementPerson = {
+  participantId: string;
+  name: string;
+  isPayer: boolean;
+  netCents: number;
+};
+
+type SettlementResolver = (
+  record: DraftRecord
+) =>
+  | ReturnType<typeof computeSettlement>
+  | null
+  | undefined;
+
+function resolveSettlement(record: DraftRecord, resolver?: SettlementResolver) {
+  if (resolver) {
+    return resolver(record);
+  }
+
+  return computeSettlement(record.values);
+}
+
+export function formatAppMoney(
+  amountCents: number,
+  currency: string,
+  locale: string,
+  settings?: {
+    customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
+  }
+) {
+  const customCurrency = settings?.customCurrencies?.find(
+    (entry) => entry.code.trim().toUpperCase() === currency.trim().toUpperCase()
+  );
+  if (customCurrency) {
+    return `${customCurrency.symbol}${(amountCents / 100).toFixed(2)}`;
+  }
+
+  return formatMoney(amountCents, currency, locale);
+}
+
+export function getSettledParticipantIds(record: DraftRecord) {
+  return new Set(record.settlementState?.settledParticipantIds ?? []);
+}
+
+export function getOwingPeople(people: SettlementPerson[]) {
+  const payer = people.find((person) => person.isPayer);
+  if (!payer || payer.netCents === 0) {
+    return [];
+  }
+
+  const targetNetSign = payer.netCents > 0 ? -1 : 1;
+  return people.filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign);
+}
+
+export function getOverviewSettlementLabel(person: { isPayer: boolean; netCents: number }) {
+  if (person.isPayer) {
+    return "Payer";
+  }
+
+  return person.netCents < 0 ? "Owes payer" : "Payer owes them";
+}
+
+export function getRecordMoneyPreview(record: DraftRecord, ownerName: string, resolver?: SettlementResolver) {
+  const settlement = resolveSettlement(record, resolver);
+  if (!settlement?.ok) {
+    return null;
+  }
+
+  const payer = settlement.data.people.find((person) => person.isPayer);
+  if (!payer) {
+    return null;
+  }
+
+  const owner = settlement.data.people.find((person) => isOwnerReference(person.name, ownerName));
+  const debtorPeople = getOwingPeople(settlement.data.people);
+  const settledIds = getSettledParticipantIds(record);
+  const totalDebtCents = debtorPeople.reduce((sum, person) => sum + Math.abs(person.netCents), 0);
+  const settledDebtCents = debtorPeople.reduce(
+    (sum, person) => sum + (settledIds.has(person.participantId) ? Math.abs(person.netCents) : 0),
+    0
+  );
+  const unsettledDebtCents = Math.max(totalDebtCents - settledDebtCents, 0);
+
+  if (!owner) {
+    return {
+      currency: settlement.data.currency,
+      ownerNetCents: 0,
+      ownerRelation: "none" as const,
+      payerName: payer.name,
+      totalDebtCents,
+      settledDebtCents,
+      unsettledDebtCents,
+      debtorPeople,
+    };
+  }
+
+  const ownerDebt = debtorPeople.find((person) => person.participantId === owner.participantId);
+  const ownerRelation =
+    owner.isPayer && payer.netCents !== 0
+      ? payer.netCents > 0
+        ? ("creditor" as const)
+        : ("debtor" as const)
+      : ownerDebt
+        ? owner.netCents > 0
+          ? ("creditor" as const)
+          : ("debtor" as const)
+        : ("none" as const);
+
+  return {
+    currency: settlement.data.currency,
+    ownerNetCents:
+      owner.isPayer
+        ? unsettledDebtCents
+        : ownerDebt && !settledIds.has(owner.participantId)
+          ? Math.abs(ownerDebt.netCents)
+          : 0,
+    ownerRelation,
+    payerName: payer.name,
+    totalDebtCents,
+    settledDebtCents,
+    unsettledDebtCents,
+    debtorPeople,
+  };
+}
+
+export function getHomeBalanceCards(
+  records: DraftRecord[],
+  ownerName: string,
+  preferredCurrency?: string,
+  resolver?: SettlementResolver
+) {
+  const previews = records
+    .map((record) => getRecordMoneyPreview(record, ownerName, resolver))
+    .filter((preview): preview is NonNullable<ReturnType<typeof getRecordMoneyPreview>> => Boolean(preview));
+
+  const totalsByCurrency = new Map<string, { owedCents: number; oweCents: number }>();
+
+  for (const preview of previews) {
+    const normalizedCurrency = preview.currency.trim().toUpperCase();
+    const nextTotals = totalsByCurrency.get(normalizedCurrency) ?? { owedCents: 0, oweCents: 0 };
+
+    if (preview.ownerRelation === "creditor") {
+      nextTotals.owedCents += preview.ownerNetCents;
+    }
+
+    if (preview.ownerRelation === "debtor") {
+      nextTotals.oweCents += preview.ownerNetCents;
+    }
+
+    totalsByCurrency.set(normalizedCurrency, nextTotals);
+  }
+
+  const preferredKey = preferredCurrency?.trim().toUpperCase() ?? "";
+  const currency =
+    (preferredKey && totalsByCurrency.has(preferredKey) ? preferredKey : null) ??
+    previews[0]?.currency ??
+    records[0]?.values.currency ??
+    "USD";
+  const totals = totalsByCurrency.get(currency.trim().toUpperCase()) ?? { owedCents: 0, oweCents: 0 };
+
+  return { currency, owedCents: totals.owedCents, oweCents: totals.oweCents };
+}
+
+export function getRecentRowMeta(
+  record: DraftRecord,
+  ownerName: string,
+  settings?: {
+    customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
+  },
+  resolver?: SettlementResolver
+) {
+  const preview = getRecordMoneyPreview(record, ownerName, resolver);
+  const locale = getDeviceLocale();
+  const currency = preview?.currency ?? record.values.currency;
+  const baseAmountCents = preview?.ownerNetCents ?? 0;
+  const rawAmountCents = preview?.ownerRelation === "debtor" ? -baseAmountCents : baseAmountCents;
+  const amountPrefix = rawAmountCents > 0 ? "+" : rawAmountCents < 0 ? "-" : "";
+  const amount = `${amountPrefix}${formatAppMoney(Math.abs(rawAmountCents), currency, locale, settings)}`;
+  const pendingStep = getDraftPendingStep(record);
+
+  if (record.status === "completed") {
+    return {
+      amount,
+      statusLabel: "Settled",
+      statusColor: PALETTE.secondary,
+      showUnpaidDots: false,
+    };
+  }
+
+  return {
+    amount,
+    statusLabel: `Pending: ${STEP_LABELS[pendingStep as keyof typeof STEP_LABELS]}`,
+    statusColor: PALETTE.primary,
+    showUnpaidDots: false,
+  };
+}

@@ -12,9 +12,6 @@ import {
   resetPercentAllocations,
   resetShareAllocations,
   syncItemAllocations,
-  validateStepOne,
-  validateStepTwo,
-  validateStepThree,
   type SplitMode,
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
@@ -33,15 +30,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
-
-export const STEP_ROUTE = {
-  1: "setup",
-  2: "participants",
-  3: "payer",
-  4: "items",
-  5: "overview",
-  6: "results",
-} as const;
+import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
 
@@ -109,28 +98,6 @@ function nextRecords(records: DraftRecord[], record: DraftRecord) {
   return [record, ...otherRecords].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
-function deriveMaxReachableStep(record: DraftRecord) {
-  if (record.status === "completed") {
-    return 6;
-  }
-
-  const stepOneErrors = validateStepOne(record.values);
-  const participantOnlyErrors = stepOneErrors.filter((error) => error.path !== "payerParticipantId");
-  if (participantOnlyErrors.length > 0) {
-    return 2;
-  }
-
-  if (stepOneErrors.length > 0) {
-    return 3;
-  }
-
-  if (validateStepTwo(record.values).length > 0) {
-    return 4;
-  }
-
-  return 5;
-}
-
 function getSettledDebtorIds(values: DraftRecord["values"]) {
   const settlement = computeSettlement(values);
   if (!settlement.ok) {
@@ -146,17 +113,6 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
   return settlement.data.people
     .filter((person) => !person.isPayer && Math.sign(person.netCents) === targetNetSign)
     .map((person) => person.participantId);
-}
-
-function resolveDraftStep(record: DraftRecord) {
-  const maxReachableStep = deriveMaxReachableStep(record);
-  if (record.status === "completed") {
-    return maxReachableStep;
-  }
-
-  const requestedStep = Number.isFinite(record.step) ? Math.trunc(record.step) : 1;
-  const normalizedRequestedStep = Math.min(Math.max(requestedStep, 1), 5);
-  return Math.min(normalizedRequestedStep, maxReachableStep);
 }
 
 function normalizeActiveRecordMutation(record: DraftRecord, mutator: (draft: DraftRecord) => void) {

@@ -1,8 +1,13 @@
-// @ts-nocheck
 import type { PropsWithChildren, ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Circle, Paragraph, Text, XStack, YStack } from "tamagui";
+import {
+  Circle as TamaguiCircle,
+  Paragraph as TamaguiParagraph,
+  Text as TamaguiText,
+  XStack as TamaguiXStack,
+  YStack as TamaguiYStack,
+} from "tamagui";
 
 import { FONTS, PALETTE } from "../theme/palette";
 
@@ -10,6 +15,11 @@ const FOOTER_PADDING_TOP = 18;
 const FOOTER_PADDING_BOTTOM = 28;
 const FOOTER_OVERLAY_HEIGHT = 132;
 const SCROLL_BOTTOM_SPACER = FOOTER_OVERLAY_HEIGHT + FOOTER_PADDING_TOP + FOOTER_PADDING_BOTTOM + 20;
+const Circle = TamaguiCircle as any;
+const Paragraph = TamaguiParagraph as any;
+const Text = TamaguiText as any;
+const XStack = TamaguiXStack as any;
+const YStack = TamaguiYStack as any;
 
 export function AppScreen({
   children,
