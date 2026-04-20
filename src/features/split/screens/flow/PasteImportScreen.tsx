@@ -47,7 +47,18 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             label="Apply import"
             icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
             onPress={async () => {
+              if (!input.trim()) {
+                Alert.alert("Nothing to import", "Paste at least one line before applying import.");
+                return;
+              }
               const result = await importPastedList(input, mode);
+              const noValidItems = result.warningMessages.some((warning) =>
+                warning.includes("No valid items were detected")
+              );
+              if (noValidItems) {
+                Alert.alert("Import failed", result.warningMessages.join("\n"));
+                return;
+              }
               if (result.warningMessages.length > 0) {
                 Alert.alert("Import notes", result.warningMessages.join("\n"));
               }

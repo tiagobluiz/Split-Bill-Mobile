@@ -11,10 +11,14 @@ const XStack = TamaguiXStack as any;
 export function FlowScreenHeader({
   title,
   onBack,
+  onClose,
 }: {
   title: string;
   onBack: () => void;
+  onClose?: () => void;
 }) {
+  const handleClose = onClose ?? (() => router.replace("/"));
+
   return (
     <XStack alignItems="center" justifyContent="space-between">
       <XStack alignItems="center" gap="$3">
@@ -25,7 +29,7 @@ export function FlowScreenHeader({
           {title}
         </Text>
       </XStack>
-      <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={() => router.replace("/")}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={handleClose}>
         <X color={PALETTE.primary} size={22} />
       </Pressable>
     </XStack>

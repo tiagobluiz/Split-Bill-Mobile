@@ -73,6 +73,9 @@ const FRIENDLY_SPLIT_MESSAGES = {
 } as const;
 
 export function formatPercentValue(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
   const basisPoints = Math.round(value * 100);
   return (basisPoints / 100).toFixed(2).replace(/\.?0+$/, "");
 }
@@ -87,6 +90,9 @@ export function hasTrailingPercentSeparator(nextPercentValue: string) {
 
 export function normalizeCommittedPercentValue(nextPercentValue: string) {
   const normalizedValue = normalizePercentInput(nextPercentValue).trim();
+  if (!normalizedValue) {
+    return "0";
+  }
   return formatPercentValue(Number.parseFloat(normalizedValue));
 }
 

@@ -494,6 +494,10 @@ describe("split screens", () => {
     rerender(<OverviewScreen draftId="draft-1" />);
     expect(screen.getByText("Not there yet...")).toBeTruthy();
     fireEvent.press(screen.getByText("Finalize Bill"));
+    expect(screen.getByLabelText("Dismiss split notice")).toBeTruthy();
+    expect(screen.getAllByText("Add at least two participants, including the payer.").length).toBeGreaterThan(0);
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByLabelText("Dismiss split notice")).toBeNull();
     expect(screen.getAllByText("Not there yet...").length).toBeGreaterThan(0);
 
     mockStoreState.records = [buildRecord()];
@@ -993,6 +997,32 @@ describe("split screens", () => {
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByText("Export as PDF"));
     expect(mockSetStringAsync).not.toHaveBeenCalled();
+    expect(mockAlert).toHaveBeenCalledWith("Unavailable", "PDF preview data is not available for this split.", undefined);
+  });
+
+  it("shows copy failure feedback when exporting PDF preview JSON fails", () => {
+    mockSetStringAsync.mockRejectedValueOnce(new Error("clipboard down"));
+
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("Export as PDF"));
+
+    return waitFor(() => {
+      expect(mockAlert).toHaveBeenCalledWith("Copy failed", "Could not copy PDF preview JSON.", undefined);
+    });
+  });
+
+  it("handles markCompleted failures without crashing results rendering", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockStoreState.markCompleted = jest.fn(async () => {
+      throw new Error("boom");
+    });
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(screen.getByText("Final Results")).toBeTruthy();
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
 

@@ -1709,9 +1709,40 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord()];
     rerender(<PasteImportScreen draftId="draft-1" />);
     await act(async () => {
+      fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "Tea - 1.25");
+    });
+    await act(async () => {
       fireEvent.press(screen.getByText("Apply import"));
     });
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("blocks empty pasted imports with a warning", async () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Apply import"));
+    });
+    expect(mockAlert).toHaveBeenCalledWith("Nothing to import", "Paste at least one line before applying import.", undefined);
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("keeps the user on paste import when no valid items are detected", async () => {
+    mockStoreState.importPastedList = jest.fn(async () => ({
+      warningMessages: [
+        "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+      ],
+    }));
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "not a valid line");
+    await act(async () => {
+      fireEvent.press(screen.getByText("Apply import"));
+    });
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Import failed",
+      "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+      undefined
+    );
   });
 
   it("routes the paste close header action to home", () => {

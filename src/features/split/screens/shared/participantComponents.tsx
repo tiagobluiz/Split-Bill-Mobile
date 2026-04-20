@@ -1,4 +1,5 @@
 import { Image, Pressable, View } from "react-native";
+import type { ImageStyle, StyleProp, ViewStyle } from "react-native";
 import { X } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -25,13 +26,19 @@ export function ParticipantAvatar({
   name: string;
   ownerName: string;
   ownerProfileImageUri?: string;
-  style: any;
+  style: StyleProp<ViewStyle | ImageStyle>;
   label: string;
   textSize?: number;
 }) {
   const imageUri = ownerProfileImageUri?.trim();
   if (isOwnerReference(name, ownerName) && imageUri) {
-    return <Image accessibilityLabel={label} source={{ uri: imageUri }} style={[style, screenStyles.avatarImage]} />;
+    return (
+      <Image
+        accessibilityLabel={label}
+        source={{ uri: imageUri }}
+        style={[style as StyleProp<ImageStyle>, screenStyles.avatarImage]}
+      />
+    );
   }
 
   const tone = getAvatarTone(name);

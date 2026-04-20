@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Pressable, ScrollView, Share, View } from "react-native";
+import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,10 +42,13 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     if (!record || !settlement?.ok || !summary || record.status === "completed" || hasAutoCompletedRef.current === record.id) {
       return;
     }
-
-    hasAutoCompletedRef.current = record.id;
     void (async () => {
-      await markCompleted();
+      try {
+        await markCompleted();
+        hasAutoCompletedRef.current = record.id;
+      } catch (error) {
+        console.warn("Failed to auto-complete draft before results render", error);
+      }
     })();
   }, [markCompleted, record, settlement, summary]);
 
@@ -99,10 +102,17 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               accessibilityRole="button"
               accessibilityLabel="Export as PDF"
               style={screenStyles.resultsSecondaryButton}
-              onPress={() => {
+              onPress={async () => {
                 if (pdfData) {
-                  void Clipboard.setStringAsync(JSON.stringify(pdfData, null, 2));
+                  try {
+                    await Clipboard.setStringAsync(JSON.stringify(pdfData, null, 2));
+                    Alert.alert("Copied", "PDF preview JSON copied to clipboard.");
+                  } catch {
+                    Alert.alert("Copy failed", "Could not copy PDF preview JSON.");
+                  }
+                  return;
                 }
+                Alert.alert("Unavailable", "PDF preview data is not available for this split.");
               }}
             >
               <XStack alignItems="center" justifyContent="center" gap="$2.5">

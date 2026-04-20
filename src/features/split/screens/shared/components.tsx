@@ -31,6 +31,7 @@ export function ModePills({
             key={option.key}
             accessibilityRole="button"
             accessibilityLabel={option.label}
+            accessibilityState={{ selected }}
             style={[screenStyles.modePillButton, selected ? screenStyles.modePillButtonActive : null]}
             onPress={() => onChange(option.key)}
           >
@@ -56,8 +57,8 @@ export function ErrorList({ messages }: { messages: string[] }) {
   return (
     <View style={screenStyles.errorPanel}>
       <SectionEyebrow>Not there yet...</SectionEyebrow>
-      {messages.map((message) => (
-        <Paragraph key={message} color={PALETTE.danger} fontFamily={FONTS.bodyMedium} fontSize={13}>
+      {messages.map((message, index) => (
+        <Paragraph key={`${message}-${index}`} color={PALETTE.danger} fontFamily={FONTS.bodyMedium} fontSize={13}>
           {message}
         </Paragraph>
       ))}
@@ -87,6 +88,7 @@ export function ModeToggle({
             key={option.key}
             accessibilityRole="button"
             accessibilityLabel={`Select ${option.label} mode`}
+            accessibilityState={{ selected }}
             style={[screenStyles.togglePill, selected ? screenStyles.modePillButtonActive : null]}
             onPress={() => onChange(option.key)}
           >

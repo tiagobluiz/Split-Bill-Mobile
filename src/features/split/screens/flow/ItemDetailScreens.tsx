@@ -162,11 +162,6 @@ export function AssignItemScreen({ draftId, itemId }: { draftId: string; itemId:
       setShowDiscardChangesModal(true);
       return;
     }
-
-    if (isNewItem) {
-      router.back();
-      return;
-    }
     router.back();
   };
 

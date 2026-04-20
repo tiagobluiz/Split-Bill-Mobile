@@ -129,6 +129,8 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
               return (
                 <Pressable
                   key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open split details for ${itemLabel} (${assigned ? "assigned" : "unassigned"})`}
                   onPress={() => router.push(`/split/${draftId}/split/${item.id}`)}
                   style={[screenStyles.itemsListCard, !assigned ? screenStyles.reviewItemCardPending : null]}
                 >

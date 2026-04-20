@@ -48,6 +48,7 @@ export function HomeTabBar({
               key={tab.key}
               accessibilityRole="button"
               accessibilityLabel={`Open ${tab.label}`}
+              accessibilityState={{ selected: isActive }}
               onPress={() => onChange(tab.key)}
               style={[screenStyles.homeTabButton, isActive ? screenStyles.homeTabButtonActive : null]}
             >
@@ -107,7 +108,12 @@ export function RecordRow({
       )}
     >
       <View style={screenStyles.recentShadowWrap}>
-        <Pressable onPress={() => router.push(buildRecordRoute(record))} style={[screenStyles.recentRow, screenStyles.itemsListCard]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open split ${title}`}
+          onPress={() => router.push(buildRecordRoute(record))}
+          style={[screenStyles.recentRow, screenStyles.itemsListCard]}
+        >
           <XStack alignItems="center" justifyContent="space-between" gap="$3">
             <XStack alignItems="center" gap="$4" flex={1}>
               <AvatarBadge label={getInitials(title)} accent={index % 2 === 0} />

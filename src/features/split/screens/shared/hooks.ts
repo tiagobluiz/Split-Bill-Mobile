@@ -9,31 +9,27 @@ export function useRecord(draftId: string) {
     activeRecordId: state.activeRecordId,
     openRecord: state.openRecord,
   })));
-  const requestedDraftIdsRef = useRef<string[]>([]);
+  const requestedDraftIdRef = useRef<string | null>(null);
   const record = records.find((item) => item.id === draftId) ?? null;
 
   useEffect(() => {
-    if (!draftId || activeRecordId === draftId || requestedDraftIdsRef.current.includes(draftId)) {
+    if (!draftId || activeRecordId === draftId || requestedDraftIdRef.current === draftId) {
       return;
     }
 
-    requestedDraftIdsRef.current = [...requestedDraftIdsRef.current, draftId];
+    requestedDraftIdRef.current = draftId;
     void openRecord(draftId).finally(() => {
-      requestedDraftIdsRef.current = requestedDraftIdsRef.current.filter((id) => id !== draftId);
+      if (requestedDraftIdRef.current === draftId) {
+        requestedDraftIdRef.current = null;
+      }
     });
-  }, [activeRecordId, draftId, openRecord, record]);
+  }, [activeRecordId, draftId, openRecord]);
 
   useEffect(() => {
     if (record) {
-      requestedDraftIdsRef.current = [];
+      requestedDraftIdRef.current = null;
     }
-  }, [draftId, record]);
-
-  useEffect(() => {
-    return () => {
-      requestedDraftIdsRef.current = [];
-    };
-  }, []);
+  }, [record]);
 
   return record;
 }

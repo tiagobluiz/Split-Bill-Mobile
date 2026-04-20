@@ -97,6 +97,10 @@ describe("splitFlow", () => {
       expect(resolveDraftStep(createRecord({ step: 6 }))).toBe(5);
     });
 
+    it("truncates fractional draft steps", () => {
+      expect(resolveDraftStep(createRecord({ step: 3.9 }))).toBe(3);
+    });
+
     it("never goes beyond max reachable step for drafts", () => {
       const record = createRecord({
         step: 5,
