@@ -22,6 +22,7 @@ export const screenStyles = StyleSheet.create({
   },
   stickyFlowHeader: {
     backgroundColor: PALETTE.surface,
+    paddingHorizontal: 22,
     paddingBottom: 18,
     zIndex: 5,
   },

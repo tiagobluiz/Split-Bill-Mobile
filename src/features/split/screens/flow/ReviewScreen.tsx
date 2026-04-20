@@ -3,9 +3,19 @@ import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AlertTriangle, ArrowRight, Check } from "lucide-react-native";
-import { Text as TamaguiText, XStack as TamaguiXStack, YStack as TamaguiYStack } from "tamagui";
+import {
+  Text as TamaguiText,
+  XStack as TamaguiXStack,
+  YStack as TamaguiYStack,
+} from "tamagui";
 
-import { AppScreen, EmptyState, FloatingFooter, PrimaryButton, SectionEyebrow } from "../../../../components/ui";
+import {
+  AppScreen,
+  EmptyState,
+  FloatingFooter,
+  PrimaryButton,
+  SectionEyebrow,
+} from "../../../../components/ui";
 import {
   computeSettlement,
   formatMoney,
@@ -16,7 +26,11 @@ import {
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
-import { getAssignedParticipantCount, isItemAssigned, isVisibleItem } from "../shared/recordUtils";
+import {
+  getAssignedParticipantCount,
+  isItemAssigned,
+  isVisibleItem,
+} from "../shared/recordUtils";
 import { SplitNoticeModal } from "../shared/modals";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
@@ -36,18 +50,30 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
 
     return computeSettlement(record.values);
   }, [record]);
-  const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>([]);
+  const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>(
+    [],
+  );
   const [reviewViewportHeight, setReviewViewportHeight] = useState(0);
   const [reviewContentHeight, setReviewContentHeight] = useState(0);
 
   if (!record) {
-    return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
+    return (
+      <AppScreen scroll={false}>
+        <EmptyState
+          title="Loading draft"
+          description="Opening your split record."
+        />
+      </AppScreen>
+    );
   }
 
   const visibleItems = record.values.items.filter(isVisibleItem);
   const assignedItems = visibleItems.filter(isItemAssigned);
   const assignedCount = assignedItems.length;
-  const progressPercent = visibleItems.length > 0 ? Math.round((assignedCount / visibleItems.length) * 100) : 0;
+  const progressPercent =
+    visibleItems.length > 0
+      ? Math.round((assignedCount / visibleItems.length) * 100)
+      : 0;
   const errors = [
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
@@ -66,7 +92,9 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
             icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
-                setReviewNoticeMessages(["There are still items left to split before you can see the results."]);
+                setReviewNoticeMessages([
+                  "There are still items left to split before you can see the results.",
+                ]);
                 return;
               }
               router.push(`/split/${draftId}/results`);
@@ -75,11 +103,71 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
         </FloatingFooter>
       }
     >
+      <View
+        style={[
+          screenStyles.stickyFlowHeader,
+          { paddingTop: Math.max(insets.top + 10, 28) },
+        ]}
+      >
+        <FlowScreenHeader
+          title="Review Items"
+          onBack={() => router.replace(`/split/${draftId}/items`)}
+        />
+      </View>
+      <View style={screenStyles.participantsScrollContent}>
+        <YStack gap="$5">
+          <View style={screenStyles.itemsImportCard}>
+            <SectionEyebrow>Current progress</SectionEyebrow>
+            <XStack
+              alignItems="flex-end"
+              justifyContent="space-between"
+              gap="$3"
+              marginTop="$2"
+            >
+              <YStack>
+                <Text
+                  fontFamily={FONTS.headlineBlack}
+                  fontSize={34}
+                  lineHeight={36}
+                  color={PALETTE.primary}
+                >
+                  {progressPercent}%
+                </Text>
+                <Text
+                  fontFamily={FONTS.headlineBlack}
+                  fontSize={26}
+                  lineHeight={28}
+                  color={PALETTE.primary}
+                >
+                  Split
+                </Text>
+              </YStack>
+              <Text
+                fontFamily={FONTS.bodyMedium}
+                fontSize={15}
+                lineHeight={21}
+                color={PALETTE.onSurfaceVariant}
+                textAlign="right"
+              >
+                {assignedCount} of {visibleItems.length} items assigned
+              </Text>
+            </XStack>
+            <View style={screenStyles.reviewProgressTrack}>
+              <View
+                style={[
+                  screenStyles.reviewProgressFill,
+                  { width: `${progressPercent}%` },
+                ]}
+              />
+            </View>
+          </View>
+          <View style={screenStyles.reviewStickySeparator} />
+        </YStack>
+      </View>
       <ScrollView
         testID="review-scroll"
         style={screenStyles.flex}
         scrollEnabled={isReviewScrollable}
-        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
@@ -94,32 +182,6 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
           setReviewContentHeight(height);
         }}
       >
-        <View style={[screenStyles.stickyReviewHeaderWrap, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <YStack gap="$5">
-            <FlowScreenHeader title="Review Items" onBack={() => router.replace(`/split/${draftId}/items`)} />
-            <View style={screenStyles.itemsImportCard}>
-              <SectionEyebrow>Current progress</SectionEyebrow>
-              <XStack alignItems="flex-end" justifyContent="space-between" gap="$3" marginTop="$2">
-                <YStack>
-                  <Text fontFamily={FONTS.headlineBlack} fontSize={34} lineHeight={36} color={PALETTE.primary}>
-                    {progressPercent}%
-                  </Text>
-                  <Text fontFamily={FONTS.headlineBlack} fontSize={26} lineHeight={28} color={PALETTE.primary}>
-                    Split
-                  </Text>
-                </YStack>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={21} color={PALETTE.onSurfaceVariant} textAlign="right">
-                  {assignedCount} of {visibleItems.length} items assigned
-                </Text>
-              </XStack>
-              <View style={screenStyles.reviewProgressTrack}>
-                <View style={[screenStyles.reviewProgressFill, { width: `${progressPercent}%` }]} />
-              </View>
-            </View>
-            <View style={screenStyles.reviewStickySeparator} />
-          </YStack>
-        </View>
-
         <View style={screenStyles.reviewListViewport}>
           <YStack gap="$3" style={screenStyles.reviewListContent}>
             {visibleItems.map((item) => {
@@ -131,20 +193,46 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Open split details for ${itemLabel} (${assigned ? "assigned" : "unassigned"})`}
-                  onPress={() => router.push(`/split/${draftId}/split/${item.id}`)}
-                  style={[screenStyles.itemsListCard, !assigned ? screenStyles.reviewItemCardPending : null]}
+                  onPress={() =>
+                    router.push(`/split/${draftId}/split/${item.id}`)
+                  }
+                  style={[
+                    screenStyles.itemsListCard,
+                    !assigned ? screenStyles.reviewItemCardPending : null,
+                  ]}
                 >
-                  <XStack alignItems="center" justifyContent="space-between" gap="$4">
+                  <XStack
+                    alignItems="center"
+                    justifyContent="space-between"
+                    gap="$4"
+                  >
                     <YStack flex={1} gap="$1.5">
                       <XStack alignItems="center" gap="$2">
-                        <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                        <Text
+                          fontFamily={FONTS.headlineBold}
+                          fontSize={18}
+                          color={PALETTE.onSurface}
+                        >
                           {itemLabel}
                         </Text>
-                        {assigned ? <Check color={PALETTE.secondary} size={16} /> : <AlertTriangle color={PALETTE.primary} size={16} />}
+                        {assigned ? (
+                          <Check color={PALETTE.secondary} size={16} />
+                        ) : (
+                          <AlertTriangle color={PALETTE.primary} size={16} />
+                        )}
                       </XStack>
                       <XStack alignItems="center" gap="$2.5" flexWrap="wrap">
-                        <Text fontFamily={FONTS.headlineBold} fontSize={16} lineHeight={20} color={PALETTE.primary}>
-                          {formatMoney(parseMoneyToCents(item.price) ?? 0, record.values.currency, locale)}
+                        <Text
+                          fontFamily={FONTS.headlineBold}
+                          fontSize={16}
+                          lineHeight={20}
+                          color={PALETTE.primary}
+                        >
+                          {formatMoney(
+                            parseMoneyToCents(item.price) ?? 0,
+                            record.values.currency,
+                            locale,
+                          )}
                         </Text>
                         {assigned ? (
                           <Text
@@ -165,7 +253,13 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                       <ArrowRight color={PALETTE.onSurfaceVariant} size={18} />
                     ) : (
                       <View style={screenStyles.reviewAssignButton}>
-                        <Text fontFamily={FONTS.bodyBold} fontSize={12} color={PALETTE.onPrimary} textTransform="uppercase" letterSpacing={1.2}>
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={12}
+                          color={PALETTE.onPrimary}
+                          textTransform="uppercase"
+                          letterSpacing={1.2}
+                        >
                           Split
                         </Text>
                       </View>
@@ -177,7 +271,10 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </View>
       </ScrollView>
-      <SplitNoticeModal messages={reviewNoticeMessages} onDismiss={() => setReviewNoticeMessages([])} />
+      <SplitNoticeModal
+        messages={reviewNoticeMessages}
+        onDismiss={() => setReviewNoticeMessages([])}
+      />
     </AppScreen>
   );
 }

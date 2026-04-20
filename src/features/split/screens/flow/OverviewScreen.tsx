@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowRight } from "lucide-react-native";
-import { Text as TamaguiText, XStack as TamaguiXStack, YStack as TamaguiYStack } from "tamagui";
+import {
+  Text as TamaguiText,
+  XStack as TamaguiXStack,
+  YStack as TamaguiYStack,
+} from "tamagui";
 
 import {
   AppScreen,
@@ -42,7 +46,9 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
   const settings = useSplitStore((state) => state.settings);
   const insets = useSafeAreaInsets();
-  const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>([]);
+  const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>(
+    [],
+  );
   const settlement = useMemo(() => {
     if (!record) {
       return null;
@@ -51,7 +57,14 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
   }, [record]);
 
   if (!record) {
-    return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
+    return (
+      <AppScreen scroll={false}>
+        <EmptyState
+          title="Loading draft"
+          description="Opening your split record."
+        />
+      </AppScreen>
+    );
   }
 
   const errors = [
@@ -64,7 +77,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
-      footer={(
+      footer={
         <FloatingFooter>
           <PrimaryButton
             label="Finalize Bill"
@@ -78,27 +91,36 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
             }}
           />
         </FloatingFooter>
-      )}
+      }
     >
+      <View
+        style={[
+          screenStyles.stickyFlowHeader,
+          { paddingTop: Math.max(insets.top + 8, 22) },
+        ]}
+      >
+        <FlowScreenHeader title="Review Items" onBack={() => router.back()} />
+      </View>
       <ScrollView
         style={screenStyles.flex}
         contentContainerStyle={[
           screenStyles.reviewScrollContent,
           {
-            paddingTop: Math.max(insets.top + 8, 22),
             paddingBottom: 126 + Math.max(insets.bottom, 14),
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <YStack gap="$5">
-          <FlowScreenHeader title="Review Items" onBack={() => router.back()} />
-
           {settlement?.ok ? (
             <>
               <HeroCard
                 eyebrow="Bill total"
-                title={formatMoney(settlement.data.totalCents, settlement.data.currency, locale)}
+                title={formatMoney(
+                  settlement.data.totalCents,
+                  settlement.data.currency,
+                  locale,
+                )}
                 subtitle={`${record.values.participants.length} people \u00B7 ${record.values.items.filter(isVisibleItem).length} items`}
               />
 
@@ -106,21 +128,42 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
                 <SectionEyebrow>People totals</SectionEyebrow>
                 <YStack gap="$4">
                   {settlement.data.people.map((person) => (
-                    <XStack key={person.participantId} justifyContent="space-between" alignItems="center">
+                    <XStack
+                      key={person.participantId}
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
                       <YStack>
-                        <Text fontFamily={FONTS.headlineBold} fontSize={17} color={PALETTE.onSurface}>
-                          {getParticipantDisplayName(person.name, settings.ownerName)}
+                        <Text
+                          fontFamily={FONTS.headlineBold}
+                          fontSize={17}
+                          color={PALETTE.onSurface}
+                        >
+                          {getParticipantDisplayName(
+                            person.name,
+                            settings.ownerName,
+                          )}
                         </Text>
-                        <Text fontFamily={FONTS.bodyMedium} fontSize={12} color={PALETTE.onSurfaceVariant}>
+                        <Text
+                          fontFamily={FONTS.bodyMedium}
+                          fontSize={12}
+                          color={PALETTE.onSurfaceVariant}
+                        >
                           {getOverviewSettlementLabel(person)}
                         </Text>
                       </YStack>
                       <Text
                         fontFamily={FONTS.headlineBold}
                         fontSize={18}
-                        color={person.isPayer ? PALETTE.secondary : PALETTE.primary}
+                        color={
+                          person.isPayer ? PALETTE.secondary : PALETTE.primary
+                        }
                       >
-                        {formatMoney(person.netCents, settlement.data.currency, locale)}
+                        {formatMoney(
+                          person.netCents,
+                          settlement.data.currency,
+                          locale,
+                        )}
                       </Text>
                     </XStack>
                   ))}
@@ -132,10 +175,18 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
                 <YStack gap="$4">
                   {settlement.data.itemBreakdown.map((item) => (
                     <YStack key={item.id} gap="$2">
-                      <Text fontFamily={FONTS.headlineBold} fontSize={17} color={PALETTE.onSurface}>
+                      <Text
+                        fontFamily={FONTS.headlineBold}
+                        fontSize={17}
+                        color={PALETTE.onSurface}
+                      >
                         {item.name}
                       </Text>
-                      <Text fontFamily={FONTS.bodyMedium} fontSize={13} color={PALETTE.onSurfaceVariant}>
+                      <Text
+                        fontFamily={FONTS.bodyMedium}
+                        fontSize={13}
+                        color={PALETTE.onSurfaceVariant}
+                      >
                         {buildShareSummary(
                           item,
                           settlement.data.people.map((person) => ({
@@ -144,7 +195,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
                             isPayer: person.isPayer,
                           })),
                           settlement.data.currency,
-                          locale
+                          locale,
                         )}
                       </Text>
                     </YStack>
@@ -157,7 +208,10 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
           <ErrorList messages={[...new Set(errors)]} />
         </YStack>
       </ScrollView>
-      <SplitNoticeModal messages={reviewNoticeMessages} onDismiss={() => setReviewNoticeMessages([])} />
+      <SplitNoticeModal
+        messages={reviewNoticeMessages}
+        onDismiss={() => setReviewNoticeMessages([])}
+      />
     </AppScreen>
   );
 }

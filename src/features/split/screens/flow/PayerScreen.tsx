@@ -4,9 +4,17 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import { ArrowRight, Check } from "lucide-react-native";
-import { Text as TamaguiText, XStack as TamaguiXStack, YStack as TamaguiYStack } from "tamagui";
+import {
+  Text as TamaguiText,
+  XStack as TamaguiXStack,
+  YStack as TamaguiYStack,
+} from "tamagui";
 
-import { AppScreen, EmptyState, FloatingFooter } from "../../../../components/ui";
+import {
+  AppScreen,
+  EmptyState,
+  FloatingFooter,
+} from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
@@ -22,24 +30,35 @@ const YStack = TamaguiYStack as any;
 
 export function PayerScreenView({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
-  const { setPayer, setStep, settings } = useSplitStore(useShallow((state) => ({
-    setPayer: state.setPayer,
-    setStep: state.setStep,
-    settings: state.settings,
-  })));
+  const { setPayer, setStep, settings } = useSplitStore(
+    useShallow((state) => ({
+      setPayer: state.setPayer,
+      setStep: state.setStep,
+      settings: state.settings,
+    })),
+  );
   const [showPayerHint, setShowPayerHint] = useState(false);
   const insets = useSafeAreaInsets();
 
   if (!record) {
-    return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
+    return (
+      <AppScreen scroll={false}>
+        <EmptyState
+          title="Loading draft"
+          description="Opening your split record."
+        />
+      </AppScreen>
+    );
   }
 
-  const payerErrors = record.values.payerParticipantId ? [] : ["Choose who paid the bill."];
+  const payerErrors = record.values.payerParticipantId
+    ? []
+    : ["Choose who paid the bill."];
 
   return (
     <AppScreen
       scroll={false}
-      footer={(
+      footer={
         <FloatingFooter>
           <Pressable
             accessibilityRole="button"
@@ -47,7 +66,9 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
             accessibilityState={{ disabled: !record.values.payerParticipantId }}
             style={[
               screenStyles.participantsContinueButton,
-              !record.values.payerParticipantId ? screenStyles.participantsContinueButtonDisabled : null,
+              !record.values.payerParticipantId
+                ? screenStyles.participantsContinueButtonDisabled
+                : null,
             ]}
             onPress={async () => {
               if (!record.values.payerParticipantId) {
@@ -63,19 +84,40 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
               <Text
                 fontFamily={FONTS.headlineBlack}
                 fontSize={18}
-                color={!record.values.payerParticipantId ? PALETTE.onSurfaceVariant : PALETTE.onPrimaryContainer}
+                color={
+                  !record.values.payerParticipantId
+                    ? PALETTE.onSurfaceVariant
+                    : PALETTE.onPrimaryContainer
+                }
               >
                 Next: Add Items
               </Text>
-              <ArrowRight color={!record.values.payerParticipantId ? PALETTE.onSurfaceVariant : PALETTE.onPrimaryContainer} size={20} />
+              <ArrowRight
+                color={
+                  !record.values.payerParticipantId
+                    ? PALETTE.onSurfaceVariant
+                    : PALETTE.onPrimaryContainer
+                }
+                size={20}
+              />
             </XStack>
           </Pressable>
         </FloatingFooter>
-      )}
+      }
     >
+      <View
+        style={[
+          screenStyles.stickyFlowHeader,
+          { paddingTop: Math.max(insets.top + 10, 28) },
+        ]}
+      >
+        <FlowScreenHeader
+          title="Who paid?"
+          onBack={() => router.replace(`/split/${draftId}/participants`)}
+        />
+      </View>
       <ScrollView
         style={screenStyles.flex}
-        stickyHeaderIndices={[0]}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
@@ -85,21 +127,21 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[screenStyles.stickyFlowHeader, { paddingTop: Math.max(insets.top + 10, 28) }]}>
-          <FlowScreenHeader title="Who paid?" onBack={() => router.replace(`/split/${draftId}/participants`)} />
-        </View>
-
         <YStack gap="$5">
           <YStack gap="$3.5">
             {record.values.participants.map((participant) => {
-              const selected = participant.id === record.values.payerParticipantId;
+              const selected =
+                participant.id === record.values.payerParticipantId;
 
               return (
                 <Pressable
                   key={participant.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Choose payer ${participant.name}`}
-                  style={[screenStyles.payerOptionRow, selected ? screenStyles.payerOptionRowSelected : null]}
+                  style={[
+                    screenStyles.payerOptionRow,
+                    selected ? screenStyles.payerOptionRowSelected : null,
+                  ]}
                   onPress={() => void setPayer(participant.id)}
                 >
                   <XStack alignItems="center" gap="$3.5" flex={1}>
@@ -111,8 +153,15 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
                       label={`Payer avatar ${participant.name}`}
                       textSize={16}
                     />
-                    <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface}>
-                      {getParticipantDisplayName(participant.name, settings.ownerName)}
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={16}
+                      color={PALETTE.onSurface}
+                    >
+                      {getParticipantDisplayName(
+                        participant.name,
+                        settings.ownerName,
+                      )}
                     </Text>
                   </XStack>
                   {selected ? (
@@ -128,7 +177,10 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal messages={showPayerHint ? payerErrors : []} onDismiss={() => setShowPayerHint(false)} />
+      <SplitNoticeModal
+        messages={showPayerHint ? payerErrors : []}
+        onDismiss={() => setShowPayerHint(false)}
+      />
     </AppScreen>
   );
 }
