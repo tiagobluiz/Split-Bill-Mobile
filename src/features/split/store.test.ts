@@ -235,6 +235,44 @@ describe("split store", () => {
     expect(storageMocks.deleteRecord).toHaveBeenCalledWith("draft-existing");
   });
 
+  it("keeps activeRecordId valid when overlapping createDraft calls both fail", async () => {
+    const existing = createRecord({ id: "draft-existing" });
+    const { storeModule, storageMocks } = await loadStore({
+      listRecords: [existing],
+    });
+
+    let rejectFirstSave!: (error: Error) => void;
+    let rejectSecondSave!: (error: Error) => void;
+    storageMocks.saveRecord
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectFirstSave = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectSecondSave = reject;
+          }),
+      );
+
+    await storeModule.useSplitStore.getState().bootstrap();
+    const firstDraftPromise = storeModule.useSplitStore.getState().createDraft();
+    const secondDraftPromise = storeModule.useSplitStore.getState().createDraft();
+
+    rejectFirstSave(new Error("first-save-failed"));
+    await expect(firstDraftPromise).rejects.toThrow("first-save-failed");
+
+    rejectSecondSave(new Error("second-save-failed"));
+    await expect(secondDraftPromise).rejects.toThrow("second-save-failed");
+
+    const state = storeModule.useSplitStore.getState();
+    expect(state.records.map((record) => record.id)).toEqual(["draft-existing"]);
+    expect(state.activeRecordId).toBe("draft-existing");
+    expect(state.getActiveRecord()?.id).toBe("draft-existing");
+  });
+
   it("updates persisted settings", async () => {
     const { storeModule, storageMocks } = await loadStore();
     await storeModule.useSplitStore.getState().bootstrap();

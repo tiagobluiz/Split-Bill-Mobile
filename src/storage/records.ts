@@ -1,6 +1,5 @@
-import * as SQLite from "expo-sqlite";
-
 import type { SplitFormValues } from "../domain";
+import { withAppDatabaseRetry } from "./database";
 
 export type RecordStatus = "draft" | "completed";
 
@@ -17,34 +16,20 @@ export type DraftRecord = {
   completedAt?: string | null;
 };
 
-const DATABASE_NAME = "split-bill-mobile.db";
-
-let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
-async function getDatabase() {
-  if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME).catch((error) => {
-      databasePromise = null;
-      throw error;
-    });
-  }
-
-  return databasePromise;
-}
-
 export async function initializeRecordsStorage() {
-  const db = await getDatabase();
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS split_records (
-      id TEXT PRIMARY KEY NOT NULL,
-      status TEXT NOT NULL,
-      step INTEGER NOT NULL,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      completed_at TEXT
-    );
-  `);
+  await withAppDatabaseRetry(async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS split_records (
+        id TEXT PRIMARY KEY NOT NULL,
+        status TEXT NOT NULL,
+        step INTEGER NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+    `);
+  });
 }
 
 type DatabaseRow = {
@@ -114,43 +99,45 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
 }
 
 export async function listRecords() {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<DatabaseRow>(
-    "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
+  const rows = await withAppDatabaseRetry((db) =>
+    db.getAllAsync<DatabaseRow>(
+      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
+    )
   );
   return rows.map(mapRow).filter((row): row is DraftRecord => Boolean(row));
 }
 
 export async function getRecordById(id: string) {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<DatabaseRow>(
-    "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id = ?",
-    [id]
+  const row = await withAppDatabaseRetry((db) =>
+    db.getFirstAsync<DatabaseRow>(
+      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id = ?",
+      [id]
+    )
   );
   return row ? mapRow(row) : null;
 }
 
 export async function saveRecord(record: DraftRecord) {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT OR REPLACE INTO split_records (id, status, step, payload, created_at, updated_at, completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      record.id,
-      record.status,
-      record.step,
-      JSON.stringify({
-        values: record.values,
-        settlementState: record.settlementState ?? getDefaultSettlementState(),
-      }),
-      record.createdAt,
-      record.updatedAt,
-      record.completedAt ?? null,
-    ]
+  await withAppDatabaseRetry((db) =>
+    db.runAsync(
+      `INSERT OR REPLACE INTO split_records (id, status, step, payload, created_at, updated_at, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        record.id,
+        record.status,
+        record.step,
+        JSON.stringify({
+          values: record.values,
+          settlementState: record.settlementState ?? getDefaultSettlementState(),
+        }),
+        record.createdAt,
+        record.updatedAt,
+        record.completedAt ?? null,
+      ]
+    )
   );
 }
 
 export async function deleteRecord(id: string) {
-  const db = await getDatabase();
-  await db.runAsync("DELETE FROM split_records WHERE id = ?", [id]);
+  await withAppDatabaseRetry((db) => db.runAsync("DELETE FROM split_records WHERE id = ?", [id]));
 }
