@@ -272,12 +272,22 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     try {
       await persistRecord(draft);
     } catch (error) {
-      set({
-        activeRecordId:
-          get().activeRecordId === draft.id
+      set((state) => {
+        const records = state.records.filter((record) => record.id !== draft.id);
+        const fallbackActiveRecordId =
+          state.activeRecordId === draft.id
             ? previousActiveRecordId
-            : get().activeRecordId,
-        records: get().records.filter((record) => record.id !== draft.id),
+            : state.activeRecordId;
+        const activeRecordId =
+          fallbackActiveRecordId &&
+          records.some((record) => record.id === fallbackActiveRecordId)
+            ? fallbackActiveRecordId
+            : (records[0]?.id ?? null);
+
+        return {
+          records,
+          activeRecordId,
+        };
       });
       throw error;
     }
