@@ -30,6 +30,7 @@ const mockLaunchImageLibraryAsync = jest.fn(async () => ({ canceled: true, asset
 let mockStoreState: any;
 
 jest.mock("expo-router", () => ({
+  useFocusEffect: jest.fn(),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),
@@ -277,7 +278,7 @@ describe("split screens", () => {
   it("renders the setup loading state and opens the currency dropdown", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<SetupScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [buildRecord()];
     rerender(<SetupScreen draftId="draft-1" />);
@@ -362,7 +363,7 @@ describe("split screens", () => {
   it("renders participants loading state and participant management", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<ParticipantsScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [
       buildRecord(),
@@ -1181,7 +1182,7 @@ describe("split screens", () => {
   it("renders the payer loading state", () => {
     mockStoreState.records = [];
     render(<PayerScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
   });
 
   it("routes the payer back header action to participants explicitly", () => {
@@ -1222,7 +1223,7 @@ describe("split screens", () => {
   it("renders items loading, invalid review, valid review, and swipe-delete actions", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<ItemsScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [{ ...buildRecord().values.items[0], name: "", price: "" }] } })];
     rerender(<ItemsScreen draftId="draft-1" />);
@@ -1424,11 +1425,11 @@ describe("split screens", () => {
     ];
 
     render(<ItemsScreen draftId="draft-1" />);
-    expect(screen.getByText("Item 1")).toBeTruthy();
+    expect(screen.getByText("Unnamed item")).toBeTruthy();
     expect(screen.getByText("SERVICE")).toBeTruthy();
     expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
-    expect(screen.getByLabelText("Delete item Item 1")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Delete item Item 1"));
+    expect(screen.getByLabelText("Delete item Unnamed item")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Delete item Unnamed item"));
     expect(screen.getByText("Item deleted")).toBeTruthy();
   });
 
@@ -1558,14 +1559,15 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
-    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+    expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
   });
 
   it("does not allow saving a new zero-price item and keeps the editor open", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Water");
       fireEvent.changeText(screen.getByLabelText("Item price"), "0");
     });
 
@@ -1711,7 +1713,7 @@ describe("split screens", () => {
   it("covers paste loading and warning-free import flows", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<PasteImportScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.importPastedList = jest.fn(async () => ({ warningMessages: [] }));
     mockStoreState.records = [buildRecord()];
@@ -1815,7 +1817,7 @@ describe("split screens", () => {
 
     mockStoreState.records = [];
     rerender(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [] } })];
     rerender(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
@@ -1856,9 +1858,9 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
-    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+    expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
   });
 
   it("does not allow saving an existing zero-price item and keeps the editor open", async () => {
@@ -1952,7 +1954,7 @@ describe("split screens", () => {
   it("renders split-item loading and missing-item branches", () => {
     mockStoreState.records = [];
     const { rerender } = render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [] } })];
     rerender(<SplitItemScreen draftId="draft-1" itemId="item-1" />);

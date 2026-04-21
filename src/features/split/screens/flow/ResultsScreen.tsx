@@ -78,7 +78,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         hasAutoCompletedRef.current = record.id;
       } catch (error) {
         console.warn(
-          "Failed to auto-complete draft before results render",
+          "Failed to auto-complete split before results render",
           error,
         );
       }
@@ -89,7 +89,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading draft"
+          title="Loading split"
           description="Opening your split record."
         />
       </AppScreen>
@@ -101,7 +101,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       <AppScreen scroll={false}>
         <EmptyState
           title="Split invalid"
-          description="The final results screen only opens when the current draft passes all settlement rules."
+          description="The final results screen only opens when the current split passes all settlement rules."
         />
       </AppScreen>
     );

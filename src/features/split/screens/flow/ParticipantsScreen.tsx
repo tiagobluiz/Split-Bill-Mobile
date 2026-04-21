@@ -185,7 +185,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading draft"
+          title="Loading split"
           description="Opening your split record."
         />
       </AppScreen>

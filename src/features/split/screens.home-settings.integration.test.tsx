@@ -30,6 +30,7 @@ const mockLaunchImageLibraryAsync = jest.fn(async () => ({ canceled: true, asset
 let mockStoreState: any;
 
 jest.mock("expo-router", () => ({
+  useFocusEffect: jest.fn(),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),
@@ -726,6 +727,32 @@ describe("split screens", () => {
     });
   });
 
+  it("creates a split only once while the start action is still in progress", async () => {
+    let resolveCreateDraft: ((value: any) => void) | null = null;
+    const pendingCreateDraft = new Promise((resolve) => {
+      resolveCreateDraft = resolve;
+    });
+    mockStoreState.createDraft = jest.fn(() => pendingCreateDraft as any);
+
+    render(<HomeScreen />);
+    const startButton = screen.getByText("Start New Split");
+
+    fireEvent.press(startButton);
+    fireEvent.press(startButton);
+
+    expect(mockStoreState.createDraft).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCreateDraft?.(buildRecord({ id: "draft-2" }));
+      await pendingCreateDraft;
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/split/draft-2/setup");
+    });
+  });
+
   it("routes completed home records straight to results", () => {
     mockStoreState.records = [
       buildRecord({
@@ -764,13 +791,13 @@ describe("split screens", () => {
 
     const view = render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
-    expect(screen.getByText("Draft deleted")).toBeTruthy();
+    expect(screen.getByText("Split deleted")).toBeTruthy();
     expect(screen.queryByLabelText("Delete split Delete Me")).toBeNull();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalledWith("/split/draft-delete-me/overview");
 
     fireEvent.press(screen.getByLabelText("Undo delete"));
-    expect(screen.queryByText("Draft deleted")).toBeNull();
+    expect(screen.queryByText("Split deleted")).toBeNull();
     expect(screen.getByLabelText("Delete split Delete Me")).toBeTruthy();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
 
@@ -802,7 +829,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Delete split Expire Delete"));
-    expect(screen.getByText("Draft deleted")).toBeTruthy();
+    expect(screen.getByText("Split deleted")).toBeTruthy();
 
     await act(async () => {
       jest.advanceTimersByTime(4000);
@@ -810,7 +837,7 @@ describe("split screens", () => {
     });
 
     expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-expire-delete");
-    expect(screen.queryByText("Draft deleted")).toBeNull();
+    expect(screen.queryByText("Split deleted")).toBeNull();
     jest.useRealTimers();
   });
 

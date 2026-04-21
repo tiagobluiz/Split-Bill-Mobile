@@ -197,7 +197,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading draft"
+          title="Loading split"
           description="Opening your split record."
         />
       </AppScreen>
@@ -518,8 +518,8 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$3.5">
             <YStack gap="$3">
-              {visibleItems.map((item, index) => {
-                const itemTitle = item.name.trim() || `Item ${index + 1}`;
+              {visibleItems.map((item) => {
+                const itemTitle = item.name.trim() || "Unnamed item";
                 return (
                   <Swipeable
                     key={item.id}

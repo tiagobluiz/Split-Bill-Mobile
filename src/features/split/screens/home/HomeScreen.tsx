@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
@@ -140,9 +140,17 @@ export function HomeScreenView() {
   const [pendingTabChange, setPendingTabChange] = useState<HomeTabKey | null>(
     null,
   );
+  const [isCreatingSplit, setIsCreatingSplit] = useState(false);
+  const creatingSplitRef = useRef(false);
   const deleteTimeoutRef = useRef<any>(null);
   const pendingDeleteRef = useRef<null | { id: string; title: string }>(null);
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      creatingSplitRef.current = false;
+      setIsCreatingSplit(false);
+    }, []),
+  );
   const visibleRecords = pendingDelete
     ? records.filter((record) => record.id !== pendingDelete.id)
     : records;
@@ -433,13 +441,22 @@ export function HomeScreenView() {
         <YStack gap="$5">
           <View style={screenStyles.ctaHalo}>
             <Pressable
-              style={screenStyles.homeCta}
+              style={[screenStyles.homeCta, isCreatingSplit ? { opacity: 0.72 } : null]}
+              disabled={isCreatingSplit}
               onPress={async () => {
+                if (creatingSplitRef.current) {
+                  return;
+                }
+
+                creatingSplitRef.current = true;
+                setIsCreatingSplit(true);
                 try {
                   const draft = await createDraft();
                   router.push(`/split/${draft.id}/setup`);
                 } catch (error) {
-                  console.warn("Failed to create draft split", error);
+                  creatingSplitRef.current = false;
+                  setIsCreatingSplit(false);
+                  console.warn("Failed to create split", error);
                   Alert.alert(
                     "Could not create split",
                     error instanceof Error && error.message
@@ -459,15 +476,6 @@ export function HomeScreenView() {
                 letterSpacing={-1}
               >
                 Start New Split
-              </Text>
-              <Text
-                fontFamily={FONTS.bodyMedium}
-                fontSize={12}
-                color="rgba(255,255,255,0.82)"
-                textTransform="uppercase"
-                letterSpacing={3}
-              >
-                Create Shared Memory
               </Text>
             </Pressable>
           </View>
@@ -1069,7 +1077,7 @@ export function HomeScreenView() {
                     fontSize={14}
                     color={PALETTE.onPrimary}
                   >
-                    Draft deleted
+                    Split deleted
                   </Text>
                   <Text
                     fontFamily={FONTS.bodyMedium}
