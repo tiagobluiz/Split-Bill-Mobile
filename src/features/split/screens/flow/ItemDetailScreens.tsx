@@ -134,7 +134,7 @@ export function AssignItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading draft"
+          title="Loading split"
           description="Opening your split record."
         />
       </AppScreen>
@@ -151,7 +151,7 @@ export function AssignItemScreen({
       <AppScreen scroll={false}>
         <EmptyState
           title="Item missing"
-          description="This item no longer exists in the draft."
+          description="This item no longer exists in this split."
         />
       </AppScreen>
     );
@@ -175,6 +175,7 @@ export function AssignItemScreen({
   const parsedItemPriceCents = normalizedItemPrice
     ? parseMoneyToCents(normalizedItemPrice)
     : null;
+  const hasValidName = item.name.trim().length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
   const duplicateItemExists = record.values.items.some((existingItem) => {
@@ -210,6 +211,11 @@ export function AssignItemScreen({
   };
 
   const saveEditor = async () => {
+    if (!hasValidName) {
+      setAssignNoticeMessages(["Add an item name before saving this item."]);
+      return;
+    }
+
     if (!hasValidPrice) {
       setAssignNoticeMessages(["Add a valid price before saving this item."]);
       return;
@@ -276,7 +282,7 @@ export function AssignItemScreen({
                   ? screenStyles.itemSaveButtonFull
                   : screenStyles.itemSaveButton,
                 screenStyles.itemsNextButton,
-                !hasValidPrice
+                !hasValidName || !hasValidPrice
                   ? screenStyles.participantsContinueButtonDisabled
                   : null,
               ]}
@@ -287,7 +293,7 @@ export function AssignItemScreen({
                   fontFamily={FONTS.headlineBlack}
                   fontSize={18}
                   color={
-                    !hasValidPrice
+                    !hasValidName || !hasValidPrice
                       ? PALETTE.onSurfaceVariant
                       : PALETTE.onPrimary
                   }
@@ -296,7 +302,7 @@ export function AssignItemScreen({
                 </Text>
                 <ArrowRight
                   color={
-                    !hasValidPrice
+                    !hasValidName || !hasValidPrice
                       ? PALETTE.onSurfaceVariant
                       : PALETTE.onPrimary
                   }
@@ -539,7 +545,7 @@ export function SplitItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading draft"
+          title="Loading split"
           description="Opening your split record."
         />
       </AppScreen>
@@ -552,7 +558,7 @@ export function SplitItemScreen({
       <AppScreen scroll={false}>
         <EmptyState
           title="Item missing"
-          description="This item no longer exists in the draft."
+          description="This item no longer exists in this split."
         />
       </AppScreen>
     );

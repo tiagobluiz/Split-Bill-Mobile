@@ -745,7 +745,7 @@ export const screenStyles = StyleSheet.create({
     padding: 8,
   },
   homeCta: {
-    minHeight: 178,
+    minHeight: 148,
     borderRadius: 30,
     backgroundColor: "#bd722f",
     alignItems: "center",

@@ -140,6 +140,7 @@ export function HomeScreenView() {
   const [pendingTabChange, setPendingTabChange] = useState<HomeTabKey | null>(
     null,
   );
+  const [isCreatingSplit, setIsCreatingSplit] = useState(false);
   const deleteTimeoutRef = useRef<any>(null);
   const pendingDeleteRef = useRef<null | { id: string; title: string }>(null);
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
@@ -433,19 +434,27 @@ export function HomeScreenView() {
         <YStack gap="$5">
           <View style={screenStyles.ctaHalo}>
             <Pressable
-              style={screenStyles.homeCta}
+              style={[screenStyles.homeCta, isCreatingSplit ? { opacity: 0.72 } : null]}
+              disabled={isCreatingSplit}
               onPress={async () => {
+                if (isCreatingSplit) {
+                  return;
+                }
+
+                setIsCreatingSplit(true);
                 try {
                   const draft = await createDraft();
                   router.push(`/split/${draft.id}/setup`);
                 } catch (error) {
-                  console.warn("Failed to create draft split", error);
+                  console.warn("Failed to create split", error);
                   Alert.alert(
                     "Could not create split",
                     error instanceof Error && error.message
                       ? error.message
                       : "Please try again.",
                   );
+                } finally {
+                  setIsCreatingSplit(false);
                 }
               }}
             >
@@ -459,15 +468,6 @@ export function HomeScreenView() {
                 letterSpacing={-1}
               >
                 Start New Split
-              </Text>
-              <Text
-                fontFamily={FONTS.bodyMedium}
-                fontSize={12}
-                color="rgba(255,255,255,0.82)"
-                textTransform="uppercase"
-                letterSpacing={3}
-              >
-                Create Shared Memory
               </Text>
             </Pressable>
           </View>
@@ -1069,7 +1069,7 @@ export function HomeScreenView() {
                     fontSize={14}
                     color={PALETTE.onPrimary}
                   >
-                    Draft deleted
+                    Split deleted
                   </Text>
                   <Text
                     fontFamily={FONTS.bodyMedium}

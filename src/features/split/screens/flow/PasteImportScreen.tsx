@@ -35,7 +35,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const [mode, setMode] = useState<"append" | "replace">("append");
 
   if (!record) {
-    return <AppScreen scroll={false}><EmptyState title="Loading draft" description="Opening your split record." /></AppScreen>;
+    return <AppScreen scroll={false}><EmptyState title="Loading split" description="Opening your split record." /></AppScreen>;
   }
 
   return (

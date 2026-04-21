@@ -254,7 +254,7 @@ describe("split screens", () => {
   it("renders review loading, pending state, and invalid finalization hints", () => {
     mockStoreState.records = [];
     const { rerender } = render(<ReviewScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [
       buildRecord({
@@ -488,7 +488,7 @@ describe("split screens", () => {
   it("covers overview loading, invalid, valid, and close flows", () => {
     mockStoreState.records = [];
     const { rerender } = render(<OverviewScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, participants: [] } })];
     rerender(<OverviewScreen draftId="draft-1" />);
@@ -591,7 +591,7 @@ describe("split screens", () => {
   it("renders results loading and invalid branches", () => {
     mockStoreState.records = [];
     const { rerender } = render(<ResultsScreen draftId="draft-1" />);
-    expect(screen.getByText("Loading draft")).toBeTruthy();
+    expect(screen.getByText("Loading split")).toBeTruthy();
 
     const store = require("./store");
     store.getSettlementPreview.mockReturnValueOnce(null);
