@@ -216,17 +216,25 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     if (!trimmed) {
       return;
     }
-    await updateParticipants((participants) => {
-      if (
-        participants.some(
-          (participant) =>
-            participant.name.toLowerCase() === trimmed.toLowerCase(),
-        )
-      ) {
-        return participants;
-      }
-      return [...participants, { id: createId(), name: trimmed }];
-    });
+    try {
+      await updateParticipants((participants) => {
+        if (
+          participants.some(
+            (participant) =>
+              participant.name.toLowerCase() === trimmed.toLowerCase(),
+          )
+        ) {
+          return participants;
+        }
+        return [...participants, { id: createId(), name: trimmed }];
+      });
+    } catch (error) {
+      console.warn("Failed to add participant", error);
+      setParticipantsNoticeMessages([
+        "Could not update participants. Please try again.",
+      ]);
+      return;
+    }
     setParticipantsNoticeMessages([]);
     setName("");
     if (options?.keepKeyboardOpen) {
@@ -424,13 +432,18 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                     participant={participant}
                     ownerName={settings.ownerName}
                     ownerProfileImageUri={settings.ownerProfileImageUri}
-                    onRemove={() =>
+                    onRemove={() => {
                       void updateParticipants((participants) =>
                         participants.filter(
                           (entry) => entry.id !== participant.id,
                         ),
-                      )
-                    }
+                      ).catch((error) => {
+                        console.warn("Failed to remove participant", error);
+                        setParticipantsNoticeMessages([
+                          "Could not remove the participant. Please try again.",
+                        ]);
+                      });
+                    }}
                   />
                 ))}
               </YStack>

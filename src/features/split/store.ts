@@ -152,6 +152,11 @@ function normalizeActiveRecordMutation(
   mutator: (draft: DraftRecord) => void,
 ) {
   const nextRecord = cloneDeep(record);
+  if (!nextRecord.settlementState) {
+    nextRecord.settlementState = {
+      settledParticipantIds: [],
+    };
+  }
   mutator(nextRecord);
   const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
   nextRecord.settlementState = {

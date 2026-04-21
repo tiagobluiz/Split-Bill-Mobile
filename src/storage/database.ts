@@ -26,7 +26,10 @@ function isRetryableSqliteHandleError(error: unknown) {
   );
 }
 
-async function resetDatabaseHandle(db: SQLite.SQLiteDatabase) {
+async function resetDatabaseHandle(
+  db: SQLite.SQLiteDatabase,
+  expectedPromise: Promise<SQLite.SQLiteDatabase>,
+) {
   const maybeClose = (db as { closeAsync?: () => Promise<void> }).closeAsync;
   if (typeof maybeClose === "function") {
     try {
@@ -35,7 +38,9 @@ async function resetDatabaseHandle(db: SQLite.SQLiteDatabase) {
       // Ignore close failures and force a fresh open below.
     }
   }
-  databasePromise = null;
+  if (databasePromise === expectedPromise) {
+    databasePromise = null;
+  }
 }
 
 /**
@@ -48,7 +53,8 @@ export async function withAppDatabaseRetry<T>(
   operation: (db: SQLite.SQLiteDatabase) => Promise<T>,
 ) {
   for (let attempt = 0; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
-    const db = await getAppDatabase();
+    const dbPromise = getAppDatabase();
+    const db = await dbPromise;
     try {
       return await operation(db);
     } catch (error) {
@@ -57,7 +63,7 @@ export async function withAppDatabaseRetry<T>(
       if (!canRetry) {
         throw error;
       }
-      await resetDatabaseHandle(db);
+      await resetDatabaseHandle(db, dbPromise);
     }
   }
   throw new Error("SQLite operation retry loop terminated unexpectedly.");

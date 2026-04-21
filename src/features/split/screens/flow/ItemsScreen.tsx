@@ -187,7 +187,9 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       }
       const pendingDelete = pendingItemDeleteRef.current;
       if (pendingDelete) {
-        void removeItem(pendingDelete.id);
+        void removeItem(pendingDelete.id).catch((error) => {
+          console.warn("Failed to remove pending item on unmount", error);
+        });
       }
     };
   }, [removeItem]);
@@ -246,16 +248,18 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       clearTimeout(itemDeleteTimeoutRef.current);
       itemDeleteTimeoutRef.current = null;
     }
+    await removeItem(nextPending.id);
     if (pendingItemDeleteRef.current?.id === nextPending.id) {
       pendingItemDeleteRef.current = null;
       setPendingItemDelete(null);
     }
-    await removeItem(nextPending.id);
   };
   const queueItemDelete = (itemId: string, title: string) => {
     const pendingDelete = pendingItemDeleteRef.current;
     if (pendingDelete?.id && pendingDelete.id !== itemId) {
-      void removeItem(pendingDelete.id);
+      void removeItem(pendingDelete.id).catch((error) => {
+        console.warn("Failed to remove previously pending item", error);
+      });
     }
     if (itemDeleteTimeoutRef.current) {
       clearTimeout(itemDeleteTimeoutRef.current);
@@ -264,7 +268,12 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     pendingItemDeleteRef.current = nextPending;
     setPendingItemDelete(nextPending);
     itemDeleteTimeoutRef.current = setTimeout(() => {
-      void commitPendingItemDelete(nextPending);
+      void commitPendingItemDelete(nextPending).catch((error) => {
+        console.warn("Failed to remove pending item after undo window", error);
+        pendingItemDeleteRef.current = null;
+        setPendingItemDelete(null);
+        setItemsNoticeMessages(["Could not delete the item. Please try again."]);
+      });
     }, 4000);
   };
   return (
@@ -367,7 +376,20 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   return;
                 }
                 if (pendingItemDelete) {
-                  await commitPendingItemDelete(pendingItemDelete);
+                  try {
+                    await commitPendingItemDelete(pendingItemDelete);
+                  } catch (error) {
+                    console.warn(
+                      "Failed to remove pending item before continuing",
+                      error,
+                    );
+                    pendingItemDeleteRef.current = null;
+                    setPendingItemDelete(null);
+                    setItemsNoticeMessages([
+                      "Could not delete the item. Please try again.",
+                    ]);
+                    return;
+                  }
                 }
                 await setStep(5);
                 const nextItem = getLatestPendingSplitItem(
