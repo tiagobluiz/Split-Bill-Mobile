@@ -180,9 +180,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
   );
   const insets = useSafeAreaInsets();
   useEffect(() => {
-    pendingItemDeleteRef.current = pendingItemDelete;
-  }, [pendingItemDelete]);
-  useEffect(() => {
     return () => {
       if (itemDeleteTimeoutRef.current) {
         clearTimeout(itemDeleteTimeoutRef.current);
@@ -245,19 +242,26 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     id: string;
     title: string;
   }) => {
-    clearTimeout(itemDeleteTimeoutRef.current);
-    itemDeleteTimeoutRef.current = null;
+    if (itemDeleteTimeoutRef.current) {
+      clearTimeout(itemDeleteTimeoutRef.current);
+      itemDeleteTimeoutRef.current = null;
+    }
+    if (pendingItemDeleteRef.current?.id === nextPending.id) {
+      pendingItemDeleteRef.current = null;
+      setPendingItemDelete(null);
+    }
     await removeItem(nextPending.id);
-    setPendingItemDelete(null);
   };
   const queueItemDelete = (itemId: string, title: string) => {
-    if (pendingItemDelete?.id && pendingItemDelete.id !== itemId) {
-      void removeItem(pendingItemDelete.id);
+    const pendingDelete = pendingItemDeleteRef.current;
+    if (pendingDelete?.id && pendingDelete.id !== itemId) {
+      void removeItem(pendingDelete.id);
     }
     if (itemDeleteTimeoutRef.current) {
       clearTimeout(itemDeleteTimeoutRef.current);
     }
     const nextPending = { id: itemId, title };
+    pendingItemDeleteRef.current = nextPending;
     setPendingItemDelete(nextPending);
     itemDeleteTimeoutRef.current = setTimeout(() => {
       void commitPendingItemDelete(nextPending);
@@ -294,6 +298,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   onPress={() => {
                     clearTimeout(itemDeleteTimeoutRef.current);
                     itemDeleteTimeoutRef.current = null;
+                    pendingItemDeleteRef.current = null;
                     setPendingItemDelete(null);
                   }}
                 >
@@ -341,7 +346,11 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Next: Split Bill"
-              accessibilityState={{ disabled: !isItemsStepReady }}
+              accessibilityHint={
+                isItemsStepReady
+                  ? "Continues to split assignments."
+                  : "Shows validation errors before continuing."
+              }
               style={[
                 screenStyles.itemsNextButton,
                 !isItemsStepReady
@@ -487,43 +496,48 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$3.5">
             <YStack gap="$3">
-              {visibleItems.map((item, index) => (
-                <Swipeable
-                  key={item.id}
-                  overshootRight={false}
-                  renderRightActions={() => (
+              {visibleItems.map((item, index) => {
+                const itemTitle = item.name.trim() || `Item ${index + 1}`;
+                return (
+                  <Swipeable
+                    key={item.id}
+                    overshootRight={false}
+                    renderRightActions={() => (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete item ${itemTitle}`}
+                        style={screenStyles.recentSwipeDeleteAction}
+                        onPress={() => queueItemDelete(item.id, itemTitle)}
+                      >
+                        <Trash2 color={PALETTE.onPrimary} size={18} />
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={12}
+                          color={PALETTE.onPrimary}
+                          textTransform="uppercase"
+                          letterSpacing={1.6}
+                        >
+                          Delete
+                        </Text>
+                      </Pressable>
+                    )}
+                  >
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Delete item ${item.name.trim() || `Item ${index + 1}`}`}
-                      style={screenStyles.recentSwipeDeleteAction}
+                      accessibilityLabel={`Open item ${itemTitle}`}
+                      accessibilityActions={[
+                        { name: "delete", label: `Delete item ${itemTitle}` },
+                      ]}
+                      onAccessibilityAction={(event) => {
+                        if (event.nativeEvent.actionName === "delete") {
+                          queueItemDelete(item.id, itemTitle);
+                        }
+                      }}
+                      style={screenStyles.itemsListCard}
                       onPress={() =>
-                        queueItemDelete(
-                          item.id,
-                          item.name.trim() || `Item ${index + 1}`,
-                        )
+                        router.push(`/split/${draftId}/assign/${item.id}`)
                       }
                     >
-                      <Trash2 color={PALETTE.onPrimary} size={18} />
-                      <Text
-                        fontFamily={FONTS.bodyBold}
-                        fontSize={12}
-                        color={PALETTE.onPrimary}
-                        textTransform="uppercase"
-                        letterSpacing={1.6}
-                      >
-                        Delete
-                      </Text>
-                    </Pressable>
-                  )}
-                >
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open item ${item.name.trim() || `Item ${index + 1}`}`}
-                    style={screenStyles.itemsListCard}
-                    onPress={() =>
-                      router.push(`/split/${draftId}/assign/${item.id}`)
-                    }
-                  >
                     <XStack
                       alignItems="center"
                       justifyContent="space-between"
@@ -535,7 +549,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                           fontSize={18}
                           color={PALETTE.onSurface}
                         >
-                          {item.name.trim() || `Item ${index + 1}`}
+                          {itemTitle}
                         </Text>
                         <Text
                           fontFamily={FONTS.bodyBold}
@@ -559,9 +573,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                         )}
                       </Text>
                     </XStack>
-                  </Pressable>
-                </Swipeable>
-              ))}
+                    </Pressable>
+                  </Swipeable>
+                );
+              })}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Add Item Manually"

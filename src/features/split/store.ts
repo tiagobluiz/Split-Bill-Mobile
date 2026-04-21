@@ -33,6 +33,10 @@ import {
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
+type ParticipantsValue = DraftRecord["values"]["participants"];
+type ParticipantsUpdater =
+  | ParticipantsValue
+  | ((participants: ParticipantsValue) => ParticipantsValue);
 
 type SplitStore = {
   ready: boolean;
@@ -47,7 +51,7 @@ type SplitStore = {
   updateDraftMeta: (splitName: string, currency: string) => Promise<void>;
   setStep: (step: number) => Promise<void>;
   updateParticipants: (
-    participants: DraftRecord["values"]["participants"],
+    participants: ParticipantsUpdater,
   ) => Promise<void>;
   setPayer: (participantId: string) => Promise<void>;
   createItem: (item: DraftRecord["values"]["items"][number]) => Promise<void>;
@@ -260,18 +264,20 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async createDraft() {
     const draft = createDraftRecord(get().settings.defaultCurrency);
-    const previousRecords = get().records;
     const previousActiveRecordId = get().activeRecordId;
     set({
       activeRecordId: draft.id,
-      records: nextRecords(previousRecords, draft),
+      records: nextRecords(get().records, draft),
     });
     try {
       await persistRecord(draft);
     } catch (error) {
       set({
-        activeRecordId: previousActiveRecordId,
-        records: previousRecords,
+        activeRecordId:
+          get().activeRecordId === draft.id
+            ? previousActiveRecordId
+            : get().activeRecordId,
+        records: get().records.filter((record) => record.id !== draft.id),
       });
       throw error;
     }
@@ -355,9 +361,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async updateParticipants(participants) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.participants = participants;
+        const nextParticipants =
+          typeof participants === "function"
+            ? participants(draft.values.participants)
+            : participants;
+        draft.values.participants = nextParticipants;
         if (
-          !participants.some(
+          !nextParticipants.some(
             (participant) => participant.id === draft.values.payerParticipantId,
           )
         ) {
@@ -365,7 +375,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         }
         draft.settlementState.settledParticipantIds =
           draft.settlementState.settledParticipantIds.filter((participantId) =>
-            participants.some(
+            nextParticipants.some(
               (participant) => participant.id === participantId,
             ),
           );

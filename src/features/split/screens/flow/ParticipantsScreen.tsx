@@ -213,19 +213,20 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     options?: { keepKeyboardOpen?: boolean },
   ) => {
     const trimmed = rawName.trim();
-    if (
-      !trimmed ||
-      record.values.participants.some(
-        (participant) =>
-          participant.name.toLowerCase() === trimmed.toLowerCase(),
-      )
-    ) {
+    if (!trimmed) {
       return;
     }
-    await updateParticipants([
-      ...record.values.participants,
-      { id: createId(), name: trimmed },
-    ]);
+    await updateParticipants((participants) => {
+      if (
+        participants.some(
+          (participant) =>
+            participant.name.toLowerCase() === trimmed.toLowerCase(),
+        )
+      ) {
+        return participants;
+      }
+      return [...participants, { id: createId(), name: trimmed }];
+    });
     setParticipantsNoticeMessages([]);
     setName("");
     if (options?.keepKeyboardOpen) {
@@ -244,7 +245,11 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Next: Select Payer"
-            accessibilityState={{ disabled: !isParticipantsStepReady }}
+            accessibilityHint={
+              isParticipantsStepReady
+                ? "Continues to payer selection."
+                : "Shows what needs to be fixed before selecting a payer."
+            }
             style={[
               screenStyles.participantsContinueButton,
               !isParticipantsStepReady
@@ -420,8 +425,8 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                     ownerName={settings.ownerName}
                     ownerProfileImageUri={settings.ownerProfileImageUri}
                     onRemove={() =>
-                      void updateParticipants(
-                        record.values.participants.filter(
+                      void updateParticipants((participants) =>
+                        participants.filter(
                           (entry) => entry.id !== participant.id,
                         ),
                       )

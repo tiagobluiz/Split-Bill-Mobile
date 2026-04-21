@@ -405,8 +405,16 @@ describe("split screens", () => {
     });
 
     expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(1);
-    expect(mockStoreState.updateParticipants).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ name: "Maya" })])
+    const participantUpdater = mockStoreState.updateParticipants.mock
+      .calls[0]?.[0];
+    expect(participantUpdater).toEqual(expect.any(Function));
+    expect(
+      participantUpdater([
+        { id: "owner", name: "You" },
+        { id: "elena", name: "Elena" },
+      ]),
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Maya" })]),
     );
   });
 
@@ -493,7 +501,7 @@ describe("split screens", () => {
     ];
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
+    expect(screen.getByLabelText("Next: Select Payer")).toBeEnabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
     expect(screen.getByText("Almost there")).toBeTruthy();
     expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
@@ -557,12 +565,12 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add person"));
     });
-    expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(priorCalls + 1);
+    expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(priorCalls + 2);
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add person"));
     });
-    expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(priorCalls + 1);
+    expect(mockStoreState.updateParticipants).toHaveBeenCalledTimes(priorCalls + 2);
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Remove participant Ana"));
@@ -591,7 +599,7 @@ describe("split screens", () => {
 
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
+    expect(screen.getByLabelText("Next: Select Payer")).toBeEnabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
     expect(screen.getByText("Almost there")).toBeTruthy();
     expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
@@ -1219,7 +1227,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [{ ...buildRecord().values.items[0], name: "", price: "" }] } })];
     rerender(<ItemsScreen draftId="draft-1" />);
     expect(screen.queryByText("Not there yet...")).toBeNull();
-    expect(screen.getByLabelText("Next: Split Bill")).toBeDisabled();
+    expect(screen.getByLabelText("Next: Split Bill")).toBeEnabled();
     expect(screen.getByText("0 items")).toBeTruthy();
     expect(screen.queryByText("Item 1")).toBeNull();
     fireEvent.press(screen.getByText("Next: Split Bill"));
