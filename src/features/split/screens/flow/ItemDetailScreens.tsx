@@ -175,7 +175,8 @@ export function AssignItemScreen({
   const parsedItemPriceCents = normalizedItemPrice
     ? parseMoneyToCents(normalizedItemPrice)
     : null;
-  const hasValidName = item.name.trim().length > 0;
+  const trimmedItemName = item.name.trim();
+  const hasValidName = trimmedItemName.length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
   const duplicateItemExists = record.values.items.some((existingItem) => {
@@ -185,7 +186,7 @@ export function AssignItemScreen({
 
     return (
       existingItem.name.trim().toLowerCase() ===
-        item.name.trim().toLowerCase() &&
+        trimmedItemName.toLowerCase() &&
       normalizeMoneyInput(existingItem.price) === normalizedItemPrice &&
       (existingItem.category?.trim() || "General").toLowerCase() ===
         effectiveCategory.toLowerCase()
@@ -231,6 +232,7 @@ export function AssignItemScreen({
     if (isNewItem) {
       await createItem({
         ...item,
+        name: trimmedItemName,
         price: normalizedItemPrice,
         category: effectiveCategory,
       });
@@ -239,8 +241,8 @@ export function AssignItemScreen({
     }
 
     const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
-    if (persistedSourceItem.name !== item.name) {
-      await updateItemField(item.id, "name", item.name);
+    if (persistedSourceItem.name !== trimmedItemName) {
+      await updateItemField(item.id, "name", trimmedItemName);
     }
     if (
       normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice

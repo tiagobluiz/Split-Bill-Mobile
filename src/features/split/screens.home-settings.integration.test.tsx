@@ -30,6 +30,7 @@ const mockLaunchImageLibraryAsync = jest.fn(async () => ({ canceled: true, asset
 let mockStoreState: any;
 
 jest.mock("expo-router", () => ({
+  useFocusEffect: jest.fn(),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),

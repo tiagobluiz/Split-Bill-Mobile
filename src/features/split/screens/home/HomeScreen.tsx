@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
@@ -141,9 +141,16 @@ export function HomeScreenView() {
     null,
   );
   const [isCreatingSplit, setIsCreatingSplit] = useState(false);
+  const creatingSplitRef = useRef(false);
   const deleteTimeoutRef = useRef<any>(null);
   const pendingDeleteRef = useRef<null | { id: string; title: string }>(null);
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      creatingSplitRef.current = false;
+      setIsCreatingSplit(false);
+    }, []),
+  );
   const visibleRecords = pendingDelete
     ? records.filter((record) => record.id !== pendingDelete.id)
     : records;
@@ -437,15 +444,18 @@ export function HomeScreenView() {
               style={[screenStyles.homeCta, isCreatingSplit ? { opacity: 0.72 } : null]}
               disabled={isCreatingSplit}
               onPress={async () => {
-                if (isCreatingSplit) {
+                if (creatingSplitRef.current) {
                   return;
                 }
 
+                creatingSplitRef.current = true;
                 setIsCreatingSplit(true);
                 try {
                   const draft = await createDraft();
                   router.push(`/split/${draft.id}/setup`);
                 } catch (error) {
+                  creatingSplitRef.current = false;
+                  setIsCreatingSplit(false);
                   console.warn("Failed to create split", error);
                   Alert.alert(
                     "Could not create split",
@@ -453,8 +463,6 @@ export function HomeScreenView() {
                       ? error.message
                       : "Please try again.",
                   );
-                } finally {
-                  setIsCreatingSplit(false);
                 }
               }}
             >
