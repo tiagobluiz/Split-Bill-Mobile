@@ -157,6 +157,42 @@ export function normalizeMoneyInput(value: string) {
   return (amountCents / 100).toFixed(2);
 }
 
+function normalizeItemCategory(category?: string) {
+  return (category?.trim() || "General").toLowerCase();
+}
+
+export function getItemUniquenessKey(
+  item: Pick<ItemFormValue, "name" | "price" | "category">
+) {
+  const name = trimName(item.name).toLowerCase();
+  const amountCents = parseMoneyToCents(item.price);
+
+  if (!name || amountCents === null || amountCents === 0) {
+    return null;
+  }
+
+  return `${name}|${(amountCents / 100).toFixed(2)}|${normalizeItemCategory(item.category)}`;
+}
+
+export function itemHasDuplicate(
+  items: ItemFormValue[],
+  candidate: Pick<ItemFormValue, "id" | "name" | "price" | "category">,
+  ignoredItemId?: string
+) {
+  const candidateKey = getItemUniquenessKey(candidate);
+  if (!candidateKey) {
+    return false;
+  }
+
+  return items.some((item) => {
+    if (item.id === ignoredItemId) {
+      return false;
+    }
+
+    return getItemUniquenessKey(item) === candidateKey;
+  });
+}
+
 function parseDecimal(value: string) {
   const normalized = value.trim().replace(/\s/g, "").replace(",", ".");
   if (!normalized) {
@@ -560,6 +596,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
 export function validateStepTwo(values: SplitFormValues): StepValidationError[] {
   const errors: StepValidationError[] = [];
+  const seenItemKeys = new Set<string>();
 
   if (values.items.length === 0) {
     errors.push({ path: "items", message: "Add at least one item before continuing." });
@@ -592,6 +629,17 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
         path: `items.${index}.price`,
         message: ITEM_AMOUNT_TOO_HIGH_MESSAGE,
       });
+    }
+
+    const uniqueKey = getItemUniquenessKey(item);
+    if (uniqueKey) {
+      if (seenItemKeys.has(uniqueKey)) {
+        errors.push({
+          path: `items.${index}.name`,
+          message: "This item already exists. Change the name, price, or category.",
+        });
+      }
+      seenItemKeys.add(uniqueKey);
     }
   });
 
