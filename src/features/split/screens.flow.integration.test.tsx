@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import { Alert, Keyboard, Linking, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
 
 import {
@@ -20,6 +20,7 @@ const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
+const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
 const mockRequestCameraPermissionsAsync = jest.fn(async () => ({ granted: true }));
@@ -192,6 +193,7 @@ describe("split screens", () => {
     mockBack.mockReset();
     mockReplace.mockReset();
     mockSetStringAsync.mockReset();
+    mockOpenURL.mockReset();
     mockShare.mockReset();
     mockAlert.mockReset();
     mockRequestCameraPermissionsAsync.mockReset();
@@ -206,6 +208,7 @@ describe("split screens", () => {
       mockAlert(title, message, buttons);
     });
     jest.spyOn(Keyboard, "dismiss").mockImplementation(() => undefined);
+    jest.spyOn(Linking, "openURL").mockImplementation((url: string) => mockOpenURL(url));
     jest.spyOn(Share, "share").mockImplementation(async (value: any) => {
       mockShare(value);
       return { action: "sharedAction" } as any;
@@ -1204,9 +1207,11 @@ describe("split screens", () => {
     expect(screen.queryByText("Fast & accurate")).toBeNull();
     expect(screen.queryByText("Items Added")).toBeNull();
     expect(screen.getByText("Running total")).toBeTruthy();
-    expect(screen.getAllByText("Soon")).toHaveLength(1);
+    expect(screen.getAllByText("AI Ready")).toHaveLength(1);
     expect(screen.getByLabelText("Scan Photo coming soon")).toBeTruthy();
-    expect(screen.getByLabelText("AI Paste coming soon")).toBeTruthy();
+    expect(screen.getByLabelText("AI Paste")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("AI Paste"));
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/paste");
     fireEvent.press(screen.getByLabelText("Back"));
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/payer");
     fireEvent.press(screen.getByText("Groceries"));
@@ -1701,13 +1706,99 @@ describe("split screens", () => {
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
   });
 
-  it("applies pasted import and shows warnings", () => {
+  it("applies pasted import in replace mode and suppresses already-previewed ignored-line notes", async () => {
     mockStoreState.importPastedList = jest.fn(async () => ({ warningMessages: ["Ignored 1 pasted line."] }));
     render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    expect(screen.getByText("Paste item list")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "Milk - 3.40");
+    expect(screen.getByText("Import preview")).toBeTruthy();
+    expect(screen.getByText("Accepted")).toBeTruthy();
+    expect(screen.getByText("Total")).toBeTruthy();
+    expect(screen.getByText("Ignored")).toBeTruthy();
     fireEvent.press(screen.getByText("Replace"));
-    fireEvent.press(screen.getByText("Apply import"));
+    await act(async () => {
+      fireEvent.press(screen.getByText("Review Items"));
+    });
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Milk - 3.40", "replace");
+    expect(mockAlert).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("excludes duplicate pasted rows from the import preview", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "Groceries - 9.00",
+    );
+
+    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+  });
+
+  it.each([
+    ["ChatGPT", "https://chatgpt.com/"],
+    ["Claude", "https://claude.ai/"],
+    ["Gemini", "https://gemini.google.com/"],
+  ])("copies the AI prompt, launches %s, and moves to paste step", async (providerLabel, providerUrl) => {
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    expect(screen.getByText("Step 1 of 2")).toBeTruthy();
+    expect(screen.getByText("Ask AI to read your receipt")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(`Choose ${providerLabel}`));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
+    expect(mockOpenURL).toHaveBeenCalledWith(providerUrl);
+    expect(screen.getByText("Step 2 of 2")).toBeTruthy();
+  });
+
+  it("copies the prompt text from the step 1 prompt card", async () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Copy prompt text"));
+    });
+
+    expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
+    expect(mockOpenURL).not.toHaveBeenCalled();
+  });
+
+  it("shows an alert when the standalone prompt copy fails", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockSetStringAsync.mockRejectedValueOnce(new Error("clipboard unavailable"));
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Copy prompt text"));
+    });
+
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Could not copy prompt",
+      "We could not copy the prompt. Please try again.",
+      undefined
+    );
+  });
+
+  it("shows an alert when AI handoff launch fails", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockOpenURL.mockRejectedValueOnce(new Error("no browser"));
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Could not open AI import",
+      "We could not copy the prompt or open the selected AI tool. Please try again.",
+      undefined
+    );
+    expect(screen.getByText("Step 1 of 2")).toBeTruthy();
   });
 
   it("covers paste loading and warning-free import flows", async () => {
@@ -1718,47 +1809,88 @@ describe("split screens", () => {
     mockStoreState.importPastedList = jest.fn(async () => ({ warningMessages: [] }));
     mockStoreState.records = [buildRecord()];
     rerender(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
     await act(async () => {
       fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "Tea - 1.25");
     });
+    expect(screen.getByText("Import preview")).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByText("Apply import"));
+      fireEvent.press(screen.getByText("Review Items"));
     });
+    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Tea - 1.25", "append");
     expect(mockBack).toHaveBeenCalled();
   });
 
-  it("blocks empty pasted imports with a warning", async () => {
-    render(<PasteImportScreen draftId="draft-1" />);
-    await act(async () => {
-      fireEvent.press(screen.getByText("Apply import"));
+  it("keeps the user on paste import when applying the pasted list fails", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockStoreState.importPastedList = jest.fn(async () => {
+      throw new Error("storage write failed");
     });
-    expect(mockAlert).toHaveBeenCalledWith("Nothing to import", "Paste at least one line before applying import.", undefined);
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "Tea - 1.25",
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Review Items"));
+    });
+
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Could not import items",
+      "We could not import the pasted list. Please try again.",
+      undefined
+    );
     expect(mockBack).not.toHaveBeenCalled();
   });
 
-  it("keeps the user on paste import when no valid items are detected", async () => {
-    mockStoreState.importPastedList = jest.fn(async () => ({
-      warningMessages: [
-        "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
-      ],
-    }));
+  it("shows paste status and allows review for an empty import", async () => {
     render(<PasteImportScreen draftId="draft-1" />);
-    fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "not a valid line");
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    expect(screen.getByText("Ready for your list")).toBeTruthy();
+    expect(screen.getByText("Paste one item per line. Format: Item - Price")).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByText("Apply import"));
+      fireEvent.press(screen.getByText("Review Items"));
     });
-    expect(mockBack).not.toHaveBeenCalled();
-    expect(mockAlert).toHaveBeenCalledWith(
-      "Import failed",
-      "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
-      undefined
-    );
+    expect(mockAlert).not.toHaveBeenCalled();
+    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("shows invalid paste status before review and applies it as a no-op", async () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"), "not a valid line");
+    expect(screen.getByText("Import preview")).toBeTruthy();
+    expect(screen.getByText("Accepted")).toBeTruthy();
+    expect(screen.getByText("Ignored")).toBeTruthy();
+    expect(screen.queryByText("Ignored 1 pasted line that did not match the expected format.")).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Review Items"));
+    });
+    expect(mockBack).toHaveBeenCalled();
+    expect(mockAlert).not.toHaveBeenCalled();
+    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
   });
 
   it("routes the paste close header action to home", () => {
     render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("Back"));
+    expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/items");
     fireEvent.press(screen.getByLabelText("Close"));
     expect(mockReplace).toHaveBeenCalledWith("/");
+  });
+
+  it("routes the paste step 2 back header action to step 1", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    expect(screen.getByText("Step 2 of 2")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Back"));
+
+    expect(screen.getByText("Step 1 of 2")).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalledWith("/split/draft-1/items");
   });
 
   it("renders assign-item variants and triggers metadata actions", async () => {

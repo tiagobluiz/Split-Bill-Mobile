@@ -471,7 +471,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     textTransform="uppercase"
                     letterSpacing={1.2}
                   >
-                    Soon
+                    AI Ready
                   </Text>
                 </View>
               </XStack>
@@ -491,28 +491,27 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     fontSize={13}
                     color={PALETTE.onSurfaceVariant}
                   >
-                    Scan Photo
+                    Scan Soon
                   </Text>
                 </XStack>
               </View>
-              <View
-                accessibilityLabel="AI Paste coming soon"
-                style={[
-                  screenStyles.itemsImportSecondaryButton,
-                  screenStyles.itemsImportButtonDisabled,
-                ]}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="AI Paste"
+                style={screenStyles.itemsImportSecondaryButton}
+                onPress={() => router.push(`/split/${draftId}/paste`)}
               >
                 <XStack alignItems="center" justifyContent="center" gap="$2">
-                  <ClipboardCopy color={PALETTE.onSurfaceVariant} size={16} />
+                  <ClipboardCopy color={PALETTE.primary} size={16} />
                   <Text
                     fontFamily={FONTS.bodyBold}
                     fontSize={13}
-                    color={PALETTE.onSurfaceVariant}
+                    color={PALETTE.primary}
                   >
                     AI Paste
                   </Text>
                 </XStack>
-              </View>
+              </Pressable>
             </XStack>
           </View>
           <View style={screenStyles.itemsSectionSeparator} />

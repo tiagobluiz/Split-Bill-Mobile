@@ -687,6 +687,31 @@ describe("split store", () => {
     ).toEqual(["Imported apples", "Imported pears"]);
   });
 
+  it("uses the shared item uniqueness rule when importing pasted items", async () => {
+    const record = createRecord();
+    const { storeModule } = await loadReadyStore({
+      record,
+      parseResult: {
+        items: [
+          { name: " milk ", price: "3,50" },
+          { name: "Imported pears", price: "2.75" },
+          { name: "Imported pears", price: "2.75" },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("duplicate rows", "append");
+
+    const itemNames =
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items.map((item) => item.name) ?? [];
+    expect(itemNames.filter((name) => name.trim().toLowerCase() === "milk")).toHaveLength(1);
+    expect(itemNames.filter((name) => name === "Imported pears")).toHaveLength(1);
+    expect(result.warningMessages).toContain("Ignored 2 duplicate imported items.");
+  });
+
   it("marks the active record as completed", async () => {
     const { storeModule, storageMocks } = await loadReadyStore();
     await storeModule.useSplitStore.getState().markCompleted();

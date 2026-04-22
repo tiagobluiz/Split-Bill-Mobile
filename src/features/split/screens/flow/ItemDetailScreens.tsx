@@ -22,6 +22,7 @@ import {
 import {
   createEmptyItem,
   formatMoney,
+  itemHasDuplicate,
   normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
@@ -179,19 +180,16 @@ export function AssignItemScreen({
   const hasValidName = trimmedItemName.length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
-  const duplicateItemExists = record.values.items.some((existingItem) => {
-    if (!isNewItem && existingItem.id === item.id) {
-      return false;
-    }
-
-    return (
-      existingItem.name.trim().toLowerCase() ===
-        trimmedItemName.toLowerCase() &&
-      normalizeMoneyInput(existingItem.price) === normalizedItemPrice &&
-      (existingItem.category?.trim() || "General").toLowerCase() ===
-        effectiveCategory.toLowerCase()
-    );
-  });
+  const duplicateItemExists = itemHasDuplicate(
+    record.values.items,
+    {
+      ...item,
+      name: trimmedItemName,
+      price: normalizedItemPrice,
+      category: effectiveCategory,
+    },
+    isNewItem ? undefined : item.id,
+  );
 
   const updateWorkingItemField = async (
     field: "name" | "price" | "category",

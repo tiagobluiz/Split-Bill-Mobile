@@ -259,6 +259,45 @@ describe("splitter domain", () => {
     expect(computeSettlement(invalidValues).ok).toBe(false);
   });
 
+  it("validates duplicate item identity with the shared manual and import rule", () => {
+    const values: SplitFormValues = {
+      currency: "EUR",
+      participants: [
+        { id: "ana", name: "Ana" },
+        { id: "bruno", name: "Bruno" },
+      ],
+      payerParticipantId: "ana",
+      items: [
+        {
+          id: "milk-1",
+          name: " Milk ",
+          price: "3,50",
+          category: "General",
+          splitMode: "even",
+          allocations: [
+            { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+            { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          ],
+        },
+        {
+          id: "milk-2",
+          name: "milk",
+          price: "3.50",
+          category: "",
+          splitMode: "even",
+          allocations: [
+            { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+            { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          ],
+        },
+      ],
+    };
+
+    expect(validateStepTwo(values).map((entry) => entry.message)).toContain(
+      "This item already exists. Change the name, price, or category."
+    );
+  });
+
   it("covers shares and percent validation edge cases", () => {
     const sharesInvalid: SplitFormValues = {
       currency: "EUR",

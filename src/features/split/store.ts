@@ -7,6 +7,7 @@ import {
   createDefaultValues,
   createEmptyItem,
   createId,
+  itemHasDuplicate,
   parsePastedItems,
   rebalancePercentAllocations,
   resetPercentAllocations,
@@ -619,15 +620,30 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async importPastedList(rawInput, mode) {
     const parsed = parsePastedItems(rawInput);
+    let skippedDuplicateCount = 0;
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        const importedItems = parsed.items.map((item) => {
+        const existingItems = draft.values.items.filter(
+          (item) => item.name.trim() || item.price.trim(),
+        );
+        const importedItems: DraftRecord["values"]["items"] = [];
+
+        parsed.items.forEach((item) => {
           const nextItem = createEmptyItem(draft.values.participants);
-          return {
+          const importedItem = {
             ...nextItem,
             name: item.name,
             price: item.price,
           };
+          const duplicateScope =
+            mode === "replace" ? importedItems : [...existingItems, ...importedItems];
+
+          if (itemHasDuplicate(duplicateScope, importedItem)) {
+            skippedDuplicateCount += 1;
+            return;
+          }
+
+          importedItems.push(importedItem);
         });
 
         draft.values.items =
@@ -636,15 +652,22 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               ? importedItems
               : draft.values.items
             : [
-                ...draft.values.items.filter(
-                  (item) => item.name.trim() || item.price.trim(),
-                ),
+                ...existingItems,
                 ...importedItems,
               ];
       }),
     );
     return {
-      warningMessages: parsed.warnings.map((warning) => warning.message),
+      warningMessages: [
+        ...parsed.warnings.map((warning) => warning.message),
+        ...(skippedDuplicateCount > 0
+          ? [
+              `Ignored ${skippedDuplicateCount} duplicate imported ${
+                skippedDuplicateCount === 1 ? "item" : "items"
+              }.`,
+            ]
+          : []),
+      ],
     };
   },
   async markBillPaid() {
