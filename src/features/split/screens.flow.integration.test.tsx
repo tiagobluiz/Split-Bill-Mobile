@@ -1725,6 +1725,18 @@ describe("split screens", () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
+  it("excludes duplicate pasted rows from the import preview", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "Groceries - 9.00",
+    );
+
+    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+  });
+
   it.each([
     ["ChatGPT", "https://chatgpt.com/"],
     ["Claude", "https://claude.ai/"],
@@ -1754,6 +1766,22 @@ describe("split screens", () => {
 
     expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
     expect(mockOpenURL).not.toHaveBeenCalled();
+  });
+
+  it("shows an alert when the standalone prompt copy fails", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockSetStringAsync.mockRejectedValueOnce(new Error("clipboard unavailable"));
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Copy prompt text"));
+    });
+
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Could not copy prompt",
+      "We could not copy the prompt. Please try again.",
+      undefined
+    );
   });
 
   it("shows an alert when AI handoff launch fails", async () => {
@@ -1791,6 +1819,30 @@ describe("split screens", () => {
     });
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Tea - 1.25", "append");
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("keeps the user on paste import when applying the pasted list fails", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockStoreState.importPastedList = jest.fn(async () => {
+      throw new Error("storage write failed");
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "Tea - 1.25",
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Review Items"));
+    });
+
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Could not import items",
+      "We could not import the pasted list. Please try again.",
+      undefined
+    );
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it("shows paste status and allows review for an empty import", async () => {

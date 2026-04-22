@@ -25,6 +25,7 @@ import {
   buildReceiptLlmPrompt,
   formatMoney,
   getReceiptLlmProviderUrl,
+  itemHasDuplicate,
   parseMoneyToCents,
   parsePastedItems,
   type LlmProvider,
@@ -101,10 +102,44 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const [provider, setProvider] = useState<LlmProvider>("chatgpt");
   const prompt = buildReceiptLlmPrompt();
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
-  const parsedItemCount = parsedPreview.items.length;
-  const ignoredLineCount = parsedPreview.ignoredLines.length;
   const hasPastedText = input.trim().length > 0;
-  const estimatedTotalCents = parsedPreview.items.reduce(
+  const previewAcceptedItems = useMemo(() => {
+    if (!record) {
+      return [];
+    }
+
+    const existingItems = record.values.items.filter(
+      (item) => item.name.trim() || item.price.trim(),
+    );
+    const acceptedItems: Array<{
+      id: string;
+      name: string;
+      price: string;
+      category?: string;
+    }> = [];
+
+    parsedPreview.items.forEach((item, index) => {
+      const candidate = {
+        id: `preview-${index}`,
+        name: item.name,
+        price: item.price,
+        category: "",
+      };
+      const duplicateScope =
+        mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
+
+      if (!itemHasDuplicate(duplicateScope, candidate)) {
+        acceptedItems.push(candidate);
+      }
+    });
+
+    return acceptedItems;
+  }, [mode, parsedPreview.items, record]);
+  const parsedItemCount = previewAcceptedItems.length;
+  const ignoredLineCount =
+    parsedPreview.ignoredLines.length +
+    Math.max(0, parsedPreview.items.length - previewAcceptedItems.length);
+  const estimatedTotalCents = previewAcceptedItems.reduce(
     (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
     0,
   );
@@ -124,17 +159,38 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     }
   };
 
-  const applyImport = async () => {
-    const result = await importPastedList(input, mode);
-    const actionableWarnings = result.warningMessages.filter(
-      (warning) =>
-        !warning.includes("No valid items were detected") &&
-        !warning.includes("pasted line"),
-    );
-    if (actionableWarnings.length > 0) {
-      Alert.alert("Import notes", actionableWarnings.join("\n"));
+  const copyPromptText = async () => {
+    try {
+      await Clipboard.setStringAsync(prompt);
+    } catch (error) {
+      console.warn("Failed to copy AI receipt prompt", error);
+      Alert.alert(
+        "Could not copy prompt",
+        "We could not copy the prompt. Please try again.",
+      );
     }
-    router.back();
+  };
+
+  const applyImport = async () => {
+    try {
+      const result = await importPastedList(input, mode);
+      const actionableWarnings = result.warningMessages.filter(
+        (warning) =>
+          !warning.includes("No valid items were detected") &&
+          !warning.includes("pasted line") &&
+          !warning.includes("duplicate imported"),
+      );
+      if (actionableWarnings.length > 0) {
+        Alert.alert("Import notes", actionableWarnings.join("\n"));
+      }
+      router.back();
+    } catch (error) {
+      console.warn("Failed to import pasted list", error);
+      Alert.alert(
+        "Could not import items",
+        "We could not import the pasted list. Please try again.",
+      );
+    }
   };
 
   if (!record) {
@@ -263,7 +319,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             <SectionCard>
               <XStack justifyContent="space-between" alignItems="center" gap="$3">
                 <FieldLabel>The prompt</FieldLabel>
-                <Pressable accessibilityRole="button" accessibilityLabel="Copy prompt text" onPress={() => void Clipboard.setStringAsync(prompt)}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Copy prompt text" onPress={() => void copyPromptText()}>
                   <XStack alignItems="center" gap="$1.5">
                     <ClipboardCopy color={PALETTE.primary} size={14} />
                     <Text color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={12}>
@@ -403,6 +459,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                       ].map((stat) => (
                         <YStack
                           key={stat.label}
+                          accessibilityLabel={`${stat.label}: ${stat.value}`}
                           flex={1}
                           borderRadius={18}
                           paddingHorizontal="$2"

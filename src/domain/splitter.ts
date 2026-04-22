@@ -175,7 +175,7 @@ export function getItemUniquenessKey(
 }
 
 export function itemHasDuplicate(
-  items: ItemFormValue[],
+  items: Array<Pick<ItemFormValue, "id" | "name" | "price" | "category">>,
   candidate: Pick<ItemFormValue, "id" | "name" | "price" | "category">,
   ignoredItemId?: string
 ) {
