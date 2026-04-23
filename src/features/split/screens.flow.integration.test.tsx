@@ -21,7 +21,7 @@ const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
-const mockOpenApplication = jest.fn((..._args: any[]) => undefined);
+const mockOpenApplication = jest.fn(async (..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
 const mockRequestCameraPermissionsAsync = jest.fn(async () => ({ granted: true }));
@@ -30,6 +30,7 @@ const mockLaunchCameraAsync = jest.fn(async () => ({ canceled: true, assets: [] 
 const mockLaunchImageLibraryAsync = jest.fn(async () => ({ canceled: true, assets: [] }));
 
 let mockStoreState: any;
+const originalPlatformOsDescriptor = Object.getOwnPropertyDescriptor(Platform, "OS");
 
 jest.mock("expo-router", () => ({
   useFocusEffect: jest.fn(),
@@ -262,6 +263,9 @@ describe("split screens", () => {
   });
 
   afterEach(() => {
+    if (originalPlatformOsDescriptor) {
+      Object.defineProperty(Platform, "OS", originalPlatformOsDescriptor);
+    }
     jest.restoreAllMocks();
   });
 
@@ -1797,9 +1801,7 @@ describe("split screens", () => {
 
   it("shows an alert when AI handoff launch fails", async () => {
     jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    mockOpenApplication.mockImplementationOnce(() => {
-      throw new Error("no app");
-    });
+    mockOpenApplication.mockRejectedValueOnce(new Error("no app"));
     mockOpenURL.mockRejectedValueOnce(new Error("no browser"));
     render(<PasteImportScreen draftId="draft-1" />);
 
@@ -1816,9 +1818,7 @@ describe("split screens", () => {
   });
 
   it("falls back to the provider website when native app launch fails", async () => {
-    mockOpenApplication.mockImplementationOnce(() => {
-      throw new Error("app missing");
-    });
+    mockOpenApplication.mockRejectedValueOnce(new Error("app missing"));
     render(<PasteImportScreen draftId="draft-1" />);
 
     fireEvent.press(screen.getByLabelText("Choose Gemini"));

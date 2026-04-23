@@ -153,7 +153,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       if (Platform.OS === "android") {
         const packageName = getReceiptLlmAndroidPackage(provider);
         try {
-          IntentLauncher.openApplication(packageName);
+          await IntentLauncher.openApplication(packageName);
         } catch (error) {
           await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
         }
