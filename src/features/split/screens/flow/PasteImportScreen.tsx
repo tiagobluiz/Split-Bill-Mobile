@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
+import * as IntentLauncher from "expo-intent-launcher";
 import { ArrowRight, Bot, CheckCircle2, ClipboardCopy, Info, MessageCircle, ReceiptText, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -24,6 +25,7 @@ import {
 import {
   buildReceiptLlmPrompt,
   formatMoney,
+  getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
   itemHasDuplicate,
   parseMoneyToCents,
@@ -148,7 +150,16 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const copyPromptAndOpenAi = async () => {
     try {
       await Clipboard.setStringAsync(prompt);
-      await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+      if (Platform.OS === "android") {
+        const packageName = getReceiptLlmAndroidPackage(provider);
+        try {
+          IntentLauncher.openApplication(packageName);
+        } catch (error) {
+          await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+        }
+      } else {
+        await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+      }
       setStep(2);
     } catch (error) {
       console.warn("Failed to launch AI receipt handoff", error);

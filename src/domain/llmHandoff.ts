@@ -12,12 +12,22 @@ const MOBILE_PROVIDER_URLS: Record<LlmProvider, string> = {
   gemini: "https://gemini.google.com/",
 };
 
+const ANDROID_PROVIDER_PACKAGES: Record<LlmProvider, string> = {
+  chatgpt: "com.openai.chatgpt",
+  claude: "com.anthropic.claude",
+  gemini: "com.google.android.apps.bard",
+};
+
 export function isMobileUserAgent(userAgent: string) {
   return /android|iphone|ipad|ipod|mobile/i.test(userAgent);
 }
 
 export function getReceiptLlmProviderUrl(provider: LlmProvider, isMobile = false) {
   return isMobile ? MOBILE_PROVIDER_URLS[provider] : DESKTOP_PROVIDER_URLS[provider];
+}
+
+export function getReceiptLlmAndroidPackage(provider: LlmProvider) {
+  return ANDROID_PROVIDER_PACKAGES[provider];
 }
 
 export function getReceiptLlmLaunchTarget(isMobile = false) {

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, Keyboard, Linking, Share, StyleSheet, TextInput } from "react-native";
+import { Alert, Keyboard, Linking, Platform, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
 
 import {
@@ -21,6 +21,7 @@ const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
+const mockOpenApplication = jest.fn((..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
 const mockRequestCameraPermissionsAsync = jest.fn(async () => ({ granted: true }));
@@ -41,6 +42,10 @@ jest.mock("expo-router", () => ({
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (value: string) => mockSetStringAsync(value),
+}));
+
+jest.mock("expo-intent-launcher", () => ({
+  openApplication: (packageName: string) => mockOpenApplication(packageName),
 }));
 
 jest.mock("expo-image-picker", () => ({
@@ -194,6 +199,7 @@ describe("split screens", () => {
     mockReplace.mockReset();
     mockSetStringAsync.mockReset();
     mockOpenURL.mockReset();
+    mockOpenApplication.mockReset();
     mockShare.mockReset();
     mockAlert.mockReset();
     mockRequestCameraPermissionsAsync.mockReset();
@@ -249,6 +255,10 @@ describe("split screens", () => {
       record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
     );
     store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
+    Object.defineProperty(Platform, "OS", {
+      configurable: true,
+      value: "android",
+    });
   });
 
   afterEach(() => {
@@ -1738,10 +1748,10 @@ describe("split screens", () => {
   });
 
   it.each([
-    ["ChatGPT", "https://chatgpt.com/"],
-    ["Claude", "https://claude.ai/"],
-    ["Gemini", "https://gemini.google.com/"],
-  ])("copies the AI prompt, launches %s, and moves to paste step", async (providerLabel, providerUrl) => {
+    ["ChatGPT", "com.openai.chatgpt"],
+    ["Claude", "com.anthropic.claude"],
+    ["Gemini", "com.google.android.apps.bard"],
+  ])("copies the AI prompt, launches %s, and moves to paste step", async (providerLabel, packageName) => {
     render(<PasteImportScreen draftId="draft-1" />);
 
     expect(screen.getByText("Step 1 of 2")).toBeTruthy();
@@ -1753,7 +1763,8 @@ describe("split screens", () => {
     });
 
     expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
-    expect(mockOpenURL).toHaveBeenCalledWith(providerUrl);
+    expect(mockOpenApplication).toHaveBeenCalledWith(packageName);
+    expect(mockOpenURL).not.toHaveBeenCalled();
     expect(screen.getByText("Step 2 of 2")).toBeTruthy();
   });
 
@@ -1786,6 +1797,9 @@ describe("split screens", () => {
 
   it("shows an alert when AI handoff launch fails", async () => {
     jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    mockOpenApplication.mockImplementationOnce(() => {
+      throw new Error("no app");
+    });
     mockOpenURL.mockRejectedValueOnce(new Error("no browser"));
     render(<PasteImportScreen draftId="draft-1" />);
 
@@ -1799,6 +1813,23 @@ describe("split screens", () => {
       undefined
     );
     expect(screen.getByText("Step 1 of 2")).toBeTruthy();
+  });
+
+  it("falls back to the provider website when native app launch fails", async () => {
+    mockOpenApplication.mockImplementationOnce(() => {
+      throw new Error("app missing");
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    fireEvent.press(screen.getByLabelText("Choose Gemini"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockOpenApplication).toHaveBeenCalledWith("com.google.android.apps.bard");
+    expect(mockOpenURL).toHaveBeenCalledWith("https://gemini.google.com/");
+    expect(screen.getByText("Step 2 of 2")).toBeTruthy();
   });
 
   it("covers paste loading and warning-free import flows", async () => {
