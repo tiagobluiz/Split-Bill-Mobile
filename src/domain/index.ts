@@ -1,4 +1,5 @@
 import {
+  getReceiptLlmAndroidPackage as getReceiptLlmAndroidPackageValue,
   buildReceiptLlmPrompt as buildReceiptLlmPromptValue,
   getReceiptLlmLaunchTarget as getReceiptLlmLaunchTargetValue,
   getReceiptLlmProviderUrl as getReceiptLlmProviderUrlValue,
@@ -51,6 +52,7 @@ export type {
 } from "./splitter";
 
 export const buildReceiptLlmPrompt = buildReceiptLlmPromptValue;
+export const getReceiptLlmAndroidPackage = getReceiptLlmAndroidPackageValue;
 export const getReceiptLlmLaunchTarget = getReceiptLlmLaunchTargetValue;
 export const getReceiptLlmProviderUrl = getReceiptLlmProviderUrlValue;
 export const isMobileUserAgent = isMobileUserAgentValue;
