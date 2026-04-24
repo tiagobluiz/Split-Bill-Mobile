@@ -117,7 +117,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
       })),
   }));
 
-  const personBreakdown = settlement.data.people
+  const personBreakdown = [...settlement.data.people]
     .sort(comparePeopleByDisplayOrder)
     .map((person) => {
       const personItems = items

@@ -34,6 +34,7 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).toContain("Grocery bill split summary");
+    expect(html).toContain('<html lang="en">');
     expect(html).toContain("Exported Mar 9, 2026");
     expect(html).toContain("Currency EUR");
     expect(html).toContain("Final settlement");
@@ -117,11 +118,23 @@ describe("mobile PDF export", () => {
         pdfFixture.assumptions.locale,
       ),
     ).rejects.toThrow("Sharing is not available on this device.");
+    expect(printToFileAsync).not.toHaveBeenCalled();
+  });
+
+  it("derives the PDF document language from the locale", () => {
+    const html = renderSettlementPdfHtml(
+      pdfFixture.expected as any,
+      "pt-PT",
+    );
+
+    expect(html).toContain('<html lang="pt">');
   });
 
   it("surfaces print errors", async () => {
     const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
 
+    isAvailableAsync.mockResolvedValue(true);
     printToFileAsync.mockRejectedValue(new Error("printer unavailable"));
 
     await expect(
