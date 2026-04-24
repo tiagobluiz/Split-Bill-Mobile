@@ -36,7 +36,14 @@ import {
 
 export type { LlmProvider } from "./llmHandoff";
 export type { ParsedPasteImportResult, ReceiptImportItem, ReceiptImportWarning } from "./pasteImport";
-export type { PdfExportData, PdfExportItem, PdfExportItemShare, PdfExportPerson } from "./pdfExport";
+export type {
+  PdfExportData,
+  PdfExportItem,
+  PdfExportItemShare,
+  PdfExportPerson,
+  PdfExportPersonBreakdown,
+  PdfExportPersonItemShare,
+} from "./pdfExport";
 export type {
   AllocationFormValue,
   ItemFormValue,

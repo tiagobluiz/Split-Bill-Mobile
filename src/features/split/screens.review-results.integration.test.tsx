@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
+import * as pdfExportModule from "../../pdf/exportSettlementPdf";
 
 import {
   AssignItemScreen,
@@ -604,6 +605,10 @@ describe("split screens", () => {
   });
 
   it("renders results actions and completion effect", async () => {
+    const exportSettlementPdfSpy = jest
+      .spyOn(pdfExportModule, "exportSettlementPdf")
+      .mockResolvedValue(undefined);
+
     render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
@@ -616,7 +621,15 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Share Results"));
     expect(mockShare).toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Export as PDF"));
-    expect(mockSetStringAsync).toHaveBeenCalledWith(expect.stringContaining("split-bill-2026-03-09.pdf"));
+    await waitFor(() => {
+      expect(exportSettlementPdfSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          currency: "EUR",
+        }),
+        expect.any(String),
+      );
+    });
+    expect(screen.queryByText("Your PDF is ready to share or save.")).toBeNull();
   });
 
   it("supports marking the whole bill as paid and reverting it", async () => {
@@ -983,7 +996,7 @@ describe("split screens", () => {
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/overview");
   });
 
-  it("renders results fallback subtitle and skips clipboard writes when PDF data is unavailable", () => {
+  it("renders results fallback subtitle and skips export when PDF data is unavailable", () => {
     const store = require("./store");
     store.getPdfExportPreview.mockReturnValueOnce(null);
     mockStoreState.records = [
@@ -997,19 +1010,25 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Export as PDF"));
-    expect(mockSetStringAsync).not.toHaveBeenCalled();
-    expect(mockAlert).toHaveBeenCalledWith("Unavailable", "PDF preview data is not available for this split.", undefined);
+    expect(screen.getByText("Almost there")).toBeTruthy();
+    expect(screen.getByText("PDF export is not available for this split.")).toBeTruthy();
   });
 
-  it("shows copy failure feedback when exporting PDF preview JSON fails", () => {
-    mockSetStringAsync.mockRejectedValueOnce(new Error("clipboard down"));
+  it("shows export failure feedback when generating the PDF fails", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    jest
+      .spyOn(pdfExportModule, "exportSettlementPdf")
+      .mockRejectedValueOnce(new Error("pdf down"));
 
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Export as PDF"));
 
-    return waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith("Copy failed", "Could not copy PDF preview JSON.", undefined);
+    await waitFor(() => {
+      expect(screen.getByText("Almost there")).toBeTruthy();
+      expect(screen.getByText("Could not generate the PDF.")).toBeTruthy();
     });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("handles markCompleted failures without crashing results rendering", async () => {
