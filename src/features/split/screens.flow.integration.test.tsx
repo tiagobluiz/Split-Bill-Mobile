@@ -1217,14 +1217,13 @@ describe("split screens", () => {
   it("renders items flow and paste navigation", async () => {
     render(<ItemsScreen draftId="draft-1" />);
     expect(screen.getByText("Add Items")).toBeTruthy();
-    expect(screen.getByText("Import Receipt")).toBeTruthy();
+    expect(screen.getByText("Import with AI")).toBeTruthy();
     expect(screen.queryByText("Fast & accurate")).toBeNull();
     expect(screen.queryByText("Items Added")).toBeNull();
     expect(screen.getByText("Running total")).toBeTruthy();
-    expect(screen.getAllByText("AI Ready")).toHaveLength(1);
-    expect(screen.getByLabelText("Scan Photo coming soon")).toBeTruthy();
-    expect(screen.getByLabelText("AI Paste")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("AI Paste"));
+    expect(screen.getByText("Quick receipt handover via AI.")).toBeTruthy();
+    expect(screen.getByLabelText("Open AI import")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Open AI import"));
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/paste");
     fireEvent.press(screen.getByLabelText("Back"));
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/payer");

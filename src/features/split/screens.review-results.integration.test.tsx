@@ -996,7 +996,7 @@ describe("split screens", () => {
     ];
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByText("Export as PDF"));
+    fireEvent.press(screen.getByLabelText("Export as PDF"));
     expect(mockSetStringAsync).not.toHaveBeenCalled();
     expect(mockAlert).toHaveBeenCalledWith("Unavailable", "PDF preview data is not available for this split.", undefined);
   });
@@ -1005,7 +1005,7 @@ describe("split screens", () => {
     mockSetStringAsync.mockRejectedValueOnce(new Error("clipboard down"));
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByText("Export as PDF"));
+    fireEvent.press(screen.getByLabelText("Export as PDF"));
 
     return waitFor(() => {
       expect(mockAlert).toHaveBeenCalledWith("Copy failed", "Could not copy PDF preview JSON.", undefined);
