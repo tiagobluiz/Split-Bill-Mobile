@@ -18,10 +18,15 @@ function formatPdfMoney(amountCents: number, currency: string, locale: string) {
   return formatMoney(amountCents, currency, locale);
 }
 
+function getPdfDocumentLanguage(locale: string) {
+  return locale.split(/[-_]/)[0] || "en";
+}
+
 export function renderSettlementPdfHtml(
   data: PdfExportData,
   locale = "en-US",
 ) {
+  const lang = getPdfDocumentLanguage(locale);
   const nonPayers = data.people.filter(
     (person) => !person.isPayer && person.netCents < 0,
   );
@@ -98,8 +103,9 @@ export function renderSettlementPdfHtml(
     })
     .join("");
 
+  // TODO: localize PDF labels when the web export supports translated copy too.
   return `<!DOCTYPE html>
-  <html lang="en">
+  <html lang="${escapeHtml(lang)}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -301,17 +307,17 @@ export async function exportSettlementPdf(
   values: SplitFormValues,
   locale = "en-US",
 ): Promise<void> {
+  const sharingAvailable = await Sharing.isAvailableAsync();
+  if (!sharingAvailable) {
+    throw new Error("Sharing is not available on this device.");
+  }
+
   const data = buildPdfExportData(values, new Date(), locale);
   const html = renderSettlementPdfHtml(data, locale);
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
   });
-
-  const sharingAvailable = await Sharing.isAvailableAsync();
-  if (!sharingAvailable) {
-    throw new Error("Sharing is not available on this device.");
-  }
 
   await Sharing.shareAsync(uri, {
     mimeType: "application/pdf",
