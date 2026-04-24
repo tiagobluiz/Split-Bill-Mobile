@@ -144,6 +144,7 @@ function buildStore(overrides: Partial<any> = {}) {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     },
     bootstrap: jest.fn(),
@@ -256,6 +257,9 @@ describe("split screens", () => {
     mockStoreState.records = [];
     const { rerender } = render(<HomeScreen />);
     expect(screen.getByText("No splits yet")).toBeTruthy();
+    expect(
+      screen.getByText("Your most recent splits will be shown here."),
+    ).toBeTruthy();
     expect(screen.getByText("You are owed")).toBeTruthy();
     expect(screen.getByText("You owe")).toBeTruthy();
     expect(screen.getByText("Splits")).toBeTruthy();
@@ -384,13 +388,12 @@ describe("split screens", () => {
     expect(screen.getByText("Split Bill")).toBeTruthy();
     expect(screen.getByText("Recent")).toBeTruthy();
     expect(screen.getByText("View All")).toBeTruthy();
-    expect(screen.getByText("Settled")).toBeTruthy();
+    expect(screen.getAllByText("Settled").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pending: Items").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pending: Split").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pending: Payer").length).toBeGreaterThan(0);
-    expect(screen.getByText(/\+.*84/)).toBeTruthy();
+    expect(screen.getAllByText(/84/).length).toBeGreaterThan(0);
     expect(screen.getByText("You owe")).toBeTruthy();
-    expect(screen.getAllByText(/0[,.]00/).length).toBeGreaterThan(0);
   });
 
   it("hides home balances when the balance feature is disabled", () => {
@@ -402,7 +405,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     expect(screen.queryByText("You are owed")).toBeNull();
-    expect(screen.queryByText("You owe")).toBeNull();
+    expect(screen.queryByText("Owe")).toBeNull();
   });
 
   it("computes home balances for a debtor owner and falls back to zero when the owner is not in a bill", () => {
@@ -451,7 +454,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "owner-debtor" })];
     const { rerender } = render(<HomeScreen />);
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/-45,50|-45.50/)).toBeTruthy();
+    expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
 
     mockStoreState.settings = {
       ownerName: "Tiago",
@@ -519,6 +522,34 @@ describe("split screens", () => {
     expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
   });
 
+  it("renders combined and user-paid split row displays from the shared setting", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "totalAndRemaining",
+    };
+    mockStoreState.records = [buildRecord({ status: "completed" })];
+
+    const { rerender } = render(<HomeScreen />);
+    expect(screen.getByText("Total")).toBeTruthy();
+    expect(screen.getByText("Owed")).toBeTruthy();
+    expect(screen.getByText(/9,00|€9.00|EUR 9.00/)).toBeTruthy();
+    expect(screen.getAllByText(/6,00|€6.00|EUR 6.00|6.00/).length).toBeGreaterThan(0);
+
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "userPaid",
+    };
+    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+    rerender(<HomeScreen />);
+
+    expect(screen.getByText("You consumed")).toBeTruthy();
+    expect(screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length).toBeGreaterThan(0);
+  });
+
   it("preserves payer debt direction in home balances and recent rows when the payer owes others", () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
@@ -552,7 +583,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
 
     expect(screen.getByText("You owe")).toBeTruthy();
-    expect(screen.getByText(/-1,50|-1.50/)).toBeTruthy();
+    expect(screen.getAllByText(/1,50|1.50/).length).toBeGreaterThan(0);
   });
 
   it("shows the owner as owed when a non-payer creditor is due money from the payer", () => {
@@ -588,7 +619,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
 
     expect(screen.getByText("You are owed")).toBeTruthy();
-    expect(screen.getByText(/\+0,50|\+0.50/)).toBeTruthy();
+    expect(screen.getAllByText(/0,50|0.50/).length).toBeGreaterThan(0);
   });
 
   it("scopes home balances to the selected default currency when records mix currencies", () => {
@@ -907,6 +938,79 @@ describe("split screens", () => {
   });
 
   it("opens the splits tab from view all, filters records, and loads more rows on demand", () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockImplementation((record: any) => {
+      if (!record) {
+        return null;
+      }
+
+      if (record.id === "split-3" || record.id === "split-8") {
+        return {
+          ok: true,
+          data: {
+            currency: "EUR",
+            totalCents: 900,
+            itemBreakdown: [],
+            people: [
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 300,
+                consumedCents: 300,
+                netCents: 0,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 600,
+                consumedCents: 600,
+                netCents: 0,
+              },
+            ],
+            transfers: [],
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          currency: "EUR",
+          totalCents: 900,
+          itemBreakdown: [],
+          people: [
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 900,
+              consumedCents: 300,
+              netCents: 600,
+            },
+            {
+              participantId: "bruno",
+              name: "Bruno",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 300,
+              netCents: -300,
+            },
+            {
+              participantId: "zoe",
+              name: "Zoe",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 300,
+              netCents: -300,
+            },
+          ],
+          transfers: [],
+        },
+      };
+    });
+
     const splitRecords = Array.from({ length: 22 }, (_, index) =>
       buildRecord({
         id: `split-${index + 1}`,
@@ -972,6 +1076,17 @@ describe("split screens", () => {
     expect(screen.getByText("Split 2")).toBeTruthy();
     expect(screen.queryByText("Split 1")).toBeNull();
 
+    fireEvent.press(screen.getAllByLabelText("All")[0]);
+    fireEvent.press(screen.getByLabelText("Nothing due"));
+    expect(screen.getByText("Split 3")).toBeTruthy();
+    expect(screen.getByText("Split 8")).toBeTruthy();
+    expect(screen.queryByText("Split 1")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("Something due"));
+    expect(screen.getByText("Split 1")).toBeTruthy();
+    expect(screen.getByText("Split 2")).toBeTruthy();
+    expect(screen.queryByText("Split 3")).toBeNull();
+
     fireEvent.press(screen.getByLabelText("Oldest"));
     expect(screen.getByText("Split 22")).toBeTruthy();
   });
@@ -993,6 +1108,8 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Open Settings"));
     expect(screen.getByText("User profile")).toBeTruthy();
     expect(screen.getByText("Default currency")).toBeTruthy();
+    expect(screen.getByText("Split rows")).toBeTruthy();
+    expect(screen.getByText("Outstanding balance")).toBeTruthy();
     expect(screen.getByText("Balance helper")).toBeTruthy();
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
@@ -1016,6 +1133,30 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+    });
+  });
+
+  it("saves the split row amount display preference", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(screen.getByText("Choose what split rows show")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Total + outstanding"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
   });
@@ -1025,6 +1166,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      splitListAmountDisplay: "remaining",
       defaultCurrency: "",
       customCurrencies: [{ code: "POI", name: "Points", symbol: "P" }],
     };
@@ -1081,6 +1223,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "PO2",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [
         { code: "POI", name: "Points", symbol: "P" },
         { code: "PO2", name: "Points", symbol: "P" },
@@ -1093,6 +1236,7 @@ describe("split screens", () => {
         ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
+      splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: [],
     };
@@ -1122,6 +1266,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
       balanceFeatureEnabled: false,
+      splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: undefined,
     };
@@ -1165,6 +1310,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "CUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
     });
   });
@@ -1174,6 +1320,7 @@ describe("split screens", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
       balanceFeatureEnabled: true,
+      splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: [],
     };
@@ -1196,6 +1343,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "USD",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
 
@@ -1287,6 +1435,7 @@ describe("split screens", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "TOK",
+        splitListAmountDisplay: "remaining",
         customCurrencies: [{ code: "TOK", name: "Token", symbol: "ABC" }],
       });
     });

@@ -6,12 +6,19 @@ export type AppSettings = {
   balanceFeatureEnabled: boolean;
   trackPaymentsFeatureEnabled: boolean;
   defaultCurrency: string;
+  splitListAmountDisplay: SplitListAmountDisplay;
   customCurrencies: Array<{
     code: string;
     name: string;
     symbol: string;
   }>;
 };
+
+export type SplitListAmountDisplay =
+  | "remaining"
+  | "total"
+  | "userPaid"
+  | "totalAndRemaining";
 
 type FeatureFlags = Pick<AppSettings, "balanceFeatureEnabled" | "trackPaymentsFeatureEnabled">;
 
@@ -38,6 +45,18 @@ export function normalizeFeatureFlags(flags: FeatureFlags): FeatureFlags {
 
 const SETTINGS_KEY = "app-settings";
 
+const DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY: SplitListAmountDisplay = "remaining";
+
+function normalizeSplitListAmountDisplay(
+  value: unknown,
+): SplitListAmountDisplay {
+  return value === "total" ||
+    value === "userPaid" ||
+    value === "totalAndRemaining"
+    ? value
+    : DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY;
+}
+
 function getDefaultSettings(): AppSettings {
   return {
     ownerName: "You",
@@ -45,6 +64,7 @@ function getDefaultSettings(): AppSettings {
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
+    splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
     customCurrencies: [],
   };
 }
@@ -103,6 +123,9 @@ export async function getAppSettings() {
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
         : "EUR",
+    splitListAmountDisplay: normalizeSplitListAmountDisplay(
+      parsed.splitListAmountDisplay,
+    ),
     customCurrencies: Array.isArray(parsed.customCurrencies)
       ? parsed.customCurrencies
           .filter(
@@ -131,6 +154,9 @@ export async function saveAppSettings(settings: AppSettings) {
   const payload: AppSettings = {
     ...settings,
     ...normalizedFlags,
+    splitListAmountDisplay: normalizeSplitListAmountDisplay(
+      settings.splitListAmountDisplay,
+    ),
   };
   await withAppDatabaseRetry((db) =>
     db.runAsync(

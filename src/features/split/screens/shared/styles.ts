@@ -198,6 +198,10 @@ export const screenStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
+  reviewProgressCard: {
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
   itemsImportCardButton: {
     minHeight: 72,
     paddingHorizontal: 18,
@@ -506,9 +510,14 @@ export const screenStyles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 18,
     backgroundColor: PALETTE.surfaceContainerLow,
-    alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  actionSheetButtonSelected: {
+    backgroundColor: "rgba(249,137,72,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(191,95,0,0.16)",
   },
   actionSheetButtonDanger: {
     backgroundColor: "rgba(207,63,56,0.12)",

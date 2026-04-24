@@ -151,6 +151,7 @@ function buildStore(overrides: Partial<any> = {}) {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     },
     bootstrap: jest.fn(),

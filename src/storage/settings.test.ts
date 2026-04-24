@@ -37,6 +37,7 @@ describe("settings storage", () => {
         balanceFeatureEnabled: false,
         trackPaymentsFeatureEnabled: false,
         defaultCurrency: "USD",
+        splitListAmountDisplay: "total",
         customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
       }),
     };
@@ -53,6 +54,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "userPaid",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
@@ -68,6 +70,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
+      splitListAmountDisplay: "total",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
     expect(database.runAsync).toHaveBeenCalledWith(
@@ -80,6 +83,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
+          splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
         }),
       ]
@@ -96,6 +100,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
 
@@ -105,6 +110,7 @@ describe("settings storage", () => {
     expect(persistedPayload).toMatchObject({
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: false,
+      splitListAmountDisplay: "totalAndRemaining",
     });
   });
 
@@ -118,6 +124,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: "wrong",
           trackPaymentsFeatureEnabled: "wrong",
           defaultCurrency: "",
+          splitListAmountDisplay: "wrong",
           customCurrencies: [{ code: "", name: " ", symbol: "" }],
         }),
       },
@@ -130,6 +137,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
 
@@ -141,6 +149,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
   });
@@ -155,6 +164,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
+          splitListAmountDisplay: "totalAndRemaining",
           customCurrencies: "wrong-shape",
         }),
       },
@@ -167,6 +177,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
   });
@@ -186,6 +197,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
   });
@@ -208,6 +220,7 @@ describe("settings storage", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
+        splitListAmountDisplay: "remaining",
         customCurrencies: [],
       });
     }

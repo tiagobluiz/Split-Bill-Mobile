@@ -252,6 +252,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
+    splitListAmountDisplay: "remaining",
     customCurrencies: [],
   },
   async bootstrap() {
