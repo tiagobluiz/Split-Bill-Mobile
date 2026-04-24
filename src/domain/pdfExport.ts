@@ -24,6 +24,19 @@ export type PdfExportItem = {
   shares: PdfExportItemShare[];
 };
 
+export type PdfExportPersonItemShare = {
+  itemId: string;
+  itemName: string;
+  amountCents: number;
+};
+
+export type PdfExportPersonBreakdown = {
+  participantId: string;
+  name: string;
+  totalAmountCents: number;
+  items: PdfExportPersonItemShare[];
+};
+
 export type PdfExportData = {
   appName: string;
   exportDateLabel: string;
@@ -34,6 +47,7 @@ export type PdfExportData = {
   payer: PdfExportPerson;
   people: PdfExportPerson[];
   items: PdfExportItem[];
+  personBreakdown: PdfExportPersonBreakdown[];
 };
 
 function comparePeopleByDisplayOrder<T extends { name: string; isPayer: boolean }>(left: T, right: T) {
@@ -103,6 +117,39 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
       })),
   }));
 
+  const personBreakdown = settlement.data.people
+    .sort(comparePeopleByDisplayOrder)
+    .map((person) => {
+      const personItems = items
+        .map((item) => {
+          const personShare = item.shares.find(
+            (share) => share.participantId === person.participantId,
+          );
+          if (!personShare) {
+            return null;
+          }
+
+          return {
+            itemId: item.id,
+            itemName: item.name,
+            amountCents: personShare.amountCents,
+          };
+        })
+        .filter((item): item is PdfExportPersonItemShare => item !== null);
+
+      const totalAmountCents = personItems.reduce(
+        (sum, item) => sum + item.amountCents,
+        0,
+      );
+
+      return {
+        participantId: person.participantId,
+        name: person.name,
+        totalAmountCents,
+        items: personItems,
+      };
+    });
+
   const people = [...settlement.data.people].sort(comparePeopleByDisplayOrder).map((person) => ({
     participantId: person.participantId,
     name: person.name,
@@ -122,5 +169,6 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
     payer,
     people,
     items,
+    personBreakdown,
   };
 }

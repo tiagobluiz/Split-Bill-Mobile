@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import { Check, FileJson, Minus, RotateCcw, Share2 } from "lucide-react-native";
@@ -17,6 +16,7 @@ import {
   FloatingFooter,
 } from "../../../../components/ui";
 import { formatMoney } from "../../../../domain";
+import { exportSettlementPdf } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
@@ -33,6 +33,7 @@ import {
   getOwingPeople,
   getSettledParticipantIds,
 } from "../shared/settlementUtils";
+import { SplitNoticeModal } from "../shared/modals";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -58,6 +59,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     })),
   );
   const hasAutoCompletedRef = useRef<string | null>(null);
+  const [exportPdfPending, setExportPdfPending] = useState(false);
+  const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record);
   const locale = getDeviceLocale();
@@ -155,28 +158,24 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               accessibilityRole="button"
               accessibilityLabel="Export as PDF"
               style={screenStyles.resultsSecondaryButton}
+              disabled={exportPdfPending}
               onPress={async () => {
-                if (pdfData) {
-                  try {
-                    await Clipboard.setStringAsync(
-                      JSON.stringify(pdfData, null, 2),
-                    );
-                    Alert.alert(
-                      "Copied",
-                      "PDF preview JSON copied to clipboard.",
-                    );
-                  } catch {
-                    Alert.alert(
-                      "Copy failed",
-                      "Could not copy PDF preview JSON.",
-                    );
-                  }
+                if (!pdfData) {
+                  setPdfNoticeMessages([
+                    "PDF export is not available for this split.",
+                  ]);
                   return;
                 }
-                Alert.alert(
-                  "Unavailable",
-                  "PDF preview data is not available for this split.",
-                );
+
+                try {
+                  setExportPdfPending(true);
+                  await exportSettlementPdf(record.values, locale);
+                } catch (error) {
+                  console.warn("Failed to export split PDF", error);
+                  setPdfNoticeMessages(["Could not generate the PDF."]);
+                } finally {
+                  setExportPdfPending(false);
+                }
               }}
             >
               <XStack alignItems="center" justifyContent="center" gap="$2.5">
@@ -188,17 +187,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 >
                   PDF
                 </Text>
-                <View style={screenStyles.soonChip}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={9}
-                    color={PALETTE.primary}
-                    textTransform="uppercase"
-                    letterSpacing={1.1}
-                  >
-                    Soon
-                  </Text>
-                </View>
               </XStack>
             </Pressable>
             <Pressable
@@ -538,6 +526,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
+      <SplitNoticeModal
+        messages={pdfNoticeMessages}
+        onDismiss={() => setPdfNoticeMessages([])}
+      />
     </AppScreen>
   );
 }

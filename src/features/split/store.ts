@@ -742,5 +742,9 @@ export function getPdfExportPreview(record: DraftRecord | null) {
     return null;
   }
 
-  return buildPdfExportData(record.values, new Date(), getDeviceLocale());
+  try {
+    return buildPdfExportData(record.values, new Date(), getDeviceLocale());
+  } catch {
+    return null;
+  }
 }
