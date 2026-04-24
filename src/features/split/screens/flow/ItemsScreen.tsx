@@ -22,7 +22,6 @@ import {
   ArrowRight,
   AlertTriangle,
   ChevronDown,
-  Camera,
   Check,
   ClipboardCopy,
   Equal,
@@ -449,70 +448,36 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       >
         <YStack gap="$5">
           <View style={screenStyles.itemsImportCard}>
-            <XStack alignItems="center" gap="$3">
-              <View style={screenStyles.itemsImportIconWrap}>
-                <ReceiptText color={PALETTE.primary} size={16} />
-              </View>
-              <XStack alignItems="center" gap="$2.5" flex={1}>
-                <YStack justifyContent="center" minHeight={34} flex={1}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open AI import"
+              style={screenStyles.itemsImportCardButton}
+              onPress={() => router.push(`/split/${draftId}/paste`)}
+            >
+              <XStack alignItems="center" gap="$3" flex={1}>
+                <View style={screenStyles.itemsImportIconWrap}>
+                  <ReceiptText color={PALETTE.primary} size={16} />
+                </View>
+                <YStack flex={1} gap="$0.5">
                   <Text
                     fontFamily={FONTS.headlineBold}
-                    fontSize={18}
+                    fontSize={17}
                     color={PALETTE.onSurface}
                   >
-                    Import Receipt
+                    Import with AI
                   </Text>
-                </YStack>
-                <View style={screenStyles.soonChip}>
                   <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.primary}
-                    textTransform="uppercase"
-                    letterSpacing={1.2}
-                  >
-                    AI Ready
-                  </Text>
-                </View>
-              </XStack>
-            </XStack>
-            <XStack gap="$3" paddingTop="$3.5">
-              <View
-                accessibilityLabel="Scan Photo coming soon"
-                style={[
-                  screenStyles.itemsImportPrimaryButton,
-                  screenStyles.itemsImportButtonDisabled,
-                ]}
-              >
-                <XStack alignItems="center" justifyContent="center" gap="$2">
-                  <Camera color={PALETTE.onSurfaceVariant} size={16} />
-                  <Text
-                    fontFamily={FONTS.bodyBold}
+                    fontFamily={FONTS.bodyMedium}
                     fontSize={13}
                     color={PALETTE.onSurfaceVariant}
+                    lineHeight={18}
                   >
-                    Scan Soon
+                    Quick receipt handover via AI.
                   </Text>
-                </XStack>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="AI Paste"
-                style={screenStyles.itemsImportSecondaryButton}
-                onPress={() => router.push(`/split/${draftId}/paste`)}
-              >
-                <XStack alignItems="center" justifyContent="center" gap="$2">
-                  <ClipboardCopy color={PALETTE.primary} size={16} />
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={13}
-                    color={PALETTE.primary}
-                  >
-                    AI Paste
-                  </Text>
-                </XStack>
-              </Pressable>
-            </XStack>
+                </YStack>
+              </XStack>
+              <ArrowRight color={PALETTE.primary} size={18} />
+            </Pressable>
           </View>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$3.5">

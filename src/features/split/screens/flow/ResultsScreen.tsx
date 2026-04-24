@@ -150,34 +150,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <YStack gap="$3.5">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Share Results"
-              style={screenStyles.resultsPrimaryButton}
-              onPress={async () => {
-                try {
-                  await Share.share({ message: summary });
-                } catch (error) {
-                  console.warn("Failed to share split results", error);
-                  Alert.alert(
-                    "Share failed",
-                    "Could not open the share sheet.",
-                  );
-                }
-              }}
-            >
-              <XStack alignItems="center" justifyContent="center" gap="$2.5">
-                <Share2 color={PALETTE.onPrimary} size={18} />
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={17}
-                  color={PALETTE.onPrimary}
-                >
-                  Share Results
-                </Text>
-              </XStack>
-            </Pressable>
+          <XStack gap="$3">
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Export as PDF"
@@ -210,25 +183,52 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 <FileJson color={PALETTE.onSecondaryContainer} size={18} />
                 <Text
                   fontFamily={FONTS.headlineBold}
-                  fontSize={17}
+                  fontSize={15}
                   color={PALETTE.onSecondaryContainer}
                 >
-                  Export as PDF
+                  PDF
                 </Text>
                 <View style={screenStyles.soonChip}>
                   <Text
                     fontFamily={FONTS.bodyBold}
-                    fontSize={10}
+                    fontSize={9}
                     color={PALETTE.primary}
                     textTransform="uppercase"
-                    letterSpacing={1.4}
+                    letterSpacing={1.1}
                   >
                     Soon
                   </Text>
                 </View>
               </XStack>
             </Pressable>
-          </YStack>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share Results"
+              style={screenStyles.resultsPrimaryButton}
+              onPress={async () => {
+                try {
+                  await Share.share({ message: summary });
+                } catch (error) {
+                  console.warn("Failed to share split results", error);
+                  Alert.alert(
+                    "Share failed",
+                    "Could not open the share sheet.",
+                  );
+                }
+              }}
+            >
+              <XStack alignItems="center" justifyContent="center" gap="$2.5">
+                <Share2 color={PALETTE.onPrimary} size={18} />
+                <Text
+                  fontFamily={FONTS.headlineBold}
+                  fontSize={15}
+                  color={PALETTE.onPrimary}
+                >
+                  Share
+                </Text>
+              </XStack>
+            </Pressable>
+          </XStack>
         </FloatingFooter>
       }
     >
