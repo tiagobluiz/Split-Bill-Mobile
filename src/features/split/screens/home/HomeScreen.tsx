@@ -93,7 +93,7 @@ const SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS: Array<{
     label: "Outstanding balance",
     summary: "Show what is still unsettled for you",
     description:
-      "Shows how much is still left to settle for you in that split. Positive means you are owed, negative means you owe.",
+      "Shows how much is still unsettled for you in that split. 'Owed' means they owe you, and 'Owe' means you owe them.",
   },
   {
     key: "total",

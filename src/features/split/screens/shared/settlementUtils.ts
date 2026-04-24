@@ -20,6 +20,7 @@ type SettlementPerson = {
   name: string;
   isPayer: boolean;
   paidCents?: number;
+  consumedCents?: number;
   netCents: number;
 };
 
@@ -221,7 +222,7 @@ export function getRecentRowMeta(
         : "Nothing due";
   const totalAmount = formatAppMoney(totalCents, currency, locale, settings);
   const userPaidAmount = formatAppMoney(
-    Math.max(owner?.paidCents ?? 0, 0),
+    Math.max(owner?.consumedCents ?? 0, 0),
     currency,
     locale,
     settings,

@@ -147,8 +147,8 @@ export function RecordRow({
                       fontFamily={FONTS.bodyBold}
                       fontSize={10}
                       color={PALETTE.onSurfaceVariant}
-                      textTransform={showCombinedZeroState ? "uppercase" : "uppercase"}
-                      letterSpacing={showCombinedZeroState ? 1.3 : 1.3}
+                      textTransform="uppercase"
+                      letterSpacing={1.3}
                       textAlign="right"
                     >
                       {showCombinedZeroState ? "Nothing" : meta.amountDisplay.secondaryLabel}

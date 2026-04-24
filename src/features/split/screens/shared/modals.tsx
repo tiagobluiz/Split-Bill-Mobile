@@ -35,6 +35,8 @@ export function ActionSheetModal({
               key={option.label}
               accessibilityRole="button"
               accessibilityLabel={option.label}
+              accessibilityHint={option.description}
+              accessibilityState={{ selected: Boolean(option.selected) }}
               style={[
                 screenStyles.actionSheetButton,
                 option.selected ? screenStyles.actionSheetButtonSelected : null,

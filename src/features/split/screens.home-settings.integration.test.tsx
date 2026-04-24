@@ -550,6 +550,22 @@ describe("split screens", () => {
     expect(screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length).toBeGreaterThan(0);
   });
 
+  it("shows consumed share instead of paid amount in you consumed mode", () => {
+    mockStoreState.settings = {
+      ownerName: "Bruno",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "userPaid",
+    };
+    mockStoreState.records = [buildRecord({ status: "completed" })];
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText("You consumed")).toBeTruthy();
+    expect(screen.getAllByText(/3,00|â‚¬3.00|EUR 3.00|3.00/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/9,00|â‚¬9.00|EUR 9.00/)).toBeNull();
+  });
+
   it("preserves payer debt direction in home balances and recent rows when the payer owes others", () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
