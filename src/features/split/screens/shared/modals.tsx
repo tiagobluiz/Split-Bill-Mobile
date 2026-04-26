@@ -13,7 +13,13 @@ export function ActionSheetModal({
   onDismiss,
 }: {
   title: string;
-  options: Array<{ label: string; onPress: () => void; tone?: "default" | "danger" }>;
+  options: Array<{
+    label: string;
+    description?: string;
+    onPress: () => void;
+    tone?: "default" | "danger";
+    selected?: boolean;
+  }>;
   onDismiss: () => void;
 }) {
   return (
@@ -29,19 +35,34 @@ export function ActionSheetModal({
               key={option.label}
               accessibilityRole="button"
               accessibilityLabel={option.label}
+              accessibilityHint={option.description}
+              accessibilityState={{ selected: Boolean(option.selected) }}
               style={[
                 screenStyles.actionSheetButton,
+                option.selected ? screenStyles.actionSheetButtonSelected : null,
                 option.tone === "danger" ? screenStyles.actionSheetButtonDanger : null,
               ]}
               onPress={option.onPress}
             >
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={15}
-                color={option.tone === "danger" ? "#b43d29" : PALETTE.primary}
-              >
-                {option.label}
-              </Text>
+              <YStack gap="$1.5">
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={15}
+                  color={option.tone === "danger" ? "#b43d29" : PALETTE.primary}
+                >
+                  {option.label}
+                </Text>
+                {option.description ? (
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={13}
+                    lineHeight={19}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {option.description}
+                  </Text>
+                ) : null}
+              </YStack>
             </Pressable>
           ))}
         </YStack>

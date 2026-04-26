@@ -8,11 +8,10 @@ import {
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import { AvatarBadge } from "../../../../components/ui";
 import type { DraftRecord } from "../../../../storage/records";
+import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { getSettlementPreview } from "../../store";
-import { getInitials } from "./participantUtils";
 import { buildRecordRoute, getRecordTitle } from "./recordUtils";
 import { getRecentRowMeta } from "./settlementUtils";
 import { screenStyles } from "./styles";
@@ -74,21 +73,31 @@ export function HomeTabBar({
 
 export function RecordRow({
   record,
-  index,
   ownerName,
   settings,
   onDelete,
 }: {
   record: DraftRecord;
-  index: number;
   ownerName: string;
   settings: {
+    splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   };
   onDelete: (recordId: string, title: string) => void;
 }) {
   const meta = getRecentRowMeta(record, ownerName, settings, getSettlementPreview);
   const title = getRecordTitle(record);
+  const showAmountBlock = record.status === "completed";
+  const showSingleZeroState =
+    showAmountBlock &&
+    meta.amountDisplay.primaryLabel === "Nothing due" &&
+    !meta.amountDisplay.secondaryValue;
+  const showCombinedAmount =
+    showAmountBlock &&
+    Boolean(meta.amountDisplay.secondaryValue) &&
+    meta.amountDisplay.primaryLabel === "Total";
+  const showCombinedZeroState =
+    showCombinedAmount && meta.amountDisplay.secondaryLabel === "Nothing due";
 
   return (
     <Swipeable
@@ -115,28 +124,151 @@ export function RecordRow({
           style={[screenStyles.recentRow, screenStyles.itemsListCard]}
         >
           <XStack alignItems="center" justifyContent="space-between" gap="$3">
-            <XStack alignItems="center" gap="$4" flex={1}>
-              <AvatarBadge label={getInitials(title)} accent={index % 2 === 0} />
-              <YStack flex={1} gap="$1">
-                <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                  {title}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={meta.statusColor}
-                  textTransform="uppercase"
-                  letterSpacing={1.8}
-                >
-                  {meta.statusLabel}
-                </Text>
-              </YStack>
-            </XStack>
-            <YStack alignItems="flex-end" justifyContent="center">
-              <Text fontFamily={FONTS.headlineBlack} fontSize={18} color={PALETTE.onSurface}>
-                {meta.amount}
+            <YStack flex={1} gap="$1">
+              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+                {title}
+              </Text>
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={12}
+                color={meta.statusColor}
+                textTransform="uppercase"
+                letterSpacing={1.8}
+              >
+                {meta.statusLabel}
               </Text>
             </YStack>
+            {showAmountBlock ? (
+              <YStack alignItems="flex-end" justifyContent="center" minWidth={72}>
+                {showCombinedAmount ? (
+                <XStack alignItems="flex-end" gap="$4">
+                  <YStack alignItems="flex-end" gap="$0.5">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={10}
+                      color={PALETTE.onSurfaceVariant}
+                      textTransform="uppercase"
+                      letterSpacing={1.3}
+                      textAlign="right"
+                    >
+                      {showCombinedZeroState ? "Nothing" : meta.amountDisplay.secondaryLabel}
+                    </Text>
+                    {showCombinedZeroState ? (
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={10}
+                        color={PALETTE.onSurfaceVariant}
+                        textTransform="uppercase"
+                        letterSpacing={1.3}
+                        textAlign="right"
+                      >
+                        Due
+                      </Text>
+                    ) : (
+                      <Text
+                        fontFamily={FONTS.headlineBlack}
+                        fontSize={18}
+                        color={PALETTE.onSurfaceVariant}
+                        textAlign="right"
+                      >
+                        {meta.amountDisplay.secondaryValue}
+                      </Text>
+                    )}
+                  </YStack>
+                  <YStack alignItems="flex-end" gap="$0.5">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={10}
+                      color={PALETTE.onSurfaceVariant}
+                      textTransform="uppercase"
+                      letterSpacing={1.3}
+                      textAlign="right"
+                    >
+                      {meta.amountDisplay.primaryLabel}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={18}
+                      color={PALETTE.onSurface}
+                      textAlign="right"
+                    >
+                      {meta.amountDisplay.primaryValue}
+                    </Text>
+                  </YStack>
+                </XStack>
+                ) : showSingleZeroState ? (
+                  <YStack alignItems="flex-end" gap="$0.5">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={10}
+                      color={PALETTE.onSurfaceVariant}
+                      textTransform="uppercase"
+                      letterSpacing={1.3}
+                      textAlign="right"
+                    >
+                      Nothing
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={10}
+                      color={PALETTE.onSurfaceVariant}
+                      textTransform="uppercase"
+                      letterSpacing={1.3}
+                      textAlign="right"
+                    >
+                      Due
+                    </Text>
+                  </YStack>
+                ) : (
+                  <>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={11}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={1.4}
+                    textAlign="right"
+                    width="100%"
+                  >
+                    {meta.amountDisplay.primaryLabel}
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.headlineBlack}
+                    fontSize={18}
+                    color={PALETTE.onSurface}
+                    textAlign="right"
+                    width="100%"
+                  >
+                    {meta.amountDisplay.primaryValue}
+                  </Text>
+                  {meta.amountDisplay.secondaryValue ? (
+                    <YStack alignItems="flex-end" marginTop="$1" width="100%">
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={10}
+                        color={PALETTE.onSurfaceVariant}
+                        textTransform="uppercase"
+                        letterSpacing={1.3}
+                        textAlign="right"
+                        width="100%"
+                      >
+                        {meta.amountDisplay.secondaryLabel}
+                      </Text>
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={13}
+                        color={PALETTE.onSurfaceVariant}
+                        textAlign="right"
+                        width="100%"
+                      >
+                        {meta.amountDisplay.secondaryValue}
+                      </Text>
+                    </YStack>
+                  ) : null}
+                  </>
+                )}
+              </YStack>
+            ) : null}
           </XStack>
         </Pressable>
       </View>

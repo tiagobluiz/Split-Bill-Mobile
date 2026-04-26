@@ -1,5 +1,6 @@
-import { computeSettlement, formatMoney } from "../../../../domain";
+import { computeSettlement, formatMoney, parseMoneyToCents } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
+import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { getDeviceLocale } from "../../../../lib/device";
 import { PALETTE } from "../../../../theme/palette";
 import { isOwnerReference } from "./participantUtils";
@@ -18,6 +19,8 @@ type SettlementPerson = {
   participantId: string;
   name: string;
   isPayer: boolean;
+  paidCents?: number;
+  consumedCents?: number;
   netCents: number;
 };
 
@@ -181,6 +184,7 @@ export function getRecentRowMeta(
   record: DraftRecord,
   ownerName: string,
   settings?: {
+    splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   },
   resolver?: SettlementResolver
@@ -188,15 +192,70 @@ export function getRecentRowMeta(
   const preview = getRecordMoneyPreview(record, ownerName, resolver);
   const locale = getDeviceLocale();
   const currency = preview?.currency ?? record.values.currency;
-  const baseAmountCents = preview?.ownerNetCents ?? 0;
-  const rawAmountCents = preview?.ownerRelation === "debtor" ? -baseAmountCents : baseAmountCents;
-  const amountPrefix = rawAmountCents > 0 ? "+" : rawAmountCents < 0 ? "-" : "";
-  const amount = `${amountPrefix}${formatAppMoney(Math.abs(rawAmountCents), currency, locale, settings)}`;
+  const settlement = resolveSettlement(record, resolver);
+  const owner = settlement?.ok
+    ? settlement.data.people.find((person) => isOwnerReference(person.name, ownerName))
+    : null;
+  const totalCents =
+    settlement?.ok
+      ? settlement.data.totalCents
+      : record.values.items.reduce(
+          (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
+          0,
+        );
+  const remainingBaseAmountCents = preview?.ownerNetCents ?? 0;
+  const remainingRawAmountCents =
+    preview?.ownerRelation === "debtor"
+      ? -remainingBaseAmountCents
+      : remainingBaseAmountCents;
+  const remainingAmount = formatAppMoney(
+    Math.abs(remainingRawAmountCents),
+    currency,
+    locale,
+    settings,
+  );
+  const remainingLabel =
+    remainingRawAmountCents < 0
+      ? "Owe"
+      : remainingRawAmountCents > 0
+        ? "Owed"
+        : "Nothing due";
+  const totalAmount = formatAppMoney(totalCents, currency, locale, settings);
+  const userPaidAmount = formatAppMoney(
+    Math.max(owner?.consumedCents ?? 0, 0),
+    currency,
+    locale,
+    settings,
+  );
+  const amountDisplayMode = settings?.splitListAmountDisplay ?? "remaining";
   const pendingStep = getDraftPendingStep(record);
+
+  const amountDisplay =
+    amountDisplayMode === "total"
+      ? {
+          primaryLabel: "Total",
+          primaryValue: totalAmount,
+        }
+      : amountDisplayMode === "userPaid"
+        ? {
+            primaryLabel: "You consumed",
+            primaryValue: userPaidAmount,
+          }
+        : amountDisplayMode === "totalAndRemaining"
+          ? {
+              primaryLabel: "Total",
+              primaryValue: totalAmount,
+              secondaryLabel: remainingLabel,
+              secondaryValue: remainingAmount,
+            }
+          : {
+              primaryLabel: remainingLabel,
+              primaryValue: remainingAmount,
+            };
 
   if (record.status === "completed") {
     return {
-      amount,
+      amountDisplay,
       statusLabel: "Settled",
       statusColor: PALETTE.secondary,
       showUnpaidDots: false,
@@ -204,7 +263,7 @@ export function getRecentRowMeta(
   }
 
   return {
-    amount,
+    amountDisplay,
     statusLabel: `Pending: ${STEP_LABELS[pendingStep as keyof typeof STEP_LABELS]}`,
     statusColor: PALETTE.primary,
     showUnpaidDots: false,

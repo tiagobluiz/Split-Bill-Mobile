@@ -46,6 +46,7 @@ import {
 } from "../../../../components/ui";
 import { createId, formatMoney, normalizeMoneyInput } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { getSettlementPreview, useSplitStore } from "../../store";
 import {
@@ -60,6 +61,7 @@ import { getRecordTitle } from "../shared/recordUtils";
 import {
   formatAppMoney,
   getHomeBalanceCards,
+  getRecordMoneyPreview,
   getRecentRowMeta,
 } from "../shared/settlementUtils";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
@@ -79,6 +81,42 @@ const YStack = TamaguiYStack as any;
 
 type ActivityStateFilter = "all" | "settled" | "unsettled";
 type ActivityDateFilter = "newest" | "oldest";
+type ActivityBalanceFilter = "all" | "nothingDue" | "somethingDue";
+const SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS: Array<{
+  key: SplitListAmountDisplay;
+  label: string;
+  description: string;
+  summary: string;
+}> = [
+  {
+    key: "remaining",
+    label: "Outstanding balance",
+    summary: "Show what is still unsettled for you",
+    description:
+      "Shows how much is still unsettled for you in that split. 'Owed' means they owe you, and 'Owe' means you owe them.",
+  },
+  {
+    key: "total",
+    label: "Total bill",
+    summary: "Show the full split total",
+    description:
+      "Shows the full amount of the split, regardless of who paid or what is still unsettled.",
+  },
+  {
+    key: "userPaid",
+    label: "You consumed",
+    summary: "Show how much of the bill was yours",
+    description:
+      "Shows how much of that split was assigned to you, regardless of who paid upfront.",
+  },
+  {
+    key: "totalAndRemaining",
+    label: "Total + outstanding",
+    summary: "Show both the total and what is still unsettled",
+    description:
+      "Shows the full split total first, with your unsettled amount underneath for extra context.",
+  },
+];
 const MAX_OWNER_NAME_LENGTH = 12;
 export function HomeScreenView() {
   const { records, createDraft, removeRecord, settings, updateSettings } =
@@ -102,6 +140,8 @@ export function HomeScreenView() {
     useState<ActivityStateFilter>("all");
   const [activityDateFilter, setActivityDateFilter] =
     useState<ActivityDateFilter>("newest");
+  const [activityBalanceFilter, setActivityBalanceFilter] =
+    useState<ActivityBalanceFilter>("all");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [visibleSplitCount, setVisibleSplitCount] = useState(20);
   const [settingsNoticeMessages, setSettingsNoticeMessages] = useState<
@@ -125,10 +165,16 @@ export function HomeScreenView() {
   const [defaultCurrencyDraft, setDefaultCurrencyDraft] = useState(
     settings.defaultCurrency ?? "",
   );
+  const [splitListAmountDisplayDraft, setSplitListAmountDisplayDraft] =
+    useState<SplitListAmountDisplay>(
+      settings.splitListAmountDisplay ?? "remaining",
+    );
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
   );
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
+    useState(false);
   const [profileActionMenuOpen, setProfileActionMenuOpen] = useState(false);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [customCurrencyName, setCustomCurrencyName] = useState("");
@@ -173,12 +219,35 @@ export function HomeScreenView() {
       }
       return true;
     });
-    return [...byState].sort((left, right) =>
+    const byBalance = byState.filter((record) => {
+      if (activityBalanceFilter === "all") {
+        return true;
+      }
+
+      const preview = getRecordMoneyPreview(
+        record,
+        settings.ownerName,
+        getSettlementPreview,
+      );
+
+      const ownerNetCents = preview?.ownerNetCents ?? 0;
+      return activityBalanceFilter === "nothingDue"
+        ? ownerNetCents === 0
+        : ownerNetCents > 0;
+    });
+
+    return [...byBalance].sort((left, right) =>
       activityDateFilter === "newest"
         ? right.updatedAt.localeCompare(left.updatedAt)
         : left.updatedAt.localeCompare(right.updatedAt),
     );
-  }, [activityDateFilter, activityStateFilter, visibleRecords]);
+  }, [
+    activityBalanceFilter,
+    activityDateFilter,
+    activityStateFilter,
+    settings.ownerName,
+    visibleRecords,
+  ]);
   const pagedSplitRecords = filteredSplitRecords.slice(0, visibleSplitCount);
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
@@ -192,6 +261,8 @@ export function HomeScreenView() {
       (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !==
       (settings.defaultCurrency ?? "") ||
+    splitListAmountDisplayDraft !==
+      (settings.splitListAmountDisplay ?? "remaining") ||
     JSON.stringify(customCurrenciesDraft) !==
       JSON.stringify(settings.customCurrencies ?? []);
   const commitPendingDelete = async (nextPending: {
@@ -241,18 +312,22 @@ export function HomeScreenView() {
       settings.trackPaymentsFeatureEnabled ?? true,
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
+    setSplitListAmountDisplayDraft(
+      settings.splitListAmountDisplay ?? "remaining",
+    );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
   }, [
     settings.balanceFeatureEnabled,
     settings.trackPaymentsFeatureEnabled,
     settings.customCurrencies,
     settings.defaultCurrency,
+    settings.splitListAmountDisplay,
     settings.ownerName,
     settings.ownerProfileImageUri,
   ]);
   useEffect(() => {
     setVisibleSplitCount(20);
-  }, [activityDateFilter, activityStateFilter]);
+  }, [activityBalanceFilter, activityDateFilter, activityStateFilter]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     if (!trimmedName) {
@@ -272,9 +347,11 @@ export function HomeScreenView() {
         balanceFeatureEnabled: balanceFeatureEnabledDraft,
         trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
         defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
+        splitListAmountDisplay: splitListAmountDisplayDraft,
         customCurrencies: customCurrenciesDraft,
       });
       setCurrencyMenuOpen(false);
+      setSplitListAmountDisplayMenuOpen(false);
       setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages([]);
       return true;
@@ -296,10 +373,14 @@ export function HomeScreenView() {
       settings.trackPaymentsFeatureEnabled ?? true,
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
+    setSplitListAmountDisplayDraft(
+      settings.splitListAmountDisplay ?? "remaining",
+    );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
     setCustomCurrencyName("");
     setCustomCurrencySymbol("");
     setCurrencyMenuOpen(false);
+    setSplitListAmountDisplayMenuOpen(false);
     setCurrencyModalOpen(false);
     setProfileActionMenuOpen(false);
     setCustomCurrencyErrors({ name: false, symbol: false });
@@ -566,15 +647,14 @@ export function HomeScreenView() {
             {recentRecords.length === 0 ? (
               <EmptyState
                 title="No splits yet"
-                description="Start a new split to create your first shared memory."
+                description="Your most recent splits will be shown here."
               />
             ) : (
               <YStack gap="$3">
-                {recentRecords.map((record, index) => (
+                {recentRecords.map((record) => (
                   <RecordRow
                     key={record.id}
                     record={record}
-                    index={index}
                     ownerName={settings.ownerName}
                     settings={settings}
                     onDelete={queueDelete}
@@ -711,6 +791,20 @@ export function HomeScreenView() {
                   />
                 </YStack>
                 <YStack gap="$2.5">
+                  <FieldLabel>Balance</FieldLabel>
+                  <ModePills
+                    active={activityBalanceFilter}
+                    options={[
+                      { key: "all", label: "All" },
+                      { key: "nothingDue", label: "Nothing due" },
+                      { key: "somethingDue", label: "Something due" },
+                    ]}
+                    onChange={(value: string) =>
+                      setActivityBalanceFilter(value as ActivityBalanceFilter)
+                    }
+                  />
+                </YStack>
+                <YStack gap="$2.5">
                   <FieldLabel>Date</FieldLabel>
                   <ModePills
                     active={activityDateFilter}
@@ -733,11 +827,10 @@ export function HomeScreenView() {
             />
           ) : (
             <YStack gap="$3">
-              {pagedSplitRecords.map((item, index) => (
+              {pagedSplitRecords.map((item) => (
                 <RecordRow
                   key={item.id}
                   record={item}
-                  index={index}
                   ownerName={settings.ownerName}
                   settings={settings}
                   onDelete={queueDelete}
@@ -892,6 +985,57 @@ export function HomeScreenView() {
                 </Pressable>
               </YStack>
             ) : null}
+          </YStack>
+          <View style={screenStyles.itemsSectionSeparator} />
+          <YStack gap="$4">
+            <SectionEyebrow>Split rows</SectionEyebrow>
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={14}
+              lineHeight={21}
+              color={PALETTE.onSurfaceVariant}
+            >
+              Choose which amount each split card shows in Home and Splits.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Choose split row amount"
+              style={screenStyles.selectRow}
+              onPress={() => setSplitListAmountDisplayMenuOpen(true)}
+            >
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                gap="$3"
+              >
+                <YStack flex={1} gap="$1">
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={16}
+                    color={PALETTE.onSurface}
+                  >
+                    {
+                      SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.find(
+                        (option) => option.key === splitListAmountDisplayDraft,
+                      )?.label
+                    }
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={13}
+                    lineHeight={18}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {
+                      SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.find(
+                        (option) => option.key === splitListAmountDisplayDraft,
+                      )?.summary
+                    }
+                  </Text>
+                </YStack>
+                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+              </XStack>
+            </Pressable>
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
@@ -1152,6 +1296,21 @@ export function HomeScreenView() {
             },
             { label: "Cancel", onPress: () => setProfileActionMenuOpen(false) },
           ]}
+        />
+      ) : null}
+      {splitListAmountDisplayMenuOpen ? (
+        <ActionSheetModal
+          title="Choose what split rows show"
+          options={SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => ({
+            label: option.label,
+            description: option.description,
+            selected: option.key === splitListAmountDisplayDraft,
+            onPress: () => {
+              setSplitListAmountDisplayDraft(option.key);
+              setSplitListAmountDisplayMenuOpen(false);
+            },
+          }))}
+          onDismiss={() => setSplitListAmountDisplayMenuOpen(false)}
         />
       ) : null}
       {currencyModalOpen ? (

@@ -116,7 +116,9 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
       </View>
       <View style={screenStyles.participantsScrollContent}>
         <YStack gap="$5">
-          <View style={screenStyles.itemsImportCard}>
+          <View
+            style={[screenStyles.itemsImportCard, screenStyles.reviewProgressCard]}
+          >
             <SectionEyebrow>Current progress</SectionEyebrow>
             <XStack
               alignItems="flex-end"
