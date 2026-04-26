@@ -91,7 +91,7 @@ jest.mock("./store", () => ({
       : null
   ),
   getClipboardSummaryPreview: jest.fn((record: any) =>
-    record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+    record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
   ),
   getPdfExportPreview: jest.fn((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null)),
 }));
@@ -245,7 +245,7 @@ describe("split screens", () => {
         : null
     );
     store.getClipboardSummaryPreview.mockImplementation((record: any) =>
-      record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+      record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
     );
     store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
   });

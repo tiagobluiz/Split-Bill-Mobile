@@ -41,14 +41,14 @@ export function getAssignedParticipantCount(item: DraftRecord["values"]["items"]
 
 export function getLatestPendingSplitItem(record: DraftRecord) {
   const pendingItems = record.values.items.filter((item) => isVisibleItem(item) && !isItemAssigned(item));
-  return pendingItems[pendingItems.length - 1] ?? null;
+  return pendingItems[0] ?? null;
 }
 
 export function getLatestPendingSplitItemId(record: DraftRecord, currentItemId?: string) {
   const pendingItems = record.values.items.filter(
     (item) => isVisibleItem(item) && !isItemAssigned(item) && item.id !== currentItemId
   );
-  return pendingItems[pendingItems.length - 1]?.id ?? null;
+  return pendingItems[0]?.id ?? null;
 }
 
 export function cloneItem(item: DraftRecord["values"]["items"][number]) {

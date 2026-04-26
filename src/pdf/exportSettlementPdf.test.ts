@@ -2,6 +2,30 @@ jest.mock("expo-print", () => ({
   printToFileAsync: jest.fn(),
 }));
 
+const mockCopy = jest.fn();
+
+jest.mock("expo/node_modules/expo-file-system", () => ({
+  Paths: {
+    document: { uri: "file:///docs" },
+  },
+  File: class MockFile {
+    uri: string;
+
+    constructor(...segments: Array<{ uri?: string } | string>) {
+      const normalized = segments.map((segment) =>
+        typeof segment === "string" ? segment : (segment.uri ?? "")
+      );
+      const [firstSegment, ...rest] = normalized;
+      const trimmedRest = rest.map((segment) => segment.replace(/^\/+/, ""));
+      this.uri = [firstSegment, ...trimmedRest].join("/");
+    }
+
+    copy(destination: { uri: string }) {
+      mockCopy(this.uri, destination.uri);
+    }
+  },
+}));
+
 jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(),
   shareAsync: jest.fn(),
@@ -29,7 +53,11 @@ describe("mobile PDF export", () => {
 
   it("renders the same PDF sections and content as the web export", () => {
     const html = renderSettlementPdfHtml(
-      pdfFixture.expected as any,
+      {
+        ...(pdfFixture.expected as any),
+        appName: "Split Bill",
+        splitTitle: "Grocery bill split summary",
+      },
       pdfFixture.assumptions.locale,
     );
 
@@ -71,7 +99,10 @@ describe("mobile PDF export", () => {
     shareAsync.mockResolvedValue(undefined);
 
     await exportSettlementPdf(
-      pdfFixture.input as SplitFormValues,
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
       pdfFixture.assumptions.locale,
     );
 
@@ -81,10 +112,14 @@ describe("mobile PDF export", () => {
         base64: false,
       }),
     );
-    expect(shareAsync).toHaveBeenCalledWith("file:///tmp/split-bill.pdf", {
+    expect(mockCopy).toHaveBeenCalledWith(
+      "file:///tmp/split-bill.pdf",
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+    );
+    expect(shareAsync).toHaveBeenCalledWith("file:///docs/grocery-bill-2026-03-09.pdf", {
       mimeType: "application/pdf",
       UTI: "com.adobe.pdf",
-      dialogTitle: "split-bill-2026-03-09.pdf",
+      dialogTitle: "grocery-bill-2026-03-09.pdf",
     });
   });
 

@@ -1126,11 +1126,8 @@ export function SplitItemScreen({
                   remainingPercentForParticipant > percentValue + 0.001 &&
                   totalPercent < 99.99;
 
-                return (
-                  <View
-                    key={participant.id}
-                    style={screenStyles.splitParticipantCard}
-                  >
+                const participantControls = (
+                  <>
                     <XStack
                       alignItems="center"
                       justifyContent="space-between"
@@ -1170,10 +1167,8 @@ export function SplitItemScreen({
                       </XStack>
 
                       {item.splitMode === "even" ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Toggle even split for ${participant.name}`}
-                          onPress={() => toggleEvenIncluded(participant.id)}
+                        <View
+                          pointerEvents="none"
                           style={
                             allocation.evenIncluded
                               ? screenStyles.payerSelectedIndicator
@@ -1183,7 +1178,7 @@ export function SplitItemScreen({
                           {allocation.evenIncluded ? (
                             <Check color={PALETTE.onPrimary} size={16} />
                           ) : null}
-                        </Pressable>
+                        </View>
                       ) : null}
 
                       {item.splitMode === "shares" ? (
@@ -1340,6 +1335,25 @@ export function SplitItemScreen({
                         </XStack>
                       </YStack>
                     ) : null}
+                  </>
+                );
+
+                return item.splitMode === "even" ? (
+                  <Pressable
+                    key={participant.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Toggle even split for ${participant.name}`}
+                    onPress={() => toggleEvenIncluded(participant.id)}
+                    style={screenStyles.splitParticipantCard}
+                  >
+                    {participantControls}
+                  </Pressable>
+                ) : (
+                  <View
+                    key={participant.id}
+                    style={screenStyles.splitParticipantCard}
+                  >
+                    {participantControls}
                   </View>
                 );
               })}

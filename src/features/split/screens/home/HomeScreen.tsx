@@ -118,6 +118,13 @@ const SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS: Array<{
   },
 ];
 const MAX_OWNER_NAME_LENGTH = 12;
+
+function isBalanceDependentSplitListAmountDisplay(
+  value: SplitListAmountDisplay,
+) {
+  return value === "remaining" || value === "totalAndRemaining";
+}
+
 export function HomeScreenView() {
   const { records, createDraft, removeRecord, settings, updateSettings } =
     useSplitStore(
@@ -172,6 +179,20 @@ export function HomeScreenView() {
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
   );
+  const availableSplitListAmountDisplayOptions =
+    SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => {
+      const disabled =
+        !balanceFeatureEnabledDraft &&
+        isBalanceDependentSplitListAmountDisplay(option.key);
+
+      return {
+        ...option,
+        disabled,
+        description: disabled
+          ? `${option.description} Requires Balance helper to be on.`
+          : option.description,
+      };
+    });
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
@@ -330,6 +351,11 @@ export function HomeScreenView() {
   }, [activityBalanceFilter, activityDateFilter, activityStateFilter]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
+    const persistedSplitListAmountDisplay =
+      !balanceFeatureEnabledDraft &&
+      isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)
+        ? "total"
+        : splitListAmountDisplayDraft;
     if (!trimmedName) {
       setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a short name for yourself."]);
@@ -347,7 +373,7 @@ export function HomeScreenView() {
         balanceFeatureEnabled: balanceFeatureEnabledDraft,
         trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
         defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
-        splitListAmountDisplay: splitListAmountDisplayDraft,
+        splitListAmountDisplay: persistedSplitListAmountDisplay,
         customCurrencies: customCurrenciesDraft,
       });
       setCurrencyMenuOpen(false);
@@ -1126,6 +1152,14 @@ export function HomeScreenView() {
                 onPress={() => {
                   const nextBalance = !balanceFeatureEnabledDraft;
                   setBalanceFeatureEnabledDraft(nextBalance);
+                  if (
+                    !nextBalance &&
+                    isBalanceDependentSplitListAmountDisplay(
+                      splitListAmountDisplayDraft,
+                    )
+                  ) {
+                    setSplitListAmountDisplayDraft("total");
+                  }
                   setTrackPaymentsFeatureEnabledDraft((value) =>
                     nextBalance ? true : value,
                   );
@@ -1301,10 +1335,11 @@ export function HomeScreenView() {
       {splitListAmountDisplayMenuOpen ? (
         <ActionSheetModal
           title="Choose what split rows show"
-          options={SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => ({
+          options={availableSplitListAmountDisplayOptions.map((option) => ({
             label: option.label,
             description: option.description,
             selected: option.key === splitListAmountDisplayDraft,
+            disabled: option.disabled,
             onPress: () => {
               setSplitListAmountDisplayDraft(option.key);
               setSplitListAmountDisplayMenuOpen(false);
