@@ -1745,9 +1745,7 @@ describe("split screens", () => {
 
     expect(screen.getByText("Add & Review Items")).toBeTruthy();
     expect(
-      screen.queryByText(
-        "Paste the result from your AI tool. We will identify prices and create editable items automatically.",
-      ),
+      screen.queryByText(/Paste the result from your AI tool/i),
     ).toBeNull();
   });
 

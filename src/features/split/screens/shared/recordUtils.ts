@@ -39,12 +39,12 @@ export function getAssignedParticipantCount(item: DraftRecord["values"]["items"]
   return item.allocations.filter((allocation) => (parseFloat(allocation.percent) || 0) > 0).length;
 }
 
-export function getLatestPendingSplitItem(record: DraftRecord) {
+export function getNextPendingSplitItem(record: DraftRecord) {
   const pendingItems = record.values.items.filter((item) => isVisibleItem(item) && !isItemAssigned(item));
   return pendingItems[0] ?? null;
 }
 
-export function getLatestPendingSplitItemId(record: DraftRecord, currentItemId?: string) {
+export function getNextPendingSplitItemId(record: DraftRecord, currentItemId?: string) {
   const pendingItems = record.values.items.filter(
     (item) => isVisibleItem(item) && !isItemAssigned(item) && item.id !== currentItemId
   );

@@ -4,7 +4,7 @@ jest.mock("expo-print", () => ({
 
 const mockCopy = jest.fn();
 
-jest.mock("expo/node_modules/expo-file-system", () => ({
+jest.mock("expo-file-system", () => ({
   Paths: {
     document: { uri: "file:///docs" },
   },

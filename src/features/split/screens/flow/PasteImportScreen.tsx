@@ -229,7 +229,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void copyPromptAndOpenAi()}
                 />
-                <Pressable accessibilityRole="button" accessibilityLabel="I already have the item list" onPress={() => setStep(2)}>
+                <Pressable accessibilityRole="button" accessibilityLabel="I already have the item list" onPress={openStepTwo}>
                   <Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
                     I already have the item list
                   </Text>

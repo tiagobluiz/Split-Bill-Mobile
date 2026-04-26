@@ -125,6 +125,21 @@ function isBalanceDependentSplitListAmountDisplay(
   return value === "remaining" || value === "totalAndRemaining";
 }
 
+function normalizeSplitListAmountDisplaySetting(
+  value: SplitListAmountDisplay | undefined,
+  balanceFeatureEnabled: boolean | undefined,
+): SplitListAmountDisplay {
+  const resolvedValue = value ?? "remaining";
+  if (
+    balanceFeatureEnabled === false &&
+    isBalanceDependentSplitListAmountDisplay(resolvedValue)
+  ) {
+    return "total";
+  }
+
+  return resolvedValue;
+}
+
 export function HomeScreenView() {
   const { records, createDraft, removeRecord, settings, updateSettings } =
     useSplitStore(
@@ -174,7 +189,10 @@ export function HomeScreenView() {
   );
   const [splitListAmountDisplayDraft, setSplitListAmountDisplayDraft] =
     useState<SplitListAmountDisplay>(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
@@ -273,6 +291,11 @@ export function HomeScreenView() {
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
   });
+  const normalizedStoredSplitListAmountDisplay =
+    normalizeSplitListAmountDisplaySetting(
+      settings.splitListAmountDisplay,
+      settings.balanceFeatureEnabled,
+    );
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !==
@@ -282,8 +305,7 @@ export function HomeScreenView() {
       (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !==
       (settings.defaultCurrency ?? "") ||
-    splitListAmountDisplayDraft !==
-      (settings.splitListAmountDisplay ?? "remaining") ||
+    splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
     JSON.stringify(customCurrenciesDraft) !==
       JSON.stringify(settings.customCurrencies ?? []);
   const commitPendingDelete = async (nextPending: {
@@ -334,7 +356,10 @@ export function HomeScreenView() {
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setSplitListAmountDisplayDraft(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
   }, [
@@ -400,7 +425,10 @@ export function HomeScreenView() {
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setSplitListAmountDisplayDraft(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
     setCustomCurrencyName("");

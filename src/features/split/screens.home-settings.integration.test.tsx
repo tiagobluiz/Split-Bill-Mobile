@@ -1353,7 +1353,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "CUR",
-      splitListAmountDisplay: "remaining",
+      splitListAmountDisplay: "total",
       customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
     });
   });

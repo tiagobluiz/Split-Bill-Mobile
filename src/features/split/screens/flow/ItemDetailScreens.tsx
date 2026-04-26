@@ -41,7 +41,7 @@ import {
   getAssignedParticipantCount,
   getFriendlySplitMessage,
   getItemCategoryLabel,
-  getLatestPendingSplitItemId,
+  getNextPendingSplitItemId,
   getPercentInputMessage,
   hasTrailingPercentSeparator,
   normalizeCommittedPercentValue,
@@ -569,7 +569,7 @@ export function SplitItemScreen({
     ...record.values,
     items: [item],
   }).map((error) => error.message);
-  const pendingNextItemId = getLatestPendingSplitItemId(record, item.id);
+  const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
   const ctaLabel = pendingNextItemId
     ? "Confirm & Split Next"
     : "Confirm & Review";
@@ -862,7 +862,7 @@ export function SplitItemScreen({
         : item;
 
     await saveItemSplit(item.id, committedItem);
-    const nextPendingItemId = getLatestPendingSplitItemId(
+    const nextPendingItemId = getNextPendingSplitItemId(
       {
         ...record,
         values: {
@@ -1168,12 +1168,12 @@ export function SplitItemScreen({
 
                       {item.splitMode === "even" ? (
                         <View
-                          pointerEvents="none"
-                          style={
+                          style={[
                             allocation.evenIncluded
                               ? screenStyles.payerSelectedIndicator
-                              : screenStyles.payerUnselectedIndicator
-                          }
+                              : screenStyles.payerUnselectedIndicator,
+                            { pointerEvents: "none" },
+                          ]}
                         >
                           {allocation.evenIncluded ? (
                             <Check color={PALETTE.onPrimary} size={16} />
