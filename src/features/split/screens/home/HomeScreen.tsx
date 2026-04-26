@@ -651,11 +651,10 @@ export function HomeScreenView() {
               />
             ) : (
               <YStack gap="$3">
-                {recentRecords.map((record, index) => (
+                {recentRecords.map((record) => (
                   <RecordRow
                     key={record.id}
                     record={record}
-                    index={index}
                     ownerName={settings.ownerName}
                     settings={settings}
                     onDelete={queueDelete}
@@ -828,11 +827,10 @@ export function HomeScreenView() {
             />
           ) : (
             <YStack gap="$3">
-              {pagedSplitRecords.map((item, index) => (
+              {pagedSplitRecords.map((item) => (
                 <RecordRow
                   key={item.id}
                   record={item}
-                  index={index}
                   ownerName={settings.ownerName}
                   settings={settings}
                   onDelete={queueDelete}

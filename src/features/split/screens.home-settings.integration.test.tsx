@@ -454,7 +454,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "owner-debtor" })];
     const { rerender } = render(<HomeScreen />);
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
+    expect(screen.getByText("You owe")).toBeTruthy();
 
     mockStoreState.settings = {
       ownerName: "Tiago",
