@@ -1892,12 +1892,10 @@ describe("split screens", () => {
     expect(screen.getByText("Import preview")).toBeTruthy();
     expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
     expect(screen.getByLabelText("Ignored: 0")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByText("Add & Review Items"));
-    });
+    expect(screen.getByText("Add & Review Items")).toBeDisabled();
     expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it("shows invalid paste status before review and applies it as a no-op", async () => {
@@ -1908,12 +1906,10 @@ describe("split screens", () => {
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.queryByText("Ignored 1 pasted line that did not match the expected format.")).toBeNull();
-    await act(async () => {
-      fireEvent.press(screen.getByText("Add & Review Items"));
-    });
-    expect(mockBack).toHaveBeenCalled();
+    expect(screen.getByText("Add & Review Items")).toBeDisabled();
+    expect(mockBack).not.toHaveBeenCalled();
     expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
+    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
   });
 
   it("routes the paste close header action to home", () => {

@@ -273,6 +273,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   ].map((stat) => (
                     <YStack
                       key={stat.label}
+                      accessible={true}
                       accessibilityLabel={`${stat.label}: ${stat.value}`}
                       flex={1}
                       gap="$0.5"
@@ -299,6 +300,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   label="Add & Review Items"
                   icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void applyImport()}
+                  disabled={parsedItemCount === 0}
                 />
               </YStack>
             )}

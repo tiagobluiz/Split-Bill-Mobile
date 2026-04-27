@@ -296,6 +296,10 @@ export function HomeScreenView() {
       settings.splitListAmountDisplay,
       settings.balanceFeatureEnabled,
     );
+  const hasLegacySplitListAmountDisplayMismatch =
+    (settings.balanceFeatureEnabled ?? true) === false &&
+    (settings.splitListAmountDisplay ?? "remaining") !==
+      normalizedStoredSplitListAmountDisplay;
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !==
@@ -305,6 +309,7 @@ export function HomeScreenView() {
       (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !==
       (settings.defaultCurrency ?? "") ||
+    hasLegacySplitListAmountDisplayMismatch ||
     splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
     JSON.stringify(customCurrenciesDraft) !==
       JSON.stringify(settings.customCurrencies ?? []);

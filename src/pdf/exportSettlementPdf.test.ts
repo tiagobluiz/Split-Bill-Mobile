@@ -8,7 +8,7 @@ const mockExistingUris = new Set<string>();
 
 jest.mock("expo-file-system", () => ({
   Paths: {
-    document: { uri: "file:///docs" },
+    document: { uri: "file:///docs/" },
   },
   File: class MockFile {
     uri: string;
@@ -18,8 +18,9 @@ jest.mock("expo-file-system", () => ({
         typeof segment === "string" ? segment : (segment.uri ?? "")
       );
       const [firstSegment, ...rest] = normalized;
+      const normalizedFirstSegment = firstSegment.replace(/\/+$/, "");
       const trimmedRest = rest.map((segment) => segment.replace(/^\/+/, ""));
-      this.uri = [firstSegment, ...trimmedRest].join("/");
+      this.uri = [normalizedFirstSegment, ...trimmedRest].join("/");
     }
 
     get exists() {
@@ -108,6 +109,7 @@ describe("mobile PDF export", () => {
       uri: "file:///tmp/split-bill.pdf",
       numberOfPages: 1,
     });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
     isAvailableAsync.mockResolvedValue(true);
     shareAsync.mockResolvedValue(undefined);
 
@@ -129,6 +131,7 @@ describe("mobile PDF export", () => {
       "file:///tmp/split-bill.pdf",
       "file:///docs/grocery-bill-2026-03-09.pdf",
     );
+    expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(shareAsync).toHaveBeenCalledWith("file:///docs/grocery-bill-2026-03-09.pdf", {
       mimeType: "application/pdf",
       UTI: "com.adobe.pdf",
@@ -145,6 +148,7 @@ describe("mobile PDF export", () => {
       uri: "file:///tmp/split-bill.pdf",
       numberOfPages: 1,
     });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
     isAvailableAsync.mockResolvedValue(true);
     shareAsync.mockResolvedValue(undefined);
 
@@ -155,6 +159,7 @@ describe("mobile PDF export", () => {
       },
       pdfFixture.assumptions.locale,
     );
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
 
     await exportSettlementPdf(
       {
@@ -167,6 +172,7 @@ describe("mobile PDF export", () => {
     expect(mockDelete).toHaveBeenCalledWith(
       "file:///docs/grocery-bill-2026-03-09.pdf",
     );
+    expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(mockCopy).toHaveBeenNthCalledWith(
       2,
       "file:///tmp/split-bill.pdf",
