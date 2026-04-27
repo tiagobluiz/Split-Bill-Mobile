@@ -3,6 +3,8 @@ jest.mock("expo-print", () => ({
 }));
 
 const mockCopy = jest.fn();
+const mockDelete = jest.fn();
+const mockExistingUris = new Set<string>();
 
 jest.mock("expo-file-system", () => ({
   Paths: {
@@ -20,8 +22,18 @@ jest.mock("expo-file-system", () => ({
       this.uri = [firstSegment, ...trimmedRest].join("/");
     }
 
+    get exists() {
+      return mockExistingUris.has(this.uri);
+    }
+
+    delete() {
+      mockDelete(this.uri);
+      mockExistingUris.delete(this.uri);
+    }
+
     copy(destination: { uri: string }) {
       mockCopy(this.uri, destination.uri);
+      mockExistingUris.add(destination.uri);
     }
   },
 }));
@@ -41,6 +53,7 @@ import type { SplitFormValues } from "../domain";
 describe("mobile PDF export", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockExistingUris.clear();
     jest.useFakeTimers().setSystemTime(
       new Date("2026-03-09T12:00:00.000Z"),
     );
@@ -121,6 +134,52 @@ describe("mobile PDF export", () => {
       UTI: "com.adobe.pdf",
       dialogTitle: "grocery-bill-2026-03-09.pdf",
     });
+  });
+
+  it("replaces an existing named PDF before sharing again", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    isAvailableAsync.mockResolvedValue(true);
+    shareAsync.mockResolvedValue(undefined);
+
+    await exportSettlementPdf(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    await exportSettlementPdf(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(mockDelete).toHaveBeenCalledWith(
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+    );
+    expect(mockCopy).toHaveBeenNthCalledWith(
+      2,
+      "file:///tmp/split-bill.pdf",
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+    );
+    expect(shareAsync).toHaveBeenLastCalledWith(
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+      {
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+        dialogTitle: "grocery-bill-2026-03-09.pdf",
+      },
+    );
   });
 
   it("throws when the split is invalid", async () => {

@@ -321,6 +321,9 @@ export async function exportSettlementPdf(
   });
 
   const destinationFile = new File(Paths.document, data.fileName);
+  if (destinationFile.exists) {
+    destinationFile.delete();
+  }
   new File(uri).copy(destinationFile);
 
   await Sharing.shareAsync(destinationFile.uri, {
