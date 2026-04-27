@@ -90,7 +90,7 @@ jest.mock("./store", () => ({
       : null
   ),
   getClipboardSummaryPreview: jest.fn((record: any) =>
-    record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+    record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
   ),
   getPdfExportPreview: jest.fn((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null)),
 }));
@@ -244,7 +244,7 @@ describe("split screens", () => {
         : null
     );
     store.getClipboardSummaryPreview.mockImplementation((record: any) =>
-      record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+      record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
     );
     store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
   });
@@ -1149,9 +1149,36 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      splitListAmountDisplay: "remaining",
+      splitListAmountDisplay: "total",
       customCurrencies: [],
     });
+  });
+
+  it("disables balance-based split row options and falls back to total when balance helper is off", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(screen.getByLabelText("Outstanding balance").props.accessibilityState.disabled).toBeFalsy();
+    fireEvent.press(screen.getByLabelText("Total + outstanding"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+    });
+
+    expect(screen.getByText("Total bill")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(screen.getByLabelText("Outstanding balance").props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByLabelText("Total + outstanding").props.accessibilityState.disabled).toBe(true);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        balanceFeatureEnabled: false,
+        splitListAmountDisplay: "total",
+      }),
+    );
   });
 
   it("saves the split row amount display preference", async () => {
@@ -1239,7 +1266,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "PO2",
-      splitListAmountDisplay: "remaining",
+      splitListAmountDisplay: "total",
       customCurrencies: [
         { code: "POI", name: "Points", symbol: "P" },
         { code: "PO2", name: "Points", symbol: "P" },
@@ -1326,7 +1353,7 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "CUR",
-      splitListAmountDisplay: "remaining",
+      splitListAmountDisplay: "total",
       customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
     });
   });

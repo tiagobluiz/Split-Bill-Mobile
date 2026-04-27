@@ -41,7 +41,7 @@ import {
   getAssignedParticipantCount,
   getFriendlySplitMessage,
   getItemCategoryLabel,
-  getLatestPendingSplitItemId,
+  getNextPendingSplitItemId,
   getPercentInputMessage,
   hasTrailingPercentSeparator,
   normalizeCommittedPercentValue,
@@ -569,7 +569,7 @@ export function SplitItemScreen({
     ...record.values,
     items: [item],
   }).map((error) => error.message);
-  const pendingNextItemId = getLatestPendingSplitItemId(record, item.id);
+  const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
   const ctaLabel = pendingNextItemId
     ? "Confirm & Split Next"
     : "Confirm & Review";
@@ -862,7 +862,7 @@ export function SplitItemScreen({
         : item;
 
     await saveItemSplit(item.id, committedItem);
-    const nextPendingItemId = getLatestPendingSplitItemId(
+    const nextPendingItemId = getNextPendingSplitItemId(
       {
         ...record,
         values: {
@@ -1126,11 +1126,8 @@ export function SplitItemScreen({
                   remainingPercentForParticipant > percentValue + 0.001 &&
                   totalPercent < 99.99;
 
-                return (
-                  <View
-                    key={participant.id}
-                    style={screenStyles.splitParticipantCard}
-                  >
+                const participantControls = (
+                  <>
                     <XStack
                       alignItems="center"
                       justifyContent="space-between"
@@ -1170,20 +1167,18 @@ export function SplitItemScreen({
                       </XStack>
 
                       {item.splitMode === "even" ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Toggle even split for ${participant.name}`}
-                          onPress={() => toggleEvenIncluded(participant.id)}
-                          style={
+                        <View
+                          style={[
                             allocation.evenIncluded
                               ? screenStyles.payerSelectedIndicator
-                              : screenStyles.payerUnselectedIndicator
-                          }
+                              : screenStyles.payerUnselectedIndicator,
+                            { pointerEvents: "none" },
+                          ]}
                         >
                           {allocation.evenIncluded ? (
                             <Check color={PALETTE.onPrimary} size={16} />
                           ) : null}
-                        </Pressable>
+                        </View>
                       ) : null}
 
                       {item.splitMode === "shares" ? (
@@ -1340,6 +1335,25 @@ export function SplitItemScreen({
                         </XStack>
                       </YStack>
                     ) : null}
+                  </>
+                );
+
+                return item.splitMode === "even" ? (
+                  <Pressable
+                    key={participant.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Toggle even split for ${participant.name}`}
+                    onPress={() => toggleEvenIncluded(participant.id)}
+                    style={screenStyles.splitParticipantCard}
+                  >
+                    {participantControls}
+                  </Pressable>
+                ) : (
+                  <View
+                    key={participant.id}
+                    style={screenStyles.splitParticipantCard}
+                  >
+                    {participantControls}
                   </View>
                 );
               })}

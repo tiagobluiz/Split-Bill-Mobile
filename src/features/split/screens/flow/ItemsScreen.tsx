@@ -104,8 +104,8 @@ import {
   getDraftPendingStep,
   getFriendlySplitMessage,
   getItemCategoryLabel,
-  getLatestPendingSplitItem,
-  getLatestPendingSplitItemId,
+  getNextPendingSplitItem,
+  getNextPendingSplitItemId,
   getPercentInputMessage,
   getRecordTitle,
   hasTrailingPercentSeparator,
@@ -391,7 +391,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   }
                 }
                 await setStep(5);
-                const nextItem = getLatestPendingSplitItem(
+                const nextItem = getNextPendingSplitItem(
                   effectiveRecordForStep,
                 );
                 router.push(

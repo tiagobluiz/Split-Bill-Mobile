@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -98,6 +98,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
   const importPastedList = useSplitStore((state) => state.importPastedList);
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView | null>(null);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"append" | "replace">("append");
   const [step, setStep] = useState<1 | 2>(1);
@@ -147,6 +148,13 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   );
   const locale = getDeviceLocale();
 
+  const openStepTwo = () => {
+    setStep(2);
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    });
+  };
+
   const copyPromptAndOpenAi = async () => {
     try {
       await Clipboard.setStringAsync(prompt);
@@ -160,7 +168,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       } else {
         await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
       }
-      setStep(2);
+      openStepTwo();
     } catch (error) {
       console.warn("Failed to launch AI receipt handoff", error);
       Alert.alert(
@@ -221,18 +229,80 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void copyPromptAndOpenAi()}
                 />
-                <Pressable accessibilityRole="button" accessibilityLabel="I already have the item list" onPress={() => setStep(2)}>
+                <Pressable accessibilityRole="button" accessibilityLabel="I already have the item list" onPress={openStepTwo}>
                   <Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
                     I already have the item list
                   </Text>
                 </Pressable>
               </>
             ) : (
-              <PrimaryButton
-                label="Review Items"
-                icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
-                onPress={() => void applyImport()}
-              />
+              <YStack gap="$2.5">
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={10}
+                  color={PALETTE.onSurfaceVariant}
+                  textTransform="uppercase"
+                  letterSpacing={2.1}
+                >
+                  Import preview
+                </Text>
+                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+                  {[
+                    {
+                      label: "Accepted",
+                      value: `${parsedItemCount}`,
+                      color: PALETTE.onSurface,
+                    },
+                    {
+                      label: "Total",
+                      value: formatMoney(
+                        estimatedTotalCents,
+                        record.values.currency,
+                        locale,
+                      ),
+                      color: PALETTE.onSurface,
+                    },
+                    {
+                      label: "Ignored",
+                      value: `${ignoredLineCount}`,
+                      color:
+                        ignoredLineCount > 0
+                          ? PALETTE.primary
+                          : PALETTE.onSurface,
+                    },
+                  ].map((stat) => (
+                    <YStack
+                      key={stat.label}
+                      accessible={true}
+                      accessibilityLabel={`${stat.label}: ${stat.value}`}
+                      flex={1}
+                      gap="$0.5"
+                    >
+                      <Text
+                        fontFamily={FONTS.headlineBlack}
+                        fontSize={stat.label === "Total" ? 24 : 22}
+                        color={stat.color}
+                        letterSpacing={-1}
+                      >
+                        {stat.value}
+                      </Text>
+                      <Text
+                        fontFamily={FONTS.bodyMedium}
+                        fontSize={12}
+                        color={PALETTE.onSurfaceVariant}
+                      >
+                        {stat.label}
+                      </Text>
+                    </YStack>
+                  ))}
+                </XStack>
+                <PrimaryButton
+                  label="Add & Review Items"
+                  icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
+                  onPress={() => void applyImport()}
+                  disabled={parsedItemCount === 0}
+                />
+              </YStack>
             )}
           </YStack>
         </FloatingFooter>
@@ -256,10 +326,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         />
       </View>
       <ScrollView
+        ref={scrollViewRef}
         style={screenStyles.flex}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
-          { paddingBottom: 168 + Math.max(insets.bottom, 14), gap: 22 },
+          { paddingBottom: 228 + Math.max(insets.bottom, 14), gap: 22 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -357,9 +428,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
               <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={PALETTE.onSurface} letterSpacing={-0.8}>
                 Paste item list
               </Text>
-              <Paragraph color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={15} lineHeight={22}>
-                Paste the result from your AI tool. We will identify prices and create editable items automatically.
-              </Paragraph>
             </SectionCard>
 
             <SectionCard>
@@ -389,137 +457,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
               <SoftInput value={input} onChangeText={setInput} multiline placeholder={"Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"} />
             </SectionCard>
 
-            <View
-              style={[
-                screenStyles.ctaHalo,
-                {
-                  backgroundColor:
-                    parsedItemCount > 0
-                      ? "rgba(0,106,96,0.08)"
-                      : "rgba(157,68,1,0.06)",
-                },
-              ]}
-            >
-              <View
-                style={[
-                  screenStyles.homeCta,
-                  {
-                    minHeight: 112,
-                    paddingHorizontal: 18,
-                    paddingVertical: 16,
-                    backgroundColor:
-                      parsedItemCount > 0
-                        ? IMPORT_STATUS_CTA_BACKGROUND
-                        : PALETTE.surfaceContainerHighest,
-                    shadowColor: PALETTE.primary,
-                    shadowOpacity: parsedItemCount > 0 ? 0.08 : 0.06,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    screenStyles.homeCtaIconWrap,
-                    {
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      marginBottom: 2,
-                      backgroundColor:
-                        parsedItemCount > 0
-                          ? "rgba(255,255,255,0.74)"
-                          : PALETTE.surfaceContainerLowest,
-                    },
-                  ]}
-                >
-                  {parsedItemCount > 0 ? (
-                    <CheckCircle2 color={PALETTE.success} size={21} />
-                  ) : (
-                    <Info color={PALETTE.onSurfaceVariant} size={20} />
-                  )}
-                </View>
-                <YStack gap="$2.5" alignItems="center" width="100%">
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={11}
-                    color={parsedItemCount > 0 ? PALETTE.success : PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={1.6}
-                    textAlign="center"
-                  >
-                    {hasPastedText ? "Import preview" : "Ready for your list"}
-                  </Text>
-                  {hasPastedText ? (
-                    <XStack gap="$2" width="100%" justifyContent="center">
-                      {[
-                        {
-                          label: "Accepted",
-                          value: `${parsedItemCount}`,
-                        },
-                        {
-                          label: "Total",
-                          value: formatMoney(
-                            estimatedTotalCents,
-                            record.values.currency,
-                            locale,
-                          ),
-                        },
-                        {
-                          label: "Ignored",
-                          value: `${ignoredLineCount}`,
-                        },
-                      ].map((stat) => (
-                        <YStack
-                          key={stat.label}
-                          accessibilityLabel={`${stat.label}: ${stat.value}`}
-                          flex={1}
-                          borderRadius={18}
-                          paddingHorizontal="$2"
-                          paddingVertical="$2.5"
-                          alignItems="center"
-                          backgroundColor={
-                            parsedItemCount > 0
-                              ? "rgba(255,255,255,0.58)"
-                              : "rgba(255,255,255,0.72)"
-                          }
-                        >
-                          <Text
-                            fontFamily={FONTS.bodyBold}
-                            fontSize={10}
-                            color={PALETTE.onSurfaceVariant}
-                            textTransform="uppercase"
-                            letterSpacing={1}
-                          >
-                            {stat.label}
-                          </Text>
-                          <Text
-                            fontFamily={FONTS.headlineBold}
-                            fontSize={13}
-                            color={
-                              stat.label === "Ignored" && ignoredLineCount > 0
-                                ? PALETTE.primary
-                                : PALETTE.onSurface
-                            }
-                            textAlign="center"
-                          >
-                            {stat.value}
-                          </Text>
-                        </YStack>
-                      ))}
-                    </XStack>
-                  ) : (
-                    <Paragraph
-                      color={PALETTE.onSurfaceVariant}
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={12}
-                      lineHeight={17}
-                      textAlign="center"
-                    >
-                      Paste one item per line. Format: Item - Price
-                    </Paragraph>
-                  )}
-                </YStack>
-              </View>
-            </View>
           </YStack>
         )}
       </ScrollView>

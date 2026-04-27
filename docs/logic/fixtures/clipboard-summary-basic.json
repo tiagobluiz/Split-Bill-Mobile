@@ -26,5 +26,5 @@
       }
     ]
   },
-  "expectedText": "Split Bill summary\nMike: paid €9.00 and should get back €6.00.\nAna: owes €3.00.\nZoe: owes €3.00."
+  "expectedText": "Split Bill\nMike: paid €9.00 and should get back €6.00.\nAna: owes €3.00.\nZoe: owes €3.00."
 }

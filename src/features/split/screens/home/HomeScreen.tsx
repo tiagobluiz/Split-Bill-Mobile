@@ -118,6 +118,28 @@ const SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS: Array<{
   },
 ];
 const MAX_OWNER_NAME_LENGTH = 12;
+
+function isBalanceDependentSplitListAmountDisplay(
+  value: SplitListAmountDisplay,
+) {
+  return value === "remaining" || value === "totalAndRemaining";
+}
+
+function normalizeSplitListAmountDisplaySetting(
+  value: SplitListAmountDisplay | undefined,
+  balanceFeatureEnabled: boolean | undefined,
+): SplitListAmountDisplay {
+  const resolvedValue = value ?? "remaining";
+  if (
+    balanceFeatureEnabled === false &&
+    isBalanceDependentSplitListAmountDisplay(resolvedValue)
+  ) {
+    return "total";
+  }
+
+  return resolvedValue;
+}
+
 export function HomeScreenView() {
   const { records, createDraft, removeRecord, settings, updateSettings } =
     useSplitStore(
@@ -167,11 +189,28 @@ export function HomeScreenView() {
   );
   const [splitListAmountDisplayDraft, setSplitListAmountDisplayDraft] =
     useState<SplitListAmountDisplay>(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
   );
+  const availableSplitListAmountDisplayOptions =
+    SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => {
+      const disabled =
+        !balanceFeatureEnabledDraft &&
+        isBalanceDependentSplitListAmountDisplay(option.key);
+
+      return {
+        ...option,
+        disabled,
+        description: disabled
+          ? `${option.description} Requires Balance helper to be on.`
+          : option.description,
+      };
+    });
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
@@ -252,6 +291,15 @@ export function HomeScreenView() {
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
   });
+  const normalizedStoredSplitListAmountDisplay =
+    normalizeSplitListAmountDisplaySetting(
+      settings.splitListAmountDisplay,
+      settings.balanceFeatureEnabled,
+    );
+  const hasLegacySplitListAmountDisplayMismatch =
+    (settings.balanceFeatureEnabled ?? true) === false &&
+    (settings.splitListAmountDisplay ?? "remaining") !==
+      normalizedStoredSplitListAmountDisplay;
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !==
@@ -261,8 +309,8 @@ export function HomeScreenView() {
       (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !==
       (settings.defaultCurrency ?? "") ||
-    splitListAmountDisplayDraft !==
-      (settings.splitListAmountDisplay ?? "remaining") ||
+    hasLegacySplitListAmountDisplayMismatch ||
+    splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
     JSON.stringify(customCurrenciesDraft) !==
       JSON.stringify(settings.customCurrencies ?? []);
   const commitPendingDelete = async (nextPending: {
@@ -313,7 +361,10 @@ export function HomeScreenView() {
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setSplitListAmountDisplayDraft(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
   }, [
@@ -330,6 +381,11 @@ export function HomeScreenView() {
   }, [activityBalanceFilter, activityDateFilter, activityStateFilter]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
+    const persistedSplitListAmountDisplay =
+      !balanceFeatureEnabledDraft &&
+      isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)
+        ? "total"
+        : splitListAmountDisplayDraft;
     if (!trimmedName) {
       setSettingsNoticeTitle("Almost there");
       setSettingsNoticeMessages(["Please choose a short name for yourself."]);
@@ -347,7 +403,7 @@ export function HomeScreenView() {
         balanceFeatureEnabled: balanceFeatureEnabledDraft,
         trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
         defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
-        splitListAmountDisplay: splitListAmountDisplayDraft,
+        splitListAmountDisplay: persistedSplitListAmountDisplay,
         customCurrencies: customCurrenciesDraft,
       });
       setCurrencyMenuOpen(false);
@@ -374,7 +430,10 @@ export function HomeScreenView() {
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setSplitListAmountDisplayDraft(
-      settings.splitListAmountDisplay ?? "remaining",
+      normalizeSplitListAmountDisplaySetting(
+        settings.splitListAmountDisplay,
+        settings.balanceFeatureEnabled,
+      ),
     );
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
     setCustomCurrencyName("");
@@ -1126,6 +1185,14 @@ export function HomeScreenView() {
                 onPress={() => {
                   const nextBalance = !balanceFeatureEnabledDraft;
                   setBalanceFeatureEnabledDraft(nextBalance);
+                  if (
+                    !nextBalance &&
+                    isBalanceDependentSplitListAmountDisplay(
+                      splitListAmountDisplayDraft,
+                    )
+                  ) {
+                    setSplitListAmountDisplayDraft("total");
+                  }
                   setTrackPaymentsFeatureEnabledDraft((value) =>
                     nextBalance ? true : value,
                   );
@@ -1301,10 +1368,11 @@ export function HomeScreenView() {
       {splitListAmountDisplayMenuOpen ? (
         <ActionSheetModal
           title="Choose what split rows show"
-          options={SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => ({
+          options={availableSplitListAmountDisplayOptions.map((option) => ({
             label: option.label,
             description: option.description,
             selected: option.key === splitListAmountDisplayDraft,
+            disabled: option.disabled,
             onPress: () => {
               setSplitListAmountDisplayDraft(option.key);
               setSplitListAmountDisplayMenuOpen(false);

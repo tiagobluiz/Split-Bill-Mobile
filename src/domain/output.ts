@@ -8,6 +8,11 @@ function comparePeopleBySummaryOrder(left: { name: string; isPayer: boolean }, r
   return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
 }
 
+function getClipboardSummaryTitle(values: SplitFormValues) {
+  const splitName = values.splitName?.trim();
+  return splitName ? `Split Bill - ${splitName}` : "Split Bill";
+}
+
 export function buildClipboardSummary(
   values: SplitFormValues,
   locale = "en-US",
@@ -46,7 +51,7 @@ export function buildClipboardSummary(
       netCents: -nonPayerNetCents,
     };
   });
-  const lines = ["Split Bill summary"];
+  const lines = [getClipboardSummaryTitle(normalized)];
 
   adjustedPeople.forEach((person) => {
     if (person.isPayer) {

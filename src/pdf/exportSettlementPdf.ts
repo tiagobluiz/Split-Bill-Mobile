@@ -1,5 +1,6 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { File, Paths } from "expo-file-system";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
@@ -258,7 +259,7 @@ export function renderSettlementPdfHtml(
     <body>
       <div class="header">
         <h1 class="title">${escapeHtml(data.appName)}</h1>
-        <p class="subtitle">Grocery bill split summary</p>
+        <p class="subtitle">${escapeHtml(data.splitTitle || "Split Bill summary")}</p>
         <p class="subtitle">Exported ${escapeHtml(data.exportDateLabel)}</p>
         <p class="subtitle">Currency ${escapeHtml(data.currency)}</p>
       </div>
@@ -319,7 +320,20 @@ export async function exportSettlementPdf(
     base64: false,
   });
 
-  await Sharing.shareAsync(uri, {
+  const sourceFile = new File(uri);
+  const destinationFile = new File(Paths.document, data.fileName);
+  if (destinationFile.exists) {
+    destinationFile.delete();
+  }
+  try {
+    sourceFile.copy(destinationFile);
+  } finally {
+    if (sourceFile.exists) {
+      sourceFile.delete();
+    }
+  }
+
+  await Sharing.shareAsync(destinationFile.uri, {
     mimeType: "application/pdf",
     UTI: "com.adobe.pdf",
     dialogTitle: data.fileName,

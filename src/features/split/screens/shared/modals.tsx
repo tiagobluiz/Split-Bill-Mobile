@@ -19,6 +19,7 @@ export function ActionSheetModal({
     onPress: () => void;
     tone?: "default" | "danger";
     selected?: boolean;
+    disabled?: boolean;
   }>;
   onDismiss: () => void;
 }) {
@@ -36,19 +37,30 @@ export function ActionSheetModal({
               accessibilityRole="button"
               accessibilityLabel={option.label}
               accessibilityHint={option.description}
-              accessibilityState={{ selected: Boolean(option.selected) }}
+              accessibilityState={{
+                selected: Boolean(option.selected),
+                disabled: Boolean(option.disabled),
+              }}
+              disabled={option.disabled}
               style={[
                 screenStyles.actionSheetButton,
                 option.selected ? screenStyles.actionSheetButtonSelected : null,
                 option.tone === "danger" ? screenStyles.actionSheetButtonDanger : null,
+                option.disabled ? { opacity: 0.55 } : null,
               ]}
-              onPress={option.onPress}
+              onPress={option.disabled ? undefined : option.onPress}
             >
               <YStack gap="$1.5">
                 <Text
                   fontFamily={FONTS.bodyBold}
                   fontSize={15}
-                  color={option.tone === "danger" ? "#b43d29" : PALETTE.primary}
+                  color={
+                    option.disabled
+                      ? PALETTE.onSurfaceVariant
+                      : option.tone === "danger"
+                        ? "#b43d29"
+                        : PALETTE.primary
+                  }
                 >
                   {option.label}
                 </Text>

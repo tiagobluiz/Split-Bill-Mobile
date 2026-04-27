@@ -39,6 +39,7 @@ export type PdfExportPersonBreakdown = {
 
 export type PdfExportData = {
   appName: string;
+  splitTitle: string;
   exportDateLabel: string;
   fileName: string;
   currency: string;
@@ -70,11 +71,32 @@ function formatDatePart(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-export function buildPdfFilename(date = new Date()) {
+function slugifySplitName(splitName?: string) {
+  const normalized = splitName?.trim().toLowerCase() ?? "";
+  const slug = normalized
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  return slug;
+}
+
+function getPdfTitle(splitName?: string) {
+  const trimmedName = splitName?.trim();
+  return trimmedName && trimmedName.length > 0
+    ? `${trimmedName} split summary`
+    : "Split Bill summary";
+}
+
+export function buildPdfFilename(splitName?: string, date = new Date()) {
   const year = date.getFullYear();
   const month = formatDatePart(date.getMonth() + 1);
   const day = formatDatePart(date.getDate());
-  return `split-bill-${year}-${month}-${day}.pdf`;
+  const slug = slugifySplitName(splitName);
+
+  return slug.length > 0
+    ? `${slug}-${year}-${month}-${day}.pdf`
+    : `split-bill-${year}-${month}-${day}.pdf`;
 }
 
 function getSplitModeLabel(splitMode: SplitMode) {
@@ -160,9 +182,10 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
   }));
 
   return {
-    appName: "Split-Bill",
+    appName: "Split Bill",
+    splitTitle: getPdfTitle(values.splitName),
     exportDateLabel: formatExportDate(date, locale),
-    fileName: buildPdfFilename(date),
+    fileName: buildPdfFilename(values.splitName, date),
     currency: settlement.data.currency,
     totalCents: settlement.data.totalCents,
     note: "Item breakdown is provisional. Final leftover cents are balanced in the final balances section.",

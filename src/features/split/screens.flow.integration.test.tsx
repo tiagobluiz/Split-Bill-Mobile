@@ -97,7 +97,7 @@ jest.mock("./store", () => ({
       : null
   ),
   getClipboardSummaryPreview: jest.fn((record: any) =>
-    record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+    record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
   ),
   getPdfExportPreview: jest.fn((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null)),
 }));
@@ -254,7 +254,7 @@ describe("split screens", () => {
         : null
     );
     store.getClipboardSummaryPreview.mockImplementation((record: any) =>
-      record ? "Split Bill summary\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+      record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
     );
     store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
     Object.defineProperty(Platform, "OS", {
@@ -1300,7 +1300,7 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
   });
 
-  it("routes from items into the latest pending split when an item is still unassigned", async () => {
+  it("routes from items into the earliest pending split when an item is still unassigned", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1332,7 +1332,7 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Split Bill"));
     });
-    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-2");
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-1");
   });
 
   it("ignores queued item deletions when advancing from items into split", async () => {
@@ -1732,11 +1732,21 @@ describe("split screens", () => {
     expect(screen.getByText("Ignored")).toBeTruthy();
     fireEvent.press(screen.getByText("Replace"));
     await act(async () => {
-      fireEvent.press(screen.getByText("Review Items"));
+      fireEvent.press(screen.getByText("Add & Review Items"));
     });
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Milk - 3.40", "replace");
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  it("uses the compact step 2 footer copy", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+
+    expect(screen.getByText("Add & Review Items")).toBeTruthy();
+    expect(
+      screen.queryByText(/Paste the result from your AI tool/i),
+    ).toBeNull();
   });
 
   it("excludes duplicate pasted rows from the import preview", () => {
@@ -1846,7 +1856,7 @@ describe("split screens", () => {
     });
     expect(screen.getByText("Import preview")).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByText("Review Items"));
+      fireEvent.press(screen.getByText("Add & Review Items"));
     });
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Tea - 1.25", "append");
     expect(mockBack).toHaveBeenCalled();
@@ -1865,7 +1875,7 @@ describe("split screens", () => {
     );
 
     await act(async () => {
-      fireEvent.press(screen.getByText("Review Items"));
+      fireEvent.press(screen.getByText("Add & Review Items"));
     });
 
     expect(mockAlert).toHaveBeenCalledWith(
@@ -1879,14 +1889,13 @@ describe("split screens", () => {
   it("shows paste status and allows review for an empty import", async () => {
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("I already have the item list"));
-    expect(screen.getByText("Ready for your list")).toBeTruthy();
-    expect(screen.getByText("Paste one item per line. Format: Item - Price")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByText("Review Items"));
-    });
+    expect(screen.getByText("Import preview")).toBeTruthy();
+    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 0")).toBeTruthy();
+    expect(screen.getByText("Add & Review Items")).toBeDisabled();
     expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it("shows invalid paste status before review and applies it as a no-op", async () => {
@@ -1897,12 +1906,10 @@ describe("split screens", () => {
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.queryByText("Ignored 1 pasted line that did not match the expected format.")).toBeNull();
-    await act(async () => {
-      fireEvent.press(screen.getByText("Review Items"));
-    });
-    expect(mockBack).toHaveBeenCalled();
+    expect(screen.getByText("Add & Review Items")).toBeDisabled();
+    expect(mockBack).not.toHaveBeenCalled();
     expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
+    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
   });
 
   it("routes the paste close header action to home", () => {
