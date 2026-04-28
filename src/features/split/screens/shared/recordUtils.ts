@@ -1,4 +1,5 @@
 import type { DraftRecord } from "../../../../storage/records";
+import type { StepValidationCode, StepValidationError } from "../../../../domain";
 import { STEP_ROUTE, resolveDraftStep } from "../../splitFlow";
 import { t, type TranslationKey } from "../../../../i18n";
 
@@ -101,14 +102,14 @@ export function cloneAllocations(allocations: DraftRecord["values"]["items"][num
   return allocations.map((allocation) => ({ ...allocation }));
 }
 
-const FRIENDLY_SPLIT_MESSAGE_KEYS: Record<string, TranslationKey> = {
-  "Add at least two participants, including the payer.": "validation.participantsMin",
-  "Add at least one non-zero item.": "friendly.itemsMin",
-  "Choose at least one participant for an even split.": "friendly.splitEvenMin",
-  "Total shares must be greater than zero.": "friendly.sharesTotalMin",
-  "Shares must be zero or more.": "friendly.sharesNonNegative",
-  "Percent must be zero or more.": "friendly.percentNonNegative",
-  "Percent totals must add up to 100.": "friendly.percentTotal",
+const FRIENDLY_SPLIT_MESSAGE_KEYS: Partial<Record<StepValidationCode, TranslationKey>> = {
+  "participants-min": "validation.participantsMin",
+  "items-min": "friendly.itemsMin",
+  "split-even-min": "friendly.splitEvenMin",
+  "shares-total-min": "friendly.sharesTotalMin",
+  "shares-non-negative": "friendly.sharesNonNegative",
+  "percent-non-negative": "friendly.percentNonNegative",
+  "percent-total": "friendly.percentTotal",
 } as const;
 
 export function formatPercentValue(value: number) {
@@ -195,9 +196,15 @@ export function rebalanceEditablePercentAllocations(
   });
 }
 
-export function getFriendlySplitMessage(message: string) {
-  const key = FRIENDLY_SPLIT_MESSAGE_KEYS[message];
-  return key ? t(key) : message;
+export function getFriendlySplitMessage(
+  error: Pick<StepValidationError, "code" | "message"> | string,
+) {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  const key = FRIENDLY_SPLIT_MESSAGE_KEYS[error.code];
+  return key ? t(key) : error.message;
 }
 
 export function buildRecordRoute(record: DraftRecord) {

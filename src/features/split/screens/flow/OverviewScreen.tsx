@@ -35,7 +35,7 @@ import { FlowScreenHeader } from "../shared/flowComponents";
 import { SplitNoticeModal } from "../shared/modals";
 import { useRecord } from "../shared/hooks";
 import { getParticipantDisplayName } from "../shared/participantUtils";
-import { isVisibleItem } from "../shared/recordUtils";
+import { getFriendlySplitMessage, isVisibleItem } from "../shared/recordUtils";
 import { getOverviewSettlementLabel } from "../shared/settlementUtils";
 import { screenStyles } from "../shared/styles";
 
@@ -73,7 +73,8 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
-  ].map((error) => error.message);
+  ];
+  const errorMessages = errors.map((error) => error.message);
   const locale = getDeviceLocale();
 
   return (
@@ -86,7 +87,9 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
             icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
-                setReviewNoticeMessages([...new Set(errors)]);
+                setReviewNoticeMessages([
+                  ...new Set(errors.map((error) => getFriendlySplitMessage(error))),
+                ]);
                 return;
               }
               router.push(`/split/${draftId}/results`);
@@ -207,7 +210,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
             </>
           ) : null}
 
-          <ErrorList messages={[...new Set(errors)]} />
+          <ErrorList messages={[...new Set(errorMessages)]} />
         </YStack>
       </ScrollView>
       <SplitNoticeModal

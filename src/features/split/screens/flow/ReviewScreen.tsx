@@ -18,6 +18,7 @@ import {
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
+  type StepValidationError,
   computeSettlement,
   formatMoney,
   parseMoneyToCents,
@@ -28,6 +29,7 @@ import {
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
+  getFriendlySplitMessage,
   getAssignedParticipantCount,
   isItemAssigned,
   isVisibleItem,
@@ -76,11 +78,11 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     visibleItems.length > 0
       ? Math.round((assignedCount / visibleItems.length) * 100)
       : 0;
-  const errors = [
+  const errors: StepValidationError[] = [
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
-  ].map((error) => error.message);
+  ];
   const locale = getDeviceLocale();
   const isReviewScrollable = reviewContentHeight > reviewViewportHeight + 1;
 
@@ -95,7 +97,15 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
                 setReviewNoticeMessages([
-                  t("friendly.itemsMin"),
+                  ...new Set(
+                    (errors.length > 0
+                      ? errors
+                      : [{ code: "items-min", message: t("friendly.itemsMin") } as Pick<
+                          StepValidationError,
+                          "code" | "message"
+                        >]
+                    ).map((error) => getFriendlySplitMessage(error)),
+                  ),
                 ]);
                 return;
               }

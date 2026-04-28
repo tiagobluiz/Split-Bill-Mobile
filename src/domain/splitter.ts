@@ -37,7 +37,28 @@ export const ITEM_NAME_MAX_LENGTH = 32;
 export const ITEM_AMOUNT_MAX_CENTS = 100_000_000;
 export const ITEM_AMOUNT_TOO_HIGH_MESSAGE = "Maximum is 1 000 000";
 
+export type StepValidationCode =
+  | "participant-name-required"
+  | "participant-name-max"
+  | "participant-name-unique"
+  | "participants-min"
+  | "payer-required"
+  | "payer-must-exist"
+  | "items-min"
+  | "item-name-required"
+  | "item-name-required-when-amount"
+  | "item-name-max"
+  | "item-amount-invalid"
+  | "item-amount-too-high"
+  | "item-duplicate"
+  | "split-even-min"
+  | "shares-total-min"
+  | "shares-non-negative"
+  | "percent-non-negative"
+  | "percent-total";
+
 export type StepValidationError = {
+  code: StepValidationCode;
   path: string;
   message: string;
 };
@@ -554,6 +575,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
   normalizedNames.forEach((name, index) => {
     if (!name) {
       errors.push({
+        code: "participant-name-required",
         path: `participants.${index}.name`,
         message: t("validation.participantNameRequired"),
       });
@@ -562,6 +584,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
     if (name.length > PARTICIPANT_NAME_MAX_LENGTH) {
       errors.push({
+        code: "participant-name-max",
         path: `participants.${index}.name`,
         message: t("validation.participantNameMax", {
           max: PARTICIPANT_NAME_MAX_LENGTH,
@@ -573,6 +596,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
     const normalized = name.toLowerCase();
     if (duplicates.has(normalized)) {
       errors.push({
+        code: "participant-name-unique",
         path: `participants.${index}.name`,
         message: t("validation.participantNameUnique"),
       });
@@ -584,6 +608,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
   if (values.participants.length < 2) {
     errors.push({
+      code: "participants-min",
       path: "participants",
       message: t("validation.participantsMin"),
     });
@@ -591,6 +616,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
   if (values.participants.length > 0 && !values.payerParticipantId) {
     errors.push({
+      code: "payer-required",
       path: "payerParticipantId",
       message: t("validation.payerRequired"),
     });
@@ -599,6 +625,7 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
     !values.participants.some((participant) => participant.id === values.payerParticipantId)
   ) {
     errors.push({
+      code: "payer-must-exist",
       path: "payerParticipantId",
       message: t("validation.payerMustExist"),
     });
@@ -612,12 +639,19 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
   const seenItemKeys = new Set<string>();
 
   if (values.items.length === 0) {
-    errors.push({ path: "items", message: t("validation.itemsMin") });
+    errors.push({
+      code: "items-min",
+      path: "items",
+      message: t("validation.itemsMin"),
+    });
   }
 
   values.items.forEach((item, index) => {
     if (!item.name.trim()) {
       errors.push({
+        code: item.price.trim()
+          ? "item-name-required-when-amount"
+          : "item-name-required",
         path: `items.${index}.name`,
         message: item.price.trim()
           ? t("validation.itemNameRequiredWhenAmount")
@@ -625,6 +659,7 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
       });
     } else if (item.name.trim().length > ITEM_NAME_MAX_LENGTH) {
       errors.push({
+        code: "item-name-max",
         path: `items.${index}.name`,
         message: t("validation.itemNameMax", { max: ITEM_NAME_MAX_LENGTH }),
       });
@@ -633,6 +668,7 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
     const parsedAmount = parseMoneyToCents(item.price);
     if (parsedAmount === null || parsedAmount === 0) {
       errors.push({
+        code: "item-amount-invalid",
         path: `items.${index}.price`,
         message: t("validation.itemAmountInvalid"),
       });
@@ -641,6 +677,7 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
 
     if (Math.abs(parsedAmount) > ITEM_AMOUNT_MAX_CENTS) {
       errors.push({
+        code: "item-amount-too-high",
         path: `items.${index}.price`,
         message: t("validation.itemAmountTooHigh"),
       });
@@ -650,6 +687,7 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
     if (uniqueKey) {
       if (seenItemKeys.has(uniqueKey)) {
         errors.push({
+          code: "item-duplicate",
           path: `items.${index}.name`,
           message: t("validation.itemDuplicate"),
         });
@@ -669,6 +707,7 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
       const included = item.allocations.filter((allocation) => allocation.evenIncluded);
       if (included.length === 0) {
         errors.push({
+          code: "split-even-min",
           path: `items.${itemIndex}.allocations`,
           message: t("validation.splitEvenMin"),
         });
@@ -684,6 +723,7 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
 
       if (totalShares <= 0) {
         errors.push({
+          code: "shares-total-min",
           path: `items.${itemIndex}.allocations`,
           message: t("validation.sharesTotalMin"),
         });
@@ -693,6 +733,7 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
         const shares = parseDecimal(allocation.shares);
         if (shares === null || shares < 0) {
           errors.push({
+            code: "shares-non-negative",
             path: `items.${itemIndex}.allocations.${allocationIndex}.shares`,
             message: t("validation.sharesNonNegative"),
           });
@@ -711,6 +752,7 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
       const percent = parseDecimal(allocation.percent);
       if (percent === null || percent < 0) {
         errors.push({
+          code: "percent-non-negative",
           path: `items.${itemIndex}.allocations.${allocationIndex}.percent`,
           message: t("validation.percentNonNegative"),
         });
@@ -719,6 +761,7 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
 
     if (Math.abs(totalPercent - 100) > 0.001) {
       errors.push({
+        code: "percent-total",
         path: `items.${itemIndex}.allocations`,
         message: t("validation.percentTotal"),
       });

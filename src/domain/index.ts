@@ -54,6 +54,7 @@ export type {
   PersonSummary,
   SplitFormValues,
   SplitMode,
+  StepValidationCode,
   StepValidationError,
   Transfer,
 } from "./splitter";

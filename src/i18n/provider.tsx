@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type PropsWithChildren } from "react";
+import { createContext, useContext, type PropsWithChildren } from "react";
 
 import {
   setI18nRuntime,
@@ -32,9 +32,7 @@ export function LocalizationProvider({
   humour,
   children,
 }: PropsWithChildren<{ language: AppLanguage; humour: AppHumour }>) {
-  useEffect(() => {
-    setI18nRuntime({ language, humour });
-  }, [humour, language]);
+  setI18nRuntime({ language, humour });
 
   return (
     <LocalizationContext.Provider
