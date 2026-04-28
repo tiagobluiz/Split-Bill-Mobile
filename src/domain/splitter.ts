@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 export type SplitMode = "even" | "shares" | "percent";
 
 export type ParticipantFormValue = {
@@ -35,7 +37,28 @@ export const ITEM_NAME_MAX_LENGTH = 32;
 export const ITEM_AMOUNT_MAX_CENTS = 100_000_000;
 export const ITEM_AMOUNT_TOO_HIGH_MESSAGE = "Maximum is 1 000 000";
 
+export type StepValidationCode =
+  | "participant-name-required"
+  | "participant-name-max"
+  | "participant-name-unique"
+  | "participants-min"
+  | "payer-required"
+  | "payer-must-exist"
+  | "items-min"
+  | "item-name-required"
+  | "item-name-required-when-amount"
+  | "item-name-max"
+  | "item-amount-invalid"
+  | "item-amount-too-high"
+  | "item-duplicate"
+  | "split-even-min"
+  | "shares-total-min"
+  | "shares-non-negative"
+  | "percent-non-negative"
+  | "percent-total";
+
 export type StepValidationError = {
+  code: StepValidationCode;
   path: string;
   message: string;
 };
@@ -551,21 +574,32 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
   normalizedNames.forEach((name, index) => {
     if (!name) {
-      errors.push({ path: `participants.${index}.name`, message: "Add a name for each participant." });
+      errors.push({
+        code: "participant-name-required",
+        path: `participants.${index}.name`,
+        message: t("validation.participantNameRequired"),
+      });
       return;
     }
 
     if (name.length > PARTICIPANT_NAME_MAX_LENGTH) {
       errors.push({
+        code: "participant-name-max",
         path: `participants.${index}.name`,
-        message: `Keep participant names under ${PARTICIPANT_NAME_MAX_LENGTH} characters.`,
+        message: t("validation.participantNameMax", {
+          max: PARTICIPANT_NAME_MAX_LENGTH,
+        }),
       });
       return;
     }
 
     const normalized = name.toLowerCase();
     if (duplicates.has(normalized)) {
-      errors.push({ path: `participants.${index}.name`, message: "Participant names must be unique." });
+      errors.push({
+        code: "participant-name-unique",
+        path: `participants.${index}.name`,
+        message: t("validation.participantNameUnique"),
+      });
       return;
     }
 
@@ -574,20 +608,26 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
   if (values.participants.length < 2) {
     errors.push({
+      code: "participants-min",
       path: "participants",
-      message: "Add at least two participants, including the payer.",
+      message: t("validation.participantsMin"),
     });
   }
 
   if (values.participants.length > 0 && !values.payerParticipantId) {
-    errors.push({ path: "payerParticipantId", message: "Choose who paid the bill." });
+    errors.push({
+      code: "payer-required",
+      path: "payerParticipantId",
+      message: t("validation.payerRequired"),
+    });
   } else if (
     values.participants.length > 0 &&
     !values.participants.some((participant) => participant.id === values.payerParticipantId)
   ) {
     errors.push({
+      code: "payer-must-exist",
       path: "payerParticipantId",
-      message: "The selected payer must be one of the participants.",
+      message: t("validation.payerMustExist"),
     });
   }
 
@@ -599,35 +639,47 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
   const seenItemKeys = new Set<string>();
 
   if (values.items.length === 0) {
-    errors.push({ path: "items", message: "Add at least one item before continuing." });
+    errors.push({
+      code: "items-min",
+      path: "items",
+      message: t("validation.itemsMin"),
+    });
   }
 
   values.items.forEach((item, index) => {
     if (!item.name.trim()) {
       errors.push({
+        code: item.price.trim()
+          ? "item-name-required-when-amount"
+          : "item-name-required",
         path: `items.${index}.name`,
-        message: item.price.trim() ? "This item needs a name." : "Add an item name.",
+        message: item.price.trim()
+          ? t("validation.itemNameRequiredWhenAmount")
+          : t("validation.itemNameRequired"),
       });
     } else if (item.name.trim().length > ITEM_NAME_MAX_LENGTH) {
       errors.push({
+        code: "item-name-max",
         path: `items.${index}.name`,
-        message: `Keep item names under ${ITEM_NAME_MAX_LENGTH} characters.`,
+        message: t("validation.itemNameMax", { max: ITEM_NAME_MAX_LENGTH }),
       });
     }
 
     const parsedAmount = parseMoneyToCents(item.price);
     if (parsedAmount === null || parsedAmount === 0) {
       errors.push({
+        code: "item-amount-invalid",
         path: `items.${index}.price`,
-        message: "Enter a valid amount different from zero.",
+        message: t("validation.itemAmountInvalid"),
       });
       return;
     }
 
     if (Math.abs(parsedAmount) > ITEM_AMOUNT_MAX_CENTS) {
       errors.push({
+        code: "item-amount-too-high",
         path: `items.${index}.price`,
-        message: ITEM_AMOUNT_TOO_HIGH_MESSAGE,
+        message: t("validation.itemAmountTooHigh"),
       });
     }
 
@@ -635,8 +687,9 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
     if (uniqueKey) {
       if (seenItemKeys.has(uniqueKey)) {
         errors.push({
+          code: "item-duplicate",
           path: `items.${index}.name`,
-          message: "This item already exists. Change the name, price, or category.",
+          message: t("validation.itemDuplicate"),
         });
       }
       seenItemKeys.add(uniqueKey);
@@ -654,8 +707,9 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
       const included = item.allocations.filter((allocation) => allocation.evenIncluded);
       if (included.length === 0) {
         errors.push({
+          code: "split-even-min",
           path: `items.${itemIndex}.allocations`,
-          message: "Choose at least one participant for an even split.",
+          message: t("validation.splitEvenMin"),
         });
       }
       return;
@@ -669,8 +723,9 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
 
       if (totalShares <= 0) {
         errors.push({
+          code: "shares-total-min",
           path: `items.${itemIndex}.allocations`,
-          message: "Total shares must be greater than zero.",
+          message: t("validation.sharesTotalMin"),
         });
       }
 
@@ -678,8 +733,9 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
         const shares = parseDecimal(allocation.shares);
         if (shares === null || shares < 0) {
           errors.push({
+            code: "shares-non-negative",
             path: `items.${itemIndex}.allocations.${allocationIndex}.shares`,
-            message: "Shares must be zero or more.",
+            message: t("validation.sharesNonNegative"),
           });
         }
       });
@@ -696,16 +752,18 @@ export function validateStepThree(values: SplitFormValues): StepValidationError[
       const percent = parseDecimal(allocation.percent);
       if (percent === null || percent < 0) {
         errors.push({
+          code: "percent-non-negative",
           path: `items.${itemIndex}.allocations.${allocationIndex}.percent`,
-          message: "Percent must be zero or more.",
+          message: t("validation.percentNonNegative"),
         });
       }
     });
 
     if (Math.abs(totalPercent - 100) > 0.001) {
       errors.push({
+        code: "percent-total",
         path: `items.${itemIndex}.allocations`,
-        message: "Percent totals must add up to 100.",
+        message: t("validation.percentTotal"),
       });
     }
   });
@@ -858,7 +916,7 @@ export function buildShareSummary(item: ParsedItem, participants: ParsedParticip
   return item.shares
     .map((share) => {
       const participant = participants.find((entry) => entry.id === share.participantId);
-      return `${participant?.name ?? "Unknown"} ${formatMoney(share.amountCents, currency, locale)}`;
+      return `${participant?.name ?? t("pdf.unknownParticipant")} ${formatMoney(share.amountCents, currency, locale)}`;
     })
     .join(" • ");
 }

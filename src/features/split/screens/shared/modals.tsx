@@ -2,6 +2,7 @@ import { Pressable, View } from "react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { t } from "../../../../i18n";
 import { screenStyles } from "./styles";
 
 const Text = TamaguiText as any;
@@ -25,7 +26,7 @@ export function ActionSheetModal({
 }) {
   return (
     <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <Pressable accessibilityRole="button" accessibilityLabel="Dismiss action sheet" style={screenStyles.splitNoticeBackdrop} onPress={onDismiss} />
+      <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.splitNoticeBackdrop} onPress={onDismiss} />
       <View style={screenStyles.actionSheetCard}>
         <YStack gap="$2.5">
           <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
@@ -128,7 +129,7 @@ export function ConfirmChoiceModal({
 }
 
 export function SplitNoticeModal({
-  title = "Almost there",
+  title = t("common.almostThere"),
   messages,
   onDismiss,
 }: {
@@ -153,9 +154,9 @@ export function SplitNoticeModal({
               {message}
             </Text>
           ))}
-          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss split notice" style={screenStyles.splitNoticeButton} onPress={onDismiss}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissNotice")} style={screenStyles.splitNoticeButton} onPress={onDismiss}>
             <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
-              Okay
+              {t("common.ok")}
             </Text>
           </Pressable>
         </YStack>

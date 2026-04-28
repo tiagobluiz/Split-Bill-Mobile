@@ -22,6 +22,7 @@ import {
   SectionEyebrow,
   SoftInput,
 } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   buildReceiptLlmPrompt,
   formatMoney,
@@ -95,6 +96,7 @@ function AiProviderIcon({
 }
 
 export function PasteImportScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const importPastedList = useSplitStore((state) => state.importPastedList);
   const insets = useSafeAreaInsets();
@@ -172,8 +174,8 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     } catch (error) {
       console.warn("Failed to launch AI receipt handoff", error);
       Alert.alert(
-        "Could not open AI import",
-        "We could not copy the prompt or open the selected AI tool. Please try again.",
+        t("flow.import.openFailedTitle"),
+        t("flow.import.openFailedBody"),
       );
     }
   };
@@ -184,8 +186,8 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     } catch (error) {
       console.warn("Failed to copy AI receipt prompt", error);
       Alert.alert(
-        "Could not copy prompt",
-        "We could not copy the prompt. Please try again.",
+        t("flow.import.copyFailedTitle"),
+        t("flow.import.copyFailedBody"),
       );
     }
   };
@@ -193,27 +195,31 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const applyImport = async () => {
     try {
       const result = await importPastedList(input, mode);
+      const suppressedWarningCodes = new Set([
+        "no-items-detected",
+        "ignored-paste-lines",
+        "ignored-duplicate-imported-items",
+      ]);
+      const warningCodes = result.warningCodes ?? [];
       const actionableWarnings = result.warningMessages.filter(
-        (warning) =>
-          !warning.includes("No valid items were detected") &&
-          !warning.includes("pasted line") &&
-          !warning.includes("duplicate imported"),
+        (_warning, index) =>
+          !suppressedWarningCodes.has(warningCodes[index] ?? ""),
       );
       if (actionableWarnings.length > 0) {
-        Alert.alert("Import notes", actionableWarnings.join("\n"));
+        Alert.alert(t("flow.import.notesTitle"), actionableWarnings.join("\n"));
       }
       router.back();
     } catch (error) {
       console.warn("Failed to import pasted list", error);
       Alert.alert(
-        "Could not import items",
-        "We could not import the pasted list. Please try again.",
+        t("flow.import.applyFailedTitle"),
+        t("flow.import.applyFailedBody"),
       );
     }
   };
 
   if (!record) {
-    return <AppScreen scroll={false}><EmptyState title="Loading split" description="Opening your split record." /></AppScreen>;
+    return <AppScreen scroll={false}><EmptyState title={t("common.loadingSplitTitle")} description={t("common.loadingSplitDescription")} /></AppScreen>;
   }
 
   return (
@@ -225,13 +231,13 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             {step === 1 ? (
               <>
                 <PrimaryButton
-                  label="Copy Prompt & Open AI"
+                  label={t("flow.import.copyOpenAi")}
                   icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void copyPromptAndOpenAi()}
                 />
-                <Pressable accessibilityRole="button" accessibilityLabel="I already have the item list" onPress={openStepTwo}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("flow.import.alreadyHaveListA11y")} onPress={openStepTwo}>
                   <Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
-                    I already have the item list
+                    {t("flow.import.alreadyHaveList")}
                   </Text>
                 </Pressable>
               </>
@@ -244,17 +250,17 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   textTransform="uppercase"
                   letterSpacing={2.1}
                 >
-                  Import preview
+                  {t("flow.import.preview")}
                 </Text>
                 <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
                   {[
                     {
-                      label: "Accepted",
+                      label: t("flow.import.accepted"),
                       value: `${parsedItemCount}`,
                       color: PALETTE.onSurface,
                     },
                     {
-                      label: "Total",
+                      label: t("flow.import.total"),
                       value: formatMoney(
                         estimatedTotalCents,
                         record.values.currency,
@@ -263,7 +269,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                       color: PALETTE.onSurface,
                     },
                     {
-                      label: "Ignored",
+                      label: t("flow.import.ignored"),
                       value: `${ignoredLineCount}`,
                       color:
                         ignoredLineCount > 0
@@ -274,7 +280,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                     <YStack
                       key={stat.label}
                       accessible={true}
-                      accessibilityLabel={`${stat.label}: ${stat.value}`}
+                      accessibilityLabel={t("flow.import.previewA11y", { label: stat.label, value: stat.value })}
                       flex={1}
                       gap="$0.5"
                     >
@@ -297,7 +303,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   ))}
                 </XStack>
                 <PrimaryButton
-                  label="Add & Review Items"
+                  label={t("flow.import.addReview")}
                   icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void applyImport()}
                   disabled={parsedItemCount === 0}
@@ -315,7 +321,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Import Bill"
+          title={t("flow.import.title")}
           onBack={() => {
             if (step === 2) {
               setStep(1);
@@ -337,17 +343,17 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         {step === 1 ? (
           <YStack gap="$5">
             <SectionCard soft>
-              <SectionEyebrow>Step 1 of 2</SectionEyebrow>
+              <SectionEyebrow>{t("flow.import.stepOne")}</SectionEyebrow>
               <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={PALETTE.onSurface} letterSpacing={-0.8}>
-                Ask AI to read your receipt
+                {t("flow.import.askAiTitle")}
               </Text>
               <Paragraph color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={15} lineHeight={22}>
-                We will copy a ready-made prompt and open your AI tool. Upload the receipt there, then come back with the item list.
+                {t("flow.import.askAiDescription")}
               </Paragraph>
             </SectionCard>
 
             <SectionCard>
-              <FieldLabel>Choose AI tool</FieldLabel>
+              <FieldLabel>{t("flow.import.chooseTool")}</FieldLabel>
               <XStack gap="$3">
                 {AI_PROVIDERS.map((option) => {
                   const selected = provider === option.id;
@@ -355,7 +361,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                     <Pressable
                       key={option.id}
                       accessibilityRole="button"
-                      accessibilityLabel={`Choose ${option.label}`}
+                      accessibilityLabel={t("flow.import.chooseToolA11y", { provider: option.label })}
                       style={[
                         {
                           flex: 1,
@@ -400,12 +406,12 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
 
             <SectionCard>
               <XStack justifyContent="space-between" alignItems="center" gap="$3">
-                <FieldLabel>The prompt</FieldLabel>
-                <Pressable accessibilityRole="button" accessibilityLabel="Copy prompt text" onPress={() => void copyPromptText()}>
+                <FieldLabel>{t("flow.import.prompt")}</FieldLabel>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("flow.import.copyPromptA11y")} onPress={() => void copyPromptText()}>
                   <XStack alignItems="center" gap="$1.5">
                     <ClipboardCopy color={PALETTE.primary} size={14} />
                     <Text color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={12}>
-                      Copy Text
+                      {t("flow.import.copyPrompt")}
                     </Text>
                   </XStack>
                 </Pressable>
@@ -417,26 +423,26 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
 
             <SectionCard soft>
               <Paragraph color={PALETTE.onSurfaceVariant} fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={21}>
-                After AI answers, copy only the item list and return here for step 2.
+                {t("flow.import.afterAi")}
               </Paragraph>
             </SectionCard>
           </YStack>
         ) : (
           <YStack gap="$5">
             <SectionCard soft>
-              <SectionEyebrow>Step 2 of 2</SectionEyebrow>
+              <SectionEyebrow>{t("flow.import.stepTwo")}</SectionEyebrow>
               <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={PALETTE.onSurface} letterSpacing={-0.8}>
-                Paste item list
+                {t("flow.import.pasteTitle")}
               </Text>
             </SectionCard>
 
             <SectionCard>
-              <FieldLabel>Import mode</FieldLabel>
+              <FieldLabel>{t("flow.import.mode")}</FieldLabel>
               <XStack gap="$3">
                 {(["append", "replace"] as const).map((option) => (
                   <Pressable key={option} style={[screenStyles.togglePill, { backgroundColor: mode === option ? PALETTE.primary : PALETTE.surfaceContainerLow }]} onPress={() => setMode(option)}>
                     <Text color={mode === option ? PALETTE.onPrimary : PALETTE.primary} fontFamily={FONTS.bodyBold}>
-                      {option === "append" ? "Append" : "Replace"}
+                      {option === "append" ? t("flow.import.mode.append") : t("flow.import.mode.replace")}
                     </Text>
                   </Pressable>
                 ))}
@@ -445,16 +451,16 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
 
             <SectionCard>
               <XStack justifyContent="space-between" alignItems="center" gap="$3">
-                <FieldLabel>Pasted text</FieldLabel>
+              <FieldLabel>{t("flow.import.pastedText")}</FieldLabel>
                 {hasPastedText ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Clear pasted text" onPress={() => setInput("")}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("common.clearAll")} onPress={() => setInput("")}>
                     <Text color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={12} textTransform="uppercase" letterSpacing={1.1}>
-                      Clear all
+                      {t("common.clearAll")}
                     </Text>
                   </Pressable>
                 ) : null}
               </XStack>
-              <SoftInput value={input} onChangeText={setInput} multiline placeholder={"Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"} />
+              <SoftInput value={input} onChangeText={setInput} multiline placeholder={t("flow.import.samplePlaceholder")} />
             </SectionCard>
 
           </YStack>

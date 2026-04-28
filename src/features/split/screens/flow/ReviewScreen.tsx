@@ -16,7 +16,9 @@ import {
   PrimaryButton,
   SectionEyebrow,
 } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import {
+  type StepValidationError,
   computeSettlement,
   formatMoney,
   parseMoneyToCents,
@@ -27,6 +29,7 @@ import {
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
+  getFriendlySplitMessage,
   getAssignedParticipantCount,
   isItemAssigned,
   isVisibleItem,
@@ -41,6 +44,7 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function ReviewScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const insets = useSafeAreaInsets();
   const settlement = useMemo(() => {
@@ -60,8 +64,8 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -74,11 +78,11 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     visibleItems.length > 0
       ? Math.round((assignedCount / visibleItems.length) * 100)
       : 0;
-  const errors = [
+  const errors: StepValidationError[] = [
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
-  ].map((error) => error.message);
+  ];
   const locale = getDeviceLocale();
   const isReviewScrollable = reviewContentHeight > reviewViewportHeight + 1;
 
@@ -88,12 +92,20 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
       footer={
         <FloatingFooter>
           <PrimaryButton
-            label="Show Results"
+            label={t("flow.review.showResults")}
             icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
                 setReviewNoticeMessages([
-                  "There are still items left to split before you can see the results.",
+                  ...new Set(
+                    (errors.length > 0
+                      ? errors
+                      : [{ code: "items-min", message: t("friendly.itemsMin") } as Pick<
+                          StepValidationError,
+                          "code" | "message"
+                        >]
+                    ).map((error) => getFriendlySplitMessage(error)),
+                  ),
                 ]);
                 return;
               }
@@ -110,7 +122,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Review Items"
+          title={t("flow.review.title")}
           onBack={() => router.replace(`/split/${draftId}/items`)}
         />
       </View>
@@ -119,7 +131,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
           <View
             style={[screenStyles.itemsImportCard, screenStyles.reviewProgressCard]}
           >
-            <SectionEyebrow>Current progress</SectionEyebrow>
+            <SectionEyebrow>{t("flow.review.progress")}</SectionEyebrow>
             <XStack
               alignItems="flex-end"
               justifyContent="space-between"
@@ -141,7 +153,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                   lineHeight={28}
                   color={PALETTE.primary}
                 >
-                  Split
+                  {t("flow.review.progressLabel")}
                 </Text>
               </YStack>
               <Text
@@ -151,7 +163,10 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                 color={PALETTE.onSurfaceVariant}
                 textAlign="right"
               >
-                {assignedCount} of {visibleItems.length} items assigned
+                {t("flow.review.itemsAssigned", {
+                  assigned: assignedCount,
+                  total: visibleItems.length,
+                })}
               </Text>
             </XStack>
             <View style={screenStyles.reviewProgressTrack}>
@@ -188,13 +203,18 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
           <YStack gap="$3" style={screenStyles.reviewListContent}>
             {visibleItems.map((item) => {
               const assigned = isItemAssigned(item);
-              const itemLabel = item.name.trim() || "Untitled item";
+              const itemLabel = item.name.trim() || t("flow.splitItem.untitled");
 
               return (
                 <Pressable
                   key={item.id}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open split details for ${itemLabel} (${assigned ? "assigned" : "unassigned"})`}
+                  accessibilityLabel={t("flow.review.openItemA11y", {
+                    item: itemLabel,
+                    status: assigned
+                      ? t("flow.review.assigned")
+                      : t("flow.review.unassigned"),
+                  })}
                   onPress={() =>
                     router.push(`/split/${draftId}/split/${item.id}`)
                   }
@@ -246,7 +266,9 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                             letterSpacing={1.5}
                             paddingTop={1}
                           >
-                            {`Split by ${getAssignedParticipantCount(item)}`}
+                            {t("flow.review.splitBy", {
+                              count: getAssignedParticipantCount(item),
+                            })}
                           </Text>
                         ) : null}
                       </XStack>

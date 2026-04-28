@@ -80,6 +80,7 @@ import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   getClipboardSummaryPreview,
   getPdfExportPreview,
@@ -162,6 +163,7 @@ const ITEM_CATEGORY_OPTIONS = [
   "Tickets",
 ] as const;
 export function ParticipantsScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { records, updateParticipants, setStep, settings } = useSplitStore(
     useShallow((state) => ({
@@ -185,8 +187,8 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -230,8 +232,8 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       });
     } catch (error) {
       console.warn("Failed to add participant", error);
-      setParticipantsNoticeMessages([
-        "Could not update participants. Please try again.",
+        setParticipantsNoticeMessages([
+        t("flow.participants.addFailed"),
       ]);
       return;
     }
@@ -252,11 +254,11 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         <FloatingFooter>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next: Select Payer"
+            accessibilityLabel={t("flow.participants.nextA11y")}
             accessibilityHint={
               isParticipantsStepReady
-                ? "Continues to payer selection."
-                : "Shows what needs to be fixed before selecting a payer."
+                ? t("flow.participants.nextHintReady")
+                : t("flow.participants.nextHintBlocked")
             }
             style={[
               screenStyles.participantsContinueButton,
@@ -285,7 +287,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                     : PALETTE.onPrimaryContainer
                 }
               >
-                Next: Select Payer
+                {t("flow.participants.next", undefined, { maxLength: 24 })}
               </Text>
               <ArrowRight
                 color={
@@ -307,7 +309,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Who's splitting?"
+          title={t("flow.participants.title")}
           onBack={() => router.replace(`/split/${draftId}/setup`)}
         />
       </View>
@@ -330,7 +332,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                 textTransform="uppercase"
                 letterSpacing={2.4}
               >
-                Frequent Participants
+                {t("flow.participants.frequent")}
               </Text>
               <ScrollView
                 horizontal
@@ -384,7 +386,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
           <View style={screenStyles.participantInputShell}>
             <TextInput
               ref={participantInputRef}
-              accessibilityLabel="Participant name"
+              accessibilityLabel={t("flow.participants.inputPlaceholder")}
               value={name}
               onChangeText={(value) => {
                 participantNameRef.current = value;
@@ -397,13 +399,13 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               }
               blurOnSubmit={false}
               returnKeyType="done"
-              placeholder="Enter name"
+              placeholder={t("flow.participants.inputPlaceholder")}
               placeholderTextColor="rgba(86, 67, 57, 0.42)"
               style={screenStyles.participantInput}
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add person"
+              accessibilityLabel={t("flow.participants.add")}
               style={screenStyles.participantAddButton}
               onPress={() =>
                 void addParticipant(participantNameRef.current, {
@@ -422,7 +424,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               textTransform="uppercase"
               letterSpacing={2.4}
             >
-              Added Participants
+              {t("flow.participants.added")}
             </Text>
             {record.values.participants.length === 0 ? null : (
               <YStack gap="$3.5">
@@ -440,7 +442,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                       ).catch((error) => {
                         console.warn("Failed to remove participant", error);
                         setParticipantsNoticeMessages([
-                          "Could not remove the participant. Please try again.",
+                          t("flow.participants.removeFailed"),
                         ]);
                       });
                     }}

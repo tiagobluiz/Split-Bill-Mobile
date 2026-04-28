@@ -1,12 +1,52 @@
 import type { DraftRecord } from "../../../../storage/records";
+import type { StepValidationCode, StepValidationError } from "../../../../domain";
 import { STEP_ROUTE, resolveDraftStep } from "../../splitFlow";
+import { t, type TranslationKey } from "../../../../i18n";
+
+const CATEGORY_TRANSLATION_KEYS = {
+  General: "flow.category.general",
+  Produce: "flow.category.produce",
+  Bakery: "flow.category.bakery",
+  Dairy: "flow.category.dairy",
+  Pantry: "flow.category.pantry",
+  Drinks: "flow.category.drinks",
+  Main: "flow.category.main",
+  Entree: "flow.category.entree",
+  Side: "flow.category.side",
+  Dessert: "flow.category.dessert",
+  Service: "flow.category.service",
+  Museum: "flow.category.museum",
+  Tickets: "flow.category.tickets",
+} as const;
 
 export function getDraftPendingStep(record: DraftRecord) {
   return resolveDraftStep(record);
 }
 
+export function getCategoryLabel(category?: string) {
+  const trimmedCategory = category?.trim();
+  if (!trimmedCategory) {
+    return t("flow.category.general");
+  }
+
+  const translationKey =
+    CATEGORY_TRANSLATION_KEYS[
+      trimmedCategory as keyof typeof CATEGORY_TRANSLATION_KEYS
+    ];
+  return translationKey ? t(translationKey) : trimmedCategory;
+}
+
+export function getCategoryAccessibilityLabel(category?: string) {
+  return getCategoryLabel(category);
+}
+
 export function getItemCategoryLabel(item: DraftRecord["values"]["items"][number]) {
-  return item.category?.trim() ? item.category.trim().toUpperCase() : "GENERAL";
+  const trimmedCategory = item.category?.trim();
+  if (!trimmedCategory) {
+    return t("record.category.general");
+  }
+
+  return getCategoryLabel(trimmedCategory).toUpperCase();
 }
 
 export function isVisibleItem(item: DraftRecord["values"]["items"][number]) {
@@ -62,14 +102,14 @@ export function cloneAllocations(allocations: DraftRecord["values"]["items"][num
   return allocations.map((allocation) => ({ ...allocation }));
 }
 
-const FRIENDLY_SPLIT_MESSAGES = {
-  "Add at least two participants, including the payer.": "Add at least two participants, including the payer.",
-  "Add at least one non-zero item.": "Add at least one item with a price before continuing.",
-  "Choose at least one participant for an even split.": "Pick at least one person for this item.",
-  "Total shares must be greater than zero.": "Add at least one share before you continue.",
-  "Shares must be zero or more.": "Shares cannot go below zero.",
-  "Percent must be zero or more.": "Percent cannot go below zero.",
-  "Percent totals must add up to 100.": "Make sure the percentages add up to 100%.",
+const FRIENDLY_SPLIT_MESSAGE_KEYS: Partial<Record<StepValidationCode, TranslationKey>> = {
+  "participants-min": "validation.participantsMin",
+  "items-min": "friendly.itemsMin",
+  "split-even-min": "friendly.splitEvenMin",
+  "shares-total-min": "friendly.sharesTotalMin",
+  "shares-non-negative": "friendly.sharesNonNegative",
+  "percent-non-negative": "friendly.percentNonNegative",
+  "percent-total": "friendly.percentTotal",
 } as const;
 
 export function formatPercentValue(value: number) {
@@ -99,15 +139,15 @@ export function normalizeCommittedPercentValue(nextPercentValue: string) {
 export function getPercentInputMessage(nextPercentValue: string) {
   const trimmedValue = normalizePercentInput(nextPercentValue).trim();
   if (/^-/.test(trimmedValue)) {
-    return "Percent can't be negative.";
+    return t("validation.percentNonNegative");
   }
 
   if (/^\d+\.\d{3,}$/.test(trimmedValue)) {
-    return "Use no more than 2 decimal places.";
+    return t("validation.percentMaxDecimals");
   }
 
   if (!/^\d+(\.\d{0,2})?$/.test(trimmedValue)) {
-    return "Enter a valid percentage.";
+    return t("validation.percentFormat");
   }
 
   return null;
@@ -156,8 +196,15 @@ export function rebalanceEditablePercentAllocations(
   });
 }
 
-export function getFriendlySplitMessage(message: string) {
-  return FRIENDLY_SPLIT_MESSAGES[message as keyof typeof FRIENDLY_SPLIT_MESSAGES] ?? message;
+export function getFriendlySplitMessage(
+  error: Pick<StepValidationError, "code" | "message"> | string,
+) {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  const key = FRIENDLY_SPLIT_MESSAGE_KEYS[error.code];
+  return key ? t(key) : error.message;
 }
 
 export function buildRecordRoute(record: DraftRecord) {
@@ -174,5 +221,9 @@ export function buildRecordRoute(record: DraftRecord) {
 }
 
 export function getRecordTitle(record: DraftRecord) {
-  return record.values.splitName?.trim() || record.values.items[0]?.name || "Untitled split";
+  return (
+    record.values.splitName?.trim() ||
+    record.values.items[0]?.name ||
+    t("record.title.untitled")
+  );
 }

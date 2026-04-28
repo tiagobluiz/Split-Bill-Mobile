@@ -19,6 +19,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   createEmptyItem,
   formatMoney,
@@ -39,6 +40,8 @@ import {
   cloneItem,
   formatPercentValue,
   getAssignedParticipantCount,
+  getCategoryAccessibilityLabel,
+  getCategoryLabel,
   getFriendlySplitMessage,
   getItemCategoryLabel,
   getNextPendingSplitItemId,
@@ -82,6 +85,7 @@ export function AssignItemScreen({
   draftId: string;
   itemId: string;
 }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { createItem, removeItem, updateItemField } = useSplitStore(
     useShallow((state) => ({
@@ -135,8 +139,8 @@ export function AssignItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -151,8 +155,8 @@ export function AssignItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Item missing"
-          description="This item no longer exists in this split."
+          title={t("flow.itemDetail.missingTitle")}
+          description={t("flow.itemDetail.missingDescription")}
         />
       </AppScreen>
     );
@@ -211,12 +215,12 @@ export function AssignItemScreen({
 
   const saveEditor = async () => {
     if (!hasValidName) {
-      setAssignNoticeMessages(["Add an item name before saving this item."]);
+      setAssignNoticeMessages([t("flow.itemDetail.nameRequired")]);
       return;
     }
 
     if (!hasValidPrice) {
-      setAssignNoticeMessages(["Add a valid price before saving this item."]);
+      setAssignNoticeMessages([t("flow.itemDetail.priceRequired")]);
       return;
     }
 
@@ -267,7 +271,7 @@ export function AssignItemScreen({
             {!isNewItem ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Delete Item"
+                accessibilityLabel={t("flow.itemDetail.deleteA11y")}
                 style={screenStyles.itemDeleteButton}
                 onPress={() => void deleteEditorItem()}
               >
@@ -276,7 +280,7 @@ export function AssignItemScreen({
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Save Item"
+              accessibilityLabel={t("flow.itemDetail.saveA11y")}
               style={[
                 isNewItem
                   ? screenStyles.itemSaveButtonFull
@@ -298,7 +302,7 @@ export function AssignItemScreen({
                       : PALETTE.onPrimary
                   }
                 >
-                  Save Item
+                  {t("flow.itemDetail.save")}
                 </Text>
                 <ArrowRight
                   color={
@@ -321,7 +325,7 @@ export function AssignItemScreen({
         ]}
       >
         <FlowScreenHeader
-          title={isNewItem ? "Add Item" : "Edit Item"}
+          title={isNewItem ? t("flow.itemDetail.addTitle") : t("flow.itemDetail.editTitle")}
           onBack={() => void closeEditor()}
         />
       </View>
@@ -346,19 +350,19 @@ export function AssignItemScreen({
                 textTransform="uppercase"
                 letterSpacing={2.1}
               >
-                Item Description
+                {t("flow.itemDetail.description")}
               </Text>
               <View style={screenStyles.assignInputShell}>
                 <TextInput
                   ref={nameInputRef}
-                  accessibilityLabel="Item name"
+                  accessibilityLabel={t("flow.itemDetail.nameA11y")}
                   value={item.name}
                   maxLength={MAX_ITEM_NAME_LENGTH}
                   onChangeText={(value) =>
                     void updateWorkingItemField("name", value)
                   }
                   onSubmitEditing={() => priceInputRef.current?.focus()}
-                  placeholder="e.g. Truffle Pasta"
+                  placeholder={t("flow.itemDetail.namePlaceholder")}
                   placeholderTextColor="rgba(86, 67, 57, 0.28)"
                   style={screenStyles.assignInput}
                   returnKeyType="next"
@@ -376,7 +380,7 @@ export function AssignItemScreen({
                   textTransform="uppercase"
                   letterSpacing={2.1}
                 >
-                  Price
+                  {t("flow.itemDetail.price")}
                 </Text>
                 <Text
                   fontFamily={FONTS.bodyBold}
@@ -385,13 +389,13 @@ export function AssignItemScreen({
                   textTransform="uppercase"
                   letterSpacing={1.8}
                 >
-                  Currency: {record.values.currency}
+                  {t("common.currencyPrefix", { currency: record.values.currency })}
                 </Text>
               </XStack>
               <View style={screenStyles.assignInputShell}>
                 <TextInput
                   ref={priceInputRef}
-                  accessibilityLabel="Item price"
+                  accessibilityLabel={t("flow.itemDetail.priceA11y")}
                   value={item.price}
                   onChangeText={(value) =>
                     void updateWorkingItemField("price", value)
@@ -408,7 +412,7 @@ export function AssignItemScreen({
           </YStack>
 
           <SectionCard>
-            <FieldLabel>Category</FieldLabel>
+            <FieldLabel>{t("flow.itemDetail.category")}</FieldLabel>
             <XStack flexWrap="wrap" gap="$2.5">
               {ITEM_CATEGORY_OPTIONS.map((option) => {
                 const selected = effectiveCategory === option;
@@ -416,7 +420,9 @@ export function AssignItemScreen({
                   <Pressable
                     key={option}
                     accessibilityRole="button"
-                    accessibilityLabel={`Choose category ${option}`}
+                    accessibilityLabel={t("flow.itemDetail.chooseCategory", {
+                      category: getCategoryAccessibilityLabel(option),
+                    })}
                     style={[
                       screenStyles.categoryChip,
                       selected ? screenStyles.categoryChipActive : null,
@@ -432,7 +438,7 @@ export function AssignItemScreen({
                         selected ? PALETTE.onPrimary : PALETTE.onSurfaceVariant
                       }
                     >
-                      {option}
+                      {getCategoryLabel(option)}
                     </Text>
                   </Pressable>
                 );
@@ -443,10 +449,10 @@ export function AssignItemScreen({
       </ScrollView>
       {showDiscardChangesModal ? (
         <ConfirmChoiceModal
-          title="Discard changes?"
-          body="You started this item but have not saved it yet."
-          confirmLabel="Discard changes"
-          discardLabel="Keep editing"
+          title={t("flow.itemDetail.confirmDiscard.title")}
+          body={t("flow.itemDetail.confirmDiscard.body")}
+          confirmLabel={t("flow.itemDetail.confirmDiscard.confirm")}
+          discardLabel={t("flow.itemDetail.confirmDiscard.discard")}
           onConfirm={() => {
             setShowDiscardChangesModal(false);
             if (!isNewItem && sourceItem) {
@@ -465,10 +471,10 @@ export function AssignItemScreen({
       ) : null}
       {showDeleteItemModal ? (
         <ConfirmChoiceModal
-          title="Delete item?"
-          body="This will remove the item from the bill."
-          confirmLabel="Delete item"
-          discardLabel="Keep item"
+          title={t("flow.itemDetail.confirmDelete.title")}
+          body={t("flow.itemDetail.confirmDelete.body")}
+          confirmLabel={t("flow.itemDetail.confirmDelete.confirm")}
+          discardLabel={t("flow.itemDetail.confirmDelete.discard")}
           onConfirm={() => {
             setShowDeleteItemModal(false);
             void removeItem(item.id).then(() => router.back());
@@ -491,6 +497,7 @@ export function SplitItemScreen({
   draftId: string;
   itemId: string;
 }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { saveItemSplit, settings } = useSplitStore(
     useShallow((state) => ({
@@ -545,8 +552,8 @@ export function SplitItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -557,8 +564,8 @@ export function SplitItemScreen({
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Item missing"
-          description="This item no longer exists in this split."
+          title={t("flow.itemDetail.missingTitle")}
+          description={t("flow.itemDetail.missingDescription")}
         />
       </AppScreen>
     );
@@ -571,8 +578,8 @@ export function SplitItemScreen({
   }).map((error) => error.message);
   const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
   const ctaLabel = pendingNextItemId
-    ? "Confirm & Split Next"
-    : "Confirm & Review";
+    ? t("flow.splitItem.confirmNext")
+    : t("flow.splitItem.confirmReview");
   const totalShares = item.allocations.reduce(
     (sum, allocation) => sum + (parseFloat(allocation.shares) || 0),
     0,
@@ -812,8 +819,8 @@ export function SplitItemScreen({
       setPercentSliderResetKey((current) => current + 1);
       setSplitNoticeMessages([
         noPercentLeft
-          ? "This item is already fully split. Lower someone else's percent first."
-          : "That number is too high. Lower it or add someone else to share the rest.",
+          ? t("flow.splitItem.percentFullyAllocated")
+          : t("flow.splitItem.percentTooHigh"),
       ]);
       return;
     }
@@ -899,19 +906,20 @@ export function SplitItemScreen({
                       textTransform="uppercase"
                       letterSpacing={1.8}
                     >
-                      Total shares
+                      {t("flow.splitItem.totalShares")}
                     </Text>
                     <Text
                       fontFamily={FONTS.bodyMedium}
                       fontSize={13}
                       color={PALETTE.onSurfaceVariant}
                     >
-                      Each share is valued at
-                      {formatMoney(
-                        Math.round(shareValue),
-                        record.values.currency,
-                        locale,
-                      )}
+                      {t("flow.splitItem.eachShare", {
+                        amount: formatMoney(
+                          Math.round(shareValue),
+                          record.values.currency,
+                          locale,
+                        ),
+                      })}
                     </Text>
                   </YStack>
                   <Text
@@ -931,7 +939,7 @@ export function SplitItemScreen({
                       textTransform="uppercase"
                       letterSpacing={1.6}
                     >
-                      Total shares
+                      {t("flow.splitItem.totalShares")}
                     </Text>
                     <Text
                       fontFamily={FONTS.headlineBold}
@@ -949,7 +957,7 @@ export function SplitItemScreen({
                       textTransform="uppercase"
                       letterSpacing={1.6}
                     >
-                      Price per share
+                      {t("flow.splitItem.pricePerShare")}
                     </Text>
                     <Text
                       fontFamily={FONTS.headlineBold}
@@ -975,14 +983,14 @@ export function SplitItemScreen({
                   textTransform="uppercase"
                   letterSpacing={1.8}
                 >
-                  Split status
+                  {t("flow.splitItem.mode.percent")}
                 </Text>
                 <Text
                   fontFamily={FONTS.headlineBold}
                   fontSize={20}
                   color={PALETTE.onSurface}
                 >
-                  Total: {displayTotalPercent}%
+                  {t("flow.splitItem.totalPercent", { percent: displayTotalPercent })}
                 </Text>
               </View>
             ) : null}
@@ -1002,7 +1010,7 @@ export function SplitItemScreen({
         ]}
       >
         <FlowScreenHeader
-          title="Split Item"
+          title={t("flow.splitItem.title")}
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
@@ -1037,7 +1045,7 @@ export function SplitItemScreen({
               textAlign="center"
               letterSpacing={-1.4}
             >
-              {item.name || "Untitled item"}
+              {item.name || t("flow.splitItem.untitled")}
             </Text>
             <Text
               fontFamily={FONTS.headlineBold}
@@ -1061,7 +1069,7 @@ export function SplitItemScreen({
               <View style={screenStyles.splitHeaderSegmentedControl}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Include all split participants"
+                  accessibilityLabel={t("flow.splitItem.includeAllA11y")}
                   onPress={includeAllWorkingSplit}
                   style={[
                     screenStyles.splitHeaderSegment,
@@ -1074,13 +1082,13 @@ export function SplitItemScreen({
                     color={PALETTE.primary}
                     textTransform="uppercase"
                   >
-                    All
+                    {t("flow.splitItem.all")}
                   </Text>
                 </Pressable>
                 <View style={screenStyles.splitHeaderSegmentDivider} />
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Exclude all split participants"
+                  accessibilityLabel={t("flow.splitItem.excludeAllA11y")}
                   onPress={excludeAllWorkingSplit}
                   style={[
                     screenStyles.splitHeaderSegment,
@@ -1093,7 +1101,7 @@ export function SplitItemScreen({
                     color={PALETTE.onSurface}
                     textTransform="uppercase"
                   >
-                    None
+                    {t("flow.splitItem.none")}
                   </Text>
                 </Pressable>
               </View>
@@ -1159,8 +1167,14 @@ export function SplitItemScreen({
                               color={PALETTE.onSurfaceVariant}
                             >
                               {allocation.evenIncluded
-                                ? `${formatMoney(portionCents, record.values.currency, locale)} portion`
-                                : "Tap to include"}
+                                ? t("flow.splitItem.portion", {
+                                    amount: formatMoney(
+                                      portionCents,
+                                      record.values.currency,
+                                      locale,
+                                    ),
+                                  })
+                                : t("flow.splitItem.tapToInclude")}
                             </Text>
                           ) : null}
                         </YStack>
@@ -1185,7 +1199,10 @@ export function SplitItemScreen({
                         <XStack alignItems="center" gap="$2.5">
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Decrease shares for ${participant.name}`}
+                            accessibilityLabel={t(
+                              "flow.splitItem.decreaseSharesA11y",
+                              { name: participant.name },
+                            )}
                             onPress={() => incrementShares(participant.id, -1)}
                             style={screenStyles.splitStepperButton}
                           >
@@ -1208,7 +1225,10 @@ export function SplitItemScreen({
                           </View>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Increase shares for ${participant.name}`}
+                            accessibilityLabel={t(
+                              "flow.splitItem.increaseSharesA11y",
+                              { name: participant.name },
+                            )}
                             onPress={() => incrementShares(participant.id, 1)}
                             style={[
                               screenStyles.splitStepperButton,
@@ -1231,7 +1251,10 @@ export function SplitItemScreen({
                           {canAssignRemaining ? (
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`Use remaining percent for ${participant.name}`}
+                              accessibilityLabel={t(
+                                "flow.splitItem.useRemainingPercentA11y",
+                                { name: participant.name },
+                              )}
                               onPress={() =>
                                 void setWorkingPercentValue(
                                   participant.id,
@@ -1250,7 +1273,10 @@ export function SplitItemScreen({
                             </Pressable>
                           ) : null}
                           <TextInput
-                            accessibilityLabel={`Percent for ${participant.name}`}
+                            accessibilityLabel={t(
+                              "flow.splitItem.percentA11y",
+                              { name: participant.name },
+                            )}
                             value={allocation.percent}
                             onChangeText={(value) =>
                               void setWorkingPercentValue(participant.id, value)
@@ -1281,7 +1307,10 @@ export function SplitItemScreen({
                       <YStack gap="$2.5" paddingTop="$2">
                         <Slider
                           key={`percent-slider-${participant.id}-${percentSliderResetKey}`}
-                          accessibilityLabel={`Percent slider for ${participant.name}`}
+                          accessibilityLabel={t(
+                            "flow.splitItem.percentSliderA11y",
+                            { name: participant.name },
+                          )}
                           minimumValue={0}
                           maximumValue={100}
                           step={1}
@@ -1310,16 +1339,17 @@ export function SplitItemScreen({
                             fontSize={11}
                             color={PALETTE.onSurfaceVariant}
                           >
-                            Allocated:
-                            {formatMoney(
-                              Math.round(
-                                ((parseMoneyToCents(item.price) ?? 0) *
-                                  percentValue) /
-                                  100,
+                            {t("flow.splitItem.allocated", {
+                              amount: formatMoney(
+                                Math.round(
+                                  ((parseMoneyToCents(item.price) ?? 0) *
+                                    percentValue) /
+                                    100,
+                                ),
+                                record.values.currency,
+                                locale,
                               ),
-                              record.values.currency,
-                              locale,
-                            )}
+                            })}
                           </Text>
                           <Text
                             fontFamily={FONTS.bodyMedium}
@@ -1342,7 +1372,9 @@ export function SplitItemScreen({
                   <Pressable
                     key={participant.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`Toggle even split for ${participant.name}`}
+                    accessibilityLabel={t("flow.splitItem.toggleEvenA11y", {
+                      name: participant.name,
+                    })}
                     onPress={() => toggleEvenIncluded(participant.id)}
                     style={screenStyles.splitParticipantCard}
                   >

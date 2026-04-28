@@ -18,6 +18,7 @@ import {
   SectionCard,
   SectionEyebrow,
 } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   buildShareSummary,
   computeSettlement,
@@ -34,7 +35,7 @@ import { FlowScreenHeader } from "../shared/flowComponents";
 import { SplitNoticeModal } from "../shared/modals";
 import { useRecord } from "../shared/hooks";
 import { getParticipantDisplayName } from "../shared/participantUtils";
-import { isVisibleItem } from "../shared/recordUtils";
+import { getFriendlySplitMessage, isVisibleItem } from "../shared/recordUtils";
 import { getOverviewSettlementLabel } from "../shared/settlementUtils";
 import { screenStyles } from "../shared/styles";
 
@@ -43,6 +44,7 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function OverviewScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const settings = useSplitStore((state) => state.settings);
   const insets = useSafeAreaInsets();
@@ -60,8 +62,8 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -71,7 +73,8 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
-  ].map((error) => error.message);
+  ];
+  const errorMessages = errors.map((error) => error.message);
   const locale = getDeviceLocale();
 
   return (
@@ -80,11 +83,13 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
       footer={
         <FloatingFooter>
           <PrimaryButton
-            label="Finalize Bill"
+            label={t("flow.overview.finalize")}
             icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
-                setReviewNoticeMessages([...new Set(errors)]);
+                setReviewNoticeMessages([
+                  ...new Set(errors.map((error) => getFriendlySplitMessage(error))),
+                ]);
                 return;
               }
               router.push(`/split/${draftId}/results`);
@@ -99,7 +104,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
           { paddingTop: Math.max(insets.top + 8, 22) },
         ]}
       >
-        <FlowScreenHeader title="Review Items" onBack={() => router.back()} />
+        <FlowScreenHeader title={t("flow.overview.title")} onBack={() => router.back()} />
       </View>
       <ScrollView
         style={screenStyles.flex}
@@ -205,7 +210,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
             </>
           ) : null}
 
-          <ErrorList messages={[...new Set(errors)]} />
+          <ErrorList messages={[...new Set(errorMessages)]} />
         </YStack>
       </ScrollView>
       <SplitNoticeModal

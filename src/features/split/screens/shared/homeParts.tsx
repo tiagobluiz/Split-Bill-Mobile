@@ -11,6 +11,7 @@ import {
 import type { DraftRecord } from "../../../../storage/records";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { t } from "../../../../i18n";
 import { getSettlementPreview } from "../../store";
 import { buildRecordRoute, getRecordTitle } from "./recordUtils";
 import { getRecentRowMeta } from "./settlementUtils";
@@ -21,9 +22,9 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 const HOME_TABS = [
-  { key: "home", label: "Home", icon: Home },
-  { key: "splits", label: "Splits", icon: ReceiptText },
-  { key: "settings", label: "Settings", icon: Settings },
+  { key: "home", labelKey: "home.tab.home", icon: Home },
+  { key: "splits", labelKey: "home.tab.splits", icon: ReceiptText },
+  { key: "settings", labelKey: "home.tab.settings", icon: Settings },
 ] as const;
 
 export type HomeTabKey = (typeof HOME_TABS)[number]["key"];
@@ -41,12 +42,19 @@ export function HomeTabBar({
         {HOME_TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.key === activeTab;
+          const label = t(tab.labelKey, undefined, { maxLength: 10 });
 
           return (
             <Pressable
               key={tab.key}
               accessibilityRole="button"
-              accessibilityLabel={`Open ${tab.label}`}
+              accessibilityLabel={t(
+                tab.key === "home"
+                  ? "home.openHome"
+                  : tab.key === "splits"
+                    ? "home.openSplits"
+                    : "home.openSettings",
+              )}
               accessibilityState={{ selected: isActive }}
               onPress={() => onChange(tab.key)}
               style={[screenStyles.homeTabButton, isActive ? screenStyles.homeTabButtonActive : null]}
@@ -60,7 +68,7 @@ export function HomeTabBar({
                   letterSpacing={1.5}
                   color={isActive ? PALETTE.primary : "#b1aba7"}
                 >
-                  {tab.label}
+                  {label}
                 </Text>
               </YStack>
             </Pressable>
@@ -90,14 +98,15 @@ export function RecordRow({
   const showAmountBlock = record.status === "completed";
   const showSingleZeroState =
     showAmountBlock &&
-    meta.amountDisplay.primaryLabel === "Nothing due" &&
+    meta.amountDisplay.variant === "remaining" &&
+    meta.amountDisplay.primaryKind === "nothingDue" &&
     !meta.amountDisplay.secondaryValue;
   const showCombinedAmount =
     showAmountBlock &&
-    Boolean(meta.amountDisplay.secondaryValue) &&
-    meta.amountDisplay.primaryLabel === "Total";
-  const showCombinedZeroState =
-    showCombinedAmount && meta.amountDisplay.secondaryLabel === "Nothing due";
+    meta.amountDisplay.variant === "totalAndRemaining" &&
+    Boolean(meta.amountDisplay.secondaryValue);
+  const showCombinedZeroState = showCombinedAmount &&
+    meta.amountDisplay.secondaryKind === "nothingDue";
 
   return (
     <Swipeable
@@ -111,7 +120,7 @@ export function RecordRow({
         >
           <Trash2 color={PALETTE.onPrimary} size={18} />
           <Text fontFamily={FONTS.bodyBold} fontSize={12} color={PALETTE.onPrimary} textTransform="uppercase" letterSpacing={1.6}>
-            Delete
+            {t("flow.items.delete")}
           </Text>
         </Pressable>
       )}
@@ -151,18 +160,18 @@ export function RecordRow({
                       letterSpacing={1.3}
                       textAlign="right"
                     >
-                      {showCombinedZeroState ? "Nothing" : meta.amountDisplay.secondaryLabel}
+                      {showCombinedZeroState
+                        ? t("record.amount.nothingDue")
+                        : meta.amountDisplay.secondaryLabel}
                     </Text>
                     {showCombinedZeroState ? (
                       <Text
-                        fontFamily={FONTS.bodyBold}
-                        fontSize={10}
+                        fontFamily={FONTS.headlineBlack}
+                        fontSize={18}
                         color={PALETTE.onSurfaceVariant}
-                        textTransform="uppercase"
-                        letterSpacing={1.3}
                         textAlign="right"
                       >
-                        Due
+                        {meta.amountDisplay.secondaryValue}
                       </Text>
                     ) : (
                       <Text
@@ -206,17 +215,7 @@ export function RecordRow({
                       letterSpacing={1.3}
                       textAlign="right"
                     >
-                      Nothing
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={10}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.3}
-                      textAlign="right"
-                    >
-                      Due
+                      {t("record.amount.nothingDue")}
                     </Text>
                   </YStack>
                 ) : (

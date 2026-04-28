@@ -5,6 +5,7 @@ import { File, Paths } from "expo-file-system";
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
 import { formatMoney, type SplitFormValues } from "../domain/splitter";
+import { t } from "../i18n";
 
 function escapeHtml(value: string) {
   return value
@@ -104,7 +105,6 @@ export function renderSettlementPdfHtml(
     })
     .join("");
 
-  // TODO: localize PDF labels when the web export supports translated copy too.
   return `<!DOCTYPE html>
   <html lang="${escapeHtml(lang)}">
     <head>
@@ -259,44 +259,51 @@ export function renderSettlementPdfHtml(
     <body>
       <div class="header">
         <h1 class="title">${escapeHtml(data.appName)}</h1>
-        <p class="subtitle">${escapeHtml(data.splitTitle || "Split Bill summary")}</p>
-        <p class="subtitle">Exported ${escapeHtml(data.exportDateLabel)}</p>
-        <p class="subtitle">Currency ${escapeHtml(data.currency)}</p>
+        <p class="subtitle">${escapeHtml(data.splitTitle || t("pdf.title.default"))}</p>
+        <p class="subtitle">${escapeHtml(
+          t("common.exportedOn", { date: data.exportDateLabel }),
+        )}</p>
+        <p class="subtitle">${escapeHtml(
+          t("common.currencyLabel", { currency: data.currency }),
+        )}</p>
       </div>
 
       <section class="section">
-        <h2 class="section-title">Final settlement</h2>
+        <h2 class="section-title">${escapeHtml(t("pdf.section.finalSettlement"))}</h2>
         <div class="payer-card">
-          <div class="label">Payer</div>
+          <div class="label">${escapeHtml(t("pdf.payerLabel"))}</div>
           <p class="payer-name">${escapeHtml(data.payer.name)}</p>
           <p class="payer-summary">
-            Paid ${escapeHtml(
-              formatPdfMoney(data.payer.paidCents, data.currency, locale),
-            )} - Collect ${escapeHtml(
-              formatPdfMoney(data.payer.netCents, data.currency, locale),
+            ${escapeHtml(
+              t("pdf.payerSummary", {
+                paid: formatPdfMoney(data.payer.paidCents, data.currency, locale),
+                collect: formatPdfMoney(data.payer.netCents, data.currency, locale),
+              }),
             )}
           </p>
         </div>
         <div class="section-note">
-          Total receipt ${escapeHtml(
-            formatPdfMoney(data.totalCents, data.currency, locale),
+          ${escapeHtml(
+            t("pdf.totalReceipt", {
+              amount: formatPdfMoney(data.totalCents, data.currency, locale),
+            }),
           )}
         </div>
       </section>
 
       <section class="section">
-        <h2 class="section-title">Who owes</h2>
+        <h2 class="section-title">${escapeHtml(t("pdf.section.whoOwes"))}</h2>
         <div class="owes-list">${owesRows}</div>
       </section>
 
       <section class="section">
-        <h2 class="section-title">Item breakdown</h2>
+        <h2 class="section-title">${escapeHtml(t("pdf.section.itemBreakdown"))}</h2>
         <div class="section-note">${escapeHtml(data.note)}</div>
         ${itemCards}
       </section>
 
       <section class="section">
-        <h2 class="section-title">Person breakdown</h2>
+        <h2 class="section-title">${escapeHtml(t("pdf.section.personBreakdown"))}</h2>
         <div class="section-note">${escapeHtml(data.note)}</div>
         ${personBreakdownCards}
       </section>
@@ -310,7 +317,7 @@ export async function exportSettlementPdf(
 ): Promise<void> {
   const sharingAvailable = await Sharing.isAvailableAsync();
   if (!sharingAvailable) {
-    throw new Error("Sharing is not available on this device.");
+    throw new Error(t("pdf.sharingUnavailable"));
   }
 
   const data = buildPdfExportData(values, new Date(), locale);

@@ -6,6 +6,10 @@ const mockListeners = new Set<() => void>();
 const mockStoreState = {
   ready: false,
   bootstrap: jest.fn(async () => undefined),
+  settings: {
+    language: "en",
+    humour: "plain",
+  },
 };
 
 function notifyStore() {
@@ -57,6 +61,10 @@ jest.mock("../../features/split/store", () => {
     ),
   };
 });
+
+jest.mock("../../lib/device", () => ({
+  getDeviceLocale: () => "en-US",
+}));
 
 import RootLayout from "../../../app/_layout";
 

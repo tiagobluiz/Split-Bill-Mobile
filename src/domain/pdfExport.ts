@@ -1,4 +1,5 @@
 import { computeSettlement, parseSplit, type ParsedParticipant, type SplitFormValues, type SplitMode } from "./splitter";
+import { t } from "../i18n";
 
 export type PdfExportPerson = {
   participantId: string;
@@ -84,8 +85,8 @@ function slugifySplitName(splitName?: string) {
 function getPdfTitle(splitName?: string) {
   const trimmedName = splitName?.trim();
   return trimmedName && trimmedName.length > 0
-    ? `${trimmedName} split summary`
-    : "Split Bill summary";
+    ? t("pdf.title.named", { splitName: trimmedName })
+    : t("pdf.title.default");
 }
 
 export function buildPdfFilename(splitName?: string, date = new Date()) {
@@ -102,16 +103,16 @@ export function buildPdfFilename(splitName?: string, date = new Date()) {
 function getSplitModeLabel(splitMode: SplitMode) {
   switch (splitMode) {
     case "even":
-      return "Even split";
+      return t("pdf.mode.even");
     case "shares":
-      return "Share units";
+      return t("pdf.mode.shares");
     case "percent":
-      return "Percent";
+      return t("pdf.mode.percent");
   }
 }
 
 function getParticipantName(participantId: string, participants: ParsedParticipant[]) {
-  return participants.find((participant) => participant.id === participantId)?.name ?? "Unknown";
+  return participants.find((participant) => participant.id === participantId)?.name ?? t("pdf.unknownParticipant");
 }
 
 export function buildPdfExportData(values: SplitFormValues, date = new Date(), locale = "en-US"): PdfExportData {
@@ -119,7 +120,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
   const parsed = parseSplit(values);
 
   if (!settlement.ok || !parsed.ok) {
-    throw new Error("Cannot export PDF for an invalid split.");
+    throw new Error(t("pdf.invalid"));
   }
 
   const payer = settlement.data.people.find((person) => person.isPayer)!;
@@ -182,13 +183,13 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
   }));
 
   return {
-    appName: "Split Bill",
+    appName: t("app.name"),
     splitTitle: getPdfTitle(values.splitName),
     exportDateLabel: formatExportDate(date, locale),
     fileName: buildPdfFilename(values.splitName, date),
     currency: settlement.data.currency,
     totalCents: settlement.data.totalCents,
-    note: "Item breakdown is provisional. Final leftover cents are balanced in the final balances section.",
+    note: t("pdf.note"),
     payer,
     people,
     items,

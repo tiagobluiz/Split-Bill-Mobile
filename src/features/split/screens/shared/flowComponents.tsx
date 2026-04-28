@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import { Text as TamaguiText, XStack as TamaguiXStack } from "tamagui";
 
+import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 
 const Text = TamaguiText as any;
@@ -17,19 +18,20 @@ export function FlowScreenHeader({
   onBack: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useTranslation();
   const handleClose = onClose ?? (() => router.replace("/"));
 
   return (
     <XStack alignItems="center" justifyContent="space-between">
       <XStack alignItems="center" gap="$3">
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={onBack}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.back")} hitSlop={8} onPress={onBack}>
           <ArrowLeft color={PALETTE.primary} size={22} />
         </Pressable>
         <Text fontFamily={FONTS.headlineBlack} fontSize={24} color={PALETTE.primary} letterSpacing={-1.1}>
           {title}
         </Text>
       </XStack>
-      <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} onPress={handleClose}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} hitSlop={8} onPress={handleClose}>
         <X color={PALETTE.primary} size={22} />
       </Pressable>
     </XStack>

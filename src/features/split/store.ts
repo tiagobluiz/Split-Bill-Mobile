@@ -31,6 +31,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
+import { getDefaultTranslationSettings } from "../../i18n";
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
@@ -86,7 +87,7 @@ type SplitStore = {
   importPastedList: (
     rawInput: string,
     mode: ImportMode,
-  ) => Promise<{ warningMessages: string[] }>;
+  ) => Promise<{ warningMessages: string[]; warningCodes: string[] }>;
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
@@ -247,6 +248,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   records: [],
   activeRecordId: null,
   settings: {
+    ...getDefaultTranslationSettings(getDeviceLocale()),
     ownerName: "You",
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
@@ -659,6 +661,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       }),
     );
     return {
+      warningCodes: [
+        ...parsed.warnings.map((warning) => warning.code),
+        ...(skippedDuplicateCount > 0 ? ["ignored-duplicate-imported-items"] : []),
+      ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
         ...(skippedDuplicateCount > 0

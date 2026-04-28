@@ -3,16 +3,17 @@ import type { DraftRecord } from "../../../../storage/records";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { getDeviceLocale } from "../../../../lib/device";
 import { PALETTE } from "../../../../theme/palette";
+import { t } from "../../../../i18n";
 import { isOwnerReference } from "./participantUtils";
 import { getDraftPendingStep } from "./recordUtils";
 
 const STEP_LABELS = {
-  1: "Setup",
-  2: "Participants",
-  3: "Payer",
-  4: "Items",
-  5: "Split",
-  6: "Settle",
+  1: "record.step.setup",
+  2: "record.step.participants",
+  3: "record.step.payer",
+  4: "record.step.items",
+  5: "record.step.split",
+  6: "record.step.settle",
 } as const;
 
 type SettlementPerson = {
@@ -73,10 +74,12 @@ export function getOwingPeople(people: SettlementPerson[]) {
 
 export function getOverviewSettlementLabel(person: { isPayer: boolean; netCents: number }) {
   if (person.isPayer) {
-    return "Payer";
+    return t("record.settlement.payer");
   }
 
-  return person.netCents < 0 ? "Owes payer" : "Payer owes them";
+  return person.netCents < 0
+    ? t("record.settlement.owesPayer")
+    : t("record.settlement.payerOwesThem");
 }
 
 export function getRecordMoneyPreview(record: DraftRecord, ownerName: string, resolver?: SettlementResolver) {
@@ -216,10 +219,10 @@ export function getRecentRowMeta(
   );
   const remainingLabel =
     remainingRawAmountCents < 0
-      ? "Owe"
+      ? t("record.amount.owe")
       : remainingRawAmountCents > 0
-        ? "Owed"
-        : "Nothing due";
+        ? t("record.amount.owed")
+        : t("record.amount.nothingDue");
   const totalAmount = formatAppMoney(totalCents, currency, locale, settings);
   const userPaidAmount = formatAppMoney(
     Math.max(owner?.consumedCents ?? 0, 0),
@@ -233,30 +236,46 @@ export function getRecentRowMeta(
   const amountDisplay =
     amountDisplayMode === "total"
       ? {
-          primaryLabel: "Total",
+          variant: "total" as const,
+          primaryLabel: t("record.amount.total"),
           primaryValue: totalAmount,
         }
       : amountDisplayMode === "userPaid"
         ? {
-            primaryLabel: "You consumed",
+            variant: "userPaid" as const,
+            primaryLabel: t("record.amount.userPaid"),
             primaryValue: userPaidAmount,
           }
         : amountDisplayMode === "totalAndRemaining"
           ? {
-              primaryLabel: "Total",
+              variant: "totalAndRemaining" as const,
+              primaryLabel: t("record.amount.total"),
               primaryValue: totalAmount,
               secondaryLabel: remainingLabel,
               secondaryValue: remainingAmount,
+              secondaryKind:
+                remainingRawAmountCents < 0
+                  ? ("owe" as const)
+                  : remainingRawAmountCents > 0
+                    ? ("owed" as const)
+                    : ("nothingDue" as const),
             }
           : {
+              variant: "remaining" as const,
               primaryLabel: remainingLabel,
               primaryValue: remainingAmount,
+              primaryKind:
+                remainingRawAmountCents < 0
+                  ? ("owe" as const)
+                  : remainingRawAmountCents > 0
+                    ? ("owed" as const)
+                    : ("nothingDue" as const),
             };
 
   if (record.status === "completed") {
     return {
       amountDisplay,
-      statusLabel: "Settled",
+      statusLabel: t("record.status.settled"),
       statusColor: PALETTE.secondary,
       showUnpaidDots: false,
     };
@@ -264,7 +283,9 @@ export function getRecentRowMeta(
 
   return {
     amountDisplay,
-    statusLabel: `Pending: ${STEP_LABELS[pendingStep as keyof typeof STEP_LABELS]}`,
+    statusLabel: t("record.status.pending", {
+      step: t(STEP_LABELS[pendingStep as keyof typeof STEP_LABELS]),
+    }),
     statusColor: PALETTE.primary,
     showUnpaidDots: false,
   };

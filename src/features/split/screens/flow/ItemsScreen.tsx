@@ -79,6 +79,7 @@ import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   getClipboardSummaryPreview,
   getPdfExportPreview,
@@ -161,6 +162,7 @@ const ITEM_CATEGORY_OPTIONS = [
   "Tickets",
 ] as const;
 export function ItemsScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { removeItem, setStep } = useSplitStore(
     useShallow((state) => ({
@@ -196,8 +198,8 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -271,7 +273,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
         console.warn("Failed to remove pending item after undo window", error);
         pendingItemDeleteRef.current = null;
         setPendingItemDelete(null);
-        setItemsNoticeMessages(["Could not delete the item. Please try again."]);
+        setItemsNoticeMessages([t("flow.items.deleteFailed")]);
       });
     }, 4000);
   };
@@ -289,7 +291,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     fontSize={14}
                     color={PALETTE.onPrimary}
                   >
-                    Item deleted
+                    {t("flow.items.itemDeleted")}
                   </Text>
                   <Text
                     fontFamily={FONTS.bodyMedium}
@@ -301,7 +303,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                 </YStack>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Undo item delete"
+                  accessibilityLabel={t("flow.items.undoDelete")}
                   style={screenStyles.undoButton}
                   onPress={() => {
                     clearTimeout(itemDeleteTimeoutRef.current);
@@ -317,7 +319,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     textTransform="uppercase"
                     letterSpacing={1.6}
                   >
-                    Undo
+                    {t("common.undo")}
                   </Text>
                 </Pressable>
               </View>
@@ -330,7 +332,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                 textTransform="uppercase"
                 letterSpacing={2.1}
               >
-                Running total
+                {t("flow.items.runningTotal")}
               </Text>
               <XStack alignItems="flex-end" gap="$2.5">
                 <Text
@@ -347,17 +349,22 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   color={PALETTE.onSurfaceVariant}
                   paddingBottom="$1"
                 >
-                  {`${visibleItems.length} ${visibleItems.length === 1 ? "item" : "items"}`}
+                  {t(
+                    visibleItems.length === 1
+                      ? "flow.items.itemCount.one"
+                      : "flow.items.itemCount.other",
+                    { count: visibleItems.length },
+                  )}
                 </Text>
               </XStack>
             </YStack>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Next: Split Bill"
+              accessibilityLabel={t("flow.items.nextA11y")}
               accessibilityHint={
                 isItemsStepReady
-                  ? "Continues to split assignments."
-                  : "Shows validation errors before continuing."
+                  ? t("flow.items.nextHintReady")
+                  : t("flow.items.nextHintBlocked")
               }
               style={[
                 screenStyles.itemsNextButton,
@@ -384,9 +391,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     );
                     pendingItemDeleteRef.current = null;
                     setPendingItemDelete(null);
-                    setItemsNoticeMessages([
-                      "Could not delete the item. Please try again.",
-                    ]);
+                    setItemsNoticeMessages([t("flow.items.deleteFailed")]);
                     return;
                   }
                 }
@@ -411,7 +416,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       : PALETTE.onPrimary
                   }
                 >
-                  Next: Split Bill
+                  {t("flow.items.next", undefined, { maxLength: 18 })}
                 </Text>
                 <ArrowRight
                   color={
@@ -434,7 +439,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Add Items"
+          title={t("flow.items.title")}
           onBack={() => router.replace(`/split/${draftId}/payer`)}
         />
       </View>
@@ -464,7 +469,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     fontSize={17}
                     color={PALETTE.onSurface}
                   >
-                    Import with AI
+                    {t("flow.items.import")}
                   </Text>
                   <Text
                     fontFamily={FONTS.bodyMedium}
@@ -472,7 +477,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     color={PALETTE.onSurfaceVariant}
                     lineHeight={18}
                   >
-                    Quick receipt handover via AI.
+                    {t("flow.items.importDescription")}
                   </Text>
                 </YStack>
               </XStack>
@@ -483,7 +488,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
           <YStack gap="$3.5">
             <YStack gap="$3">
               {visibleItems.map((item) => {
-                const itemTitle = item.name.trim() || "Unnamed item";
+                const itemTitle = item.name.trim() || t("flow.items.unnamed");
                 return (
                   <Swipeable
                     key={item.id}
@@ -503,7 +508,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                           textTransform="uppercase"
                           letterSpacing={1.6}
                         >
-                          Delete
+                          {t("flow.items.delete")}
                         </Text>
                       </Pressable>
                     )}
@@ -565,7 +570,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
               })}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Add Item Manually"
+                accessibilityLabel={t("flow.items.addManual")}
                 style={screenStyles.itemsManualAddButton}
                 onPress={() => void addManualItem()}
               >
@@ -578,7 +583,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     fontSize={15}
                     color={PALETTE.onSurfaceVariant}
                   >
-                    Add Item Manually
+                    {t("flow.items.addManual")}
                   </Text>
                 </XStack>
               </Pressable>
