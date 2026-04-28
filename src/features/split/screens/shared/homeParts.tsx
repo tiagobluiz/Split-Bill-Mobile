@@ -159,18 +159,18 @@ export function RecordRow({
                       letterSpacing={1.3}
                       textAlign="right"
                     >
-                      {showCombinedZeroState ? t("record.amount.nothingDue").split(" ")[0] : meta.amountDisplay.secondaryLabel}
+                      {showCombinedZeroState
+                        ? t("record.amount.nothingDue")
+                        : meta.amountDisplay.secondaryLabel}
                     </Text>
                     {showCombinedZeroState ? (
                       <Text
-                        fontFamily={FONTS.bodyBold}
-                        fontSize={10}
+                        fontFamily={FONTS.headlineBlack}
+                        fontSize={18}
                         color={PALETTE.onSurfaceVariant}
-                        textTransform="uppercase"
-                        letterSpacing={1.3}
                         textAlign="right"
                       >
-                        {t("record.amount.nothingDue").split(" ").slice(1).join(" ")}
+                        {meta.amountDisplay.secondaryValue}
                       </Text>
                     ) : (
                       <Text
@@ -214,17 +214,7 @@ export function RecordRow({
                       letterSpacing={1.3}
                       textAlign="right"
                     >
-                      {t("record.amount.nothingDue").split(" ")[0]}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={10}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.3}
-                      textAlign="right"
-                    >
-                      {t("record.amount.nothingDue").split(" ").slice(1).join(" ")}
+                      {t("record.amount.nothingDue")}
                     </Text>
                   </YStack>
                 ) : (

@@ -86,19 +86,18 @@ export function translateWithSettings(
   const languageCatalog = translationCatalog[language];
   const defaultCatalog = translationCatalog[DEFAULT_LANGUAGE];
   const defaultResolved = defaultCatalog.plain[key] as string;
+  const maxLength = options?.maxLength;
 
-  let resolved =
-    languageCatalog[humour][key] ??
-    languageCatalog[fallbackTone][key] ??
-    defaultResolved;
+  const candidates = [
+    languageCatalog[humour][key],
+    languageCatalog[fallbackTone][key],
+    defaultResolved,
+  ].filter((candidate): candidate is string => Boolean(candidate));
 
-  const safeResolved = resolved ?? defaultResolved;
-
-  if (options?.maxLength && safeResolved.length > options.maxLength) {
-    resolved = languageCatalog[fallbackTone][key] ?? defaultResolved;
-  } else {
-    resolved = safeResolved;
-  }
+  const resolved = maxLength
+    ? candidates.find((candidate) => candidate.length <= maxLength) ??
+      defaultResolved
+    : candidates[0] ?? defaultResolved;
 
   return interpolate(resolved ?? defaultResolved, params);
 }

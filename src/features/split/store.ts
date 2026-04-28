@@ -87,7 +87,7 @@ type SplitStore = {
   importPastedList: (
     rawInput: string,
     mode: ImportMode,
-  ) => Promise<{ warningMessages: string[] }>;
+  ) => Promise<{ warningMessages: string[]; warningCodes: string[] }>;
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
@@ -661,6 +661,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       }),
     );
     return {
+      warningCodes: [
+        ...parsed.warnings.map((warning) => warning.code),
+        ...(skippedDuplicateCount > 0 ? ["ignored-duplicate-imported-items"] : []),
+      ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
         ...(skippedDuplicateCount > 0

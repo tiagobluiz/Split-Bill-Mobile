@@ -195,11 +195,15 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const applyImport = async () => {
     try {
       const result = await importPastedList(input, mode);
+      const suppressedWarningCodes = new Set([
+        "no-items-detected",
+        "ignored-paste-lines",
+        "ignored-duplicate-imported-items",
+      ]);
+      const warningCodes = result.warningCodes ?? [];
       const actionableWarnings = result.warningMessages.filter(
-        (warning) =>
-          !warning.includes("No valid items were detected") &&
-          !warning.includes("pasted line") &&
-          !warning.includes("duplicate imported"),
+        (_warning, index) =>
+          !suppressedWarningCodes.has(warningCodes[index] ?? ""),
       );
       if (actionableWarnings.length > 0) {
         Alert.alert(t("flow.import.notesTitle"), actionableWarnings.join("\n"));

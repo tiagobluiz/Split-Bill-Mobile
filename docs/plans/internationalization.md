@@ -1,13 +1,13 @@
 # Language + Humour I18n Plan
 
 ## Summary
-Add a first-class localization layer that resolves copy by `language + humour`, with app-wide selection stored in Settings and device locale used only as the initial default. V1 will support `English` and `Portuguese`, each with `plain` and `sassy` tones, and any humorous label that is too long for a constrained UI slot will automatically fall back to that language’s plain variant.
+Add a first-class localization layer that resolves copy by `language + humour`, with app-wide selection stored in Settings and device locale used only as the initial default. V1 will support `English` and `Portuguese`, each with `plain`, `sassy`, and `unhinged` tones where implemented, and any humorous label that is too long for a constrained UI slot will automatically fall back to that language’s plain variant.
 
 ## Key Changes
 - Introduce an app copy system built around stable message keys instead of inline strings.
 - Add app settings fields for:
   - `language`: `en` | `pt`
-  - `humour`: `plain` | `sassy`
+  - `humour`: `plain` | `sassy` | `unhinged`
 - Add a localization resolver API along the lines of:
   - `translate(key, params?, options?)`
   - `options.fallbackTone?: "plain"`
@@ -71,7 +71,7 @@ Add a first-class localization layer that resolves copy by `language + humour`, 
   - existing step-flow behavior is unchanged apart from copy
 
 ## Assumptions
-- V1 supports `en/plain`, `en/sassy`, `pt/plain`, and `pt/sassy`.
+- V1 supports `en/plain`, `en/sassy`, `en/unhinged`, `pt/plain`, `pt/sassy`, and `pt/unhinged` as a plain fallback until a dedicated Portuguese variant exists.
 - Humour applies to all user-facing copy, including exports and accessibility labels.
 - Device locale is used only to choose the initial language default; users can override it in Settings.
 - Length protection is opt-in per key for constrained UI elements, not a global cap on every string.

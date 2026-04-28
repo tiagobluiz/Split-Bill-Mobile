@@ -3,6 +3,7 @@ describe("settings storage", () => {
 
   async function loadModule(options?: {
     row?: any | null;
+    locale?: string;
   }) {
     jest.resetModules();
 
@@ -18,7 +19,7 @@ describe("settings storage", () => {
       openDatabaseAsync,
     }));
     jest.doMock("../lib/device", () => ({
-      getDeviceLocale: () => "en-US",
+      getDeviceLocale: () => options?.locale ?? "en-US",
     }));
 
     let settingsModule: typeof import("./settings");
@@ -202,6 +203,30 @@ describe("settings storage", () => {
       humour: "plain",
       splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
+    });
+  });
+
+  it("uses locale-derived translation defaults for legacy rows without language or humour", async () => {
+    const { settingsModule } = await loadModule({
+      locale: "pt-PT",
+      row: {
+        key: "app-settings",
+        payload: JSON.stringify({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "",
+          balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
+          defaultCurrency: "eur",
+          splitListAmountDisplay: "remaining",
+          customCurrencies: [],
+        }),
+      },
+    });
+
+    await settingsModule.initializeSettingsStorage();
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
+      language: "pt",
+      humour: "plain",
     });
   });
 

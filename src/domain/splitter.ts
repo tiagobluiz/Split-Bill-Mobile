@@ -160,7 +160,7 @@ export function normalizeMoneyInput(value: string) {
 }
 
 function normalizeItemCategory(category?: string) {
-  return (category?.trim() || t("flow.category.general")).toLowerCase();
+  return (category?.trim() || "General").toLowerCase();
 }
 
 export function getItemUniquenessKey(

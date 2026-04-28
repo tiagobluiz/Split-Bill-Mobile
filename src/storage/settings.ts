@@ -99,6 +99,7 @@ type SettingsRow = {
 };
 
 export async function getAppSettings() {
+  const translationDefaults = getDefaultTranslationSettings(getDeviceLocale());
   const row = await withAppDatabaseRetry((db) =>
     db.getFirstAsync<SettingsRow>(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -136,8 +137,14 @@ export async function getAppSettings() {
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
         : "EUR",
-    language: normalizeLanguage(parsed.language),
-    humour: normalizeHumour(parsed.humour),
+    language:
+      parsed.language === undefined
+        ? translationDefaults.language
+        : normalizeLanguage(parsed.language),
+    humour:
+      parsed.humour === undefined
+        ? translationDefaults.humour
+        : normalizeHumour(parsed.humour),
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       parsed.splitListAmountDisplay,
     ),

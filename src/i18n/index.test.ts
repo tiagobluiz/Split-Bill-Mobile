@@ -33,6 +33,17 @@ describe("i18n", () => {
     ).toBe("Start New Split");
   });
 
+  it("falls back to en plain when both the requested and fallback tones are too long", () => {
+    expect(
+      translateWithSettings(
+        { language: "pt", humour: "sassy" },
+        "home.startSplit",
+        undefined,
+        { maxLength: 5 },
+      ),
+    ).toBe("Start New Split");
+  });
+
   it("interpolates params", () => {
     expect(
       translateWithSettings(

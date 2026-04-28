@@ -619,6 +619,18 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.askAiTitle": "Deixa a IA ver isso",
   "flow.import.afterAi": "Copia bem e volta",
   "flow.import.copyPrompt": "Copia isso",
+  "llm.receiptPrompt.readReceipt": "Lê o talão enviado e extrai apenas os itens comprados.",
+  "llm.receiptPrompt.returnFormat": "Devolve o resultado exatamente neste formato, um item por linha:",
+  "llm.receiptPrompt.rules": "Regras:",
+  "llm.receiptPrompt.rule.keepItems": "- Mantém apenas itens reais que possam ser comprados.",
+  "llm.receiptPrompt.rule.excludeNonItems":
+    "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
+  "llm.receiptPrompt.rule.noCommentary":
+    "- Não acrescentes comentários, numeração, markdown, tabelas ou explicações.",
+  "llm.receiptPrompt.rule.plainDecimal":
+    "- Usa um número decimal simples para o preço.",
+  "llm.receiptPrompt.rule.commaToDot":
+    "- Se o talão usar vírgulas decimais, converte-as em pontos.",
   "flow.import.alreadyHaveList": "Já tenho a lista",
 
   "flow.review.title": "Vê lá bem isso",
@@ -630,6 +642,8 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.results.revertMarkPaid": "Afinal ainda devem",
   
   "validation.participantsMin": "Pelo menos duas pessoas, vá",
+  "validation.participantNameMax":
+    "Mantém os nomes abaixo de {max} caracteres.",
   "validation.payerRequired": "Alguém pagou… escolhe",
   "validation.itemsMin": "Sem itens não dá",
   "validation.itemAmountInvalid": "Isso não é um valor",
@@ -817,9 +831,25 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "validation.percentMaxDecimals": "Usa no máximo 2 casas decimais.",
   "validation.percentFormat": "Insere uma percentagem válida.",
 
-  "pdf.sharingUnavailable": "A partilha não está disponível neste dispositivo."
-};
+  "flow.import.askAiTitle": "Pede \u00e0 IA para ler o recibo",
+  "flow.import.copyPromptA11y": "Copiar texto do prompt",
+  "llm.receiptPrompt.readReceipt": "L\u00ea o tal\u00e3o enviado e extrai apenas os itens comprados.",
+  "llm.receiptPrompt.returnFormat": "Devolve o resultado exatamente neste formato, um item por linha:",
+  "llm.receiptPrompt.rules": "Regras:",
+  "llm.receiptPrompt.rule.keepItems": "- Mant\u00e9m apenas itens reais que possam ser comprados.",
+  "llm.receiptPrompt.rule.excludeNonItems":
+    "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cart\u00e3o, cabe\u00e7alhos e notas.",
+  "llm.receiptPrompt.rule.noCommentary":
+    "- N\u00e3o acrescentes coment\u00e1rios, numera\u00e7\u00e3o, markdown, tabelas ou explica\u00e7\u00f5es.",
+  "llm.receiptPrompt.rule.plainDecimal":
+    "- Usa um n\u00famero decimal simples para o pre\u00e7o.",
+  "llm.receiptPrompt.rule.commaToDot":
+    "- Se o tal\u00e3o usar v\u00edrgulas decimais, converte-as em pontos.",
+  "validation.participantNameMax":
+    "Mant\u00e9m os nomes abaixo de {max} caracteres.",
 
+  "pdf.sharingUnavailable": "A partilha n\u00e3o est\u00e1 dispon\u00edvel neste dispositivo."
+};
 const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "app.error.openTitle": "A app decidiu morrer",
   "app.error.openDescription": "Tenta outra vez. Com fé.",
