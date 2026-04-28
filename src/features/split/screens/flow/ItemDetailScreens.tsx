@@ -16,7 +16,6 @@ import {
   EmptyState,
   FieldLabel,
   FloatingFooter,
-  PrimaryButton,
   SectionCard,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
@@ -54,7 +53,7 @@ import {
 import { ConfirmChoiceModal, SplitNoticeModal } from "../shared/modals";
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { FlowScreenHeader } from "../shared/flowComponents";
-import { ModeToggle } from "../shared/components";
+import { FlowContinueButton, ModeToggle } from "../shared/components";
 import { useRecord } from "../shared/hooks";
 import { screenStyles } from "../shared/styles";
 
@@ -278,42 +277,20 @@ export function AssignItemScreen({
                 <Trash2 color={PALETTE.danger} size={18} />
               </Pressable>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("flow.itemDetail.saveA11y")}
+            <View
               style={[
                 isNewItem
                   ? screenStyles.itemSaveButtonFull
                   : screenStyles.itemSaveButton,
-                screenStyles.itemsNextButton,
-                !hasValidName || !hasValidPrice
-                  ? screenStyles.participantsContinueButtonDisabled
-                  : null,
               ]}
-              onPress={() => void saveEditor()}
             >
-              <XStack alignItems="center" justifyContent="center" gap="$2.5">
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={18}
-                  color={
-                    !hasValidName || !hasValidPrice
-                      ? PALETTE.onSurfaceVariant
-                      : PALETTE.onPrimary
-                  }
-                >
-                  {t("flow.itemDetail.save")}
-                </Text>
-                <ArrowRight
-                  color={
-                    !hasValidName || !hasValidPrice
-                      ? PALETTE.onSurfaceVariant
-                      : PALETTE.onPrimary
-                  }
-                  size={20}
-                />
-              </XStack>
-            </Pressable>
+              <FlowContinueButton
+                accessibilityLabel={t("flow.itemDetail.saveA11y")}
+                disabled={!hasValidName || !hasValidPrice}
+                label={t("flow.itemDetail.save")}
+                onPress={() => void saveEditor()}
+              />
+            </View>
           </XStack>
         </FloatingFooter>
       }
@@ -994,9 +971,8 @@ export function SplitItemScreen({
                 </Text>
               </View>
             ) : null}
-            <PrimaryButton
+            <FlowContinueButton
               label={ctaLabel}
-              icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
               onPress={() => void confirmSplit()}
             />
           </YStack>

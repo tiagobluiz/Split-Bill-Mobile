@@ -1,4 +1,5 @@
 import { Pressable, View } from "react-native";
+import { ArrowRight } from "lucide-react-native";
 import {
   Paragraph as TamaguiParagraph,
   Text as TamaguiText,
@@ -13,6 +14,54 @@ import { screenStyles } from "./styles";
 const Paragraph = TamaguiParagraph as any;
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
+
+export function FlowContinueButton({
+  label,
+  onPress,
+  disabled,
+  accessibilityLabel,
+  accessibilityHint,
+}: {
+  label: string;
+  onPress?: () => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+}) {
+  const foregroundColor = disabled
+    ? PALETTE.onSurfaceVariant
+    : PALETTE.onPrimary;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
+      style={[
+        screenStyles.itemsNextButton,
+        disabled ? screenStyles.participantsContinueButtonDisabled : null,
+      ]}
+    >
+      <View style={screenStyles.flowContinueButtonContent}>
+        <View style={screenStyles.flowContinueButtonIconSlot} />
+        <Text
+          fontFamily={FONTS.headlineBlack}
+          fontSize={18}
+          color={foregroundColor}
+          style={screenStyles.flowContinueButtonLabel}
+        >
+          {label}
+        </Text>
+        <View style={screenStyles.flowContinueButtonIconSlot}>
+          <ArrowRight color={foregroundColor} size={20} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 export function ModePills({
   active,

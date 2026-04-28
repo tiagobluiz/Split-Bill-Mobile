@@ -174,7 +174,10 @@ export function getHomeBalanceCards(
 
   const preferredKey = preferredCurrency?.trim().toUpperCase() ?? "";
   const currency =
-    (preferredKey && totalsByCurrency.has(preferredKey) ? preferredKey : null) ??
+    (preferredKey &&
+    (totalsByCurrency.has(preferredKey) || totalsByCurrency.size === 0)
+      ? preferredKey
+      : null) ??
     previews[0]?.currency ??
     records[0]?.values.currency ??
     "USD";

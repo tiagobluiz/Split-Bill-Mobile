@@ -52,7 +52,6 @@ import {
   FieldLabel,
   FloatingFooter,
   HeroCard,
-  PrimaryButton,
   QuietButton,
   ScreenHeader,
   SecondaryButton,
@@ -124,7 +123,12 @@ import {
   getRecentRowMeta,
   getSettledParticipantIds,
 } from "../shared/settlementUtils";
-import { ErrorList, ModePills, ModeToggle } from "../shared/components";
+import {
+  ErrorList,
+  FlowContinueButton,
+  ModePills,
+  ModeToggle,
+} from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
   ActionSheetModal,
@@ -358,20 +362,15 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                 </Text>
               </XStack>
             </YStack>
-            <Pressable
-              accessibilityRole="button"
+            <FlowContinueButton
               accessibilityLabel={t("flow.items.nextA11y")}
               accessibilityHint={
                 isItemsStepReady
                   ? t("flow.items.nextHintReady")
                   : t("flow.items.nextHintBlocked")
               }
-              style={[
-                screenStyles.itemsNextButton,
-                !isItemsStepReady
-                  ? screenStyles.participantsContinueButtonDisabled
-                  : null,
-              ]}
+              disabled={!isItemsStepReady}
+              label={t("flow.items.next", undefined, { maxLength: 18 })}
               onPress={async () => {
                 if (!isItemsStepReady) {
                   setItemsNoticeMessages([
@@ -405,29 +404,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                     : `/split/${draftId}/overview`,
                 );
               }}
-            >
-              <XStack alignItems="center" justifyContent="center" gap="$2.5">
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={18}
-                  color={
-                    !isItemsStepReady
-                      ? PALETTE.onSurfaceVariant
-                      : PALETTE.onPrimary
-                  }
-                >
-                  {t("flow.items.next", undefined, { maxLength: 18 })}
-                </Text>
-                <ArrowRight
-                  color={
-                    !isItemsStepReady
-                      ? PALETTE.onSurfaceVariant
-                      : PALETTE.onPrimary
-                  }
-                  size={20}
-                />
-              </XStack>
-            </Pressable>
+            />
           </YStack>
         </FloatingFooter>
       }

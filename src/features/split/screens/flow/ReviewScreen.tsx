@@ -13,7 +13,6 @@ import {
   AppScreen,
   EmptyState,
   FloatingFooter,
-  PrimaryButton,
   SectionEyebrow,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
@@ -28,6 +27,7 @@ import {
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { FlowContinueButton } from "../shared/components";
 import {
   getFriendlySplitMessage,
   getAssignedParticipantCount,
@@ -91,9 +91,8 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <PrimaryButton
+          <FlowContinueButton
             label={t("flow.review.showResults")}
-            icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
                 setReviewNoticeMessages([

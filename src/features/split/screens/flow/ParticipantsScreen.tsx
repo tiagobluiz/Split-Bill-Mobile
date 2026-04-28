@@ -19,7 +19,6 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useShallow } from "zustand/react/shallow";
 import {
   ArrowLeft,
-  ArrowRight,
   AlertTriangle,
   ChevronDown,
   Camera,
@@ -53,7 +52,6 @@ import {
   FieldLabel,
   FloatingFooter,
   HeroCard,
-  PrimaryButton,
   QuietButton,
   ScreenHeader,
   SecondaryButton,
@@ -125,7 +123,12 @@ import {
   getRecentRowMeta,
   getSettledParticipantIds,
 } from "../shared/settlementUtils";
-import { ErrorList, ModePills, ModeToggle } from "../shared/components";
+import {
+  ErrorList,
+  FlowContinueButton,
+  ModePills,
+  ModeToggle,
+} from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
   ActionSheetModal,
@@ -252,20 +255,15 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <Pressable
-            accessibilityRole="button"
+          <FlowContinueButton
             accessibilityLabel={t("flow.participants.nextA11y")}
             accessibilityHint={
               isParticipantsStepReady
                 ? t("flow.participants.nextHintReady")
                 : t("flow.participants.nextHintBlocked")
             }
-            style={[
-              screenStyles.participantsContinueButton,
-              !isParticipantsStepReady
-                ? screenStyles.participantsContinueButtonDisabled
-                : null,
-            ]}
+            disabled={!isParticipantsStepReady}
+            label={t("flow.participants.next", undefined, { maxLength: 24 })}
             onPress={async () => {
               if (!isParticipantsStepReady) {
                 setParticipantsNoticeMessages([
@@ -276,29 +274,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               await setStep(3);
               router.push(`/split/${draftId}/payer`);
             }}
-          >
-            <XStack alignItems="center" justifyContent="center" gap="$2.5">
-              <Text
-                fontFamily={FONTS.headlineBlack}
-                fontSize={18}
-                color={
-                  !isParticipantsStepReady
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-              >
-                {t("flow.participants.next", undefined, { maxLength: 24 })}
-              </Text>
-              <ArrowRight
-                color={
-                  !isParticipantsStepReady
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-                size={20}
-              />
-            </XStack>
-          </Pressable>
+          />
         </FloatingFooter>
       }
     >

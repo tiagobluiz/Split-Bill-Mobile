@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, Check } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -19,6 +19,7 @@ import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { useSplitStore } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
+import { FlowContinueButton } from "../shared/components";
 import { useRecord } from "../shared/hooks";
 import { SplitNoticeModal } from "../shared/modals";
 import { ParticipantAvatar } from "../shared/participantComponents";
@@ -62,16 +63,10 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <Pressable
-            accessibilityRole="button"
+          <FlowContinueButton
             accessibilityLabel={t("flow.payer.nextA11y")}
-            accessibilityState={{ disabled: !record.values.payerParticipantId }}
-            style={[
-              screenStyles.participantsContinueButton,
-              !record.values.payerParticipantId
-                ? screenStyles.participantsContinueButtonDisabled
-                : null,
-            ]}
+            disabled={!record.values.payerParticipantId}
+            label={t("flow.payer.next", undefined, { maxLength: 20 })}
             onPress={async () => {
               if (!record.values.payerParticipantId) {
                 setShowPayerHint(true);
@@ -81,29 +76,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
               await setStep(4);
               router.push(`/split/${draftId}/items`);
             }}
-          >
-            <XStack alignItems="center" justifyContent="center" gap="$2.5">
-              <Text
-                fontFamily={FONTS.headlineBlack}
-                fontSize={18}
-                color={
-                  !record.values.payerParticipantId
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-              >
-                {t("flow.payer.next", undefined, { maxLength: 20 })}
-              </Text>
-              <ArrowRight
-                color={
-                  !record.values.payerParticipantId
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-                size={20}
-              />
-            </XStack>
-          </Pressable>
+          />
         </FloatingFooter>
       }
     >

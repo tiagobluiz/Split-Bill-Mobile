@@ -14,7 +14,6 @@ import {
   EmptyState,
   FloatingFooter,
   HeroCard,
-  PrimaryButton,
   SectionCard,
   SectionEyebrow,
 } from "../../../../components/ui";
@@ -30,7 +29,7 @@ import {
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
-import { ErrorList } from "../shared/components";
+import { ErrorList, FlowContinueButton } from "../shared/components";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { SplitNoticeModal } from "../shared/modals";
 import { useRecord } from "../shared/hooks";
@@ -82,9 +81,8 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <PrimaryButton
+          <FlowContinueButton
             label={t("flow.overview.finalize")}
-            icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
                 setReviewNoticeMessages([
