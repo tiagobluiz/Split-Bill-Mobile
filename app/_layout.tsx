@@ -9,7 +9,7 @@ import { PublicSans_700Bold, PublicSans_900Black } from "@expo-google-fonts/publ
 import { AppThemeProvider } from "../src/theme/provider";
 import { useSplitStore } from "../src/features/split/store";
 import { PALETTE } from "../src/theme/palette";
-import { getDefaultTranslationSettings, t } from "../src/i18n";
+import { getDefaultTranslationSettings, t, translateWithSettings } from "../src/i18n";
 import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
 
@@ -51,6 +51,8 @@ export default function RootLayout() {
 
   if (bootstrapFailed) {
     const fallbackSettings = getDefaultTranslationSettings(getDeviceLocale());
+    const translateFallback = (key: Parameters<typeof t>[0]) =>
+      translateWithSettings(fallbackSettings, key);
     return (
       <AppThemeProvider>
         <LocalizationProvider
@@ -61,15 +63,15 @@ export default function RootLayout() {
             <View style={{ gap: 20 }}>
               <View style={{ gap: 8 }}>
                 <Text style={{ fontSize: 28, fontWeight: "900", color: PALETTE.onSurface, letterSpacing: -1 }}>
-                  {t("app.error.openTitle")}
+                  {translateFallback("app.error.openTitle")}
                 </Text>
                 <Text style={{ fontSize: 15, lineHeight: 22, color: PALETTE.onSurfaceVariant }}>
-                  {t("app.error.openDescription")}
+                  {translateFallback("app.error.openDescription")}
                 </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t("app.error.retryA11y")}
+                accessibilityLabel={translateFallback("app.error.retryA11y")}
                 style={{
                   minHeight: 56,
                   borderRadius: 24,
@@ -85,7 +87,7 @@ export default function RootLayout() {
                 }}
               >
                 <Text style={{ fontSize: 17, fontWeight: "700", color: PALETTE.onPrimary }}>
-                  {t("app.error.retry")}
+                  {translateFallback("app.error.retry")}
                 </Text>
               </Pressable>
             </View>

@@ -491,8 +491,8 @@ const enSassy: Partial<Record<keyof typeof enPlain, string>> = {
   "friendly.itemsMin": "Add something before continuing",
   "friendly.percentTotal": "It needs to be exactly 100",
 
-  "clipboard.payer.getBack": "{name}: paid {amount}, should get it back",
-  "clipboard.payer.stillOwes": "{name}: paid {amount}, still owes",
+  "clipboard.payer.getBack": "{name}: paid {amount}, should get back {net}.",
+  "clipboard.payer.stillOwes": "{name}: paid {amount}, still owes {net}.",
   "clipboard.person.owes": "{name}: owes {amount}",
   "clipboard.person.getsBack": "{name}: gets back {amount}",
 
@@ -558,8 +558,8 @@ const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
   "validation.percentTotal": "Make it 100. It’s not optional.",
   "friendly.itemsMin": "Add something before wasting more time",
   "friendly.percentTotal": "It must be exactly 100. Not close.",
-  "clipboard.payer.getBack": "{name}: paid {amount}, better get it back",
-  "clipboard.payer.stillOwes": "{name}: paid {amount}, still in debt",
+  "clipboard.payer.getBack": "{name}: paid {amount}, better get back {net}.",
+  "clipboard.payer.stillOwes": "{name}: paid {amount}, still in debt {net}.",
   "clipboard.person.owes": "{name}: owes {amount}. Pay them.",
   "clipboard.person.getsBack": "{name}: gets back {amount}. Eventually.",
   "pdf.invalid": "No PDF for this mess. Fix it first.",
@@ -652,8 +652,8 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "friendly.itemsMin": "Adiciona aí alguma coisa",
   "friendly.percentTotal": "Faz isso dar 100%",
 
-  "clipboard.payer.getBack": "{name}: pagou {amount}, vai buscar",
-  "clipboard.payer.stillOwes": "{name}: pagou {amount}, ainda deve",
+  "clipboard.payer.getBack": "{name}: pagou {amount}, vai buscar {net}",
+  "clipboard.payer.stillOwes": "{name}: pagou {amount}, ainda deve {net}",
   "clipboard.person.owes": "{name}: deve {amount}",
   "clipboard.person.getsBack": "{name}: recebe {amount}",
 

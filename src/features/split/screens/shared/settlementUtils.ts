@@ -236,24 +236,40 @@ export function getRecentRowMeta(
   const amountDisplay =
     amountDisplayMode === "total"
       ? {
+          variant: "total" as const,
           primaryLabel: t("record.amount.total"),
           primaryValue: totalAmount,
         }
       : amountDisplayMode === "userPaid"
         ? {
+            variant: "userPaid" as const,
             primaryLabel: t("record.amount.userPaid"),
             primaryValue: userPaidAmount,
           }
         : amountDisplayMode === "totalAndRemaining"
           ? {
+              variant: "totalAndRemaining" as const,
               primaryLabel: t("record.amount.total"),
               primaryValue: totalAmount,
               secondaryLabel: remainingLabel,
               secondaryValue: remainingAmount,
+              secondaryKind:
+                remainingRawAmountCents < 0
+                  ? ("owe" as const)
+                  : remainingRawAmountCents > 0
+                    ? ("owed" as const)
+                    : ("nothingDue" as const),
             }
           : {
+              variant: "remaining" as const,
               primaryLabel: remainingLabel,
               primaryValue: remainingAmount,
+              primaryKind:
+                remainingRawAmountCents < 0
+                  ? ("owe" as const)
+                  : remainingRawAmountCents > 0
+                    ? ("owed" as const)
+                    : ("nothingDue" as const),
             };
 
   if (record.status === "completed") {

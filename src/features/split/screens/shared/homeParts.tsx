@@ -98,14 +98,15 @@ export function RecordRow({
   const showAmountBlock = record.status === "completed";
   const showSingleZeroState =
     showAmountBlock &&
-    meta.amountDisplay.primaryLabel === t("record.amount.nothingDue") &&
+    meta.amountDisplay.variant === "remaining" &&
+    meta.amountDisplay.primaryKind === "nothingDue" &&
     !meta.amountDisplay.secondaryValue;
   const showCombinedAmount =
     showAmountBlock &&
-    Boolean(meta.amountDisplay.secondaryValue) &&
-    meta.amountDisplay.primaryLabel === t("record.amount.total");
+    meta.amountDisplay.variant === "totalAndRemaining" &&
+    Boolean(meta.amountDisplay.secondaryValue);
   const showCombinedZeroState = showCombinedAmount &&
-    meta.amountDisplay.secondaryLabel === t("record.amount.nothingDue");
+    meta.amountDisplay.secondaryKind === "nothingDue";
 
   return (
     <Swipeable
