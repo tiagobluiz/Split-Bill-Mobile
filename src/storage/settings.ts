@@ -1,4 +1,12 @@
 import { withAppDatabaseRetry } from "./database";
+import {
+  getDefaultTranslationSettings,
+  normalizeHumour,
+  normalizeLanguage,
+  type AppHumour,
+  type AppLanguage,
+} from "../i18n";
+import { getDeviceLocale } from "../lib/device";
 
 export type AppSettings = {
   ownerName: string;
@@ -6,6 +14,8 @@ export type AppSettings = {
   balanceFeatureEnabled: boolean;
   trackPaymentsFeatureEnabled: boolean;
   defaultCurrency: string;
+  language: AppLanguage;
+  humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
   customCurrencies: Array<{
     code: string;
@@ -58,12 +68,15 @@ function normalizeSplitListAmountDisplay(
 }
 
 function getDefaultSettings(): AppSettings {
+  const translationDefaults = getDefaultTranslationSettings(getDeviceLocale());
   return {
     ownerName: "You",
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
+    language: translationDefaults.language,
+    humour: translationDefaults.humour,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
     customCurrencies: [],
   };
@@ -123,6 +136,8 @@ export async function getAppSettings() {
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
         : "EUR",
+    language: normalizeLanguage(parsed.language),
+    humour: normalizeHumour(parsed.humour),
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       parsed.splitListAmountDisplay,
     ),

@@ -48,6 +48,11 @@ import { createId, formatMoney, normalizeMoneyInput } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import {
+  type AppHumour,
+  type AppLanguage,
+} from "../../../../i18n";
+import { useTranslation } from "../../../../i18n/provider";
 import { getSettlementPreview, useSplitStore } from "../../store";
 import {
   getCurrencyOptionLabel,
@@ -82,41 +87,6 @@ const YStack = TamaguiYStack as any;
 type ActivityStateFilter = "all" | "settled" | "unsettled";
 type ActivityDateFilter = "newest" | "oldest";
 type ActivityBalanceFilter = "all" | "nothingDue" | "somethingDue";
-const SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS: Array<{
-  key: SplitListAmountDisplay;
-  label: string;
-  description: string;
-  summary: string;
-}> = [
-  {
-    key: "remaining",
-    label: "Outstanding balance",
-    summary: "Show what is still unsettled for you",
-    description:
-      "Shows how much is still unsettled for you in that split. 'Owed' means they owe you, and 'Owe' means you owe them.",
-  },
-  {
-    key: "total",
-    label: "Total bill",
-    summary: "Show the full split total",
-    description:
-      "Shows the full amount of the split, regardless of who paid or what is still unsettled.",
-  },
-  {
-    key: "userPaid",
-    label: "You consumed",
-    summary: "Show how much of the bill was yours",
-    description:
-      "Shows how much of that split was assigned to you, regardless of who paid upfront.",
-  },
-  {
-    key: "totalAndRemaining",
-    label: "Total + outstanding",
-    summary: "Show both the total and what is still unsettled",
-    description:
-      "Shows the full split total first, with your unsettled amount underneath for extra context.",
-  },
-];
 const MAX_OWNER_NAME_LENGTH = 12;
 
 function isBalanceDependentSplitListAmountDisplay(
@@ -141,6 +111,7 @@ function normalizeSplitListAmountDisplaySetting(
 }
 
 export function HomeScreenView() {
+  const { t } = useTranslation();
   const { records, createDraft, removeRecord, settings, updateSettings } =
     useSplitStore(
       useShallow((state) => ({
@@ -187,6 +158,12 @@ export function HomeScreenView() {
   const [defaultCurrencyDraft, setDefaultCurrencyDraft] = useState(
     settings.defaultCurrency ?? "",
   );
+  const [languageDraft, setLanguageDraft] = useState<AppLanguage>(
+    settings.language ?? "en",
+  );
+  const [humourDraft, setHumourDraft] = useState<AppHumour>(
+    settings.humour ?? "plain",
+  );
   const [splitListAmountDisplayDraft, setSplitListAmountDisplayDraft] =
     useState<SplitListAmountDisplay>(
       normalizeSplitListAmountDisplaySetting(
@@ -197,8 +174,39 @@ export function HomeScreenView() {
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
   );
+  const splitListAmountDisplayOptions: Array<{
+    key: SplitListAmountDisplay;
+    label: string;
+    description: string;
+    summary: string;
+  }> = [
+    {
+      key: "remaining",
+      label: t("settings.splitRows.remaining.label"),
+      summary: t("settings.splitRows.remaining.summary"),
+      description: t("settings.splitRows.remaining.description"),
+    },
+    {
+      key: "total",
+      label: t("settings.splitRows.total.label"),
+      summary: t("settings.splitRows.total.summary"),
+      description: t("settings.splitRows.total.description"),
+    },
+    {
+      key: "userPaid",
+      label: t("settings.splitRows.userPaid.label"),
+      summary: t("settings.splitRows.userPaid.summary"),
+      description: t("settings.splitRows.userPaid.description"),
+    },
+    {
+      key: "totalAndRemaining",
+      label: t("settings.splitRows.totalAndRemaining.label"),
+      summary: t("settings.splitRows.totalAndRemaining.summary"),
+      description: t("settings.splitRows.totalAndRemaining.description"),
+    },
+  ];
   const availableSplitListAmountDisplayOptions =
-    SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.map((option) => {
+    splitListAmountDisplayOptions.map((option) => {
       const disabled =
         !balanceFeatureEnabledDraft &&
         isBalanceDependentSplitListAmountDisplay(option.key);
@@ -207,11 +215,13 @@ export function HomeScreenView() {
         ...option,
         disabled,
         description: disabled
-          ? `${option.description} Requires Balance helper to be on.`
+          ? `${option.description} ${t("settings.splitRows.requiresBalanceSuffix")}`
           : option.description,
       };
     });
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const [humourMenuOpen, setHumourMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
   const [profileActionMenuOpen, setProfileActionMenuOpen] = useState(false);
@@ -309,6 +319,8 @@ export function HomeScreenView() {
       (settings.trackPaymentsFeatureEnabled ?? true) ||
     defaultCurrencyDraft.trim().toUpperCase() !==
       (settings.defaultCurrency ?? "") ||
+    languageDraft !== (settings.language ?? "en") ||
+    humourDraft !== (settings.humour ?? "plain") ||
     hasLegacySplitListAmountDisplayMismatch ||
     splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
     JSON.stringify(customCurrenciesDraft) !==
@@ -360,6 +372,8 @@ export function HomeScreenView() {
       settings.trackPaymentsFeatureEnabled ?? true,
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
+    setLanguageDraft(settings.language ?? "en");
+    setHumourDraft(settings.humour ?? "plain");
     setSplitListAmountDisplayDraft(
       normalizeSplitListAmountDisplaySetting(
         settings.splitListAmountDisplay,
@@ -372,6 +386,8 @@ export function HomeScreenView() {
     settings.trackPaymentsFeatureEnabled,
     settings.customCurrencies,
     settings.defaultCurrency,
+    settings.humour,
+    settings.language,
     settings.splitListAmountDisplay,
     settings.ownerName,
     settings.ownerProfileImageUri,
@@ -387,13 +403,13 @@ export function HomeScreenView() {
         ? "total"
         : splitListAmountDisplayDraft;
     if (!trimmedName) {
-      setSettingsNoticeTitle("Almost there");
-      setSettingsNoticeMessages(["Please choose a short name for yourself."]);
+      setSettingsNoticeTitle(t("common.almostThere"));
+      setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
       return false;
     }
     if (!defaultCurrencyDraft.trim()) {
-      setSettingsNoticeTitle("Almost there");
-      setSettingsNoticeMessages(["Please choose a default currency first."]);
+      setSettingsNoticeTitle(t("common.almostThere"));
+      setSettingsNoticeMessages([t("settings.defaultCurrencyRequired")]);
       return false;
     }
     try {
@@ -403,20 +419,24 @@ export function HomeScreenView() {
         balanceFeatureEnabled: balanceFeatureEnabledDraft,
         trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
         defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
+        language: languageDraft,
+        humour: humourDraft,
         splitListAmountDisplay: persistedSplitListAmountDisplay,
         customCurrencies: customCurrenciesDraft,
       });
       setCurrencyMenuOpen(false);
+      setLanguageMenuOpen(false);
+      setHumourMenuOpen(false);
       setSplitListAmountDisplayMenuOpen(false);
-      setSettingsNoticeTitle("Almost there");
+      setSettingsNoticeTitle(t("common.almostThere"));
       setSettingsNoticeMessages([]);
       return true;
     } catch (error) {
-      setSettingsNoticeTitle("Could not save settings");
+      setSettingsNoticeTitle(t("common.couldNotSaveSettings"));
       setSettingsNoticeMessages([
         error instanceof Error && error.message
           ? error.message
-          : "Please try again.",
+          : t("common.tryAgain"),
       ]);
       return false;
     }
@@ -429,6 +449,8 @@ export function HomeScreenView() {
       settings.trackPaymentsFeatureEnabled ?? true,
     );
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
+    setLanguageDraft(settings.language ?? "en");
+    setHumourDraft(settings.humour ?? "plain");
     setSplitListAmountDisplayDraft(
       normalizeSplitListAmountDisplaySetting(
         settings.splitListAmountDisplay,
@@ -439,12 +461,14 @@ export function HomeScreenView() {
     setCustomCurrencyName("");
     setCustomCurrencySymbol("");
     setCurrencyMenuOpen(false);
+    setLanguageMenuOpen(false);
+    setHumourMenuOpen(false);
     setSplitListAmountDisplayMenuOpen(false);
     setCurrencyModalOpen(false);
     setProfileActionMenuOpen(false);
     setCustomCurrencyErrors({ name: false, symbol: false });
     setPendingTabChange(null);
-    setSettingsNoticeTitle("Almost there");
+    setSettingsNoticeTitle(t("common.almostThere"));
     setSettingsNoticeMessages([]);
   };
   const attemptTabChange = (nextTab: HomeTabKey) => {
@@ -461,11 +485,11 @@ export function HomeScreenView() {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setSettingsNoticeTitle("Almost there");
+      setSettingsNoticeTitle(t("common.almostThere"));
       setSettingsNoticeMessages([
         mode === "camera"
-          ? "Please allow camera access to take a profile picture."
-          : "Please allow photo access to choose a profile picture.",
+          ? t("settings.profileCameraPermission")
+          : t("settings.profileLibraryPermission"),
       ]);
       return;
     }
@@ -487,7 +511,7 @@ export function HomeScreenView() {
       return;
     }
     setOwnerProfileImageUriDraft(result.assets[0].uri);
-    setSettingsNoticeTitle("Almost there");
+    setSettingsNoticeTitle(t("common.almostThere"));
     setSettingsNoticeMessages([]);
   };
   const addCustomCurrency = async () => {
@@ -499,11 +523,11 @@ export function HomeScreenView() {
     };
     setCustomCurrencyErrors(nextErrors);
     if (nextErrors.name || nextErrors.symbol) {
-      setSettingsNoticeTitle("Almost there");
+      setSettingsNoticeTitle(t("common.almostThere"));
       if (!trimmedName) {
-        setSettingsNoticeMessages(["Please add a currency name first."]);
+        setSettingsNoticeMessages([t("settings.currencyValidationName")]);
       } else {
-        setSettingsNoticeMessages(["Please add a currency symbol too."]);
+        setSettingsNoticeMessages([t("settings.currencyValidationSymbol")]);
       }
       return;
     }
@@ -541,7 +565,7 @@ export function HomeScreenView() {
     setCustomCurrencySymbol("");
     setCustomCurrencyErrors({ name: false, symbol: false });
     setCurrencyModalOpen(false);
-    setSettingsNoticeTitle("Almost there");
+    setSettingsNoticeTitle(t("common.almostThere"));
     setSettingsNoticeMessages([]);
   };
   const renderMainHeader = () => (
@@ -598,10 +622,10 @@ export function HomeScreenView() {
                   setIsCreatingSplit(false);
                   console.warn("Failed to create split", error);
                   Alert.alert(
-                    "Could not create split",
+                    t("common.couldNotSaveSettings"),
                     error instanceof Error && error.message
                       ? error.message
-                      : "Please try again.",
+                      : t("common.tryAgain"),
                   );
                 }
               }}
@@ -615,7 +639,7 @@ export function HomeScreenView() {
                 color={PALETTE.onPrimary}
                 letterSpacing={-1}
               >
-                Start New Split
+                {t("home.startSplit", undefined, { maxLength: 22 })}
               </Text>
             </Pressable>
           </View>
@@ -631,7 +655,7 @@ export function HomeScreenView() {
                       textTransform="uppercase"
                       letterSpacing={2}
                     >
-                      You are owed
+                      {t("home.youAreOwed")}
                     </Text>
                     <Text
                       fontFamily={FONTS.headlineBlack}
@@ -659,7 +683,7 @@ export function HomeScreenView() {
                       textTransform="uppercase"
                       letterSpacing={2}
                     >
-                      You owe
+                      {t("home.youOwe")}
                     </Text>
                     <Text
                       fontFamily={FONTS.headlineBlack}
@@ -687,11 +711,11 @@ export function HomeScreenView() {
                 color={PALETTE.onSurfaceVariant}
                 letterSpacing={-1.2}
               >
-                Recent
+                {t("home.recent")}
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="View all splits"
+                accessibilityLabel={t("home.viewAllSplits")}
                 onPress={() => setActiveTab("splits")}
               >
                 <Text
@@ -699,14 +723,14 @@ export function HomeScreenView() {
                   fontSize={16}
                   color={PALETTE.primary}
                 >
-                  View All
+                  {t("home.viewAll")}
                 </Text>
               </Pressable>
             </XStack>
             {recentRecords.length === 0 ? (
               <EmptyState
-                title="No splits yet"
-                description="Your most recent splits will be shown here."
+                title={t("home.noSplitsTitle")}
+                description={t("home.noSplitsDescription")}
               />
             ) : (
               <YStack gap="$3">
@@ -742,7 +766,7 @@ export function HomeScreenView() {
                     textTransform="uppercase"
                     letterSpacing={2}
                   >
-                    You are owed
+                    {t("home.youAreOwed")}
                   </Text>
                   <Text
                     fontFamily={FONTS.headlineBlack}
@@ -770,7 +794,7 @@ export function HomeScreenView() {
                     textTransform="uppercase"
                     letterSpacing={2}
                   >
-                    You owe
+                    {t("home.youOwe")}
                   </Text>
                   <Text
                     fontFamily={FONTS.headlineBlack}
@@ -818,7 +842,7 @@ export function HomeScreenView() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                filtersExpanded ? "Hide filters" : "Show filters"
+                filtersExpanded ? t("home.hideFilters") : t("home.showFilters")
               }
               style={[
                 screenStyles.settingsInlineAction,
@@ -834,15 +858,15 @@ export function HomeScreenView() {
           {filtersExpanded ? (
             <SectionCard>
               <YStack gap="$3.5">
-                <SectionEyebrow>Filters</SectionEyebrow>
+                <SectionEyebrow>{t("home.filters")}</SectionEyebrow>
                 <YStack gap="$2.5">
-                  <FieldLabel>Status</FieldLabel>
+                  <FieldLabel>{t("home.filter.status")}</FieldLabel>
                   <ModePills
                     active={activityStateFilter}
                     options={[
-                      { key: "all", label: "All" },
-                      { key: "settled", label: "Settled" },
-                      { key: "unsettled", label: "Unsettled" },
+                      { key: "all", label: t("home.filter.all") },
+                      { key: "settled", label: t("home.filter.settled") },
+                      { key: "unsettled", label: t("home.filter.unsettled") },
                     ]}
                     onChange={(value: string) =>
                       setActivityStateFilter(value as ActivityStateFilter)
@@ -850,13 +874,13 @@ export function HomeScreenView() {
                   />
                 </YStack>
                 <YStack gap="$2.5">
-                  <FieldLabel>Balance</FieldLabel>
+                  <FieldLabel>{t("home.filter.balance")}</FieldLabel>
                   <ModePills
                     active={activityBalanceFilter}
                     options={[
-                      { key: "all", label: "All" },
-                      { key: "nothingDue", label: "Nothing due" },
-                      { key: "somethingDue", label: "Something due" },
+                      { key: "all", label: t("home.filter.all") },
+                      { key: "nothingDue", label: t("home.filter.nothingDue") },
+                      { key: "somethingDue", label: t("home.filter.somethingDue") },
                     ]}
                     onChange={(value: string) =>
                       setActivityBalanceFilter(value as ActivityBalanceFilter)
@@ -864,12 +888,12 @@ export function HomeScreenView() {
                   />
                 </YStack>
                 <YStack gap="$2.5">
-                  <FieldLabel>Date</FieldLabel>
+                  <FieldLabel>{t("home.filter.date")}</FieldLabel>
                   <ModePills
                     active={activityDateFilter}
                     options={[
-                      { key: "newest", label: "Newest" },
-                      { key: "oldest", label: "Oldest" },
+                      { key: "newest", label: t("home.filter.newest") },
+                      { key: "oldest", label: t("home.filter.oldest") },
                     ]}
                     onChange={(value: string) =>
                       setActivityDateFilter(value as ActivityDateFilter)
@@ -881,8 +905,8 @@ export function HomeScreenView() {
           ) : null}
           {pagedSplitRecords.length === 0 ? (
             <EmptyState
-              title="No splits here"
-              description="Try a different filter or start a new split."
+              title={t("home.noSplitsFilteredTitle")}
+              description={t("home.noSplitsDescription")}
             />
           ) : (
             <YStack gap="$3">
@@ -915,11 +939,11 @@ export function HomeScreenView() {
       >
         <YStack gap="$5">
           <YStack gap="$4">
-            <SectionEyebrow>User profile</SectionEyebrow>
+            <SectionEyebrow>{t("settings.userProfile")}</SectionEyebrow>
             <XStack gap="$4" alignItems="flex-start">
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Profile picture options"
+                accessibilityLabel={t("settings.profilePictureOptions")}
                 style={screenStyles.settingsAvatarWrap}
                 onPress={() => setProfileActionMenuOpen(true)}
               >
@@ -946,7 +970,7 @@ export function HomeScreenView() {
                     onChangeText={(value) =>
                       setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))
                     }
-                    placeholder="e.g. Tiago"
+                    placeholder={t("settings.ownerNamePlaceholder")}
                     placeholderTextColor="rgba(86,67,57,0.35)"
                     style={screenStyles.assignInput}
                     maxLength={MAX_OWNER_NAME_LENGTH}
@@ -966,19 +990,18 @@ export function HomeScreenView() {
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
-            <SectionEyebrow>Default currency</SectionEyebrow>
+            <SectionEyebrow>{t("settings.defaultCurrency")}</SectionEyebrow>
             <Text
               fontFamily={FONTS.bodyMedium}
               fontSize={14}
               lineHeight={21}
               color={PALETTE.onSurfaceVariant}
             >
-              New splits start with this money type, but you can still change it
-              for one split when you begin.
+              {t("settings.defaultCurrencyDescription")}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Choose default currency"
+              accessibilityLabel={t("settings.currencyPicker")}
               style={screenStyles.selectRow}
               onPress={() => setCurrencyMenuOpen((value) => !value)}
             >
@@ -1027,7 +1050,7 @@ export function HomeScreenView() {
                 })}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Choose other currency"
+                  accessibilityLabel={t("settings.currencyPickerOther")}
                   style={screenStyles.selectRow}
                   onPress={() => {
                     setCurrencyMenuOpen(false);
@@ -1039,7 +1062,7 @@ export function HomeScreenView() {
                     fontSize={16}
                     color={PALETTE.primary}
                   >
-                    Other
+                    {t("common.other")}
                   </Text>
                 </Pressable>
               </YStack>
@@ -1047,18 +1070,60 @@ export function HomeScreenView() {
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
-            <SectionEyebrow>Split rows</SectionEyebrow>
+            <SectionEyebrow>{t("settings.voice")}</SectionEyebrow>
+            <YStack gap="$3">
+              <FieldLabel>{t("settings.language")}</FieldLabel>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("settings.pickLanguage")}
+                style={screenStyles.selectRow}
+                onPress={() => setLanguageMenuOpen(true)}
+              >
+                <XStack alignItems="center" justifyContent="space-between" gap="$3">
+                  <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
+                    {t(languageDraft === "pt" ? "settings.language.pt" : "settings.language.en")}
+                  </Text>
+                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+                </XStack>
+              </Pressable>
+            </YStack>
+            <YStack gap="$3">
+              <FieldLabel>{t("settings.tone")}</FieldLabel>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("settings.pickTone")}
+                style={screenStyles.selectRow}
+                onPress={() => setHumourMenuOpen(true)}
+              >
+                <XStack alignItems="center" justifyContent="space-between" gap="$3">
+                  <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
+                    {t(
+                      humourDraft === "sassy"
+                        ? "settings.humour.sassy"
+                        : humourDraft === "unhinged"
+                          ? "settings.humour.unhinged"
+                          : "settings.humour.plain",
+                    )}
+                  </Text>
+                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+                </XStack>
+              </Pressable>
+            </YStack>
+          </YStack>
+          <View style={screenStyles.itemsSectionSeparator} />
+          <YStack gap="$4">
+            <SectionEyebrow>{t("settings.splitRows")}</SectionEyebrow>
             <Text
               fontFamily={FONTS.bodyMedium}
               fontSize={14}
               lineHeight={21}
               color={PALETTE.onSurfaceVariant}
             >
-              Choose which amount each split card shows in Home and Splits.
+              {t("settings.splitRowsDescription")}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Choose split row amount"
+              accessibilityLabel={t("settings.splitRowsPicker")}
               style={screenStyles.selectRow}
               onPress={() => setSplitListAmountDisplayMenuOpen(true)}
             >
@@ -1074,7 +1139,7 @@ export function HomeScreenView() {
                     color={PALETTE.onSurface}
                   >
                     {
-                      SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.find(
+                      splitListAmountDisplayOptions.find(
                         (option) => option.key === splitListAmountDisplayDraft,
                       )?.label
                     }
@@ -1086,7 +1151,7 @@ export function HomeScreenView() {
                     color={PALETTE.onSurfaceVariant}
                   >
                     {
-                      SPLIT_LIST_AMOUNT_DISPLAY_OPTIONS.find(
+                      splitListAmountDisplayOptions.find(
                         (option) => option.key === splitListAmountDisplayDraft,
                       )?.summary
                     }
@@ -1098,7 +1163,7 @@ export function HomeScreenView() {
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
-            <SectionEyebrow>Features</SectionEyebrow>
+            <SectionEyebrow>{t("settings.features")}</SectionEyebrow>
             <View style={screenStyles.settingsFeatureRow}>
               <YStack gap="$2.5" flex={1}>
                 <Text
@@ -1106,7 +1171,7 @@ export function HomeScreenView() {
                   fontSize={18}
                   color={PALETTE.onSurface}
                 >
-                  Track payments
+                  {t("settings.trackPayments.title")}
                 </Text>
                 <Text
                   fontFamily={FONTS.bodyMedium}
@@ -1114,8 +1179,7 @@ export function HomeScreenView() {
                   lineHeight={21}
                   color={PALETTE.onSurfaceVariant}
                 >
-                  Turn this on if you want to mark people as paid inside one
-                  split after money has been settled.
+                  {t("settings.trackPayments.description")}
                 </Text>
               </YStack>
               <Pressable
@@ -1149,7 +1213,7 @@ export function HomeScreenView() {
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  {trackPaymentsFeatureEnabledDraft ? "On" : "Off"}
+                  {trackPaymentsFeatureEnabledDraft ? t("common.on") : t("common.off")}
                 </Text>
               </Pressable>
             </View>
@@ -1160,7 +1224,7 @@ export function HomeScreenView() {
                   fontSize={18}
                   color={PALETTE.onSurface}
                 >
-                  Balance helper
+                  {t("settings.balanceHelper.title")}
                 </Text>
                 <Text
                   fontFamily={FONTS.bodyMedium}
@@ -1168,8 +1232,7 @@ export function HomeScreenView() {
                   lineHeight={21}
                   color={PALETTE.onSurfaceVariant}
                 >
-                  Turn this on if you want to track how much you owe and are
-                  owed.
+                  {t("settings.balanceHelper.description")}
                 </Text>
               </YStack>
               <Pressable
@@ -1209,7 +1272,7 @@ export function HomeScreenView() {
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  {balanceFeatureEnabledDraft ? "On" : "Off"}
+                  {balanceFeatureEnabledDraft ? t("common.on") : t("common.off")}
                 </Text>
               </Pressable>
             </View>
@@ -1220,7 +1283,7 @@ export function HomeScreenView() {
                   fontSize={18}
                   color={PALETTE.onSurface}
                 >
-                  Backup data
+                  {t("settings.backup.title")}
                 </Text>
                 <Text
                   fontFamily={FONTS.bodyMedium}
@@ -1228,16 +1291,15 @@ export function HomeScreenView() {
                   lineHeight={21}
                   color={PALETTE.onSurfaceVariant}
                 >
-                  Keep your splits safe in the cloud so you can recover them if
-                  you lose this phone.
+                  {t("settings.backup.description")}
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Why do I need backup data"
+                  accessibilityLabel={t("settings.backup.why")}
                   onPress={() => {
-                    setSettingsNoticeTitle("Under development");
+                    setSettingsNoticeTitle(t("settings.backup.underDevelopment"));
                     setSettingsNoticeMessages([
-                      "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too.",
+                      t("settings.backup.notice"),
                     ]);
                   }}
                 >
@@ -1246,7 +1308,7 @@ export function HomeScreenView() {
                     fontSize={13}
                     color={PALETTE.primary}
                   >
-                    Why do I need this?
+                    {t("settings.backup.why")}
                   </Text>
                 </Pressable>
               </YStack>
@@ -1258,7 +1320,7 @@ export function HomeScreenView() {
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  Soon
+                  {t("common.soon")}
                 </Text>
               </View>
             </View>
@@ -1275,7 +1337,7 @@ export function HomeScreenView() {
           <YStack gap="$3">
             {activeTab === "settings" ? (
               <PrimaryButton
-                label="Save Settings"
+                label={t("settings.save")}
                 onPress={() => void saveSettings()}
                 disabled={!settingsDirty}
               />
@@ -1288,7 +1350,7 @@ export function HomeScreenView() {
                     fontSize={14}
                     color={PALETTE.onPrimary}
                   >
-                    Split deleted
+                    {t("home.undoSplitDeleted")}
                   </Text>
                   <Text
                     fontFamily={FONTS.bodyMedium}
@@ -1315,7 +1377,7 @@ export function HomeScreenView() {
                     textTransform="uppercase"
                     letterSpacing={1.6}
                   >
-                    Undo
+                    {t("common.undo")}
                   </Text>
                 </Pressable>
               </View>
@@ -1332,19 +1394,19 @@ export function HomeScreenView() {
         title={settingsNoticeTitle}
         messages={settingsNoticeMessages}
         onDismiss={() => {
-          setSettingsNoticeTitle("Almost there");
+          setSettingsNoticeTitle(t("common.almostThere"));
           setSettingsNoticeMessages([]);
         }}
       />
       {profileActionMenuOpen ? (
         <ActionSheetModal
-          title="Profile picture"
+          title={t("settings.profilePicture")}
           onDismiss={() => setProfileActionMenuOpen(false)}
           options={[
             ...(ownerProfileImageUriDraft
               ? [
                   {
-                    label: "Remove photo",
+                    label: t("settings.profilePictureRemove"),
                     tone: "danger" as const,
                     onPress: () => {
                       setOwnerProfileImageUriDraft("");
@@ -1354,20 +1416,76 @@ export function HomeScreenView() {
                 ]
               : []),
             {
-              label: "Take photo",
+              label: t("settings.profilePictureTake"),
               onPress: () => void pickProfileImage("camera"),
             },
             {
-              label: "Upload photo",
+              label: t("settings.profilePictureUpload"),
               onPress: () => void pickProfileImage("library"),
             },
-            { label: "Cancel", onPress: () => setProfileActionMenuOpen(false) },
+            { label: t("common.cancel"), onPress: () => setProfileActionMenuOpen(false) },
           ]}
+        />
+      ) : null}
+      {languageMenuOpen ? (
+        <ActionSheetModal
+          title={t("settings.pickLanguage")}
+          options={[
+            {
+              label: t("settings.language.en"),
+              selected: languageDraft === "en",
+              onPress: () => {
+                setLanguageDraft("en");
+                setLanguageMenuOpen(false);
+              },
+            },
+            {
+              label: t("settings.language.pt"),
+              selected: languageDraft === "pt",
+              onPress: () => {
+                setLanguageDraft("pt");
+                setLanguageMenuOpen(false);
+              },
+            },
+          ]}
+          onDismiss={() => setLanguageMenuOpen(false)}
+        />
+      ) : null}
+      {humourMenuOpen ? (
+        <ActionSheetModal
+          title={t("settings.pickTone")}
+          options={[
+            {
+              label: t("settings.humour.plain"),
+              selected: humourDraft === "plain",
+              onPress: () => {
+                setHumourDraft("plain");
+                setHumourMenuOpen(false);
+              },
+            },
+            {
+              label: t("settings.humour.sassy"),
+              selected: humourDraft === "sassy",
+              onPress: () => {
+                setHumourDraft("sassy");
+                setHumourMenuOpen(false);
+              },
+            },
+            {
+              label: t("settings.humour.unhinged"),
+              selected: humourDraft === "unhinged",
+              onPress: () => {
+                setHumourDraft("unhinged");
+                setHumourMenuOpen(false);
+              },
+            },
+          ]}
+          onDismiss={() => setHumourMenuOpen(false)}
         />
       ) : null}
       {splitListAmountDisplayMenuOpen ? (
         <ActionSheetModal
-          title="Choose what split rows show"
+          title={t("settings.splitRowsPickerTitle")}
           options={availableSplitListAmountDisplayOptions.map((option) => ({
             label: option.label,
             description: option.description,
@@ -1391,7 +1509,7 @@ export function HomeScreenView() {
                 fontSize={22}
                 color={PALETTE.onSurface}
               >
-                Add a currency
+                {t("settings.currencyAddTitle")}
               </Text>
               <View
                 style={[
@@ -1412,7 +1530,7 @@ export function HomeScreenView() {
                       }));
                     }
                   }}
-                  placeholder="Currency name"
+                  placeholder={t("settings.currencyNamePlaceholder")}
                   placeholderTextColor="rgba(86,67,57,0.35)"
                   style={screenStyles.assignInput}
                   returnKeyType="next"
@@ -1442,7 +1560,7 @@ export function HomeScreenView() {
                       }));
                     }
                   }}
-                  placeholder="Currency symbol"
+                  placeholder={t("settings.currencySymbolPlaceholder")}
                   placeholderTextColor="rgba(86,67,57,0.35)"
                   style={screenStyles.assignInput}
                   returnKeyType="done"
@@ -1461,7 +1579,7 @@ export function HomeScreenView() {
                   fontSize={14}
                   color={PALETTE.onPrimary}
                 >
-                  Save currency
+                  {t("settings.currencySave")}
                 </Text>
               </Pressable>
               <Pressable
@@ -1478,7 +1596,7 @@ export function HomeScreenView() {
                   fontSize={14}
                   color={PALETTE.onSurfaceVariant}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Text>
               </Pressable>
             </YStack>
@@ -1487,10 +1605,10 @@ export function HomeScreenView() {
       ) : null}
       {pendingTabChange ? (
         <ConfirmChoiceModal
-          title="Save your changes?"
-          body="You changed your settings. Save them now or discard them before leaving this page."
-          confirmLabel="Save changes"
-          discardLabel="Discard changes"
+          title={t("settings.confirmSave.title")}
+          body={t("settings.confirmSave.body")}
+          confirmLabel={t("settings.confirmSave.confirm")}
+          discardLabel={t("settings.confirmSave.discard")}
           onConfirm={() => {
             void saveSettings().then((saved) => {
               if (saved) {

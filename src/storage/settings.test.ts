@@ -1,4 +1,6 @@
 describe("settings storage", () => {
+  const defaultLanguage = "en";
+
   async function loadModule(options?: {
     row?: any | null;
   }) {
@@ -14,6 +16,9 @@ describe("settings storage", () => {
 
     jest.doMock("expo-sqlite", () => ({
       openDatabaseAsync,
+    }));
+    jest.doMock("../lib/device", () => ({
+      getDeviceLocale: () => "en-US",
     }));
 
     let settingsModule: typeof import("./settings");
@@ -37,6 +42,8 @@ describe("settings storage", () => {
         balanceFeatureEnabled: false,
         trackPaymentsFeatureEnabled: false,
         defaultCurrency: "USD",
+        language: "pt",
+        humour: "sassy",
         splitListAmountDisplay: "total",
         customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
       }),
@@ -54,6 +61,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
       splitListAmountDisplay: "userPaid",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
@@ -70,6 +79,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
+      language: "pt",
+      humour: "sassy",
       splitListAmountDisplay: "total",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
@@ -83,6 +94,8 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
+          language: "en",
+          humour: "plain",
           splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
         }),
@@ -100,6 +113,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
       splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
@@ -137,6 +152,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
@@ -149,6 +166,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
@@ -164,6 +183,8 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
+          language: "pt",
+          humour: "plain",
           splitListAmountDisplay: "totalAndRemaining",
           customCurrencies: "wrong-shape",
         }),
@@ -177,6 +198,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: "pt",
+      humour: "plain",
       splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
@@ -197,6 +220,8 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
@@ -216,12 +241,14 @@ describe("settings storage", () => {
       await settingsModule.initializeSettingsStorage();
       await expect(settingsModule.getAppSettings()).resolves.toEqual({
         ownerName: "You",
-        ownerProfileImageUri: "",
-        balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
-        defaultCurrency: "EUR",
-        splitListAmountDisplay: "remaining",
-        customCurrencies: [],
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
       });
     }
   });

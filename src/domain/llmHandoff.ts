@@ -1,3 +1,5 @@
+import { getI18nRuntime, translateWithSettings, type TranslationSettings } from "../i18n";
+
 export type LlmProvider = "chatgpt" | "claude" | "gemini";
 
 const DESKTOP_PROVIDER_URLS: Record<LlmProvider, string> = {
@@ -34,17 +36,17 @@ export function getReceiptLlmLaunchTarget(isMobile = false) {
   return isMobile ? "_self" : "_blank";
 }
 
-export function buildReceiptLlmPrompt() {
+export function buildReceiptLlmPrompt(settings: TranslationSettings = getI18nRuntime()) {
   return [
-    "Read the uploaded grocery receipt and extract only the purchased receipt items.",
-    "Return the result in this exact format, one item per line:",
+    translateWithSettings(settings, "llm.receiptPrompt.readReceipt"),
+    translateWithSettings(settings, "llm.receiptPrompt.returnFormat"),
     "Item name - 2.49",
     "",
-    "Rules:",
-    "- Keep only real purchasable items.",
-    "- Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.",
-    "- Do not add commentary, numbering, markdown, tables, or explanations.",
-    "- Use a plain decimal number for the price.",
-    "- If the receipt uses comma decimals, convert them to dot decimals.",
+    translateWithSettings(settings, "llm.receiptPrompt.rules"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.keepItems"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.excludeNonItems"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.noCommentary"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.plainDecimal"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.commaToDot"),
   ].join("\n");
 }

@@ -80,6 +80,7 @@ import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
 import {
   getClipboardSummaryPreview,
   getPdfExportPreview,
@@ -162,6 +163,7 @@ const ITEM_CATEGORY_OPTIONS = [
   "Tickets",
 ] as const;
 export function SetupScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { updateDraftMeta, setStep, settings } = useSplitStore(
     useShallow((state) => ({
@@ -189,8 +191,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -217,7 +219,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         <FloatingFooter>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next: Add Participants"
+            accessibilityLabel={t("flow.setup.nextA11y")}
             accessibilityState={{ disabled: !canContinue }}
             style={[
               screenStyles.participantsContinueButton,
@@ -231,7 +233,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               }
               if (!splitName.trim()) {
                 setSetupNoticeMessages([
-                  "Please give this bill a short name first.",
+                  t("flow.setup.nameRequired"),
                 ]);
                 return;
               }
@@ -253,7 +255,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     : PALETTE.onPrimaryContainer
                 }
               >
-                Next: Add Participants
+                {t("flow.setup.next", undefined, { maxLength: 26 })}
               </Text>
               <ArrowRight
                 color={
@@ -275,7 +277,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="New Split"
+          title={t("flow.setup.title", undefined, { maxLength: 16 })}
           onBack={() => router.replace("/")}
         />
       </View>
@@ -291,10 +293,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         <YStack gap="$5">
           <YStack gap="$4">
             <YStack gap="$2">
-              <FieldLabel>Split name</FieldLabel>
+              <FieldLabel>{t("flow.setup.splitName")}</FieldLabel>
               <View style={screenStyles.assignInputShell}>
                 <TextInput
-                  accessibilityLabel="Split name"
+                  accessibilityLabel={t("flow.setup.splitName")}
                   value={splitName}
                   onChangeText={(value) => {
                     setSplitName(value.slice(0, MAX_SPLIT_NAME_LENGTH));
@@ -302,7 +304,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                       setSetupNoticeMessages([]);
                     }
                   }}
-                  placeholder="e.g. Weekend groceries"
+                  placeholder={t("flow.setup.splitNamePlaceholder")}
                   placeholderTextColor="rgba(86,67,57,0.35)"
                   style={screenStyles.assignInput}
                   maxLength={MAX_SPLIT_NAME_LENGTH}
@@ -310,11 +312,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               </View>
             </YStack>
             <YStack gap="$2">
-              <FieldLabel>Currency</FieldLabel>
+              <FieldLabel>{t("flow.setup.currency")}</FieldLabel>
               <YStack gap="$2.5">
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Choose currency"
+                  accessibilityLabel={t("flow.setup.currency")}
                   style={screenStyles.selectRow}
                   onPress={() => setCurrencyMenuOpen((value) => !value)}
                 >

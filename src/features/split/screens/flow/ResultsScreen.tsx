@@ -15,6 +15,7 @@ import {
   EmptyState,
   FloatingFooter,
 } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import { formatMoney } from "../../../../domain";
 import { exportSettlementPdf } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
@@ -41,6 +42,7 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function ResultsScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const insets = useSafeAreaInsets();
   const {
@@ -92,8 +94,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -103,8 +105,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Split invalid"
-          description="The final results screen only opens when the current split passes all settlement rules."
+          title={t("flow.results.invalidTitle")}
+          description={t("flow.results.invalidDescription")}
         />
       </AppScreen>
     );
@@ -144,7 +146,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       await action();
     } catch (error) {
       console.warn(failureMessage, error);
-      Alert.alert("Update failed", failureMessage);
+      Alert.alert(t("common.tryAgain"), failureMessage);
     }
   };
 
@@ -156,13 +158,13 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           <XStack gap="$3">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Export as PDF"
+              accessibilityLabel={t("flow.results.exportPdfA11y")}
               style={screenStyles.resultsSecondaryButton}
               disabled={exportPdfPending}
               onPress={async () => {
                 if (!pdfData) {
                   setPdfNoticeMessages([
-                    "PDF export is not available for this split.",
+                    t("flow.results.pdfUnavailable"),
                   ]);
                   return;
                 }
@@ -172,7 +174,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   await exportSettlementPdf(record.values, locale);
                 } catch (error) {
                   console.warn("Failed to export split PDF", error);
-                  setPdfNoticeMessages(["Could not generate the PDF."]);
+                  setPdfNoticeMessages([t("flow.results.pdfFailed")]);
                 } finally {
                   setExportPdfPending(false);
                 }
@@ -191,7 +193,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Share Results"
+              accessibilityLabel={t("flow.results.shareA11y")}
               style={screenStyles.resultsPrimaryButton}
               onPress={async () => {
                 try {
@@ -199,8 +201,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 } catch (error) {
                   console.warn("Failed to share split results", error);
                   Alert.alert(
-                    "Share failed",
-                    "Could not open the share sheet.",
+                    t("flow.results.shareFailedTitle"),
+                    t("flow.results.shareFailedBody"),
                   );
                 }
               }}
@@ -212,7 +214,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   fontSize={15}
                   color={PALETTE.onPrimary}
                 >
-                  Share
+                  {t("flow.results.shareA11y")}
                 </Text>
               </XStack>
             </Pressable>
@@ -227,7 +229,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Final Results"
+          title={t("flow.results.title")}
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
@@ -242,7 +244,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               textTransform="uppercase"
               letterSpacing={1.8}
             >
-              {trackPaymentsEnabled ? "Total settled" : "Total bill"}
+              {trackPaymentsEnabled ? t("flow.results.totalSettled") : t("flow.results.totalBill")}
             </Text>
             {trackPaymentsEnabled ? (
               <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
@@ -301,13 +303,13 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
-                  allPaid ? "Revert Mark as Paid" : "Mark as Paid"
+                  allPaid ? t("flow.results.revertMarkPaidA11y") : t("flow.results.markPaidA11y")
                 }
                 style={screenStyles.resultsHeroChip}
                 onPress={() =>
                   void runPaymentAction(
                     allPaid ? revertBillPaid : markBillPaid,
-                    "Could not update the bill payment status.",
+                    t("flow.results.markPaidFailed"),
                   )
                 }
               >
@@ -321,7 +323,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   fontSize={11}
                   color={PALETTE.primary}
                 >
-                  {allPaid ? "Revert Mark as Paid" : "Mark as Paid"}
+                  {allPaid ? t("flow.results.revertMarkPaid") : t("flow.results.markPaid")}
                 </Text>
               </Pressable>
             ) : null}
@@ -348,7 +350,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               color={PALETTE.onSurface}
               letterSpacing={-0.2}
             >
-              Paid by
+              {t("flow.results.paidBy")}
             </Text>
             <View style={screenStyles.resultsPaidCard}>
               <XStack
@@ -400,14 +402,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 color={PALETTE.onSurface}
                 letterSpacing={-0.2}
               >
-                Breakdown
+                {t("flow.results.breakdown")}
               </Text>
               <Text
                 fontFamily={FONTS.bodyBold}
                 fontSize={12}
                 color={PALETTE.secondary}
               >
-                {settlement.data.people.length} Contributors
+                {t("flow.results.contributors", { count: settlement.data.people.length })}
               </Text>
             </XStack>
             <YStack gap="$3">
@@ -476,7 +478,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                             textTransform="uppercase"
                             letterSpacing={1.6}
                           >
-                            Settled
+                            {t("flow.results.settled")}
                           </Text>
                         ) : trackPaymentsEnabled ? (
                           <Text
@@ -486,7 +488,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                             textTransform="uppercase"
                             letterSpacing={1.6}
                           >
-                            Owed
+                            {t("flow.results.owed")}
                           </Text>
                         ) : null}
                       </YStack>
@@ -495,8 +497,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           accessibilityRole="button"
                           accessibilityLabel={
                             settledParticipantIds.has(person.participantId)
-                              ? `Add ${person.name} back to owed`
-                              : `Mark ${person.name} as paid`
+                              ? t("flow.results.togglePaidAddBackA11y", { name: person.name })
+                              : t("flow.results.togglePaidSettleA11y", { name: person.name })
                           }
                           style={[
                             screenStyles.resultsCheckBubble,
@@ -507,7 +509,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           onPress={() =>
                             void runPaymentAction(
                               () => toggleParticipantPaid(person.participantId),
-                              `Could not update ${person.name}'s payment status.`,
+                              t("flow.results.togglePaidFailed", { name: person.name }),
                             )
                           }
                         >

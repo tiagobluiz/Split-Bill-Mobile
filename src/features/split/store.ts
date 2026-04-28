@@ -31,6 +31,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
+import { getDefaultTranslationSettings } from "../../i18n";
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
@@ -247,6 +248,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   records: [],
   activeRecordId: null,
   settings: {
+    ...getDefaultTranslationSettings(getDeviceLocale()),
     ownerName: "You",
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,

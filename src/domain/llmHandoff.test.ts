@@ -25,4 +25,20 @@ describe("llm handoff contract", () => {
     expect(buildReceiptLlmPrompt()).toContain("Item name - 2.49");
     expect(buildReceiptLlmPrompt()).toContain("Do not add commentary");
   });
+
+  it("translates the prompt when translation settings are provided", () => {
+    const prompt = buildReceiptLlmPrompt({
+      language: "pt",
+      humour: "plain",
+    });
+    const englishPrompt = buildReceiptLlmPrompt({
+      language: "en",
+      humour: "plain",
+    });
+
+    expect(prompt).not.toBe(englishPrompt);
+    expect(prompt).toContain("Regras:");
+    expect(prompt).toContain("Item name - 2.49");
+    expect(prompt).not.toContain("Do not add commentary");
+  });
 });

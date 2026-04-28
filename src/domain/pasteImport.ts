@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 export type ReceiptImportItem = {
   name: string;
   price: string;
@@ -145,15 +147,17 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
   if (ignoredLines.length > 0) {
     warnings.push({
       code: "ignored-paste-lines",
-      message: `Ignored ${ignoredLines.length} pasted line${ignoredLines.length === 1 ? "" : "s"} that did not match the expected format.`,
+      message:
+        ignoredLines.length === 1
+          ? t("pasteImport.ignoredLines.one", { count: ignoredLines.length })
+          : t("pasteImport.ignoredLines.other", { count: ignoredLines.length }),
     });
   }
 
   if (items.length === 0) {
     warnings.push({
       code: "no-items-detected",
-      message:
-        "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+      message: t("pasteImport.noItemsDetected"),
     });
   }
 

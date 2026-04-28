@@ -1149,6 +1149,8 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: "en",
+      humour: "plain",
       splitListAmountDisplay: "total",
       customCurrencies: [],
     });
@@ -1199,6 +1201,8 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
+      language: "en",
+      humour: "plain",
       splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
@@ -1266,6 +1270,8 @@ describe("split screens", () => {
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "PO2",
+      language: "en",
+      humour: "plain",
       splitListAmountDisplay: "total",
       customCurrencies: [
         { code: "POI", name: "Points", symbol: "P" },
@@ -1353,6 +1359,8 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "CUR",
+      language: "en",
+      humour: "plain",
       splitListAmountDisplay: "total",
       customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
     });
@@ -1386,6 +1394,8 @@ describe("split screens", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "USD",
+      language: "en",
+      humour: "plain",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
@@ -1478,6 +1488,8 @@ describe("split screens", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "TOK",
+        language: "en",
+        humour: "plain",
         splitListAmountDisplay: "remaining",
         customCurrencies: [{ code: "TOK", name: "Token", symbol: "ABC" }],
       });

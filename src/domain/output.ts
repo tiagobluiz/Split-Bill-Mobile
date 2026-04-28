@@ -1,4 +1,5 @@
 import { computeSettlement, formatMoney, removeSingleTrailingBlankItem, type SplitFormValues } from "./splitter";
+import { t } from "../i18n";
 
 function comparePeopleBySummaryOrder(left: { name: string; isPayer: boolean }, right: { name: string; isPayer: boolean }) {
   if (left.isPayer !== right.isPayer) {
@@ -10,7 +11,9 @@ function comparePeopleBySummaryOrder(left: { name: string; isPayer: boolean }, r
 
 function getClipboardSummaryTitle(values: SplitFormValues) {
   const splitName = values.splitName?.trim();
-  return splitName ? `Split Bill - ${splitName}` : "Split Bill";
+  return splitName
+    ? t("clipboard.title.named", { splitName })
+    : t("clipboard.title.default");
 }
 
 export function buildClipboardSummary(
@@ -55,17 +58,29 @@ export function buildClipboardSummary(
 
   adjustedPeople.forEach((person) => {
     if (person.isPayer) {
-      const paidLabel = `${person.name}: paid ${formatMoney(person.paidCents, settlement.data.currency, locale)}`;
       if (person.netCents > 0) {
         lines.push(
-          `${paidLabel} and should get back ${formatMoney(person.netCents, settlement.data.currency, locale)}.`
+          t("clipboard.payer.getBack", {
+            name: person.name,
+            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
+            net: formatMoney(person.netCents, settlement.data.currency, locale),
+          }),
         );
       } else if (person.netCents < 0) {
         lines.push(
-          `${paidLabel} and still owes ${formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}.`
+          t("clipboard.payer.stillOwes", {
+            name: person.name,
+            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
+            net: formatMoney(Math.abs(person.netCents), settlement.data.currency, locale),
+          }),
         );
       } else {
-        lines.push(`${paidLabel}.`);
+        lines.push(
+          t("clipboard.payer.paidOnly", {
+            name: person.name,
+            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
+          }),
+        );
       }
       return;
     }
@@ -75,11 +90,21 @@ export function buildClipboardSummary(
     }
 
     if (person.netCents < 0) {
-      lines.push(`${person.name}: owes ${formatMoney(Math.abs(person.netCents), settlement.data.currency, locale)}.`);
+      lines.push(
+        t("clipboard.person.owes", {
+          name: person.name,
+          amount: formatMoney(Math.abs(person.netCents), settlement.data.currency, locale),
+        }),
+      );
       return;
     }
 
-    lines.push(`${person.name}: gets back ${formatMoney(person.netCents, settlement.data.currency, locale)}.`);
+    lines.push(
+      t("clipboard.person.getsBack", {
+        name: person.name,
+        amount: formatMoney(person.netCents, settlement.data.currency, locale),
+      }),
+    );
   });
 
   return lines.join("\n");

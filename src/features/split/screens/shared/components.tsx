@@ -6,6 +6,7 @@ import {
 } from "tamagui";
 
 import { SectionEyebrow } from "../../../../components/ui";
+import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { screenStyles } from "./styles";
 
@@ -73,10 +74,11 @@ export function ModeToggle({
   active: "even" | "shares" | "percent";
   onChange: (value: "even" | "shares" | "percent") => void;
 }) {
+  const { t } = useTranslation();
   const options = [
-    { key: "even", label: "Even" },
-    { key: "shares", label: "Shares" },
-    { key: "percent", label: "Percentage" },
+    { key: "even", label: t("flow.splitItem.mode.even") },
+    { key: "shares", label: t("flow.splitItem.mode.shares") },
+    { key: "percent", label: t("flow.splitItem.mode.percent") },
   ] as const;
 
   return (
@@ -87,7 +89,9 @@ export function ModeToggle({
           <Pressable
             key={option.key}
             accessibilityRole="button"
-            accessibilityLabel={`Select ${option.label} mode`}
+            accessibilityLabel={t("flow.splitItem.mode.select", {
+              mode: option.label,
+            })}
             accessibilityState={{ selected }}
             style={[screenStyles.togglePill, selected ? screenStyles.modePillButtonActive : null]}
             onPress={() => onChange(option.key)}

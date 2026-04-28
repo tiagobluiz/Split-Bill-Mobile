@@ -16,6 +16,7 @@ import {
   FloatingFooter,
 } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
 import { useSplitStore } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
@@ -29,6 +30,7 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function PayerScreenView({ draftId }: { draftId: string }) {
+  const { t } = useTranslation();
   const record = useRecord(draftId);
   const { setPayer, setStep, settings } = useSplitStore(
     useShallow((state) => ({
@@ -44,8 +46,8 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
     return (
       <AppScreen scroll={false}>
         <EmptyState
-          title="Loading split"
-          description="Opening your split record."
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
         />
       </AppScreen>
     );
@@ -53,7 +55,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
 
   const payerErrors = record.values.payerParticipantId
     ? []
-    : ["Choose who paid the bill."];
+    : [t("validation.payerRequired")];
 
   return (
     <AppScreen
@@ -62,7 +64,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
         <FloatingFooter>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next: Add Items"
+            accessibilityLabel={t("flow.payer.nextA11y")}
             accessibilityState={{ disabled: !record.values.payerParticipantId }}
             style={[
               screenStyles.participantsContinueButton,
@@ -90,7 +92,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
                     : PALETTE.onPrimaryContainer
                 }
               >
-                Next: Add Items
+                {t("flow.payer.next", undefined, { maxLength: 20 })}
               </Text>
               <ArrowRight
                 color={
@@ -112,7 +114,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
         ]}
       >
         <FlowScreenHeader
-          title="Who paid?"
+          title={t("flow.payer.title")}
           onBack={() => router.replace(`/split/${draftId}/participants`)}
         />
       </View>
