@@ -19,7 +19,6 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useShallow } from "zustand/react/shallow";
 import {
   ArrowLeft,
-  ArrowRight,
   AlertTriangle,
   ChevronDown,
   Camera,
@@ -125,7 +124,12 @@ import {
   getRecentRowMeta,
   getSettledParticipantIds,
 } from "../shared/settlementUtils";
-import { ErrorList, ModePills, ModeToggle } from "../shared/components";
+import {
+  ErrorList,
+  FlowContinueButton,
+  ModePills,
+  ModeToggle,
+} from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
   ActionSheetModal,
@@ -217,16 +221,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <FloatingFooter>
-          <Pressable
-            accessibilityRole="button"
+          <FlowContinueButton
             accessibilityLabel={t("flow.setup.nextA11y")}
-            accessibilityState={{ disabled: !canContinue }}
-            style={[
-              screenStyles.participantsContinueButton,
-              !canContinue
-                ? screenStyles.participantsContinueButtonDisabled
-                : null,
-            ]}
+            disabled={!canContinue}
+            label={t("flow.setup.next", undefined, { maxLength: 26 })}
             onPress={async () => {
               if (!canContinue) {
                 return;
@@ -244,29 +242,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               await setStep(2);
               router.push(`/split/${draftId}/participants`);
             }}
-          >
-            <XStack alignItems="center" justifyContent="center" gap="$2.5">
-              <Text
-                fontFamily={FONTS.headlineBlack}
-                fontSize={18}
-                color={
-                  !canContinue
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-              >
-                {t("flow.setup.next", undefined, { maxLength: 26 })}
-              </Text>
-              <ArrowRight
-                color={
-                  !canContinue
-                    ? PALETTE.onSurfaceVariant
-                    : PALETTE.onPrimaryContainer
-                }
-                size={20}
-              />
-            </XStack>
-          </Pressable>
+          />
         </FloatingFooter>
       }
     >

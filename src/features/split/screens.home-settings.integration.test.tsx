@@ -1563,6 +1563,20 @@ describe("split screens", () => {
     expect(screen.getAllByText("P0.00").length).toBeGreaterThan(0);
   });
 
+  it("uses the chosen default currency for empty home balances", () => {
+    mockStoreState.settings = {
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "PTS",
+      customCurrencies: [{ code: "PTS", name: "Points", symbol: "P" }],
+    };
+    mockStoreState.records = [];
+
+    render(<HomeScreen />);
+    expect(screen.getAllByText("P0.00").length).toBeGreaterThan(0);
+  });
+
   it("falls back to a code label when home money formatting throws", () => {
     const originalNumberFormat = Intl.NumberFormat;
     try {

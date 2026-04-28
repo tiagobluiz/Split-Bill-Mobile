@@ -3,7 +3,7 @@ import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-nat
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as IntentLauncher from "expo-intent-launcher";
-import { ArrowRight, Bot, CheckCircle2, ClipboardCopy, Info, MessageCircle, ReceiptText, Sparkles } from "lucide-react-native";
+import { Bot, CheckCircle2, ClipboardCopy, Info, MessageCircle, ReceiptText, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Paragraph as TamaguiParagraph,
@@ -36,6 +36,7 @@ import {
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
+import { FlowContinueButton } from "../shared/components";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
 import { screenStyles } from "../shared/styles";
@@ -302,9 +303,8 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                     </YStack>
                   ))}
                 </XStack>
-                <PrimaryButton
+                <FlowContinueButton
                   label={t("flow.import.addReview")}
-                  icon={<ArrowRight color={PALETTE.onPrimary} size={18} />}
                   onPress={() => void applyImport()}
                   disabled={parsedItemCount === 0}
                 />

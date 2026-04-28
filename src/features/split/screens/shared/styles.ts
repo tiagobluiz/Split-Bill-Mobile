@@ -334,7 +334,7 @@ export const screenStyles = StyleSheet.create({
   participantsContinueButton: {
     minHeight: 60,
     borderRadius: 999,
-    backgroundColor: "#ff8a43",
+    backgroundColor: PALETTE.primary,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: PALETTE.primary,
@@ -347,6 +347,21 @@ export const screenStyles = StyleSheet.create({
     backgroundColor: "#d8d4d1",
     shadowOpacity: 0,
     elevation: 0,
+  },
+  flowContinueButtonContent: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 22,
+  },
+  flowContinueButtonLabel: {
+    flex: 1,
+    textAlign: "center",
+  },
+  flowContinueButtonIconSlot: {
+    width: 20,
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
   splitCategoryPill: {
     minHeight: 28,
