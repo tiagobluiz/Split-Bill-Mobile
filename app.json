@@ -23,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.splitbillmobile"
+      "package": "com.ticnology.splitbill"
     },
     "androidStatusBar": {
       "backgroundColor": "#f9f9f9",

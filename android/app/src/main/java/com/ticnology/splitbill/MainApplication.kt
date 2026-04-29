@@ -1,4 +1,4 @@
-package com.anonymous.splitbillmobile
+package com.ticnology.splitbill
 
 import android.app.Application
 import android.content.res.Configuration

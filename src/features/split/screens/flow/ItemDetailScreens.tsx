@@ -552,7 +552,7 @@ export function SplitItemScreen({
   const splitErrors = validateStepThree({
     ...record.values,
     items: [item],
-  }).map((error) => error.message);
+  });
   const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
   const ctaLabel = pendingNextItemId
     ? t("flow.splitItem.confirmNext")

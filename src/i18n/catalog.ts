@@ -388,7 +388,7 @@ const enPlain = {
   "friendly.splitEvenMin": "Pick at least one person for this item.",
   "friendly.sharesTotalMin": "Add at least one share before you continue.",
   "friendly.sharesNonNegative": "Shares cannot go below zero.",
-  "friendly.percentNonNegative": "Percent cannot go below zero.",
+  "friendly.percentNonNegative": "Percent can't be negative.",
   "friendly.percentTotal": "Make sure the percentages add up to 100%.",
   "clipboard.title.default": "Split Bill",
   "clipboard.title.named": "Split Bill - {splitName}",
