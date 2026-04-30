@@ -317,7 +317,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     setRateSource(savedPairRate.rateSource);
     setManualRateOverride(savedPairRate.rateSource === "manual");
     setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
-  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair]);
+  }, [normalizedCurrency, normalizedTargetCurrency]);
 
   useEffect(() => {
     if (!record || !needsConversion || !normalizedCurrency) {
@@ -496,6 +496,13 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                                 rateUpdatedAt: updatedAt,
                               },
                             }));
+                          } else {
+                            setRateUpdatedAt(null);
+                            setRateByPair((prev) => {
+                              const next = { ...prev };
+                              delete next[`${normalizedCurrency}->${normalizedTargetCurrency}`];
+                              return next;
+                            });
                           }
                         }}
                         placeholder={t("flow.setup.exchangeRatePlaceholder")}
