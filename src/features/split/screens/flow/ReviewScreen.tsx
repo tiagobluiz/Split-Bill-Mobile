@@ -237,7 +237,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                           {itemLabel}
                         </Text>
                         {assigned ? (
-                          <Check color={PALETTE.secondary} size={16} />
+                          <Check color={PALETTE.success} size={16} />
                         ) : (
                           <AlertTriangle color={PALETTE.primary} size={16} />
                         )}

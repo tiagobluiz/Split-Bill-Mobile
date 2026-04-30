@@ -281,7 +281,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     }
                   }}
                   placeholder={t("flow.setup.splitNamePlaceholder")}
-                  placeholderTextColor="rgba(86,67,57,0.35)"
+                  placeholderTextColor={PALETTE.inputPlaceholder}
                   style={screenStyles.assignInput}
                   maxLength={MAX_SPLIT_NAME_LENGTH}
                 />

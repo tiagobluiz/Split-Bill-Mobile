@@ -83,8 +83,8 @@ export function HeroCard({
   subtitle?: string;
 }>) {
   return (
-    <LinearGradient colors={[PALETTE.primary, PALETTE.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View style={styles.heroGlow} />
+    <LinearGradient colors={[PALETTE.primary, PALETTE.tertiary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+      <View style={styles.heroGlow} />
       {eyebrow ? (
         <Text fontFamily={FONTS.bodyBold} fontSize={11} color={PALETTE.heroEyebrow} textTransform="uppercase" letterSpacing={2}>
           {eyebrow}
@@ -279,7 +279,7 @@ export function StatPill({
   return (
     <SectionCard>
       <SectionEyebrow>{label}</SectionEyebrow>
-      <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={positive ? PALETTE.secondary : PALETTE.onSurface}>
+      <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={positive ? PALETTE.success : PALETTE.onSurface}>
         {value}
       </Text>
     </SectionCard>
@@ -353,6 +353,8 @@ export const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: PALETTE.secondaryContainer,
+    borderWidth: 1,
+    borderColor: PALETTE.outlineVariant,
   },
   secondaryButtonDisabled: {
     backgroundColor: PALETTE.surfaceContainerHighest,
@@ -380,6 +382,8 @@ export const styles = StyleSheet.create({
     backgroundColor: PALETTE.footerGlass,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderColor: PALETTE.outlineVariant,
   },
   input: {
     minHeight: 56,

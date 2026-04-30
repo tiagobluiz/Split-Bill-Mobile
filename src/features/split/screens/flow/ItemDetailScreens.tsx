@@ -1292,7 +1292,7 @@ export function SplitItemScreen({
                           step={1}
                           value={Math.max(0, Math.min(percentValue, 100))}
                           minimumTrackTintColor={PALETTE.primary}
-                          maximumTrackTintColor="#e4e0dc"
+                          maximumTrackTintColor={PALETTE.track}
                           thumbTintColor={PALETTE.primary}
                           onValueChange={(value) =>
                             void setWorkingPercentValue(
