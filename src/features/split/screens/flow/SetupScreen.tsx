@@ -189,6 +189,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     record?.values.exchangeRate?.rateSource ?? "fallback",
   );
   const [loadingRate, setLoadingRate] = useState(false);
+  const loadingRateRef = useRef(false);
   const [manualRateOverride, setManualRateOverride] = useState(false);
   const [autoFetchedPair, setAutoFetchedPair] = useState("");
   const [rateByPair, setRateByPair] = useState<
@@ -273,25 +274,33 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     if (!needsConversion) {
       return;
     }
+    if (loadingRateRef.current) {
+      return;
+    }
+    loadingRateRef.current = true;
     setLoadingRate(true);
-    const result = await fetchExchangeRate(
-      normalizedCurrency,
-      normalizedTargetCurrency,
-    );
-    setLoadingRate(false);
-    setRateInput(String(result.rate));
-    setRateSource(result.source);
-    const updatedAt = new Date().toISOString();
-    setRateUpdatedAt(updatedAt);
-    setAutoFetchedPair(`${normalizedCurrency}->${normalizedTargetCurrency}`);
-    setRateByPair((prev) => ({
-      ...prev,
-      [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
-        rate: result.rate,
-        rateSource: result.source,
-        rateUpdatedAt: updatedAt,
-      },
-    }));
+    try {
+      const result = await fetchExchangeRate(
+        normalizedCurrency,
+        normalizedTargetCurrency,
+      );
+      setRateInput(String(result.rate));
+      setRateSource(result.source);
+      const updatedAt = new Date().toISOString();
+      setRateUpdatedAt(updatedAt);
+      setAutoFetchedPair(`${normalizedCurrency}->${normalizedTargetCurrency}`);
+      setRateByPair((prev) => ({
+        ...prev,
+        [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+          rate: result.rate,
+          rateSource: result.source,
+          rateUpdatedAt: updatedAt,
+        },
+      }));
+    } finally {
+      loadingRateRef.current = false;
+      setLoadingRate(false);
+    }
   };
 
   useEffect(() => {
@@ -469,7 +478,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   <XStack alignItems="center" gap="$2">
                     <View style={{ flex: 1 }}>
                       <TextInput
-                        accessibilityLabel="Exchange rate"
+                        accessibilityLabel={t("flow.setup.exchangeRateA11y")}
                         value={rateInput}
                         onChangeText={(value) => {
                           const numericValue = Number(value.replace(",", "."));
@@ -489,7 +498,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                             }));
                           }
                         }}
-                        placeholder="1.00"
+                        placeholder={t("flow.setup.exchangeRatePlaceholder")}
                         placeholderTextColor={PALETTE.inputPlaceholder}
                         keyboardType="decimal-pad"
                         style={screenStyles.assignInput}
@@ -497,7 +506,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     </View>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Refresh exchange rate"
+                      accessibilityLabel={t("flow.setup.refreshExchangeRateA11y")}
                       onPress={() => {
                         setManualRateOverride(false);
                         void fetchLiveRate();
@@ -565,10 +574,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       ) : null}
       {showRateConfirmModal ? (
         <ConfirmChoiceModal
-          title="Exchange rate is 1"
-          body="This is uncommon for different currencies. Confirm if this is intentional."
-          confirmLabel="Continue"
-          discardLabel="Edit rate"
+          title={t("flow.setup.rateConfirmTitle")}
+          body={t("flow.setup.rateConfirmBody")}
+          confirmLabel={t("flow.setup.rateConfirmContinue")}
+          discardLabel={t("flow.setup.rateConfirmEdit")}
           onConfirm={() => {
             setShowRateConfirmModal(false);
             void persistAndContinue();
