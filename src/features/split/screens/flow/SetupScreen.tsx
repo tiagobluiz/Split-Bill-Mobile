@@ -190,6 +190,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   );
   const [loadingRate, setLoadingRate] = useState(false);
   const loadingRateRef = useRef(false);
+  const requestPairRef = useRef("");
   const [manualRateOverride, setManualRateOverride] = useState(false);
   const [autoFetchedPair, setAutoFetchedPair] = useState("");
   const [rateByPair, setRateByPair] = useState<
@@ -278,6 +279,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     if (loadingRateRef.current) {
       return;
     }
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    requestPairRef.current = pairKey;
     loadingRateRef.current = true;
     setLoadingRate(true);
     try {
@@ -285,14 +288,17 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         normalizedCurrency,
         normalizedTargetCurrency,
       );
+      if (requestPairRef.current !== pairKey) {
+        return;
+      }
       setRateInput(String(result.rate));
       setRateSource(result.source);
       const updatedAt = new Date().toISOString();
       setRateUpdatedAt(updatedAt);
-      setAutoFetchedPair(`${normalizedCurrency}->${normalizedTargetCurrency}`);
+      setAutoFetchedPair(pairKey);
       setRateByPair((prev) => ({
         ...prev,
-        [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+        [pairKey]: {
           rate: result.rate,
           rateSource: result.source,
           rateUpdatedAt: updatedAt,
@@ -576,6 +582,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             label: option.label,
             selected: normalizedCurrency === option.code,
             onPress: () => {
+              requestPairRef.current = "";
               setCurrency(option.code);
               setAutoFetchedPair("");
               setCurrencyMenuOpen(false);
