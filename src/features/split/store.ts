@@ -50,7 +50,11 @@ type SplitStore = {
   openRecord: (id: string) => Promise<DraftRecord | null>;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
-  updateDraftMeta: (splitName: string, currency: string) => Promise<void>;
+  updateDraftMeta: (
+    splitName: string,
+    currency: string,
+    exchangeRate?: DraftRecord["values"]["exchangeRate"],
+  ) => Promise<void>;
   setStep: (step: number) => Promise<void>;
   updateParticipants: (
     participants: ParticipantsUpdater,
@@ -361,12 +365,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await Promise.all(nextRecords.map((record) => saveRecord(record)));
     await saveAppSettings(nextSettings);
   },
-  async updateDraftMeta(splitName, currency) {
+  async updateDraftMeta(splitName, currency, exchangeRate) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.splitName = splitName.slice(0, 20);
         draft.values.currency =
           currency.trim().toUpperCase() || get().settings.defaultCurrency;
+        draft.values.exchangeRate = exchangeRate;
       }),
     );
   },
@@ -734,13 +739,14 @@ export function getSettlementPreview(record: DraftRecord | null) {
   return computeSettlement(record.values);
 }
 
-export function getClipboardSummaryPreview(record: DraftRecord | null) {
+export function getClipboardSummaryPreview(record: DraftRecord | null, appCurrency?: string) {
   if (!record) {
     return null;
   }
 
   return buildClipboardSummary(record.values, getDeviceLocale(), {
     settledParticipantIds: record.settlementState?.settledParticipantIds ?? [],
+    appCurrency,
   });
 }
 

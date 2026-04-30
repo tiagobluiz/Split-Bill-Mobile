@@ -51,6 +51,11 @@ export type PdfExportData = {
   people: PdfExportPerson[];
   items: PdfExportItem[];
   personBreakdown: PdfExportPersonBreakdown[];
+  exchangeRate?: {
+    sourceCurrency: string;
+    targetCurrency: string;
+    rate: number;
+  };
 };
 
 function comparePeopleByDisplayOrder<T extends { name: string; isPayer: boolean }>(left: T, right: T) {
@@ -196,5 +201,18 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
     people,
     items,
     personBreakdown,
+    exchangeRate:
+      values.exchangeRate &&
+      Number.isFinite(values.exchangeRate.rate) &&
+      values.exchangeRate.rate > 0 &&
+      values.exchangeRate.sourceCurrency.trim().toUpperCase() === settlement.data.currency.trim().toUpperCase() &&
+      values.exchangeRate.sourceCurrency.trim().toUpperCase() !==
+        values.exchangeRate.targetCurrency.trim().toUpperCase()
+        ? {
+            sourceCurrency: values.exchangeRate.sourceCurrency.trim().toUpperCase(),
+            targetCurrency: values.exchangeRate.targetCurrency.trim().toUpperCase(),
+            rate: values.exchangeRate.rate,
+          }
+        : undefined,
   };
 }

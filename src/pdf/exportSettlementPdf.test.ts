@@ -130,6 +130,25 @@ describe("mobile PDF export", () => {
     );
   });
 
+  it("renders FX metadata bubbles when exchange rate is provided", () => {
+    const html = renderSettlementPdfHtml(
+      {
+        ...(pdfFixture.expected as any),
+        exchangeRate: {
+          sourceCurrency: "USD",
+          targetCurrency: "EUR",
+          rate: 0.92,
+        },
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(html).toContain("Original currency");
+    expect(html).toContain("Target currency");
+    expect(html).toContain("Rate used");
+    expect(html).toContain("1 USD = 0.92 EUR");
+  });
+
   it("exports a generated PDF and opens the native share flow", async () => {
     const printToFileAsync = Print.printToFileAsync as jest.Mock;
     const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;

@@ -23,6 +23,17 @@ function formatPdfMoney(amountCents: number, currency: string, locale: string) {
   return formatMoney(amountCents, currency, locale);
 }
 
+function convertCents(amountCents: number, rate: number) {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return amountCents;
+  }
+  return Math.round(amountCents * rate);
+}
+
+function formatFxRate(rate: number) {
+  return Number.isFinite(rate) ? rate.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") : "1";
+}
+
 function getPdfDocumentLanguage(locale: string) {
   return locale.split(/[-_]/)[0] || "en";
 }
@@ -48,6 +59,11 @@ export function renderSettlementPdfHtml(
   locale = "en-US",
   headerImageDataUri?: string,
 ) {
+  const totalCurrency = data.exchangeRate?.targetCurrency ?? data.currency;
+  const totalRate = data.exchangeRate?.rate ?? 1;
+  const totalCentsDisplay = convertCents(data.totalCents, totalRate);
+  const payerPaidDisplay = convertCents(data.payer.paidCents, totalRate);
+  const payerNetDisplay = convertCents(data.payer.netCents, totalRate);
   const lang = getPdfDocumentLanguage(locale);
   const nonPayers = data.people.filter(
     (person) => !person.isPayer && person.netCents < 0,
@@ -59,7 +75,11 @@ export function renderSettlementPdfHtml(
         <div class="row ${index === nonPayers.length - 1 ? "last-row" : ""}">
           <div class="cell name-cell">${escapeHtml(person.name)}</div>
           <div class="cell amount-cell">${escapeHtml(
-            formatPdfMoney(Math.abs(person.netCents), data.currency, locale),
+            formatPdfMoney(
+              convertCents(Math.abs(person.netCents), totalRate),
+              totalCurrency,
+              locale,
+            ),
           )}</div>
         </div>
       `,
@@ -74,7 +94,11 @@ export function renderSettlementPdfHtml(
             <div class="share-row">
               <div>${escapeHtml(share.name)}</div>
               <div>${escapeHtml(
-                formatPdfMoney(share.amountCents, data.currency, locale),
+                formatPdfMoney(
+                  convertCents(share.amountCents, totalRate),
+                  totalCurrency,
+                  locale,
+                ),
               )}</div>
             </div>
           `,
@@ -86,7 +110,11 @@ export function renderSettlementPdfHtml(
           <div class="item-header">
             <div class="item-title">${escapeHtml(item.name)}</div>
             <div class="item-title">${escapeHtml(
-              formatPdfMoney(item.amountCents, data.currency, locale),
+              formatPdfMoney(
+                convertCents(item.amountCents, totalRate),
+                totalCurrency,
+                locale,
+              ),
             )}</div>
           </div>
           <div class="item-meta">${escapeHtml(item.splitModeLabel)}</div>
@@ -104,7 +132,11 @@ export function renderSettlementPdfHtml(
             <div class="share-row">
               <div>${escapeHtml(item.itemName)}</div>
               <div>${escapeHtml(
-                formatPdfMoney(item.amountCents, data.currency, locale),
+                formatPdfMoney(
+                  convertCents(item.amountCents, totalRate),
+                  totalCurrency,
+                  locale,
+                ),
               )}</div>
             </div>
           `,
@@ -116,7 +148,11 @@ export function renderSettlementPdfHtml(
           <div class="item-header">
             <div class="item-title">${escapeHtml(person.name)}</div>
             <div class="item-title">${escapeHtml(
-              formatPdfMoney(person.totalAmountCents, data.currency, locale),
+              formatPdfMoney(
+                convertCents(person.totalAmountCents, totalRate),
+                totalCurrency,
+                locale,
+              ),
             )}</div>
           </div>
           ${items}
@@ -132,6 +168,28 @@ export function renderSettlementPdfHtml(
       </div>
     `
     : "";
+  const fxMetaRow =
+    data.exchangeRate &&
+    data.exchangeRate.sourceCurrency !== data.exchangeRate.targetCurrency
+      ? `
+          <div class="meta-grid meta-grid-secondary">
+            <div class="meta-card">
+              <p class="meta-label">${escapeHtml(t("pdf.fx.originalCurrency"))}</p>
+              <p class="meta-value">${escapeHtml(data.exchangeRate.sourceCurrency)}</p>
+            </div>
+            <div class="meta-card">
+              <p class="meta-label">${escapeHtml(t("pdf.fx.targetCurrency"))}</p>
+              <p class="meta-value">${escapeHtml(data.exchangeRate.targetCurrency)}</p>
+            </div>
+            <div class="meta-card">
+              <p class="meta-label">${escapeHtml(t("pdf.fx.rateUsed"))}</p>
+              <p class="meta-value">${escapeHtml(
+                `1 ${data.exchangeRate.sourceCurrency} = ${formatFxRate(data.exchangeRate.rate)} ${data.exchangeRate.targetCurrency}`,
+              )}</p>
+            </div>
+          </div>
+        `
+      : "";
 
   return `<!DOCTYPE html>
   <html lang="${escapeHtml(lang)}">
@@ -201,6 +259,9 @@ export function renderSettlementPdfHtml(
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 8px;
+        }
+        .meta-grid-secondary {
+          margin-top: 8px;
         }
 
         .meta-card {
@@ -354,7 +415,7 @@ export function renderSettlementPdfHtml(
           <div class="meta-grid">
             <div class="meta-card">
               <p class="meta-label">${escapeHtml(t("pdf.summary.total"))}</p>
-              <p class="meta-value">${escapeHtml(formatPdfMoney(data.totalCents, data.currency, locale))}</p>
+              <p class="meta-value">${escapeHtml(formatPdfMoney(totalCentsDisplay, totalCurrency, locale))}</p>
             </div>
             <div class="meta-card">
               <p class="meta-label">${escapeHtml(t("pdf.summary.participants"))}</p>
@@ -365,6 +426,7 @@ export function renderSettlementPdfHtml(
               <p class="meta-value">${escapeHtml(String(data.items.length))}</p>
             </div>
           </div>
+          ${fxMetaRow}
         </div>
       </div>
 
@@ -376,8 +438,8 @@ export function renderSettlementPdfHtml(
           <p class="payer-summary">
             ${escapeHtml(
               t("pdf.payerSummary", {
-                paid: formatPdfMoney(data.payer.paidCents, data.currency, locale),
-                collect: formatPdfMoney(data.payer.netCents, data.currency, locale),
+                paid: formatPdfMoney(payerPaidDisplay, totalCurrency, locale),
+                collect: formatPdfMoney(payerNetDisplay, totalCurrency, locale),
               }),
             )}
           </p>
@@ -385,7 +447,7 @@ export function renderSettlementPdfHtml(
         <div class="section-note">
           ${escapeHtml(
             t("pdf.totalReceipt", {
-              amount: formatPdfMoney(data.totalCents, data.currency, locale),
+              amount: formatPdfMoney(totalCentsDisplay, totalCurrency, locale),
             }),
           )}
         </div>

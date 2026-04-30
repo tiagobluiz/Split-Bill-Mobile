@@ -88,6 +88,7 @@ export function RecordRow({
   record: DraftRecord;
   ownerName: string;
   settings: {
+    defaultCurrency?: string;
     splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   };

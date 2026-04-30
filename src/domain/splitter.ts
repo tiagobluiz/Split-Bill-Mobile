@@ -27,6 +27,13 @@ export type ItemFormValue = {
 export type SplitFormValues = {
   splitName?: string;
   currency: string;
+  exchangeRate?: {
+    sourceCurrency: string;
+    targetCurrency: string;
+    rate: number;
+    rateSource?: "auto" | "manual" | "fallback";
+    rateUpdatedAt?: string;
+  };
   participants: ParticipantFormValue[];
   payerParticipantId: string;
   items: ItemFormValue[];

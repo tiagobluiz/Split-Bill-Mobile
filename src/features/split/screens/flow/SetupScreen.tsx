@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   Image,
   Keyboard,
@@ -77,6 +76,7 @@ import {
 } from "../../../../domain";
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
+import { fetchExchangeRate } from "../../../../lib/exchangeRates";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -182,25 +182,79 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     record?.values.currency ?? settings.defaultCurrency,
   );
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [rateInput, setRateInput] = useState(
+    String(record?.values.exchangeRate?.rate ?? 1),
+  );
+  const [rateSource, setRateSource] = useState<"auto" | "manual" | "fallback">(
+    record?.values.exchangeRate?.rateSource ?? "fallback",
+  );
+  const [loadingRate, setLoadingRate] = useState(false);
+  const loadingRateRef = useRef(false);
+  const requestPairRef = useRef("");
+  const pendingPairRef = useRef<string | null>(null);
+  const hasSeededFromRecordRef = useRef(false);
+  const [manualRateOverride, setManualRateOverride] = useState(false);
+  const [autoFetchedPair, setAutoFetchedPair] = useState("");
+  const [rateByPair, setRateByPair] = useState<
+    Record<
+      string,
+      {
+        rate: number;
+        rateSource: "auto" | "manual" | "fallback";
+        rateUpdatedAt?: string;
+      }
+    >
+  >({});
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(
+    record?.values.exchangeRate?.rateUpdatedAt ?? null,
+  );
+  const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
   useEffect(() => {
     if (record) {
+      hasSeededFromRecordRef.current = false;
       setSplitName(record.values.splitName ?? "");
       setCurrency(record.values.currency ?? settings.defaultCurrency);
+      setRateInput(String(record.values.exchangeRate?.rate ?? 1));
+      setRateSource(record.values.exchangeRate?.rateSource ?? "fallback");
+      setManualRateOverride(record.values.exchangeRate?.rateSource === "manual");
+      setAutoFetchedPair("");
+      setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
+      const source = (record.values.currency ?? settings.defaultCurrency)
+        .trim()
+        .toUpperCase();
+      const target = settings.defaultCurrency.trim().toUpperCase();
+      const pairKey = `${source}->${target}`;
+      const savedSource = record.values.exchangeRate?.sourceCurrency
+        ?.trim()
+        .toUpperCase();
+      const savedTarget = record.values.exchangeRate?.targetCurrency
+        ?.trim()
+        .toUpperCase();
+      const hasMatchingSavedPair =
+        savedSource === source && savedTarget === target;
+      setRateByPair(
+        record.values.exchangeRate && hasMatchingSavedPair
+          ? {
+              [pairKey]: {
+                rate: record.values.exchangeRate.rate,
+                rateSource: record.values.exchangeRate.rateSource ?? "fallback",
+                rateUpdatedAt: record.values.exchangeRate.rateUpdatedAt,
+              },
+            }
+          : {},
+      );
+      if (!hasMatchingSavedPair) {
+        setRateInput("1");
+        setRateSource("fallback");
+        setManualRateOverride(false);
+        setRateUpdatedAt(null);
+      }
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
+      hasSeededFromRecordRef.current = true;
     }
   }, [record, settings.defaultCurrency]);
-  if (!record) {
-    return (
-      <AppScreen scroll={false}>
-        <EmptyState
-          title={t("common.loadingSplitTitle")}
-          description={t("common.loadingSplitDescription")}
-        />
-      </AppScreen>
-    );
-  }
   const currencyOptions = [
     ...getCurrencyOptions(settings),
     ...(!getCurrencyOptions(settings).some(
@@ -215,7 +269,125 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       : []),
   ];
   const normalizedCurrency = currency.trim().toUpperCase();
+  const normalizedTargetCurrency = settings.defaultCurrency.trim().toUpperCase();
+  const parsedRate = Number(rateInput.replace(",", "."));
+  const hasValidRateInput = Number.isFinite(parsedRate) && parsedRate > 0;
+  const effectiveRate =
+    hasValidRateInput ? parsedRate : 1;
+  const needsConversion = normalizedCurrency !== normalizedTargetCurrency;
   const canContinue = Boolean(normalizedCurrency);
+  const fetchLiveRate = async () => {
+    if (!needsConversion) {
+      return;
+    }
+    if (loadingRateRef.current) {
+      pendingPairRef.current = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+      return;
+    }
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    requestPairRef.current = pairKey;
+    loadingRateRef.current = true;
+    setLoadingRate(true);
+    try {
+      const result = await fetchExchangeRate(
+        normalizedCurrency,
+        normalizedTargetCurrency,
+      );
+      if (requestPairRef.current !== pairKey) {
+        return;
+      }
+      setRateInput(String(result.rate));
+      setRateSource(result.source);
+      const updatedAt = new Date().toISOString();
+      setRateUpdatedAt(updatedAt);
+      setAutoFetchedPair(pairKey);
+      setRateByPair((prev) => ({
+        ...prev,
+        [pairKey]: {
+          rate: result.rate,
+          rateSource: result.source,
+          rateUpdatedAt: updatedAt,
+        },
+      }));
+    } finally {
+      loadingRateRef.current = false;
+      setLoadingRate(false);
+      const pendingPair = pendingPairRef.current;
+      if (pendingPair && pendingPair !== pairKey) {
+        pendingPairRef.current = null;
+        setAutoFetchedPair("");
+      }
+    }
+  };
+
+  useEffect(() => {
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    const savedPairRate = rateByPair[pairKey];
+    if (!savedPairRate) {
+      if (!hasSeededFromRecordRef.current && record?.values.exchangeRate) {
+        return;
+      }
+      setRateInput("1");
+      setRateSource("fallback");
+      setManualRateOverride(false);
+      setRateUpdatedAt(null);
+      return;
+    }
+    setRateInput(String(savedPairRate.rate));
+    setRateSource(savedPairRate.rateSource);
+    setManualRateOverride(savedPairRate.rateSource === "manual");
+    setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
+  }, [normalizedCurrency, normalizedTargetCurrency, record]);
+
+  useEffect(() => {
+    if (!record || !needsConversion || !normalizedCurrency) {
+      return;
+    }
+    if (manualRateOverride) {
+      return;
+    }
+    const pair = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    if (pair === autoFetchedPair) {
+      return;
+    }
+    const savedRate = record.values.exchangeRate;
+    const savedSource = savedRate?.sourceCurrency?.trim().toUpperCase();
+    const savedTarget = savedRate?.targetCurrency?.trim().toUpperCase();
+    if (savedRate && savedSource === normalizedCurrency && savedTarget === normalizedTargetCurrency) {
+      return;
+    }
+    void fetchLiveRate();
+  }, [record, normalizedCurrency, normalizedTargetCurrency, needsConversion, manualRateOverride, autoFetchedPair]);
+
+  if (!record) {
+    return (
+      <AppScreen scroll={false}>
+        <EmptyState
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
+        />
+      </AppScreen>
+    );
+  }
+
+  const persistAndContinue = async () => {
+    await updateDraftMeta(
+      splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
+      normalizedCurrency,
+      needsConversion
+        ? {
+            sourceCurrency: normalizedCurrency,
+            targetCurrency: normalizedTargetCurrency,
+            rate: effectiveRate,
+            rateSource,
+            rateUpdatedAt: rateUpdatedAt ?? new Date().toISOString(),
+          }
+        : undefined,
+    );
+    await setStep(2);
+    router.push(`/split/${draftId}/participants`);
+  };
+
   return (
     <AppScreen
       scroll={false}
@@ -235,12 +407,15 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 ]);
                 return;
               }
-              await updateDraftMeta(
-                splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
-                normalizedCurrency,
-              );
-              await setStep(2);
-              router.push(`/split/${draftId}/participants`);
+              if (needsConversion && !hasValidRateInput) {
+                setSetupNoticeMessages([t("flow.setup.exchangeRateInvalid")]);
+                return;
+              }
+              if (needsConversion && effectiveRate === 1) {
+                setShowRateConfirmModal(true);
+                return;
+              }
+              await persistAndContinue();
             }}
           />
         </FloatingFooter>
@@ -314,38 +489,98 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
                   </XStack>
                 </Pressable>
-                {currencyMenuOpen ? (
-                  <YStack gap="$2">
-                    {currencyOptions.map((option) => {
-                      const active = normalizedCurrency === option.code;
-                      return (
-                        <Pressable
-                          key={option.code}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Choose currency ${option.code}`}
-                          style={[
-                            screenStyles.selectRow,
-                            active ? screenStyles.selectRowActive : null,
-                          ]}
-                          onPress={() => {
-                            setCurrency(option.code);
-                            setCurrencyMenuOpen(false);
-                          }}
-                        >
-                          <Text
-                            fontFamily={FONTS.bodyMedium}
-                            fontSize={16}
-                            color={active ? PALETTE.primary : PALETTE.onSurface}
-                          >
-                            {option.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </YStack>
-                ) : null}
               </YStack>
             </YStack>
+            {needsConversion ? (
+              <YStack gap="$2">
+                <FieldLabel>
+                  {t("flow.setup.exchangeRateToCurrency", {
+                    currency: normalizedTargetCurrency,
+                  })}
+                </FieldLabel>
+                <View style={screenStyles.assignInputShell}>
+                  <XStack alignItems="center" gap="$2">
+                    <View style={{ flex: 1 }}>
+                      <TextInput
+                        accessibilityLabel={t("flow.setup.exchangeRateA11y")}
+                        value={rateInput}
+                        onChangeText={(value) => {
+                          const numericValue = Number(value.replace(",", "."));
+                          setRateInput(value);
+                          setRateSource("manual");
+                          setManualRateOverride(true);
+                          if (Number.isFinite(numericValue) && numericValue > 0) {
+                            const updatedAt = new Date().toISOString();
+                            setRateUpdatedAt(updatedAt);
+                            setRateByPair((prev) => ({
+                              ...prev,
+                              [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+                                rate: numericValue,
+                                rateSource: "manual",
+                                rateUpdatedAt: updatedAt,
+                              },
+                            }));
+                          } else {
+                            setRateUpdatedAt(null);
+                            setRateByPair((prev) => {
+                              const next = { ...prev };
+                              delete next[`${normalizedCurrency}->${normalizedTargetCurrency}`];
+                              return next;
+                            });
+                          }
+                        }}
+                        placeholder={t("flow.setup.exchangeRatePlaceholder")}
+                        placeholderTextColor={PALETTE.inputPlaceholder}
+                        keyboardType="decimal-pad"
+                        style={screenStyles.assignInput}
+                      />
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("flow.setup.refreshExchangeRateA11y")}
+                      onPress={() => {
+                        setManualRateOverride(false);
+                        void fetchLiveRate();
+                      }}
+                      style={[
+                        screenStyles.iconButton,
+                        {
+                          width: 46,
+                          height: 46,
+                          borderRadius: 14,
+                          backgroundColor: loadingRate ? PALETTE.surfaceContainerHigh : PALETTE.primary,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        },
+                      ]}
+                    >
+                      {loadingRate ? (
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={18}
+                          color={PALETTE.onPrimary}
+                        >
+                          ...
+                        </Text>
+                      ) : (
+                        <RotateCcw size={20} color={PALETTE.onPrimary} />
+                      )}
+                    </Pressable>
+                  </XStack>
+                </View>
+                {rateUpdatedAt ? (
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={12}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {t("flow.setup.exchangeRateUpdatedAt", {
+                      date: new Date(rateUpdatedAt).toLocaleString(),
+                    })}
+                  </Text>
+                ) : null}
+              </YStack>
+            ) : null}
           </YStack>
         </YStack>
       </ScrollView>
@@ -353,6 +588,35 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         messages={setupNoticeMessages}
         onDismiss={() => setSetupNoticeMessages([])}
       />
+      {currencyMenuOpen ? (
+        <ActionSheetModal
+          title={t("flow.setup.currency")}
+          options={currencyOptions.map((option) => ({
+            label: option.label,
+            selected: normalizedCurrency === option.code,
+            onPress: () => {
+              requestPairRef.current = "";
+              setCurrency(option.code);
+              setAutoFetchedPair("");
+              setCurrencyMenuOpen(false);
+            },
+          }))}
+          onDismiss={() => setCurrencyMenuOpen(false)}
+        />
+      ) : null}
+      {showRateConfirmModal ? (
+        <ConfirmChoiceModal
+          title={t("flow.setup.rateConfirmTitle")}
+          body={t("flow.setup.rateConfirmBody")}
+          confirmLabel={t("flow.setup.rateConfirmContinue")}
+          discardLabel={t("flow.setup.rateConfirmEdit")}
+          onConfirm={() => {
+            setShowRateConfirmModal(false);
+            void persistAndContinue();
+          }}
+          onDiscard={() => setShowRateConfirmModal(false)}
+        />
+      ) : null}
     </AppScreen>
   );
 }
