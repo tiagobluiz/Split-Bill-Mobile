@@ -36,12 +36,25 @@ jest.mock("expo-file-system", () => ({
       mockCopy(this.uri, destination.uri);
       mockExistingUris.add(destination.uri);
     }
+
+    base64Sync() {
+      return "mockBase64HeaderImage";
+    }
   },
 }));
 
 jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(),
   shareAsync: jest.fn(),
+}));
+
+jest.mock("expo-asset", () => ({
+  Asset: {
+    fromModule: jest.fn(() => ({
+      localUri: "file:///assets/split-bill-pdf-header.png",
+      downloadAsync: jest.fn().mockResolvedValue(undefined),
+    })),
+  },
 }));
 
 import pdfFixture from "../../docs/logic/fixtures/pdf-export-mixed-modes.json";
@@ -70,15 +83,23 @@ describe("mobile PDF export", () => {
       {
         ...(pdfFixture.expected as any),
         appName: "Split Bill",
+        splitName: "Grocery bill",
         splitTitle: "Grocery bill split summary",
       },
       pdfFixture.assumptions.locale,
+      "data:image/png;base64,mockBase64HeaderImage",
     );
 
-    expect(html).toContain("Grocery bill split summary");
+    expect(html).toContain("Grocery bill");
+    expect(html).toContain("(Mar 9, 2026)");
     expect(html).toContain('<html lang="en">');
-    expect(html).toContain("Exported Mar 9, 2026");
-    expect(html).toContain("Currency EUR");
+    expect(html).toContain("Total receipt");
+    expect(html).toContain("€12.00");
+    expect(html).toContain("Participants");
+    expect(html).toContain(">2<");
+    expect(html).toContain("Items");
+    expect(html).toContain(">3<");
+    expect(html).toContain("data:image/png;base64,mockBase64HeaderImage");
     expect(html).toContain("Final settlement");
     expect(html).toContain("Who owes");
     expect(html).toContain("Item breakdown");
@@ -98,6 +119,10 @@ describe("mobile PDF export", () => {
     expect(html).toContain("Percent");
     expect(html).toContain("€2.00");
     expect(html).toContain("€4.00");
+
+    expect(html.indexOf("Person breakdown")).toBeLessThan(
+      html.indexOf("Item breakdown"),
+    );
   });
 
   it("exports a generated PDF and opens the native share flow", async () => {
@@ -125,6 +150,11 @@ describe("mobile PDF export", () => {
       expect.objectContaining({
         html: expect.stringContaining("Final settlement"),
         base64: false,
+      }),
+    );
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("data:image/png;base64,mockBase64HeaderImage"),
       }),
     );
     expect(mockCopy).toHaveBeenCalledWith(

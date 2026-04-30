@@ -1,5 +1,6 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 
 import { type PdfExportData } from "../domain";
@@ -7,12 +8,14 @@ import { buildPdfExportData } from "../domain/pdfExport";
 import { formatMoney, type SplitFormValues } from "../domain/splitter";
 import { t } from "../i18n";
 
+const PDF_HEADER_ASSET = require("../../assets/split-bill-pdf-header.png");
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -24,9 +27,23 @@ function getPdfDocumentLanguage(locale: string) {
   return locale.split(/[-_]/)[0] || "en";
 }
 
+async function getPdfHeaderImageDataUri() {
+  const asset = Asset.fromModule(PDF_HEADER_ASSET);
+  await asset.downloadAsync();
+
+  if (!asset.localUri) {
+    throw new Error("Unable to load PDF header image asset.");
+  }
+
+  const imageFile = new File(asset.localUri);
+  const base64 = imageFile.base64Sync();
+  return `data:image/png;base64,${base64}`;
+}
+
 export function renderSettlementPdfHtml(
   data: PdfExportData,
   locale = "en-US",
+  headerImageDataUri?: string,
 ) {
   const lang = getPdfDocumentLanguage(locale);
   const nonPayers = data.people.filter(
@@ -105,6 +122,14 @@ export function renderSettlementPdfHtml(
     })
     .join("");
 
+  const brandedHeader = headerImageDataUri
+    ? `
+      <div class="brand-banner">
+        <img src="${escapeHtml(headerImageDataUri)}" alt="${escapeHtml(data.appName)}" />
+      </div>
+    `
+    : "";
+
   return `<!DOCTYPE html>
   <html lang="${escapeHtml(lang)}">
     <head>
@@ -113,7 +138,7 @@ export function renderSettlementPdfHtml(
       <title>${escapeHtml(data.fileName)}</title>
       <style>
         @page {
-          margin: 32px;
+          margin: 28px;
           size: A4;
         }
 
@@ -126,81 +151,136 @@ export function renderSettlementPdfHtml(
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           font-size: 10px;
           line-height: 1.45;
-          color: #1d1d1f;
-          background: #fffdfc;
+          color: #1f2933;
+          background: #f9fafb;
         }
 
         .header {
-          margin-bottom: 20px;
-          padding-bottom: 14px;
-          border-bottom: 1px solid #f2c7bb;
+          margin-bottom: 18px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #ffffff;
+        }
+
+        .brand-banner {
+          width: 100%;
+          background: #a54206;
+        }
+
+        .brand-banner img {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+
+        .header-content {
+          padding: 14px 16px 12px;
         }
 
         .title {
-          margin: 0 0 6px;
-          font-size: 24px;
-          font-weight: 700;
+          margin: 0;
+          font-size: 22px;
+          line-height: 1.2;
+          font-weight: 800;
+          color: #111827;
+          text-align: center;
         }
 
-        .subtitle {
+        .title-date {
+          font-size: 13px;
+          font-weight: 600;
+          color: #5f6b7a;
+        }
+
+        .meta-grid {
+          margin-top: 10px;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .meta-card {
+          padding: 8px;
+          border-radius: 8px;
+          background: #f7f8fa;
+          border: 1px solid #eceff3;
+        }
+
+        .meta-label {
+          margin: 0 0 2px;
+          font-size: 8px;
+          color: #5f6b7a;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+
+        .meta-value {
           margin: 0;
           font-size: 10px;
-          color: #5a5a61;
+          color: #1f2933;
+          font-weight: 600;
         }
 
         .section {
-          margin-bottom: 18px;
+          margin-bottom: 16px;
+          padding: 12px;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          background: #ffffff;
         }
 
         .section-title {
           margin: 0 0 10px;
           font-size: 14px;
-          font-weight: 700;
+          font-weight: 800;
+          color: #111827;
         }
 
         .section-note {
           margin-top: 6px;
           font-size: 9px;
-          color: #6e6e73;
+          color: #5f6b7a;
         }
 
         .label {
           margin-bottom: 3px;
           font-size: 9px;
-          color: #6e6e73;
+          color: #5f6b7a;
         }
 
         .payer-card {
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           padding: 14px;
-          border: 1px solid #f05d3d;
+          border: 1px solid #f59e0b;
           border-radius: 10px;
-          background: #ffffff;
+          background: #fff8eb;
         }
 
         .payer-name {
           margin: 0 0 4px;
           font-size: 18px;
-          font-weight: 700;
+          font-weight: 800;
+          color: #111827;
         }
 
         .payer-summary {
           margin: 0;
           font-size: 12px;
-          font-weight: 700;
-          color: #f05d3d;
+          font-weight: 800;
+          color: #9a3412;
         }
 
         .owes-list {
-          border: 1px solid #eed7cf;
-          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
           overflow: hidden;
           background: #ffffff;
         }
 
         .row {
           display: flex;
-          border-bottom: 1px solid #f3e6e1;
+          border-bottom: 1px solid #edf1f5;
         }
 
         .last-row {
@@ -219,12 +299,13 @@ export function renderSettlementPdfHtml(
         .amount-cell {
           flex-basis: 30%;
           text-align: right;
+          font-weight: 700;
         }
 
         .item-card {
           margin-bottom: 10px;
           padding: 12px;
-          border: 1px solid #eed7cf;
+          border: 1px solid #e6ebf1;
           border-radius: 10px;
           background: #ffffff;
           page-break-inside: avoid;
@@ -235,17 +316,20 @@ export function renderSettlementPdfHtml(
           justify-content: space-between;
           gap: 12px;
           margin-bottom: 6px;
+          padding-bottom: 6px;
+          border-bottom: 1px solid #f1f5f9;
         }
 
         .item-title {
           font-size: 12px;
-          font-weight: 700;
+          font-weight: 800;
+          color: #0f172a;
         }
 
         .item-meta {
           margin-bottom: 8px;
           font-size: 9px;
-          color: #6e6e73;
+          color: #5f6b7a;
         }
 
         .share-row {
@@ -258,14 +342,27 @@ export function renderSettlementPdfHtml(
     </head>
     <body>
       <div class="header">
-        <h1 class="title">${escapeHtml(data.appName)}</h1>
-        <p class="subtitle">${escapeHtml(data.splitTitle || t("pdf.title.default"))}</p>
-        <p class="subtitle">${escapeHtml(
-          t("common.exportedOn", { date: data.exportDateLabel }),
-        )}</p>
-        <p class="subtitle">${escapeHtml(
-          t("common.currencyLabel", { currency: data.currency }),
-        )}</p>
+        ${brandedHeader}
+        <div class="header-content">
+          <h1 class="title">
+            ${escapeHtml(data.splitName || t("pdf.title.default"))}
+            <span class="title-date">(${escapeHtml(data.exportDateLabel)})</span>
+          </h1>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <p class="meta-label">${escapeHtml(t("pdf.totalReceipt", { amount: "" }).replace(/\s+$/, ""))}</p>
+              <p class="meta-value">${escapeHtml(formatPdfMoney(data.totalCents, data.currency, locale))}</p>
+            </div>
+            <div class="meta-card">
+              <p class="meta-label">Participants</p>
+              <p class="meta-value">${escapeHtml(String(data.people.length))}</p>
+            </div>
+            <div class="meta-card">
+              <p class="meta-label">Items</p>
+              <p class="meta-value">${escapeHtml(String(data.items.length))}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <section class="section">
@@ -297,15 +394,15 @@ export function renderSettlementPdfHtml(
       </section>
 
       <section class="section">
-        <h2 class="section-title">${escapeHtml(t("pdf.section.itemBreakdown"))}</h2>
-        <div class="section-note">${escapeHtml(data.note)}</div>
-        ${itemCards}
-      </section>
-
-      <section class="section">
         <h2 class="section-title">${escapeHtml(t("pdf.section.personBreakdown"))}</h2>
         <div class="section-note">${escapeHtml(data.note)}</div>
         ${personBreakdownCards}
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">${escapeHtml(t("pdf.section.itemBreakdown"))}</h2>
+        <div class="section-note">${escapeHtml(data.note)}</div>
+        ${itemCards}
       </section>
     </body>
   </html>`;
@@ -321,7 +418,8 @@ export async function exportSettlementPdf(
   }
 
   const data = buildPdfExportData(values, new Date(), locale);
-  const html = renderSettlementPdfHtml(data, locale);
+  const headerImageDataUri = await getPdfHeaderImageDataUri();
+  const html = renderSettlementPdfHtml(data, locale, headerImageDataUri);
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,

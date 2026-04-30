@@ -40,6 +40,7 @@ export type PdfExportPersonBreakdown = {
 
 export type PdfExportData = {
   appName: string;
+  splitName: string;
   splitTitle: string;
   exportDateLabel: string;
   fileName: string;
@@ -184,6 +185,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
 
   return {
     appName: t("app.name"),
+    splitName: values.splitName?.trim() ?? "",
     splitTitle: getPdfTitle(values.splitName),
     exportDateLabel: formatExportDate(date, locale),
     fileName: buildPdfFilename(values.splitName, date),
