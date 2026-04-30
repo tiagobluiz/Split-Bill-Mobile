@@ -22,6 +22,7 @@ describe("output contracts", () => {
     ).toEqual({
       ...pdfFixture.expected,
       appName: "Split Bill",
+      splitName: "",
       splitTitle: "Split Bill summary",
     });
   });
