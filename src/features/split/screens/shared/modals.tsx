@@ -116,8 +116,18 @@ export function ConfirmChoiceModal({
                 {confirmLabel}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={discardLabel} style={screenStyles.actionSheetButton} onPress={onDiscard}>
-              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.primary}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={discardLabel}
+              style={screenStyles.confirmChoiceSecondaryButton}
+              onPress={onDiscard}
+            >
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={14}
+                color={PALETTE.primary}
+                textAlign="center"
+              >
                 {discardLabel}
               </Text>
             </Pressable>

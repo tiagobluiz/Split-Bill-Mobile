@@ -286,7 +286,6 @@ export function AssignItemScreen({
             >
               <FlowContinueButton
                 accessibilityLabel={t("flow.itemDetail.saveA11y")}
-                disabled={!hasValidName || !hasValidPrice}
                 label={t("flow.itemDetail.save")}
                 onPress={() => void saveEditor()}
               />
@@ -807,7 +806,7 @@ export function SplitItemScreen({
   };
 
   const finalizeWorkingPercentValue = (participantId: string) => {
-    setSplitNoticeMessages([]);
+    let didNormalizeTrailingSeparator = false;
     updateWorkingAllocations((allocations) =>
       allocations.map((allocation) => {
         if (allocation.participantId !== participantId) {
@@ -818,12 +817,17 @@ export function SplitItemScreen({
           return allocation;
         }
 
+        didNormalizeTrailingSeparator = true;
         return {
           ...allocation,
           percent: normalizeCommittedPercentValue(allocation.percent),
         };
       }),
     );
+
+    if (didNormalizeTrailingSeparator) {
+      setSplitNoticeMessages([]);
+    }
   };
 
   const confirmSplit = async () => {
@@ -1292,7 +1296,7 @@ export function SplitItemScreen({
                           step={1}
                           value={Math.max(0, Math.min(percentValue, 100))}
                           minimumTrackTintColor={PALETTE.primary}
-                          maximumTrackTintColor="#e4e0dc"
+                          maximumTrackTintColor={PALETTE.track}
                           thumbTintColor={PALETTE.primary}
                           onValueChange={(value) =>
                             void setWorkingPercentValue(

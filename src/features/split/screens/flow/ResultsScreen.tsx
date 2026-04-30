@@ -407,7 +407,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               <Text
                 fontFamily={FONTS.bodyBold}
                 fontSize={12}
-                color={PALETTE.secondary}
+                color={PALETTE.onSurfaceVariant}
               >
                 {t("flow.results.contributors", { count: settlement.data.people.length })}
               </Text>
@@ -474,7 +474,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
-                            color={PALETTE.secondary}
+                            color={PALETTE.success}
                             textTransform="uppercase"
                             letterSpacing={1.6}
                           >

@@ -651,7 +651,7 @@ export function HomeScreenView() {
                     <Text
                       fontFamily={FONTS.bodyBold}
                       fontSize={11}
-                      color={PALETTE.secondary}
+                      color={PALETTE.success}
                       textTransform="uppercase"
                       letterSpacing={2}
                     >
@@ -762,7 +762,7 @@ export function HomeScreenView() {
                   <Text
                     fontFamily={FONTS.bodyBold}
                     fontSize={11}
-                    color={PALETTE.secondary}
+                    color={PALETTE.success}
                     textTransform="uppercase"
                     letterSpacing={2}
                   >
@@ -971,7 +971,7 @@ export function HomeScreenView() {
                       setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))
                     }
                     placeholder={t("settings.ownerNamePlaceholder")}
-                    placeholderTextColor="rgba(86,67,57,0.35)"
+                  placeholderTextColor={PALETTE.inputPlaceholder}
                     style={screenStyles.assignInput}
                     maxLength={MAX_OWNER_NAME_LENGTH}
                   />
@@ -1531,7 +1531,7 @@ export function HomeScreenView() {
                     }
                   }}
                   placeholder={t("settings.currencyNamePlaceholder")}
-                  placeholderTextColor="rgba(86,67,57,0.35)"
+                  placeholderTextColor={PALETTE.inputPlaceholder}
                   style={screenStyles.assignInput}
                   returnKeyType="next"
                   onSubmitEditing={() =>
@@ -1561,7 +1561,7 @@ export function HomeScreenView() {
                     }
                   }}
                   placeholder={t("settings.currencySymbolPlaceholder")}
-                  placeholderTextColor="rgba(86,67,57,0.35)"
+                    placeholderTextColor={PALETTE.inputPlaceholder}
                   style={screenStyles.assignInput}
                   returnKeyType="done"
                   onSubmitEditing={() => void addCustomCurrency()}

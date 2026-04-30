@@ -279,7 +279,7 @@ export function getRecentRowMeta(
     return {
       amountDisplay,
       statusLabel: t("record.status.settled"),
-      statusColor: PALETTE.secondary,
+      statusColor: PALETTE.success,
       showUnpaidDots: false,
     };
   }
