@@ -724,7 +724,7 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.setup.exchangeRatePlaceholder": "1,00",
   "flow.setup.refreshExchangeRateA11y": "Atualizar taxa de câmbio",
   "flow.setup.rateConfirmTitle": "A taxa de câmbio é 1",
-  "flow.setup.rateConfirmBody": "Isso é incomum para moedas diferentes. Confirme se isso é intencional.",
+  "flow.setup.rateConfirmBody": "Isto é incomum para moedas diferentes. Confirma se é intencional.",
   "flow.setup.rateConfirmContinue": "Continuar",
   "flow.setup.rateConfirmEdit": "Editar taxa",
   "flow.participants.title": "Quem vai dividir?",
