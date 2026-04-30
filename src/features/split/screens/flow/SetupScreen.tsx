@@ -190,7 +190,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   );
   const [loadingRate, setLoadingRate] = useState(false);
   const [manualRateOverride, setManualRateOverride] = useState(false);
-  const [hasAutoFetchedOnce, setHasAutoFetchedOnce] = useState(false);
+  const [autoFetchedPair, setAutoFetchedPair] = useState("");
   const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(
     record?.values.exchangeRate?.rateUpdatedAt ?? null,
   );
@@ -203,7 +203,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       setRateInput(String(record.values.exchangeRate?.rate ?? 1));
       setRateSource(record.values.exchangeRate?.rateSource ?? "fallback");
       setManualRateOverride(record.values.exchangeRate?.rateSource === "manual");
-      setHasAutoFetchedOnce(false);
+      setAutoFetchedPair("");
       setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
@@ -242,6 +242,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     setRateInput(String(result.rate));
     setRateSource(result.source);
     setRateUpdatedAt(new Date().toISOString());
+    setAutoFetchedPair(`${normalizedCurrency}->${normalizedTargetCurrency}`);
   };
 
   useEffect(() => {
@@ -251,12 +252,18 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     if (manualRateOverride) {
       return;
     }
-    if (record.values.exchangeRate || hasAutoFetchedOnce) {
+    const pair = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    if (pair === autoFetchedPair) {
       return;
     }
-    setHasAutoFetchedOnce(true);
+    const savedRate = record.values.exchangeRate;
+    const savedSource = savedRate?.sourceCurrency?.trim().toUpperCase();
+    const savedTarget = savedRate?.targetCurrency?.trim().toUpperCase();
+    if (savedRate && savedSource === normalizedCurrency && savedTarget === normalizedTargetCurrency) {
+      return;
+    }
     void fetchLiveRate();
-  }, [record, normalizedCurrency, normalizedTargetCurrency, needsConversion, manualRateOverride, hasAutoFetchedOnce]);
+  }, [record, normalizedCurrency, normalizedTargetCurrency, needsConversion, manualRateOverride, autoFetchedPair]);
 
   if (!record) {
     return (
@@ -415,7 +422,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                       accessibilityLabel="Refresh exchange rate"
                       onPress={() => {
                         setManualRateOverride(false);
-                        setHasAutoFetchedOnce(true);
                         void fetchLiveRate();
                       }}
                       style={[
@@ -473,7 +479,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             onPress: () => {
               setCurrency(option.code);
               setManualRateOverride(false);
-              setHasAutoFetchedOnce(false);
+              setAutoFetchedPair("");
               setCurrencyMenuOpen(false);
             },
           }))}
