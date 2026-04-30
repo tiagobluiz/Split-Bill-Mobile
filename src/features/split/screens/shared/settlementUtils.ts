@@ -25,6 +25,38 @@ type SettlementPerson = {
   netCents: number;
 };
 
+function normalizeCurrency(value?: string) {
+  return value?.trim().toUpperCase() ?? "";
+}
+
+export function convertCents(amountCents: number, rate: number) {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return amountCents;
+  }
+  return Math.round(amountCents * rate);
+}
+
+function getEffectiveRate(record: DraftRecord, appCurrency?: string) {
+  const sourceCurrency = normalizeCurrency(record.values.currency);
+  const targetCurrency = normalizeCurrency(appCurrency);
+  if (!targetCurrency || sourceCurrency === targetCurrency) {
+    return 1;
+  }
+
+  const fx = record.values.exchangeRate;
+  if (
+    fx &&
+    normalizeCurrency(fx.sourceCurrency) === sourceCurrency &&
+    normalizeCurrency(fx.targetCurrency) === targetCurrency &&
+    Number.isFinite(fx.rate) &&
+    fx.rate > 0
+  ) {
+    return fx.rate;
+  }
+
+  return 1;
+}
+
 type SettlementResolver = (
   record: DraftRecord
 ) =>
@@ -152,7 +184,18 @@ export function getHomeBalanceCards(
   resolver?: SettlementResolver
 ) {
   const previews = records
-    .map((record) => getRecordMoneyPreview(record, ownerName, resolver))
+    .map((record) => {
+      const preview = getRecordMoneyPreview(record, ownerName, resolver);
+      if (!preview) {
+        return null;
+      }
+      const rate = getEffectiveRate(record, preferredCurrency);
+      return {
+        ...preview,
+        currency: preferredCurrency ?? preview.currency,
+        ownerNetCents: convertCents(preview.ownerNetCents, rate),
+      };
+    })
     .filter((preview): preview is NonNullable<ReturnType<typeof getRecordMoneyPreview>> => Boolean(preview));
 
   const totalsByCurrency = new Map<string, { owedCents: number; oweCents: number }>();
@@ -190,6 +233,7 @@ export function getRecentRowMeta(
   record: DraftRecord,
   ownerName: string,
   settings?: {
+    defaultCurrency?: string;
     splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   },
@@ -197,19 +241,22 @@ export function getRecentRowMeta(
 ) {
   const preview = getRecordMoneyPreview(record, ownerName, resolver);
   const locale = getDeviceLocale();
-  const currency = preview?.currency ?? record.values.currency;
+  const appCurrency = normalizeCurrency(settings?.defaultCurrency);
+  const rate = getEffectiveRate(record, appCurrency);
+  const currency = appCurrency || preview?.currency || record.values.currency;
   const settlement = resolveSettlement(record, resolver);
   const owner = settlement?.ok
     ? settlement.data.people.find((person) => isOwnerReference(person.name, ownerName))
     : null;
-  const totalCents =
+  const recordTotalCents =
     settlement?.ok
       ? settlement.data.totalCents
       : record.values.items.reduce(
           (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
           0,
         );
-  const remainingBaseAmountCents = preview?.ownerNetCents ?? 0;
+  const totalCents = convertCents(recordTotalCents, rate);
+  const remainingBaseAmountCents = convertCents(preview?.ownerNetCents ?? 0, rate);
   const remainingRawAmountCents =
     preview?.ownerRelation === "debtor"
       ? -remainingBaseAmountCents
@@ -228,7 +275,7 @@ export function getRecentRowMeta(
         : t("record.amount.nothingDue");
   const totalAmount = formatAppMoney(totalCents, currency, locale, settings);
   const userPaidAmount = formatAppMoney(
-    Math.max(owner?.consumedCents ?? 0, 0),
+    convertCents(Math.max(owner?.consumedCents ?? 0, 0), rate),
     currency,
     locale,
     settings,

@@ -145,6 +145,8 @@ const enPlain = {
   "flow.setup.next": "Next: Add Participants",
   "flow.setup.nextA11y": "Next: Add Participants",
   "flow.setup.nameRequired": "Please give this bill a short name first.",
+  "flow.setup.exchangeRateToCurrency": "Exchange rate to {currency}",
+  "flow.setup.exchangeRateUpdatedAt": "Last updated at: {date}",
   "flow.participants.title": "Who's splitting?",
   "flow.participants.frequent": "Frequent Participants",
   "flow.participants.inputPlaceholder": "Enter name",
@@ -418,6 +420,9 @@ const enPlain = {
   "pdf.summary.total": "Total receipt",
   "pdf.summary.participants": "Participants",
   "pdf.summary.items": "Items",
+  "pdf.fx.originalCurrency": "Original currency",
+  "pdf.fx.targetCurrency": "Target currency",
+  "pdf.fx.rateUsed": "Rate used",
   "pdf.sharingUnavailable": "Sharing is not available on this device.",
 } as const satisfies TranslationMap;
 
@@ -706,6 +711,8 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.setup.next": "Seguinte: participantes",
   "flow.setup.nextA11y": "Seguinte: participantes",
   "flow.setup.nameRequired": "Dá primeiro um nome curto a esta conta.",
+  "flow.setup.exchangeRateToCurrency": "Taxa de câmbio para {currency}",
+  "flow.setup.exchangeRateUpdatedAt": "Atualizado em: {date}",
   "flow.participants.title": "Quem vai dividir?",
   "flow.participants.frequent": "Participantes frequentes",
   "flow.participants.inputPlaceholder": "Introduzir nome",
@@ -992,6 +999,9 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "pdf.summary.total": "Total do recibo",
   "pdf.summary.participants": "Participantes",
   "pdf.summary.items": "Itens",
+  "pdf.fx.originalCurrency": "Moeda original",
+  "pdf.fx.targetCurrency": "Moeda desejada",
+  "pdf.fx.rateUsed": "Taxa de câmbio usada",
   "pdf.sharingUnavailable": "A partilha não está disponível neste dispositivo.",
 };
 

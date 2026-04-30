@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   Image,
   Keyboard,
@@ -77,6 +76,7 @@ import {
 } from "../../../../domain";
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
+import { fetchExchangeRate } from "../../../../lib/exchangeRates";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -182,25 +182,33 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     record?.values.currency ?? settings.defaultCurrency,
   );
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [rateInput, setRateInput] = useState(
+    String(record?.values.exchangeRate?.rate ?? 1),
+  );
+  const [rateSource, setRateSource] = useState<"auto" | "manual" | "fallback">(
+    record?.values.exchangeRate?.rateSource ?? "fallback",
+  );
+  const [loadingRate, setLoadingRate] = useState(false);
+  const [manualRateOverride, setManualRateOverride] = useState(false);
+  const [hasAutoFetchedOnce, setHasAutoFetchedOnce] = useState(false);
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(
+    record?.values.exchangeRate?.rateUpdatedAt ?? null,
+  );
+  const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
   useEffect(() => {
     if (record) {
       setSplitName(record.values.splitName ?? "");
       setCurrency(record.values.currency ?? settings.defaultCurrency);
+      setRateInput(String(record.values.exchangeRate?.rate ?? 1));
+      setRateSource(record.values.exchangeRate?.rateSource ?? "fallback");
+      setManualRateOverride(record.values.exchangeRate?.rateSource === "manual");
+      setHasAutoFetchedOnce(false);
+      setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
     }
   }, [record, settings.defaultCurrency]);
-  if (!record) {
-    return (
-      <AppScreen scroll={false}>
-        <EmptyState
-          title={t("common.loadingSplitTitle")}
-          description={t("common.loadingSplitDescription")}
-        />
-      </AppScreen>
-    );
-  }
   const currencyOptions = [
     ...getCurrencyOptions(settings),
     ...(!getCurrencyOptions(settings).some(
@@ -215,7 +223,70 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       : []),
   ];
   const normalizedCurrency = currency.trim().toUpperCase();
+  const normalizedTargetCurrency = settings.defaultCurrency.trim().toUpperCase();
+  const parsedRate = Number(rateInput.replace(",", "."));
+  const effectiveRate =
+    Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : 1;
+  const needsConversion = normalizedCurrency !== normalizedTargetCurrency;
   const canContinue = Boolean(normalizedCurrency);
+  const fetchLiveRate = async () => {
+    if (!needsConversion) {
+      return;
+    }
+    setLoadingRate(true);
+    const result = await fetchExchangeRate(
+      normalizedCurrency,
+      normalizedTargetCurrency,
+    );
+    setLoadingRate(false);
+    setRateInput(String(result.rate));
+    setRateSource(result.source);
+    setRateUpdatedAt(new Date().toISOString());
+  };
+
+  useEffect(() => {
+    if (!record || !needsConversion || !normalizedCurrency) {
+      return;
+    }
+    if (manualRateOverride) {
+      return;
+    }
+    if (record.values.exchangeRate || hasAutoFetchedOnce) {
+      return;
+    }
+    setHasAutoFetchedOnce(true);
+    void fetchLiveRate();
+  }, [record, normalizedCurrency, normalizedTargetCurrency, needsConversion, manualRateOverride, hasAutoFetchedOnce]);
+
+  if (!record) {
+    return (
+      <AppScreen scroll={false}>
+        <EmptyState
+          title={t("common.loadingSplitTitle")}
+          description={t("common.loadingSplitDescription")}
+        />
+      </AppScreen>
+    );
+  }
+
+  const persistAndContinue = async () => {
+    await updateDraftMeta(
+      splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
+      normalizedCurrency,
+      needsConversion
+        ? {
+            sourceCurrency: normalizedCurrency,
+            targetCurrency: normalizedTargetCurrency,
+            rate: effectiveRate,
+            rateSource,
+            rateUpdatedAt: rateUpdatedAt ?? new Date().toISOString(),
+          }
+        : undefined,
+    );
+    await setStep(2);
+    router.push(`/split/${draftId}/participants`);
+  };
+
   return (
     <AppScreen
       scroll={false}
@@ -235,12 +306,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 ]);
                 return;
               }
-              await updateDraftMeta(
-                splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
-                normalizedCurrency,
-              );
-              await setStep(2);
-              router.push(`/split/${draftId}/participants`);
+              if (needsConversion && effectiveRate === 1) {
+                setShowRateConfirmModal(true);
+                return;
+              }
+              await persistAndContinue();
             }}
           />
         </FloatingFooter>
@@ -314,38 +384,79 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
                   </XStack>
                 </Pressable>
-                {currencyMenuOpen ? (
-                  <YStack gap="$2">
-                    {currencyOptions.map((option) => {
-                      const active = normalizedCurrency === option.code;
-                      return (
-                        <Pressable
-                          key={option.code}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Choose currency ${option.code}`}
-                          style={[
-                            screenStyles.selectRow,
-                            active ? screenStyles.selectRowActive : null,
-                          ]}
-                          onPress={() => {
-                            setCurrency(option.code);
-                            setCurrencyMenuOpen(false);
-                          }}
-                        >
-                          <Text
-                            fontFamily={FONTS.bodyMedium}
-                            fontSize={16}
-                            color={active ? PALETTE.primary : PALETTE.onSurface}
-                          >
-                            {option.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </YStack>
-                ) : null}
               </YStack>
             </YStack>
+            {needsConversion ? (
+              <YStack gap="$2">
+                <FieldLabel>
+                  {t("flow.setup.exchangeRateToCurrency", {
+                    currency: normalizedTargetCurrency,
+                  })}
+                </FieldLabel>
+                <View style={screenStyles.assignInputShell}>
+                  <XStack alignItems="center" gap="$2">
+                    <View style={{ flex: 1 }}>
+                      <TextInput
+                        accessibilityLabel="Exchange rate"
+                        value={rateInput}
+                        onChangeText={(value) => {
+                          setRateInput(value);
+                          setRateSource("manual");
+                          setManualRateOverride(true);
+                        }}
+                        placeholder="1.00"
+                        placeholderTextColor={PALETTE.inputPlaceholder}
+                        keyboardType="decimal-pad"
+                        style={screenStyles.assignInput}
+                      />
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Refresh exchange rate"
+                      onPress={() => {
+                        setManualRateOverride(false);
+                        setHasAutoFetchedOnce(true);
+                        void fetchLiveRate();
+                      }}
+                      style={[
+                        screenStyles.iconButton,
+                        {
+                          width: 46,
+                          height: 46,
+                          borderRadius: 14,
+                          backgroundColor: loadingRate ? PALETTE.surfaceContainerHigh : PALETTE.primary,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        },
+                      ]}
+                    >
+                      {loadingRate ? (
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={18}
+                          color={PALETTE.onPrimary}
+                        >
+                          ...
+                        </Text>
+                      ) : (
+                        <RotateCcw size={20} color={PALETTE.onPrimary} />
+                      )}
+                    </Pressable>
+                  </XStack>
+                </View>
+                {rateUpdatedAt ? (
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={12}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {t("flow.setup.exchangeRateUpdatedAt", {
+                      date: new Date(rateUpdatedAt).toLocaleString(),
+                    })}
+                  </Text>
+                ) : null}
+              </YStack>
+            ) : null}
           </YStack>
         </YStack>
       </ScrollView>
@@ -353,6 +464,35 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         messages={setupNoticeMessages}
         onDismiss={() => setSetupNoticeMessages([])}
       />
+      {currencyMenuOpen ? (
+        <ActionSheetModal
+          title={t("flow.setup.currency")}
+          options={currencyOptions.map((option) => ({
+            label: option.label,
+            selected: normalizedCurrency === option.code,
+            onPress: () => {
+              setCurrency(option.code);
+              setManualRateOverride(false);
+              setHasAutoFetchedOnce(false);
+              setCurrencyMenuOpen(false);
+            },
+          }))}
+          onDismiss={() => setCurrencyMenuOpen(false)}
+        />
+      ) : null}
+      {showRateConfirmModal ? (
+        <ConfirmChoiceModal
+          title="Exchange rate is 1"
+          body="This is uncommon for different currencies. Confirm if this is intentional."
+          confirmLabel="Continue"
+          discardLabel="Edit rate"
+          onConfirm={() => {
+            setShowRateConfirmModal(false);
+            void persistAndContinue();
+          }}
+          onDiscard={() => setShowRateConfirmModal(false)}
+        />
+      ) : null}
     </AppScreen>
   );
 }

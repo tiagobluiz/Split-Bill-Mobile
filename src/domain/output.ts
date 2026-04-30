@@ -19,13 +19,28 @@ function getClipboardSummaryTitle(values: SplitFormValues) {
 export function buildClipboardSummary(
   values: SplitFormValues,
   locale = "en-US",
-  options?: { settledParticipantIds?: string[] }
+  options?: { settledParticipantIds?: string[]; appCurrency?: string }
 ) {
   const normalized = removeSingleTrailingBlankItem(values);
   const settlement = computeSettlement(normalized);
   if (!settlement.ok) {
     return null;
   }
+  const sourceCurrency = normalized.currency.trim().toUpperCase();
+  const targetCurrency = options?.appCurrency?.trim().toUpperCase() || sourceCurrency;
+  const fx = normalized.exchangeRate;
+  const rate =
+    sourceCurrency === targetCurrency
+      ? 1
+      : fx &&
+          fx.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
+          fx.targetCurrency.trim().toUpperCase() === targetCurrency &&
+          Number.isFinite(fx.rate) &&
+          fx.rate > 0
+        ? fx.rate
+        : 1;
+  const money = (amountCents: number) =>
+    formatMoney(Math.round(amountCents * rate), targetCurrency, locale);
 
   const settledIds = new Set(options?.settledParticipantIds ?? []);
   const people = [...settlement.data.people]
@@ -62,23 +77,23 @@ export function buildClipboardSummary(
         lines.push(
           t("clipboard.payer.getBack", {
             name: person.name,
-            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
-            net: formatMoney(person.netCents, settlement.data.currency, locale),
+            amount: money(person.paidCents),
+            net: money(person.netCents),
           }),
         );
       } else if (person.netCents < 0) {
         lines.push(
           t("clipboard.payer.stillOwes", {
             name: person.name,
-            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
-            net: formatMoney(Math.abs(person.netCents), settlement.data.currency, locale),
+            amount: money(person.paidCents),
+            net: money(Math.abs(person.netCents)),
           }),
         );
       } else {
         lines.push(
           t("clipboard.payer.paidOnly", {
             name: person.name,
-            amount: formatMoney(person.paidCents, settlement.data.currency, locale),
+            amount: money(person.paidCents),
           }),
         );
       }
@@ -93,7 +108,7 @@ export function buildClipboardSummary(
       lines.push(
         t("clipboard.person.owes", {
           name: person.name,
-          amount: formatMoney(Math.abs(person.netCents), settlement.data.currency, locale),
+          amount: money(Math.abs(person.netCents)),
         }),
       );
       return;
@@ -102,7 +117,7 @@ export function buildClipboardSummary(
     lines.push(
       t("clipboard.person.getsBack", {
         name: person.name,
-        amount: formatMoney(person.netCents, settlement.data.currency, locale),
+        amount: money(person.netCents),
       }),
     );
   });

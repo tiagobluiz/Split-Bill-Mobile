@@ -275,11 +275,14 @@ describe("split screens", () => {
     expect(screen.getByText("New Split")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Weekend groceries"), "April groceries");
     fireEvent.press(screen.getByLabelText("Currency"));
-    fireEvent.press(screen.getByLabelText("Choose currency USD"));
+    fireEvent.press(screen.getByText("US Dollar ($)"));
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Add Participants"));
     });
-    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("April groceries", "USD");
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("April groceries", "USD", expect.anything());
     expect(mockStoreState.setStep).toHaveBeenCalledWith(2);
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/participants");
   });
@@ -290,7 +293,7 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Add Participants"));
     });
-    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("12345678901234567890", "EUR");
+    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("12345678901234567890", "EUR", undefined);
   });
 
   it("renders the setup loading state and opens the currency dropdown", async () => {
@@ -371,7 +374,7 @@ describe("split screens", () => {
     };
     render(<SetupScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Currency"));
-    fireEvent.press(screen.getByLabelText("Choose currency GBP"));
+    fireEvent.press(screen.getByLabelText("British Pound (£)"));
     expect(screen.getByText("British Pound (Â£)")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Back"));
     fireEvent.press(screen.getByLabelText("Close"));
@@ -2987,4 +2990,5 @@ describe("split screens", () => {
   });
 
 });
+
 

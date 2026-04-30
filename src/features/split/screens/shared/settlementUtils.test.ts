@@ -22,4 +22,40 @@ describe("settlementUtils", () => {
     const preview = getRecordMoneyPreview(buildRecord(), "Ana");
     expect(preview).toBeNull();
   });
+
+  it("converts preview net amount into app currency when exchangeRate is present", () => {
+    const preview = getRecordMoneyPreview(
+      buildRecord({
+        values: {
+          ...createDefaultValues(),
+          currency: "USD",
+          exchangeRate: {
+            sourceCurrency: "USD",
+            targetCurrency: "EUR",
+            rate: 0.5,
+          },
+          participants: [
+            { id: "payer", name: "You" },
+            { id: "ana", name: "Ana" },
+          ],
+          payerParticipantId: "payer",
+          items: [
+            {
+              id: "i1",
+              name: "Dinner",
+              price: "10.00",
+              splitMode: "even",
+              allocations: [
+                { participantId: "payer", evenIncluded: true, shares: "1", percent: "50" },
+                { participantId: "ana", evenIncluded: true, shares: "1", percent: "50" },
+              ],
+            },
+          ],
+        },
+        status: "completed",
+      }),
+      "You",
+    );
+    expect(preview?.ownerNetCents).toBe(500);
+  });
 });

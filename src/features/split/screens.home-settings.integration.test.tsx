@@ -688,7 +688,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    expect(screen.getAllByText(/3,00|3.00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/15,00|15.00/).length).toBeGreaterThan(0);
     expect(screen.queryByText("$12.00")).toBeNull();
   });
 

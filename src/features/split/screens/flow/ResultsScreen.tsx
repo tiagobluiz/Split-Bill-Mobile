@@ -16,7 +16,6 @@ import {
   FloatingFooter,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
-import { formatMoney } from "../../../../domain";
 import { exportSettlementPdf } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
@@ -33,6 +32,8 @@ import { ParticipantAvatar } from "../shared/participantComponents";
 import {
   getOwingPeople,
   getSettledParticipantIds,
+  convertCents,
+  formatAppMoney,
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
 import { screenStyles } from "../shared/styles";
@@ -64,7 +65,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const [exportPdfPending, setExportPdfPending] = useState(false);
   const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
   const settlement = getSettlementPreview(record);
-  const summary = getClipboardSummaryPreview(record);
+  const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
 
   useEffect(() => {
@@ -113,6 +114,22 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   }
 
   const payer = settlement.data.people.find((person) => person.isPayer)!;
+  const appCurrency = settings.defaultCurrency?.trim().toUpperCase() || settlement.data.currency;
+  const fx = record.values.exchangeRate;
+  const sourceCurrency = record.values.currency.trim().toUpperCase();
+  const targetCurrency = appCurrency.trim().toUpperCase();
+  const exchangeRate =
+    sourceCurrency === targetCurrency
+      ? 1
+      : fx &&
+          fx.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
+          fx.targetCurrency.trim().toUpperCase() === targetCurrency &&
+          Number.isFinite(fx.rate) &&
+          fx.rate > 0
+        ? fx.rate
+        : 1;
+  const money = (amountCents: number) =>
+    formatAppMoney(convertCents(amountCents, exchangeRate), appCurrency, locale, settings);
   const owingPeople = getOwingPeople(settlement.data.people);
   const settledParticipantIds = getSettledParticipantIds(record);
   const pdfData = getPdfExportPreview(record);
@@ -254,11 +271,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   color={PALETTE.onPrimary}
                   letterSpacing={-1.2}
                 >
-                  {formatMoney(
-                    settledOwedCents,
-                    settlement.data.currency,
-                    locale,
-                  )}
+                  {money(settledOwedCents)}
                 </Text>
                 <Text
                   fontFamily={FONTS.headlineBold}
@@ -266,11 +279,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   color="rgba(255,255,255,0.82)"
                 >
                   /
-                  {formatMoney(
-                    totalOwedCents,
-                    settlement.data.currency,
-                    locale,
-                  )}
+                  {money(totalOwedCents)}
                 </Text>
               </XStack>
             ) : (
@@ -280,11 +289,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 color={PALETTE.onPrimary}
                 letterSpacing={-1.2}
               >
-                {formatMoney(
-                  settlement.data.totalCents,
-                  settlement.data.currency,
-                  locale,
-                )}
+                {money(settlement.data.totalCents)}
               </Text>
             )}
           </YStack>
@@ -384,11 +389,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   fontSize={24}
                   color={PALETTE.primary}
                 >
-                  {formatMoney(
-                    payerConsumedCents,
-                    settlement.data.currency,
-                    locale,
-                  )}
+                  {money(payerConsumedCents)}
                 </Text>
               </XStack>
             </View>
@@ -463,11 +464,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                               : "none"
                           }
                         >
-                          {formatMoney(
-                            Math.abs(person.netCents),
-                            settlement.data.currency,
-                            locale,
-                          )}
+                          {money(Math.abs(person.netCents))}
                         </Text>
                         {trackPaymentsEnabled &&
                         settledParticipantIds.has(person.participantId) ? (
