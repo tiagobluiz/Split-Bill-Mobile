@@ -40,7 +40,7 @@ function getEffectiveRate(record: DraftRecord, appCurrency?: string) {
   const sourceCurrency = normalizeCurrency(record.values.currency);
   const targetCurrency = normalizeCurrency(appCurrency);
   if (!targetCurrency || sourceCurrency === targetCurrency) {
-    return 1;
+    return { rate: 1, hasMatchingFx: sourceCurrency === targetCurrency };
   }
 
   const fx = record.values.exchangeRate;
@@ -51,10 +51,10 @@ function getEffectiveRate(record: DraftRecord, appCurrency?: string) {
     Number.isFinite(fx.rate) &&
     fx.rate > 0
   ) {
-    return fx.rate;
+    return { rate: fx.rate, hasMatchingFx: true };
   }
 
-  return 1;
+  return { rate: 1, hasMatchingFx: false };
 }
 
 type SettlementResolver = (
@@ -189,10 +189,13 @@ export function getHomeBalanceCards(
       if (!preview) {
         return null;
       }
-      const rate = getEffectiveRate(record, preferredCurrency);
+      const { rate, hasMatchingFx } = getEffectiveRate(record, preferredCurrency);
       return {
         ...preview,
-        currency: preferredCurrency ?? preview.currency,
+        currency:
+          preferredCurrency && hasMatchingFx
+            ? preferredCurrency
+            : preview.currency,
         ownerNetCents: convertCents(preview.ownerNetCents, rate),
       };
     })
@@ -242,8 +245,11 @@ export function getRecentRowMeta(
   const preview = getRecordMoneyPreview(record, ownerName, resolver);
   const locale = getDeviceLocale();
   const appCurrency = normalizeCurrency(settings?.defaultCurrency);
-  const rate = getEffectiveRate(record, appCurrency);
-  const currency = appCurrency || preview?.currency || record.values.currency;
+  const { rate, hasMatchingFx } = getEffectiveRate(record, appCurrency);
+  const currency =
+    appCurrency && hasMatchingFx
+      ? appCurrency
+      : preview?.currency || record.values.currency;
   const settlement = resolveSettlement(record, resolver);
   const owner = settlement?.ok
     ? settlement.data.people.find((person) => isOwnerReference(person.name, ownerName))

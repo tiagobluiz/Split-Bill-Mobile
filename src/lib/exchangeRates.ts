@@ -14,9 +14,13 @@ export async function fetchExchangeRate(
   }
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
     const response = await fetch(
       `https://api.frankfurter.app/latest?from=${encodeURIComponent(source)}&to=${encodeURIComponent(target)}`,
+      { signal: controller.signal },
     );
+    clearTimeout(timeout);
     if (!response.ok) {
       return { rate: 1, source: "fallback" };
     }

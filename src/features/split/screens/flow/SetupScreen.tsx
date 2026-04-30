@@ -191,6 +191,16 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   const [loadingRate, setLoadingRate] = useState(false);
   const [manualRateOverride, setManualRateOverride] = useState(false);
   const [autoFetchedPair, setAutoFetchedPair] = useState("");
+  const [rateByPair, setRateByPair] = useState<
+    Record<
+      string,
+      {
+        rate: number;
+        rateSource: "auto" | "manual" | "fallback";
+        rateUpdatedAt?: string;
+      }
+    >
+  >({});
   const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(
     record?.values.exchangeRate?.rateUpdatedAt ?? null,
   );
@@ -205,6 +215,22 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       setManualRateOverride(record.values.exchangeRate?.rateSource === "manual");
       setAutoFetchedPair("");
       setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
+      const source = (record.values.currency ?? settings.defaultCurrency)
+        .trim()
+        .toUpperCase();
+      const target = settings.defaultCurrency.trim().toUpperCase();
+      const pairKey = `${source}->${target}`;
+      setRateByPair(
+        record.values.exchangeRate
+          ? {
+              [pairKey]: {
+                rate: record.values.exchangeRate.rate,
+                rateSource: record.values.exchangeRate.rateSource ?? "fallback",
+                rateUpdatedAt: record.values.exchangeRate.rateUpdatedAt,
+              },
+            }
+          : {},
+      );
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
     }
@@ -241,9 +267,34 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     setLoadingRate(false);
     setRateInput(String(result.rate));
     setRateSource(result.source);
-    setRateUpdatedAt(new Date().toISOString());
+    const updatedAt = new Date().toISOString();
+    setRateUpdatedAt(updatedAt);
     setAutoFetchedPair(`${normalizedCurrency}->${normalizedTargetCurrency}`);
+    setRateByPair((prev) => ({
+      ...prev,
+      [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+        rate: result.rate,
+        rateSource: result.source,
+        rateUpdatedAt: updatedAt,
+      },
+    }));
   };
+
+  useEffect(() => {
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    const savedPairRate = rateByPair[pairKey];
+    if (!savedPairRate) {
+      setRateInput("1");
+      setRateSource("fallback");
+      setManualRateOverride(false);
+      setRateUpdatedAt(null);
+      return;
+    }
+    setRateInput(String(savedPairRate.rate));
+    setRateSource(savedPairRate.rateSource);
+    setManualRateOverride(savedPairRate.rateSource === "manual");
+    setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
+  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair]);
 
   useEffect(() => {
     if (!record || !needsConversion || !normalizedCurrency) {
@@ -407,9 +458,22 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                         accessibilityLabel="Exchange rate"
                         value={rateInput}
                         onChangeText={(value) => {
+                          const numericValue = Number(value.replace(",", "."));
                           setRateInput(value);
                           setRateSource("manual");
                           setManualRateOverride(true);
+                          if (Number.isFinite(numericValue) && numericValue > 0) {
+                            const updatedAt = new Date().toISOString();
+                            setRateUpdatedAt(updatedAt);
+                            setRateByPair((prev) => ({
+                              ...prev,
+                              [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+                                rate: numericValue,
+                                rateSource: "manual",
+                                rateUpdatedAt: updatedAt,
+                              },
+                            }));
+                          }
                         }}
                         placeholder="1.00"
                         placeholderTextColor={PALETTE.inputPlaceholder}
@@ -478,7 +542,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             selected: normalizedCurrency === option.code,
             onPress: () => {
               setCurrency(option.code);
-              setManualRateOverride(false);
               setAutoFetchedPair("");
               setCurrencyMenuOpen(false);
             },

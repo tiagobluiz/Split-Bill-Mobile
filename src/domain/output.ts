@@ -29,18 +29,17 @@ export function buildClipboardSummary(
   const sourceCurrency = normalized.currency.trim().toUpperCase();
   const targetCurrency = options?.appCurrency?.trim().toUpperCase() || sourceCurrency;
   const fx = normalized.exchangeRate;
-  const rate =
-    sourceCurrency === targetCurrency
-      ? 1
-      : fx &&
-          fx.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
-          fx.targetCurrency.trim().toUpperCase() === targetCurrency &&
-          Number.isFinite(fx.rate) &&
-          fx.rate > 0
-        ? fx.rate
-        : 1;
+  const hasMatchingFx =
+    sourceCurrency === targetCurrency ||
+    (Boolean(fx) &&
+      fx!.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
+      fx!.targetCurrency.trim().toUpperCase() === targetCurrency &&
+      Number.isFinite(fx!.rate) &&
+      fx!.rate > 0);
+  const rate = hasMatchingFx && sourceCurrency !== targetCurrency ? fx!.rate : 1;
+  const displayCurrency = hasMatchingFx ? targetCurrency : sourceCurrency;
   const money = (amountCents: number) =>
-    formatMoney(Math.round(amountCents * rate), targetCurrency, locale);
+    formatMoney(Math.round(amountCents * rate), displayCurrency, locale);
 
   const settledIds = new Set(options?.settledParticipantIds ?? []);
   const people = [...settlement.data.people]

@@ -205,6 +205,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
       values.exchangeRate &&
       Number.isFinite(values.exchangeRate.rate) &&
       values.exchangeRate.rate > 0 &&
+      values.exchangeRate.sourceCurrency.trim().toUpperCase() === settlement.data.currency.trim().toUpperCase() &&
       values.exchangeRate.sourceCurrency.trim().toUpperCase() !==
         values.exchangeRate.targetCurrency.trim().toUpperCase()
         ? {
