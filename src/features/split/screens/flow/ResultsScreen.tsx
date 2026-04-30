@@ -118,18 +118,18 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const fx = record.values.exchangeRate;
   const sourceCurrency = record.values.currency.trim().toUpperCase();
   const targetCurrency = appCurrency.trim().toUpperCase();
+  const hasMatchingFx =
+    sourceCurrency === targetCurrency ||
+    (Boolean(fx) &&
+      fx!.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
+      fx!.targetCurrency.trim().toUpperCase() === targetCurrency &&
+      Number.isFinite(fx!.rate) &&
+      fx!.rate > 0);
   const exchangeRate =
-    sourceCurrency === targetCurrency
-      ? 1
-      : fx &&
-          fx.sourceCurrency.trim().toUpperCase() === sourceCurrency &&
-          fx.targetCurrency.trim().toUpperCase() === targetCurrency &&
-          Number.isFinite(fx.rate) &&
-          fx.rate > 0
-        ? fx.rate
-        : 1;
+    hasMatchingFx && sourceCurrency !== targetCurrency ? fx!.rate : 1;
+  const displayCurrency = hasMatchingFx ? appCurrency : settlement.data.currency;
   const money = (amountCents: number) =>
-    formatAppMoney(convertCents(amountCents, exchangeRate), appCurrency, locale, settings);
+    formatAppMoney(convertCents(amountCents, exchangeRate), displayCurrency, locale, settings);
   const owingPeople = getOwingPeople(settlement.data.people);
   const settledParticipantIds = getSettledParticipantIds(record);
   const pdfData = getPdfExportPreview(record);

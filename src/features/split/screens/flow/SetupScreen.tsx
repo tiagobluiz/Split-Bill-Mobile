@@ -220,8 +220,16 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         .toUpperCase();
       const target = settings.defaultCurrency.trim().toUpperCase();
       const pairKey = `${source}->${target}`;
+      const savedSource = record.values.exchangeRate?.sourceCurrency
+        ?.trim()
+        .toUpperCase();
+      const savedTarget = record.values.exchangeRate?.targetCurrency
+        ?.trim()
+        .toUpperCase();
+      const hasMatchingSavedPair =
+        savedSource === source && savedTarget === target;
       setRateByPair(
-        record.values.exchangeRate
+        record.values.exchangeRate && hasMatchingSavedPair
           ? {
               [pairKey]: {
                 rate: record.values.exchangeRate.rate,
@@ -231,6 +239,12 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             }
           : {},
       );
+      if (!hasMatchingSavedPair) {
+        setRateInput("1");
+        setRateSource("fallback");
+        setManualRateOverride(false);
+        setRateUpdatedAt(null);
+      }
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
     }
