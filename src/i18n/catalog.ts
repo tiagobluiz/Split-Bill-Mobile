@@ -415,6 +415,9 @@ const enPlain = {
   "pdf.payerLabel": "Payer",
   "pdf.payerSummary": "Paid {paid} - Collect {collect}",
   "pdf.totalReceipt": "Total receipt {amount}",
+  "pdf.summary.total": "Total receipt",
+  "pdf.summary.participants": "Participants",
+  "pdf.summary.items": "Items",
   "pdf.sharingUnavailable": "Sharing is not available on this device.",
 } as const satisfies TranslationMap;
 
@@ -1064,6 +1067,9 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "pdf.payerLabel": "Mártir",
   "pdf.payerSummary": "Pagou {paid} - Cobra {collect}",
   "pdf.totalReceipt": "Rombo total {amount}",
+  "pdf.summary.total": "Rombo total",
+  "pdf.summary.participants": "Participantes",
+  "pdf.summary.items": "Itens",
   "pdf.sharingUnavailable": "Partilhar aqui? Nem pensar."
 };
 

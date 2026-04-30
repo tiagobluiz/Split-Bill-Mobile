@@ -27,17 +27,20 @@ function getPdfDocumentLanguage(locale: string) {
   return locale.split(/[-_]/)[0] || "en";
 }
 
-async function getPdfHeaderImageDataUri() {
-  const asset = Asset.fromModule(PDF_HEADER_ASSET);
-  await asset.downloadAsync();
+async function getPdfHeaderImageDataUri(): Promise<string | undefined> {
+  try {
+    const asset = Asset.fromModule(PDF_HEADER_ASSET);
+    await asset.downloadAsync();
+    if (!asset.localUri) {
+      return undefined;
+    }
 
-  if (!asset.localUri) {
-    throw new Error("Unable to load PDF header image asset.");
+    const imageFile = new File(asset.localUri);
+    const base64 = imageFile.base64Sync();
+    return `data:image/png;base64,${base64}`;
+  } catch {
+    return undefined;
   }
-
-  const imageFile = new File(asset.localUri);
-  const base64 = imageFile.base64Sync();
-  return `data:image/png;base64,${base64}`;
 }
 
 export function renderSettlementPdfHtml(
@@ -350,15 +353,15 @@ export function renderSettlementPdfHtml(
           </h1>
           <div class="meta-grid">
             <div class="meta-card">
-              <p class="meta-label">${escapeHtml(t("pdf.totalReceipt", { amount: "" }).replace(/\s+$/, ""))}</p>
+              <p class="meta-label">${escapeHtml(t("pdf.summary.total"))}</p>
               <p class="meta-value">${escapeHtml(formatPdfMoney(data.totalCents, data.currency, locale))}</p>
             </div>
             <div class="meta-card">
-              <p class="meta-label">Participants</p>
+              <p class="meta-label">${escapeHtml(t("pdf.summary.participants"))}</p>
               <p class="meta-value">${escapeHtml(String(data.people.length))}</p>
             </div>
             <div class="meta-card">
-              <p class="meta-label">Items</p>
+              <p class="meta-label">${escapeHtml(t("pdf.summary.items"))}</p>
               <p class="meta-value">${escapeHtml(String(data.items.length))}</p>
             </div>
           </div>
@@ -395,7 +398,6 @@ export function renderSettlementPdfHtml(
 
       <section class="section">
         <h2 class="section-title">${escapeHtml(t("pdf.section.personBreakdown"))}</h2>
-        <div class="section-note">${escapeHtml(data.note)}</div>
         ${personBreakdownCards}
       </section>
 

@@ -59,6 +59,7 @@ jest.mock("expo-asset", () => ({
 
 import pdfFixture from "../../docs/logic/fixtures/pdf-export-mixed-modes.json";
 import * as Print from "expo-print";
+import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
 
 import { renderSettlementPdfHtml, exportSettlementPdf } from "./exportSettlementPdf";
@@ -107,6 +108,10 @@ describe("mobile PDF export", () => {
     expect(html).toContain(
       "Item breakdown is provisional. Final leftover cents are balanced in the final balances section.",
     );
+    expect(
+      html.match(/Item breakdown is provisional\. Final leftover cents are balanced in the final balances section\./g)
+        ?.length
+    ).toBe(1);
     expect(html).toContain("Paid €12.00 - Collect €7.00");
     expect(html).toContain("Total receipt €12.00");
     expect(html).toContain("Bruno");
@@ -273,5 +278,38 @@ describe("mobile PDF export", () => {
         pdfFixture.assumptions.locale,
       ),
     ).rejects.toThrow("printer unavailable");
+  });
+
+  it("falls back to exporting without a branded header when image loading fails", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+    const fromModule = Asset.fromModule as unknown as jest.Mock;
+
+    fromModule.mockReturnValueOnce({
+      localUri: null,
+      downloadAsync: jest.fn().mockRejectedValueOnce(new Error("asset down")),
+    });
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    isAvailableAsync.mockResolvedValue(true);
+    shareAsync.mockResolvedValue(undefined);
+
+    await exportSettlementPdf(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.not.stringContaining("data:image/png;base64,"),
+      }),
+    );
   });
 });
