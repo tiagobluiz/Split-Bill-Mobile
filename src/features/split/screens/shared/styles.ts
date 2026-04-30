@@ -529,6 +529,15 @@ export const screenStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  confirmChoiceSecondaryButton: {
+    minHeight: 48,
+    borderRadius: 18,
+    backgroundColor: PALETTE.surfaceContainerLow,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   actionSheetButtonSelected: {
     backgroundColor: PALETTE.brandOverlayStrong,
     borderWidth: 1,

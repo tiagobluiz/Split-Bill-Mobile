@@ -1565,12 +1565,11 @@ describe("split screens", () => {
 
   it("does not persist a blank new item when saving it", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
-    expect(screen.getByLabelText("Save item")).toBeDisabled();
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
-    expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
+    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
   });
 
   it("does not allow saving a new zero-price item and keeps the editor open", async () => {
@@ -1580,18 +1579,13 @@ describe("split screens", () => {
       fireEvent.changeText(screen.getByLabelText("Item price"), "0");
     });
 
-    expect(screen.getByLabelText("Save item").props.style).toEqual(
-      expect.arrayContaining([expect.any(Object), expect.any(Object)])
-    );
-    expect(screen.getByLabelText("Save item")).toBeDisabled();
-
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
 
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
-    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
   });
 
   it("does not allow saving a duplicate item with the same name, price, and category", async () => {
@@ -2022,7 +2016,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
-    expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
+    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
   });
 
   it("does not allow saving an existing zero-price item and keeps the editor open", async () => {
@@ -2036,7 +2030,6 @@ describe("split screens", () => {
     ];
 
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByLabelText("Save item")).toBeDisabled();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
@@ -2044,7 +2037,7 @@ describe("split screens", () => {
 
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
-    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
+    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
   });
 
   it("keeps existing item edits local until save and allows discarding them from back", async () => {
@@ -2844,6 +2837,8 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(screen.getByText("Percent can't be negative.")).toBeTruthy();
     });
+    fireEvent(screen.getByLabelText("Percent for Bruno"), "blur");
+    expect(screen.getByText("Percent can't be negative.")).toBeTruthy();
     expect(dismissSpy).toHaveBeenCalled();
     expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("25");
   });
