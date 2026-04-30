@@ -266,8 +266,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   const normalizedCurrency = currency.trim().toUpperCase();
   const normalizedTargetCurrency = settings.defaultCurrency.trim().toUpperCase();
   const parsedRate = Number(rateInput.replace(",", "."));
+  const hasValidRateInput = Number.isFinite(parsedRate) && parsedRate > 0;
   const effectiveRate =
-    Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : 1;
+    hasValidRateInput ? parsedRate : 1;
   const needsConversion = normalizedCurrency !== normalizedTargetCurrency;
   const canContinue = Boolean(normalizedCurrency);
   const fetchLiveRate = async () => {
@@ -385,6 +386,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 setSetupNoticeMessages([
                   t("flow.setup.nameRequired"),
                 ]);
+                return;
+              }
+              if (needsConversion && !hasValidRateInput) {
+                setSetupNoticeMessages([t("flow.setup.exchangeRateInvalid")]);
                 return;
               }
               if (needsConversion && effectiveRate === 1) {
