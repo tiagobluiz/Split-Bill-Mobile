@@ -139,7 +139,7 @@ export function normalizeCommittedPercentValue(nextPercentValue: string) {
 export function getPercentInputMessage(nextPercentValue: string) {
   const trimmedValue = normalizePercentInput(nextPercentValue).trim();
   if (/^-/.test(trimmedValue)) {
-    return t("validation.percentNonNegative");
+    return t("friendly.percentNonNegative");
   }
 
   if (/^\d+\.\d{3,}$/.test(trimmedValue)) {

@@ -1,4 +1,4 @@
-package com.anonymous.splitbillmobile
+package com.ticnology.splitbill
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

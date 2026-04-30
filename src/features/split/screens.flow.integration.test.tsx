@@ -274,7 +274,7 @@ describe("split screens", () => {
     render(<SetupScreen draftId="draft-1" />);
     expect(screen.getByText("New Split")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Weekend groceries"), "April groceries");
-    fireEvent.press(screen.getByLabelText("Choose currency"));
+    fireEvent.press(screen.getByLabelText("Currency"));
     fireEvent.press(screen.getByLabelText("Choose currency USD"));
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Add Participants"));
@@ -300,7 +300,7 @@ describe("split screens", () => {
 
     mockStoreState.records = [buildRecord()];
     rerender(<SetupScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Choose currency"));
+    fireEvent.press(screen.getByLabelText("Currency"));
     expect(screen.getAllByText("Euro (€)").length).toBeGreaterThan(0);
     expect(screen.getByText("US Dollar ($)")).toBeTruthy();
   });
@@ -370,7 +370,7 @@ describe("split screens", () => {
       defaultCurrency: "GBP",
     };
     render(<SetupScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Choose currency"));
+    fireEvent.press(screen.getByLabelText("Currency"));
     fireEvent.press(screen.getByLabelText("Choose currency GBP"));
     expect(screen.getByText("British Pound (£)")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Back"));
@@ -520,13 +520,11 @@ describe("split screens", () => {
     ];
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeEnabled();
+    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
-    expect(screen.getByText("Almost there")).toBeTruthy();
-    expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
-    expect(mockStoreState.setStep).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Almost there")).toBeNull();
+    expect(screen.queryByText("Add at least two participants, including the payer.")).toBeNull();
+    expect(mockStoreState.setStep).not.toHaveBeenCalled();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add frequent friend Elena"));
     });
@@ -618,12 +616,10 @@ describe("split screens", () => {
 
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeEnabled();
+    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
-    expect(screen.getByText("Almost there")).toBeTruthy();
-    expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Almost there")).toBeNull();
+    expect(screen.queryByText("Add at least two participants, including the payer.")).toBeNull();
   });
 
   it("supports the custom participants back header action", () => {
@@ -1189,9 +1185,6 @@ describe("split screens", () => {
     expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
     expect(screen.getByLabelText("Next: Add Items")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Add Items"));
-    expect(screen.getByText("Almost there")).toBeTruthy();
-    expect(screen.getByText("Choose who paid the bill.")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockStoreState.setStep).not.toHaveBeenCalled();
@@ -1247,12 +1240,10 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [{ ...buildRecord().values.items[0], name: "", price: "" }] } })];
     rerender(<ItemsScreen draftId="draft-1" />);
     expect(screen.queryByText("Not there yet...")).toBeNull();
-    expect(screen.getByLabelText("Next: Split Bill")).toBeEnabled();
+    expect(screen.getByLabelText("Next: Split Bill")).toBeDisabled();
     expect(screen.getByText("0 items")).toBeTruthy();
     expect(screen.queryByText("Item 1")).toBeNull();
     fireEvent.press(screen.getByText("Next: Split Bill"));
-    expect(screen.getByText("Almost there")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Almost there")).toBeNull();
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockStoreState.setStep).not.toHaveBeenCalled();
@@ -1516,12 +1507,12 @@ describe("split screens", () => {
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
     expect(screen.getByText("General").props.color).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Delete Item"));
+      fireEvent.press(screen.getByLabelText("Delete item"));
     });
     expect(screen.getByText("Delete item?")).toBeTruthy();
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Delete item"));
+      fireEvent.press(screen.getByText("Delete item"));
     });
 
     expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
@@ -1574,12 +1565,11 @@ describe("split screens", () => {
 
   it("does not persist a blank new item when saving it", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    expect(screen.getByLabelText("Save item")).toBeDisabled();
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
-    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
   });
 
@@ -1590,9 +1580,10 @@ describe("split screens", () => {
       fireEvent.changeText(screen.getByLabelText("Item price"), "0");
     });
 
-    expect(screen.getByLabelText("Save Item").props.style).toEqual(
+    expect(screen.getByLabelText("Save item").props.style).toEqual(
       expect.arrayContaining([expect.any(Object), expect.any(Object)])
     );
+    expect(screen.getByLabelText("Save item")).toBeDisabled();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
@@ -1600,7 +1591,7 @@ describe("split screens", () => {
 
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
-    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
   });
 
   it("does not allow saving a duplicate item with the same name, price, and category", async () => {
@@ -1688,11 +1679,11 @@ describe("split screens", () => {
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Delete Item"));
+      fireEvent.press(screen.getByLabelText("Delete item"));
     });
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Keep item"));
+      fireEvent.press(screen.getByText("Keep item"));
     });
 
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
@@ -1721,7 +1712,10 @@ describe("split screens", () => {
   });
 
   it("applies pasted import in replace mode and suppresses already-previewed ignored-line notes", async () => {
-    mockStoreState.importPastedList = jest.fn(async () => ({ warningMessages: ["Ignored 1 pasted line."] }));
+    mockStoreState.importPastedList = jest.fn(async () => ({
+      warningMessages: ["Ignored 1 pasted line."],
+      warningCodes: ["ignored-paste-lines"],
+    }));
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("I already have the item list"));
     expect(screen.getByText("Paste item list")).toBeTruthy();
@@ -2014,7 +2008,7 @@ describe("split screens", () => {
     expect(screen.getByText("Discard changes?")).toBeTruthy();
     expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Discard changes"));
+      fireEvent.press(screen.getByText("Discard changes"));
     });
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
@@ -2028,8 +2022,6 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
-    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     expect(screen.queryByText("Add an item name before saving this item.")).toBeNull();
   });
 
@@ -2044,6 +2036,7 @@ describe("split screens", () => {
     ];
 
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
+    expect(screen.getByLabelText("Save item")).toBeDisabled();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
@@ -2051,7 +2044,7 @@ describe("split screens", () => {
 
     expect(mockStoreState.removeItem).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
-    expect(screen.getByText("Add a valid price before saving this item.")).toBeTruthy();
+    expect(screen.queryByText("Add a valid price before saving this item.")).toBeNull();
   });
 
   it("keeps existing item edits local until save and allows discarding them from back", async () => {

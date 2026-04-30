@@ -282,9 +282,9 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-1");
     fireEvent.press(screen.getByText("Show Results"));
     expect(screen.getByText("Almost there")).toBeTruthy();
-    expect(screen.getByText("There are still items left to split before you can see the results.")).toBeTruthy();
+    expect(screen.getByText("Pick at least one person for this item.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-    expect(screen.queryByText("There are still items left to split before you can see the results.")).toBeNull();
+    expect(screen.queryByText("Pick at least one person for this item.")).toBeNull();
   });
 
   it("shows the friendly shares warning from the split popup", async () => {
@@ -619,7 +619,7 @@ describe("split screens", () => {
     expect(screen.getByText("Breakdown")).toBeTruthy();
     expect(screen.getByText("Mark as Paid")).toBeTruthy();
     expect(screen.getAllByText(/3,00|EUR 3.00/).length).toBeGreaterThan(0);
-    fireEvent.press(screen.getByLabelText("Share Results"));
+    fireEvent.press(screen.getByLabelText("Share results"));
     expect(mockShare).toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Export as PDF"));
     await waitFor(() => {
@@ -669,7 +669,7 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(screen.getByText("Final Results")).toBeTruthy();
     });
-    expect(screen.getByLabelText("Share Results")).toBeTruthy();
+    expect(screen.getByLabelText("Share results")).toBeTruthy();
     expect(mockStoreState.markCompleted).not.toHaveBeenCalled();
   });
 
@@ -1059,7 +1059,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByText("Mark as Paid"));
     await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith("Update failed", "Could not update the bill payment status.", undefined);
+      expect(mockAlert).toHaveBeenCalledWith("Please try again.", "Could not update the bill payment status.", undefined);
     });
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
@@ -1078,7 +1078,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Mark Bruno as paid"));
     await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith("Update failed", "Could not update Bruno's payment status.", undefined);
+      expect(mockAlert).toHaveBeenCalledWith("Please try again.", "Could not update Bruno's payment status.", undefined);
     });
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
