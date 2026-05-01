@@ -444,13 +444,6 @@ export function renderSettlementPdfHtml(
             )}
           </p>
         </div>
-        <div class="section-note">
-          ${escapeHtml(
-            t("pdf.totalReceipt", {
-              amount: formatPdfMoney(totalCentsDisplay, totalCurrency, locale),
-            }),
-          )}
-        </div>
       </section>
 
       <section class="section">

@@ -10,11 +10,7 @@ import {
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import {
-  AppScreen,
-  EmptyState,
-  FloatingFooter,
-} from "../../../../components/ui";
+import { AppScreen, EmptyState, FloatingFooter } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import { exportSettlementPdf } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
@@ -105,10 +101,69 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   if (!settlement?.ok || !summary) {
     return (
       <AppScreen scroll={false}>
-        <EmptyState
-          title={t("flow.results.invalidTitle")}
-          description={t("flow.results.invalidDescription")}
-        />
+        <View style={screenStyles.participantsScrollContent}>
+          <View style={screenStyles.resultsInvalidCard}>
+            <View style={screenStyles.resultsInvalidIconWrap}>
+              <Minus color={PALETTE.primary} size={18} />
+            </View>
+            <YStack gap="$2">
+              <Text
+                fontFamily={FONTS.headlineBlack}
+                fontSize={28}
+                color={PALETTE.onSurface}
+                letterSpacing={-0.8}
+              >
+                {t("flow.results.invalidTitle")}
+              </Text>
+              <Text
+                fontFamily={FONTS.bodyMedium}
+                fontSize={15}
+                lineHeight={22}
+                color={PALETTE.onSurfaceVariant}
+              >
+                {t("flow.results.invalidDescription")}
+              </Text>
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={13}
+                lineHeight={20}
+                color={PALETTE.primary}
+              >
+                {t("flow.results.invalidHint")}
+              </Text>
+            </YStack>
+            <YStack gap="$2.5" marginTop="$2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("flow.results.invalidFixA11y")}
+                style={screenStyles.resultsInvalidPrimaryButton}
+                onPress={() => router.replace(`/split/${draftId}/overview`)}
+              >
+                <Text
+                  fontFamily={FONTS.headlineBold}
+                  fontSize={15}
+                  color={PALETTE.onPrimary}
+                >
+                  {t("flow.results.invalidFix")}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("flow.results.invalidBackHomeA11y")}
+                style={screenStyles.resultsInvalidSecondaryButton}
+                onPress={() => router.replace("/")}
+              >
+                <Text
+                  fontFamily={FONTS.headlineBold}
+                  fontSize={15}
+                  color={PALETTE.primary}
+                >
+                  {t("flow.results.invalidBackHome")}
+                </Text>
+              </Pressable>
+            </YStack>
+          </View>
+        </View>
       </AppScreen>
     );
   }
