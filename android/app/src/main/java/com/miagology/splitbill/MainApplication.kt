@@ -1,4 +1,4 @@
-package com.ticnology.splitbill
+package com.miagology.splitbill
 
 import android.app.Application
 import android.content.res.Configuration

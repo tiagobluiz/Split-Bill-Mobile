@@ -14,7 +14,11 @@
       "backgroundColor": "#A54206"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.miagology.splitbill",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.ticnology.splitbill"
+      "package": "com.miagology.splitbill"
     },
     "androidStatusBar": {
       "backgroundColor": "#f9f9f9",

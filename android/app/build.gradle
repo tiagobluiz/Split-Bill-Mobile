@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.ticnology.splitbill'
+    namespace 'com.miagology.splitbill'
     defaultConfig {
-        applicationId 'com.ticnology.splitbill'
+        applicationId 'com.miagology.splitbill'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -110,7 +110,9 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Release signing is provided by the build environment (for example EAS-managed credentials).
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            signingConfig signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
