@@ -1,5 +1,7 @@
 import type { DraftRecord } from "../../../../storage/records";
 import type { StepValidationCode, StepValidationError } from "../../../../domain";
+import { buildClipboardSummary, computeSettlement } from "../../../../domain";
+import { getDeviceLocale } from "../../../../lib/device";
 import { STEP_ROUTE, resolveDraftStep } from "../../splitFlow";
 import { t, type TranslationKey } from "../../../../i18n";
 
@@ -209,7 +211,11 @@ export function getFriendlySplitMessage(
 
 export function buildRecordRoute(record: DraftRecord) {
   if (record.status === "completed") {
-    return `/split/${record.id}/results`;
+    const settlement = computeSettlement(record.values);
+    const summary = buildClipboardSummary(record.values, getDeviceLocale(), {
+      settledParticipantIds: record.settlementState?.settledParticipantIds ?? [],
+    });
+    return settlement.ok && summary ? `/split/${record.id}/results` : `/split/${record.id}/overview`;
   }
 
   const pendingStep = getDraftPendingStep(record);

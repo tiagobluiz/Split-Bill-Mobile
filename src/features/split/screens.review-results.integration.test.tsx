@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import { ScrollView } from "react-native";
 import * as domain from "../../domain";
 import * as pdfExportModule from "../../pdf/exportSettlementPdf";
+import { buildRecordRoute } from "./screens/shared/recordUtils";
 
 import {
   AssignItemScreen,
@@ -314,6 +316,49 @@ describe("split screens", () => {
     expect(screen.queryByText("Total settled")).toBeNull();
     fireEvent.press(screen.getByText("Show Results"));
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
+  });
+
+  it("routes completed records with invalid settlement back to overview", () => {
+    const completedRecord = buildRecord({
+      status: "completed",
+      step: 6,
+      values: {
+        ...buildRecord().values,
+        items: [
+          {
+            ...buildRecord().values.items[0],
+            allocations: buildRecord().values.items[0].allocations.map((allocation) => ({
+              ...allocation,
+              evenIncluded: false,
+            })),
+          },
+        ],
+      },
+    });
+    expect(buildRecordRoute(completedRecord as any)).toBe("/split/draft-1/overview");
+  });
+
+  it("shows fancy invalid split state with fix CTA and home CTA", () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockImplementation(() => ({ ok: false }));
+    store.getClipboardSummaryPreview.mockImplementation(() => null);
+
+    render(<ResultsScreen draftId="draft-1" />);
+    expect(screen.getByText("Split invalid")).toBeTruthy();
+    fireEvent.press(screen.getByText("Fix split"));
+    expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/overview");
+    fireEvent.press(screen.getByText("Back to home"));
+    expect(mockReplace).toHaveBeenCalledWith("/");
+  });
+
+  it("uses exact even-mode bottom scroll padding for split item", () => {
+    const view = render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
+    const scrollViews = view.UNSAFE_getAllByType(ScrollView);
+    const contentStyle = scrollViews[0]!.props.contentContainerStyle;
+    const flattened = Array.isArray(contentStyle)
+      ? Object.assign({}, ...contentStyle)
+      : contentStyle;
+    expect(flattened.paddingBottom).toBe(180);
   });
 
   it("only enables review scrolling when the content overflows the screen", () => {

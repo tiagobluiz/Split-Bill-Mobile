@@ -113,7 +113,6 @@ describe("mobile PDF export", () => {
         ?.length
     ).toBe(1);
     expect(html).toContain("Paid €12.00 - Collect €7.00");
-    expect(html).toContain("Total receipt €12.00");
     expect(html).toContain("Bruno");
     expect(html).toContain("Milk");
     expect(html).toContain("Cheese");

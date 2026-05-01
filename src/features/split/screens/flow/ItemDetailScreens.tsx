@@ -62,6 +62,7 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 const MAX_ITEM_NAME_LENGTH = 25;
+const SPLIT_FOOTER_BASE_PADDING = 164;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
   "Produce",
@@ -486,6 +487,7 @@ export function SplitItemScreen({
   >(null);
   const [splitNoticeMessages, setSplitNoticeMessages] = useState<string[]>([]);
   const [percentSliderResetKey, setPercentSliderResetKey] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
     shares: DraftRecord["values"]["items"][number]["allocations"];
@@ -563,16 +565,20 @@ export function SplitItemScreen({
   const shareValue =
     totalShares > 0 ? (parseMoneyToCents(item.price) ?? 0) / totalShares : 0;
   const assignedCount = getAssignedParticipantCount(item);
+  const evenShareDisplayCents =
+    assignedCount > 0
+      ? Math.floor(
+          (parseMoneyToCents(item.price) ?? 0) / Math.max(assignedCount, 1),
+        )
+      : 0;
   const totalPercent = item.allocations.reduce(
     (sum, allocation) => sum + (parseFloat(allocation.percent) || 0),
     0,
   );
   const splitScrollBottomPadding =
-    item.splitMode === "shares"
-      ? 292 + Math.max(insets.bottom, 14)
-      : item.splitMode === "percent"
-        ? 220 + Math.max(insets.bottom, 14)
-        : 176 + Math.max(insets.bottom, 14);
+    footerHeight > 0
+      ? footerHeight
+      : SPLIT_FOOTER_BASE_PADDING + Math.max(insets.bottom, 14);
   const displayTotalPercent =
     Math.abs(totalPercent - 100) <= 0.01
       ? "100"
@@ -875,111 +881,114 @@ export function SplitItemScreen({
       scroll={false}
       footer={
         <FloatingFooter>
+          <View
+            onLayout={(event) => {
+              const nextHeight = Math.round(event.nativeEvent.layout.height);
+              setFooterHeight((current) =>
+                current === nextHeight ? current : nextHeight,
+              );
+            }}
+          >
           <YStack gap="$3">
-            {item.splitMode === "shares" ? (
-              <View style={screenStyles.splitSummaryCard}>
-                <XStack justifyContent="space-between" alignItems="flex-start">
-                  <YStack gap="$1">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={11}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.8}
-                    >
-                      {t("flow.splitItem.totalShares")}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={13}
-                      color={PALETTE.onSurfaceVariant}
-                    >
-                      {t("flow.splitItem.eachShare", {
-                        amount: formatMoney(
-                          Math.round(shareValue),
-                          record.values.currency,
-                          locale,
-                        ),
-                      })}
-                    </Text>
-                  </YStack>
+            {item.splitMode === "even" ? (
+              <YStack style={screenStyles.splitFooterInlineSummary}>
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={10}
+                  color={PALETTE.onSurfaceVariant}
+                  textTransform="uppercase"
+                  letterSpacing={2.1}
+                >
+                  {t("flow.splitItem.splitBy")}
+                </Text>
+                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
                   <Text
                     fontFamily={FONTS.headlineBlack}
-                    fontSize={34}
-                    color={PALETTE.primary}
+                    fontSize={30}
+                    color={PALETTE.onSurface}
+                    letterSpacing={-1.1}
+                  >
+                    {assignedCount}
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={14}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {t("flow.splitItem.shareRate", {
+                      amount: formatMoney(
+                        evenShareDisplayCents,
+                        record.values.currency,
+                        locale,
+                      ),
+                    })}
+                  </Text>
+                </XStack>
+              </YStack>
+            ) : null}
+            {item.splitMode === "shares" ? (
+              <YStack style={screenStyles.splitFooterInlineSummary}>
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={10}
+                  color={PALETTE.onSurfaceVariant}
+                  textTransform="uppercase"
+                  letterSpacing={2.1}
+                >
+                  {t("flow.splitItem.totalShares")}
+                </Text>
+                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+                  <Text
+                    fontFamily={FONTS.headlineBlack}
+                    fontSize={30}
+                    color={PALETTE.onSurface}
+                    letterSpacing={-1.1}
                   >
                     {totalShares}
                   </Text>
-                </XStack>
-                <XStack justifyContent="space-between" alignItems="center">
-                  <YStack gap="$1">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={11}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.6}
-                    >
-                      {t("flow.splitItem.totalShares")}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.headlineBold}
-                      fontSize={18}
-                      color={PALETTE.onSurface}
-                    >
-                      {totalShares}
-                    </Text>
-                  </YStack>
-                  <YStack alignItems="flex-end" gap="$1">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={11}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.6}
-                    >
-                      {t("flow.splitItem.pricePerShare")}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.headlineBold}
-                      fontSize={18}
-                      color={PALETTE.primary}
-                    >
-                      {formatMoney(
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={14}
+                    color={PALETTE.onSurfaceVariant}
+                  >
+                    {t("flow.splitItem.shareRate", {
+                      amount: formatMoney(
                         Math.round(shareValue),
                         record.values.currency,
                         locale,
-                      )}
-                    </Text>
-                  </YStack>
+                      ),
+                    })}
+                  </Text>
                 </XStack>
-              </View>
+              </YStack>
             ) : null}
             {item.splitMode === "percent" ? (
-              <View style={screenStyles.splitSummaryCard}>
+              <YStack style={screenStyles.splitFooterInlineSummary}>
                 <Text
                   fontFamily={FONTS.bodyBold}
-                  fontSize={11}
+                  fontSize={10}
                   color={PALETTE.onSurfaceVariant}
                   textTransform="uppercase"
-                  letterSpacing={1.8}
+                  letterSpacing={2.1}
                 >
                   {t("flow.splitItem.mode.percent")}
                 </Text>
                 <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={20}
+                  fontFamily={FONTS.headlineBlack}
+                  fontSize={30}
                   color={PALETTE.onSurface}
+                  letterSpacing={-1.1}
                 >
                   {t("flow.splitItem.totalPercent", { percent: displayTotalPercent })}
                 </Text>
-              </View>
+              </YStack>
             ) : null}
             <FlowContinueButton
               label={ctaLabel}
               onPress={() => void confirmSplit()}
             />
           </YStack>
+          </View>
         </FloatingFooter>
       }
     >
@@ -994,18 +1003,19 @@ export function SplitItemScreen({
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
-      <ScrollView
-        style={screenStyles.flex}
-        contentContainerStyle={[
-          screenStyles.participantsScrollContent,
-          {
-            paddingBottom: splitScrollBottomPadding,
-            gap: 22,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <YStack gap="$5">
+      <View style={screenStyles.splitScrollViewport}>
+        <ScrollView
+          style={screenStyles.flex}
+          contentContainerStyle={[
+            screenStyles.participantsScrollContent,
+            {
+              paddingBottom: splitScrollBottomPadding,
+              gap: 22,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <YStack gap="$5">
           <YStack gap="$2" alignItems="center">
             <View style={screenStyles.splitCategoryPill}>
               <Text
@@ -1155,6 +1165,26 @@ export function SplitItemScreen({
                                     ),
                                   })
                                 : t("flow.splitItem.tapToInclude")}
+                            </Text>
+                          ) : item.splitMode === "shares" ? (
+                            <Text
+                              fontFamily={FONTS.bodyMedium}
+                              fontSize={13}
+                              color={PALETTE.onSurfaceVariant}
+                            >
+                              {t("flow.splitItem.portion", {
+                                amount: formatMoney(
+                                  Math.round(
+                                    totalShares > 0
+                                      ? ((parseMoneyToCents(item.price) ?? 0) *
+                                          shareCount) /
+                                          totalShares
+                                      : 0,
+                                  ),
+                                  record.values.currency,
+                                  locale,
+                                ),
+                              })}
                             </Text>
                           ) : null}
                         </YStack>
@@ -1348,31 +1378,30 @@ export function SplitItemScreen({
                   </>
                 );
 
-                return item.splitMode === "even" ? (
-                  <Pressable
-                    key={participant.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("flow.splitItem.toggleEvenA11y", {
-                      name: participant.name,
-                    })}
-                    onPress={() => toggleEvenIncluded(participant.id)}
-                    style={screenStyles.splitParticipantCard}
-                  >
-                    {participantControls}
-                  </Pressable>
-                ) : (
+                return (
                   <View
                     key={participant.id}
                     style={screenStyles.splitParticipantCard}
                   >
                     {participantControls}
+                    {item.splitMode === "even" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("flow.splitItem.toggleEvenA11y", {
+                          name: participant.name,
+                        })}
+                        onPress={() => toggleEvenIncluded(participant.id)}
+                        style={screenStyles.splitParticipantOverlayPressable}
+                      />
+                    ) : null}
                   </View>
                 );
               })}
             </YStack>
           </YStack>
-        </YStack>
-      </ScrollView>
+          </YStack>
+        </ScrollView>
+      </View>
       <SplitNoticeModal
         messages={splitNoticeMessages}
         onDismiss={() => setSplitNoticeMessages([])}
