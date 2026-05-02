@@ -284,7 +284,9 @@ describe("mobile PDF export", () => {
       pdfFixture.assumptions.locale,
     );
 
-    expect(mockDelete).toHaveBeenCalledWith("file:///docs/grocery-bill-2026-03-09.pdf");
+    expect(mockDelete).toHaveBeenCalledWith(
+      expect.stringContaining("file:///docs/grocery-bill-2026-03-09.pdf.bak-"),
+    );
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(mockCopy).toHaveBeenNthCalledWith(
       2,

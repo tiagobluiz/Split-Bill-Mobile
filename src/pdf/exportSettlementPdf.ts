@@ -485,15 +485,34 @@ export async function buildSettlementPdfFile(
     Paths.document,
     `${data.fileName}.tmp-${Date.now()}`,
   );
+  const backupDestinationFile = new File(
+    Paths.document,
+    `${data.fileName}.bak-${Date.now()}`,
+  );
   try {
     sourceFile.copy(tempDestinationFile);
+    let movedExistingToBackup = false;
     if (destinationFile.exists) {
-      destinationFile.delete();
+      destinationFile.move(backupDestinationFile);
+      movedExistingToBackup = true;
     }
-    tempDestinationFile.move(destinationFile);
+    try {
+      tempDestinationFile.move(destinationFile);
+    } catch (error) {
+      if (movedExistingToBackup && backupDestinationFile.exists) {
+        backupDestinationFile.move(destinationFile);
+      }
+      throw error;
+    }
+    if (backupDestinationFile.exists) {
+      backupDestinationFile.delete();
+    }
   } catch (error) {
     if (tempDestinationFile.exists) {
       tempDestinationFile.delete();
+    }
+    if (backupDestinationFile.exists) {
+      backupDestinationFile.delete();
     }
     throw error;
   } finally {
