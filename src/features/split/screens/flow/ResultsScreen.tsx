@@ -648,7 +648,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               },
             },
           ]}
-          onDismiss={() => setShowPdfActions(false)}
+          onDismiss={() => {
+            didLongPressPdfRef.current = false;
+            setShowPdfActions(false);
+          }}
         />
       ) : null}
     </AppScreen>
