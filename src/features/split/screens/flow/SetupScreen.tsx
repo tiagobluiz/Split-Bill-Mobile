@@ -339,6 +339,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   useEffect(() => {
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
     const savedPairRate = rateByPair[pairKey];
+    if (!savedPairRate && rateSource === "manual") {
+      return;
+    }
     if (!savedPairRate) {
       setRateInput("1");
       setRateSource("fallback");
@@ -348,7 +351,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     setRateInput(String(savedPairRate.rate));
     setRateSource(savedPairRate.rateSource);
     setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
-  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair]);
+  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair, rateSource]);
 
   useEffect(() => {
     if (!needsConversion) {
