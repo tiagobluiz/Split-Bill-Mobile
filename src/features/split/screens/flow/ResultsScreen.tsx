@@ -605,6 +605,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             {
               label: t("flow.results.pdfActionShare"),
               onPress: () => {
+                didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
                   setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
@@ -626,6 +627,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             {
               label: t("flow.results.pdfActionDownload"),
               onPress: () => {
+                didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
                   setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);

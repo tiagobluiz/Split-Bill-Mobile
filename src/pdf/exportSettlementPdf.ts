@@ -508,10 +508,18 @@ export async function buildSettlementPdfFile(
       backupDestinationFile.delete();
     }
   } catch (error) {
+    let restoreFailed = false;
+    if (backupDestinationFile.exists && !destinationFile.exists) {
+      try {
+        backupDestinationFile.move(destinationFile);
+      } catch {
+        restoreFailed = true;
+      }
+    }
     if (tempDestinationFile.exists) {
       tempDestinationFile.delete();
     }
-    if (backupDestinationFile.exists) {
+    if (backupDestinationFile.exists && !restoreFailed) {
       backupDestinationFile.delete();
     }
     throw error;
