@@ -42,14 +42,16 @@ async function getPdfHeaderImageDataUri(): Promise<string | undefined> {
   try {
     const asset = Asset.fromModule(PDF_HEADER_ASSET);
     await asset.downloadAsync();
-    if (!asset.localUri) {
+    const localUri = asset.localUri ?? asset.uri;
+    if (!localUri) {
       return undefined;
     }
 
-    const imageFile = new File(asset.localUri);
+    const imageFile = new File(localUri);
     const base64 = imageFile.base64Sync();
     return `data:image/png;base64,${base64}`;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load PDF header image asset", error);
     return undefined;
   }
 }
@@ -465,15 +467,10 @@ export function renderSettlementPdfHtml(
   </html>`;
 }
 
-export async function exportSettlementPdf(
+export async function buildSettlementPdfFile(
   values: SplitFormValues,
   locale = "en-US",
-): Promise<void> {
-  const sharingAvailable = await Sharing.isAvailableAsync();
-  if (!sharingAvailable) {
-    throw new Error(t("pdf.sharingUnavailable"));
-  }
-
+): Promise<{ uri: string; fileName: string }> {
   const data = buildPdfExportData(values, new Date(), locale);
   const headerImageDataUri = await getPdfHeaderImageDataUri();
   const html = renderSettlementPdfHtml(data, locale, headerImageDataUri);
@@ -484,20 +481,73 @@ export async function exportSettlementPdf(
 
   const sourceFile = new File(uri);
   const destinationFile = new File(Paths.document, data.fileName);
-  if (destinationFile.exists) {
-    destinationFile.delete();
-  }
+  const tempDestinationFile = new File(
+    Paths.document,
+    `${data.fileName}.tmp-${Date.now()}`,
+  );
+  const backupDestinationFile = new File(
+    Paths.document,
+    `${data.fileName}.bak-${Date.now()}`,
+  );
   try {
-    sourceFile.copy(destinationFile);
+    sourceFile.copy(tempDestinationFile);
+    let movedExistingToBackup = false;
+    if (destinationFile.exists) {
+      destinationFile.move(backupDestinationFile);
+      movedExistingToBackup = true;
+    }
+    try {
+      tempDestinationFile.move(destinationFile);
+    } catch (error) {
+      if (movedExistingToBackup && backupDestinationFile.exists) {
+        backupDestinationFile.move(destinationFile);
+      }
+      throw error;
+    }
+    if (backupDestinationFile.exists) {
+      backupDestinationFile.delete();
+    }
+  } catch (error) {
+    let restoreFailed = false;
+    if (backupDestinationFile.exists && !destinationFile.exists) {
+      try {
+        backupDestinationFile.move(destinationFile);
+      } catch {
+        restoreFailed = true;
+      }
+    }
+    if (tempDestinationFile.exists) {
+      tempDestinationFile.delete();
+    }
+    if (backupDestinationFile.exists && !restoreFailed) {
+      backupDestinationFile.delete();
+    }
+    throw error;
   } finally {
     if (sourceFile.exists) {
       sourceFile.delete();
     }
   }
 
-  await Sharing.shareAsync(destinationFile.uri, {
+  return {
+    uri: destinationFile.uri,
+    fileName: data.fileName,
+  };
+}
+
+export async function exportSettlementPdf(
+  values: SplitFormValues,
+  locale = "en-US",
+): Promise<void> {
+  const sharingAvailable = await Sharing.isAvailableAsync();
+  if (!sharingAvailable) {
+    throw new Error(t("pdf.sharingUnavailable"));
+  }
+
+  const pdfFile = await buildSettlementPdfFile(values, locale);
+  await Sharing.shareAsync(pdfFile.uri, {
     mimeType: "application/pdf",
     UTI: "com.adobe.pdf",
-    dialogTitle: data.fileName,
+    dialogTitle: pdfFile.fileName,
   });
 }

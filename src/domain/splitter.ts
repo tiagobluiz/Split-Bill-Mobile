@@ -34,6 +34,16 @@ export type SplitFormValues = {
     rateSource?: "auto" | "manual" | "fallback";
     rateUpdatedAt?: string;
   };
+  exchangeRatesByPair?: Record<
+    string,
+    {
+      sourceCurrency: string;
+      targetCurrency: string;
+      rate: number;
+      rateSource?: "auto" | "manual" | "fallback";
+      rateUpdatedAt?: string;
+    }
+  >;
   participants: ParticipantFormValue[];
   payerParticipantId: string;
   items: ItemFormValue[];

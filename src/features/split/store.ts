@@ -54,6 +54,7 @@ type SplitStore = {
     splitName: string,
     currency: string,
     exchangeRate?: DraftRecord["values"]["exchangeRate"],
+    exchangeRatesByPair?: DraftRecord["values"]["exchangeRatesByPair"],
   ) => Promise<void>;
   setStep: (step: number) => Promise<void>;
   updateParticipants: (
@@ -365,13 +366,16 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await Promise.all(nextRecords.map((record) => saveRecord(record)));
     await saveAppSettings(nextSettings);
   },
-  async updateDraftMeta(splitName, currency, exchangeRate) {
+  async updateDraftMeta(splitName, currency, exchangeRate, exchangeRatesByPair) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.splitName = splitName.slice(0, 20);
         draft.values.currency =
           currency.trim().toUpperCase() || get().settings.defaultCurrency;
         draft.values.exchangeRate = exchangeRate;
+        if (exchangeRatesByPair !== undefined) {
+          draft.values.exchangeRatesByPair = exchangeRatesByPair;
+        }
       }),
     );
   },

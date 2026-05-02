@@ -83,6 +83,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
   ];
+  const isReviewReady = errors.length === 0 && Boolean(settlement?.ok);
   const locale = getDeviceLocale();
   const isReviewScrollable = reviewContentHeight > reviewViewportHeight + 1;
 
@@ -93,6 +94,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
         <FloatingFooter>
           <FlowContinueButton
             label={t("flow.review.showResults")}
+            disabled={!isReviewReady}
             onPress={() => {
               if (errors.length > 0 || !settlement?.ok) {
                 setReviewNoticeMessages([
