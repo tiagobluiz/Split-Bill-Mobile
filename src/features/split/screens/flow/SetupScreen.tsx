@@ -354,6 +354,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     if (!needsConversion) {
       return;
     }
+    if (rateSource === "manual") {
+      return;
+    }
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
     if (!normalizedCurrency || !normalizedTargetCurrency) {
       return;
@@ -379,6 +382,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     normalizedCurrency,
     normalizedTargetCurrency,
     rateByPair,
+    rateSource,
   ]);
 
   if (!record) {
