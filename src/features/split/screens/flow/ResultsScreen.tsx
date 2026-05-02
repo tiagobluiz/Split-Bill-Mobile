@@ -65,6 +65,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const [exportPdfPending, setExportPdfPending] = useState(false);
   const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
   const [showPdfActions, setShowPdfActions] = useState(false);
+  const didLongPressPdfRef = useRef(false);
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
@@ -238,8 +239,15 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               accessibilityLabel={t("flow.results.exportPdfA11y")}
               style={screenStyles.resultsSecondaryButton}
               disabled={exportPdfPending}
-              onLongPress={() => setShowPdfActions(true)}
+              onLongPress={() => {
+                didLongPressPdfRef.current = true;
+                setShowPdfActions(true);
+              }}
               onPress={async () => {
+                if (didLongPressPdfRef.current) {
+                  didLongPressPdfRef.current = false;
+                  return;
+                }
                 if (!pdfData) {
                   setPdfNoticeMessages([
                     t("flow.results.pdfUnavailable"),
