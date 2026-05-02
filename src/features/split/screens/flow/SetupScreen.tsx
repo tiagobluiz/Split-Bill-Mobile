@@ -192,9 +192,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   const loadingRateRef = useRef(false);
   const requestPairRef = useRef("");
   const pendingPairRef = useRef<string | null>(null);
-  const hasSeededFromRecordRef = useRef(false);
-  const [manualRateOverride, setManualRateOverride] = useState(false);
-  const [autoFetchedPair, setAutoFetchedPair] = useState("");
   const [rateByPair, setRateByPair] = useState<
     Record<
       string,
@@ -210,16 +207,46 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   );
   const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
+  const buildRateMapFromRecord = (currentRecord: DraftRecord) => {
+    const savedByPair = currentRecord.values.exchangeRatesByPair ?? {};
+    if (Object.keys(savedByPair).length > 0) {
+      return Object.fromEntries(
+        Object.entries(savedByPair).map(([key, value]) => [
+          key,
+          {
+            rate: value.rate,
+            rateSource: value.rateSource ?? "fallback",
+            rateUpdatedAt: value.rateUpdatedAt,
+          },
+        ]),
+      );
+    }
+
+    const fallbackRate = currentRecord.values.exchangeRate;
+    if (!fallbackRate) {
+      return {};
+    }
+
+    const key = `${fallbackRate.sourceCurrency.trim().toUpperCase()}->${fallbackRate.targetCurrency
+      .trim()
+      .toUpperCase()}`;
+    return {
+      [key]: {
+        rate: fallbackRate.rate,
+        rateSource: fallbackRate.rateSource ?? "fallback",
+        rateUpdatedAt: fallbackRate.rateUpdatedAt,
+      },
+    };
+  };
+
   useEffect(() => {
     if (record) {
-      hasSeededFromRecordRef.current = false;
       setSplitName(record.values.splitName ?? "");
       setCurrency(record.values.currency ?? settings.defaultCurrency);
       setRateInput(String(record.values.exchangeRate?.rate ?? 1));
       setRateSource(record.values.exchangeRate?.rateSource ?? "fallback");
-      setManualRateOverride(record.values.exchangeRate?.rateSource === "manual");
-      setAutoFetchedPair("");
       setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
+      setRateByPair(buildRateMapFromRecord(record));
       const source = (record.values.currency ?? settings.defaultCurrency)
         .trim()
         .toUpperCase();
@@ -233,26 +260,13 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         .toUpperCase();
       const hasMatchingSavedPair =
         savedSource === source && savedTarget === target;
-      setRateByPair(
-        record.values.exchangeRate && hasMatchingSavedPair
-          ? {
-              [pairKey]: {
-                rate: record.values.exchangeRate.rate,
-                rateSource: record.values.exchangeRate.rateSource ?? "fallback",
-                rateUpdatedAt: record.values.exchangeRate.rateUpdatedAt,
-              },
-            }
-          : {},
-      );
       if (!hasMatchingSavedPair) {
         setRateInput("1");
         setRateSource("fallback");
-        setManualRateOverride(false);
         setRateUpdatedAt(null);
       }
       setCurrencyMenuOpen(false);
       setSetupNoticeMessages([]);
-      hasSeededFromRecordRef.current = true;
     }
   }, [record, settings.defaultCurrency]);
   const currencyOptions = [
@@ -276,6 +290,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     hasValidRateInput ? parsedRate : 1;
   const needsConversion = normalizedCurrency !== normalizedTargetCurrency;
   const canContinue = Boolean(normalizedCurrency);
+  const isSetupStepReady =
+    Boolean(splitName.trim()) &&
+    canContinue &&
+    (!needsConversion || hasValidRateInput);
   const fetchLiveRate = async () => {
     if (!needsConversion) {
       return;
@@ -300,7 +318,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       setRateSource(result.source);
       const updatedAt = new Date().toISOString();
       setRateUpdatedAt(updatedAt);
-      setAutoFetchedPair(pairKey);
       setRateByPair((prev) => ({
         ...prev,
         [pairKey]: {
@@ -315,7 +332,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       const pendingPair = pendingPairRef.current;
       if (pendingPair && pendingPair !== pairKey) {
         pendingPairRef.current = null;
-        setAutoFetchedPair("");
       }
     }
   };
@@ -324,40 +340,46 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
     const savedPairRate = rateByPair[pairKey];
     if (!savedPairRate) {
-      if (!hasSeededFromRecordRef.current && record?.values.exchangeRate) {
-        return;
-      }
       setRateInput("1");
       setRateSource("fallback");
-      setManualRateOverride(false);
       setRateUpdatedAt(null);
       return;
     }
     setRateInput(String(savedPairRate.rate));
     setRateSource(savedPairRate.rateSource);
-    setManualRateOverride(savedPairRate.rateSource === "manual");
     setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
-  }, [normalizedCurrency, normalizedTargetCurrency, record]);
+  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair]);
 
   useEffect(() => {
-    if (!record || !needsConversion || !normalizedCurrency) {
+    if (!needsConversion) {
       return;
     }
-    if (manualRateOverride) {
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    if (!normalizedCurrency || !normalizedTargetCurrency) {
       return;
     }
-    const pair = `${normalizedCurrency}->${normalizedTargetCurrency}`;
-    if (pair === autoFetchedPair) {
-      return;
-    }
-    const savedRate = record.values.exchangeRate;
-    const savedSource = savedRate?.sourceCurrency?.trim().toUpperCase();
-    const savedTarget = savedRate?.targetCurrency?.trim().toUpperCase();
-    if (savedRate && savedSource === normalizedCurrency && savedTarget === normalizedTargetCurrency) {
+    const persistedRateByPair = record?.values.exchangeRatesByPair ?? {};
+    const persistedEntry = persistedRateByPair[pairKey];
+    const legacyRate = record?.values.exchangeRate;
+    const legacyPairMatches = Boolean(
+      legacyRate &&
+        legacyRate.sourceCurrency.trim().toUpperCase() === normalizedCurrency &&
+        legacyRate.targetCurrency.trim().toUpperCase() === normalizedTargetCurrency &&
+        Number.isFinite(legacyRate.rate) &&
+        legacyRate.rate > 0,
+    );
+
+    if (rateByPair[pairKey] || persistedEntry || legacyPairMatches) {
       return;
     }
     void fetchLiveRate();
-  }, [record, normalizedCurrency, normalizedTargetCurrency, needsConversion, manualRateOverride, autoFetchedPair]);
+  }, [
+    record,
+    needsConversion,
+    normalizedCurrency,
+    normalizedTargetCurrency,
+    rateByPair,
+  ]);
 
   if (!record) {
     return (
@@ -371,6 +393,16 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   }
 
   const persistAndContinue = async () => {
+    const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    const nextRateByPair = { ...rateByPair };
+    if (needsConversion && hasValidRateInput) {
+      nextRateByPair[pairKey] = {
+        rate: effectiveRate,
+        rateSource,
+        rateUpdatedAt,
+      };
+    }
+
     await updateDraftMeta(
       splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
       normalizedCurrency,
@@ -380,9 +412,21 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             targetCurrency: normalizedTargetCurrency,
             rate: effectiveRate,
             rateSource,
-            rateUpdatedAt: rateUpdatedAt ?? new Date().toISOString(),
+            rateUpdatedAt,
           }
         : undefined,
+      Object.fromEntries(
+        Object.entries(nextRateByPair).map(([key, value]) => [
+          key,
+          {
+            sourceCurrency: key.split("->")[0] ?? normalizedCurrency,
+            targetCurrency: key.split("->")[1] ?? normalizedTargetCurrency,
+            rate: value.rate,
+            rateSource: value.rateSource,
+            rateUpdatedAt: value.rateUpdatedAt,
+          },
+        ]),
+      ),
     );
     await setStep(2);
     router.push(`/split/${draftId}/participants`);
@@ -395,7 +439,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         <FloatingFooter>
           <FlowContinueButton
             accessibilityLabel={t("flow.setup.nextA11y")}
-            disabled={!canContinue}
+            disabled={!isSetupStepReady}
             label={t("flow.setup.next", undefined, { maxLength: 26 })}
             onPress={async () => {
               if (!canContinue) {
@@ -508,7 +552,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                           const numericValue = Number(value.replace(",", "."));
                           setRateInput(value);
                           setRateSource("manual");
-                          setManualRateOverride(true);
                           if (Number.isFinite(numericValue) && numericValue > 0) {
                             const updatedAt = new Date().toISOString();
                             setRateUpdatedAt(updatedAt);
@@ -539,7 +582,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                       accessibilityRole="button"
                       accessibilityLabel={t("flow.setup.refreshExchangeRateA11y")}
                       onPress={() => {
-                        setManualRateOverride(false);
                         void fetchLiveRate();
                       }}
                       style={[
@@ -597,7 +639,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             onPress: () => {
               requestPairRef.current = "";
               setCurrency(option.code);
-              setAutoFetchedPair("");
               setCurrencyMenuOpen(false);
             },
           }))}

@@ -42,14 +42,16 @@ async function getPdfHeaderImageDataUri(): Promise<string | undefined> {
   try {
     const asset = Asset.fromModule(PDF_HEADER_ASSET);
     await asset.downloadAsync();
-    if (!asset.localUri) {
+    const localUri = asset.localUri ?? asset.uri;
+    if (!localUri) {
       return undefined;
     }
 
-    const imageFile = new File(asset.localUri);
+    const imageFile = new File(localUri);
     const base64 = imageFile.base64Sync();
     return `data:image/png;base64,${base64}`;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load PDF header image asset", error);
     return undefined;
   }
 }
@@ -465,15 +467,10 @@ export function renderSettlementPdfHtml(
   </html>`;
 }
 
-export async function exportSettlementPdf(
+export async function buildSettlementPdfFile(
   values: SplitFormValues,
   locale = "en-US",
-): Promise<void> {
-  const sharingAvailable = await Sharing.isAvailableAsync();
-  if (!sharingAvailable) {
-    throw new Error(t("pdf.sharingUnavailable"));
-  }
-
+): Promise<{ uri: string; fileName: string }> {
   const data = buildPdfExportData(values, new Date(), locale);
   const headerImageDataUri = await getPdfHeaderImageDataUri();
   const html = renderSettlementPdfHtml(data, locale, headerImageDataUri);
@@ -495,9 +492,25 @@ export async function exportSettlementPdf(
     }
   }
 
-  await Sharing.shareAsync(destinationFile.uri, {
+  return {
+    uri: destinationFile.uri,
+    fileName: data.fileName,
+  };
+}
+
+export async function exportSettlementPdf(
+  values: SplitFormValues,
+  locale = "en-US",
+): Promise<void> {
+  const sharingAvailable = await Sharing.isAvailableAsync();
+  if (!sharingAvailable) {
+    throw new Error(t("pdf.sharingUnavailable"));
+  }
+
+  const pdfFile = await buildSettlementPdfFile(values, locale);
+  await Sharing.shareAsync(pdfFile.uri, {
     mimeType: "application/pdf",
     UTI: "com.adobe.pdf",
-    dialogTitle: data.fileName,
+    dialogTitle: pdfFile.fileName,
   });
 }

@@ -38,8 +38,7 @@ export function FlowContinueButton({
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
-      onPress={disabled ? undefined : onPress}
+      onPress={onPress}
       style={[
         screenStyles.itemsNextButton,
         disabled ? screenStyles.participantsContinueButtonDisabled : null,

@@ -12,7 +12,10 @@ import {
 
 import { AppScreen, EmptyState, FloatingFooter } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
-import { exportSettlementPdf } from "../../../../pdf/exportSettlementPdf";
+import {
+  buildSettlementPdfFile,
+  exportSettlementPdf,
+} from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
@@ -32,6 +35,7 @@ import {
   formatAppMoney,
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
+import { ActionSheetModal } from "../shared/modals";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -60,6 +64,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const hasAutoCompletedRef = useRef<string | null>(null);
   const [exportPdfPending, setExportPdfPending] = useState(false);
   const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
+  const [showPdfActions, setShowPdfActions] = useState(false);
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
@@ -233,6 +238,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               accessibilityLabel={t("flow.results.exportPdfA11y")}
               style={screenStyles.resultsSecondaryButton}
               disabled={exportPdfPending}
+              onLongPress={() => setShowPdfActions(true)}
               onPress={async () => {
                 if (!pdfData) {
                   setPdfNoticeMessages([
@@ -584,6 +590,59 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         messages={pdfNoticeMessages}
         onDismiss={() => setPdfNoticeMessages([])}
       />
+      {showPdfActions ? (
+        <ActionSheetModal
+          title={t("flow.results.pdfActionsTitle")}
+          options={[
+            {
+              label: t("flow.results.pdfActionShare"),
+              onPress: () => {
+                setShowPdfActions(false);
+                if (!pdfData) {
+                  setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
+                  return;
+                }
+                void (async () => {
+                  try {
+                    setExportPdfPending(true);
+                    await exportSettlementPdf(record.values, locale);
+                  } catch (error) {
+                    console.warn("Failed to export split PDF", error);
+                    setPdfNoticeMessages([t("flow.results.pdfFailed")]);
+                  } finally {
+                    setExportPdfPending(false);
+                  }
+                })();
+              },
+            },
+            {
+              label: t("flow.results.pdfActionDownload"),
+              onPress: () => {
+                setShowPdfActions(false);
+                if (!pdfData) {
+                  setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
+                  return;
+                }
+                void (async () => {
+                  try {
+                    setExportPdfPending(true);
+                    await buildSettlementPdfFile(
+                      record.values,
+                      locale,
+                    );
+                  } catch (error) {
+                    console.warn("Failed to download split PDF", error);
+                    setPdfNoticeMessages([t("flow.results.pdfDownloadFailed")]);
+                  } finally {
+                    setExportPdfPending(false);
+                  }
+                })();
+              },
+            },
+          ]}
+          onDismiss={() => setShowPdfActions(false)}
+        />
+      ) : null}
     </AppScreen>
   );
 }

@@ -62,7 +62,11 @@ import * as Print from "expo-print";
 import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
 
-import { renderSettlementPdfHtml, exportSettlementPdf } from "./exportSettlementPdf";
+import {
+  buildSettlementPdfFile,
+  renderSettlementPdfHtml,
+  exportSettlementPdf,
+} from "./exportSettlementPdf";
 import type { SplitFormValues } from "../domain";
 
 describe("mobile PDF export", () => {
@@ -190,6 +194,31 @@ describe("mobile PDF export", () => {
       UTI: "com.adobe.pdf",
       dialogTitle: "grocery-bill-2026-03-09.pdf",
     });
+  });
+
+  it("builds a generated PDF file without opening the native share flow", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+
+    const result = await buildSettlementPdfFile(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(result).toEqual({
+      uri: "file:///docs/grocery-bill-2026-03-09.pdf",
+      fileName: "grocery-bill-2026-03-09.pdf",
+    });
+    expect(shareAsync).not.toHaveBeenCalled();
   });
 
   it("replaces an existing named PDF before sharing again", async () => {

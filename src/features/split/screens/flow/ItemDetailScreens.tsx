@@ -555,6 +555,7 @@ export function SplitItemScreen({
     ...record.values,
     items: [item],
   });
+  const isSplitReady = splitErrors.length === 0;
   const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
   const ctaLabel = pendingNextItemId
     ? t("flow.splitItem.confirmNext")
@@ -988,6 +989,7 @@ export function SplitItemScreen({
             ) : null}
             <FlowContinueButton
               label={ctaLabel}
+              disabled={!isSplitReady}
               onPress={() => void confirmSplit()}
             />
           </YStack>
