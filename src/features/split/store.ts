@@ -373,7 +373,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.values.currency =
           currency.trim().toUpperCase() || get().settings.defaultCurrency;
         draft.values.exchangeRate = exchangeRate;
-        draft.values.exchangeRatesByPair = exchangeRatesByPair;
+        if (exchangeRatesByPair !== undefined) {
+          draft.values.exchangeRatesByPair = exchangeRatesByPair;
+        }
       }),
     );
   },

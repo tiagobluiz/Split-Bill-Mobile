@@ -481,11 +481,21 @@ export async function buildSettlementPdfFile(
 
   const sourceFile = new File(uri);
   const destinationFile = new File(Paths.document, data.fileName);
-  if (destinationFile.exists) {
-    destinationFile.delete();
-  }
+  const tempDestinationFile = new File(
+    Paths.document,
+    `${data.fileName}.tmp-${Date.now()}`,
+  );
   try {
-    sourceFile.copy(destinationFile);
+    sourceFile.copy(tempDestinationFile);
+    if (destinationFile.exists) {
+      destinationFile.delete();
+    }
+    tempDestinationFile.move(destinationFile);
+  } catch (error) {
+    if (tempDestinationFile.exists) {
+      tempDestinationFile.delete();
+    }
+    throw error;
   } finally {
     if (sourceFile.exists) {
       sourceFile.delete();

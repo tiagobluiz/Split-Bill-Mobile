@@ -3,6 +3,7 @@ jest.mock("expo-print", () => ({
 }));
 
 const mockCopy = jest.fn();
+const mockMove = jest.fn();
 const mockDelete = jest.fn();
 const mockExistingUris = new Set<string>();
 
@@ -34,6 +35,12 @@ jest.mock("expo-file-system", () => ({
 
     copy(destination: { uri: string }) {
       mockCopy(this.uri, destination.uri);
+      mockExistingUris.add(destination.uri);
+    }
+
+    move(destination: { uri: string }) {
+      mockMove(this.uri, destination.uri);
+      mockExistingUris.delete(this.uri);
       mockExistingUris.add(destination.uri);
     }
 
@@ -186,6 +193,14 @@ describe("mobile PDF export", () => {
     );
     expect(mockCopy).toHaveBeenCalledWith(
       "file:///tmp/split-bill.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+    );
+    expect(mockMove).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
       "file:///docs/grocery-bill-2026-03-09.pdf",
     );
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
@@ -218,6 +233,24 @@ describe("mobile PDF export", () => {
       uri: "file:///docs/grocery-bill-2026-03-09.pdf",
       fileName: "grocery-bill-2026-03-09.pdf",
     });
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("Final settlement"),
+        base64: false,
+      }),
+    );
+    expect(mockCopy).toHaveBeenCalledWith(
+      "file:///tmp/split-bill.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+    );
+    expect(mockMove).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+    );
     expect(shareAsync).not.toHaveBeenCalled();
   });
 
@@ -251,14 +284,14 @@ describe("mobile PDF export", () => {
       pdfFixture.assumptions.locale,
     );
 
-    expect(mockDelete).toHaveBeenCalledWith(
-      "file:///docs/grocery-bill-2026-03-09.pdf",
-    );
+    expect(mockDelete).toHaveBeenCalledWith("file:///docs/grocery-bill-2026-03-09.pdf");
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(mockCopy).toHaveBeenNthCalledWith(
       2,
       "file:///tmp/split-bill.pdf",
-      "file:///docs/grocery-bill-2026-03-09.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
     );
     expect(shareAsync).toHaveBeenLastCalledWith(
       "file:///docs/grocery-bill-2026-03-09.pdf",
