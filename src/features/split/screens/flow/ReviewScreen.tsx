@@ -202,9 +202,10 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
       >
         <View style={screenStyles.reviewListViewport}>
           <YStack gap="$3" style={screenStyles.reviewListContent}>
-            {visibleItems.map((item) => {
+            {visibleItems.map((item, index) => {
               const assigned = isItemAssigned(item);
               const itemLabel = item.name.trim() || t("flow.splitItem.untitled");
+              const isLastItem = index === visibleItems.length - 1;
 
               return (
                 <Pressable
@@ -222,6 +223,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                   style={[
                     screenStyles.itemsListCard,
                     !assigned ? screenStyles.reviewItemCardPending : null,
+                    isLastItem ? screenStyles.reviewLastItemShadowSpacer : null,
                   ]}
                 >
                   <XStack
