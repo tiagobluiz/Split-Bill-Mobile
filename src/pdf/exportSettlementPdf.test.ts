@@ -3,6 +3,7 @@ jest.mock("expo-print", () => ({
 }));
 
 const mockCopy = jest.fn();
+const mockMove = jest.fn();
 const mockDelete = jest.fn();
 const mockExistingUris = new Set<string>();
 
@@ -37,6 +38,12 @@ jest.mock("expo-file-system", () => ({
       mockExistingUris.add(destination.uri);
     }
 
+    move(destination: { uri: string }) {
+      mockMove(this.uri, destination.uri);
+      mockExistingUris.delete(this.uri);
+      mockExistingUris.add(destination.uri);
+    }
+
     base64Sync() {
       return "mockBase64HeaderImage";
     }
@@ -62,7 +69,11 @@ import * as Print from "expo-print";
 import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
 
-import { renderSettlementPdfHtml, exportSettlementPdf } from "./exportSettlementPdf";
+import {
+  buildSettlementPdfFile,
+  renderSettlementPdfHtml,
+  exportSettlementPdf,
+} from "./exportSettlementPdf";
 import type { SplitFormValues } from "../domain";
 
 describe("mobile PDF export", () => {
@@ -182,6 +193,14 @@ describe("mobile PDF export", () => {
     );
     expect(mockCopy).toHaveBeenCalledWith(
       "file:///tmp/split-bill.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+    );
+    expect(mockMove).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
       "file:///docs/grocery-bill-2026-03-09.pdf",
     );
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
@@ -190,6 +209,49 @@ describe("mobile PDF export", () => {
       UTI: "com.adobe.pdf",
       dialogTitle: "grocery-bill-2026-03-09.pdf",
     });
+  });
+
+  it("builds a generated PDF file without opening the native share flow", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+
+    const result = await buildSettlementPdfFile(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(result).toEqual({
+      uri: "file:///docs/grocery-bill-2026-03-09.pdf",
+      fileName: "grocery-bill-2026-03-09.pdf",
+    });
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("Final settlement"),
+        base64: false,
+      }),
+    );
+    expect(mockCopy).toHaveBeenCalledWith(
+      "file:///tmp/split-bill.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+    );
+    expect(mockMove).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+    );
+    expect(shareAsync).not.toHaveBeenCalled();
   });
 
   it("replaces an existing named PDF before sharing again", async () => {
@@ -223,13 +285,15 @@ describe("mobile PDF export", () => {
     );
 
     expect(mockDelete).toHaveBeenCalledWith(
-      "file:///docs/grocery-bill-2026-03-09.pdf",
+      expect.stringContaining("file:///docs/grocery-bill-2026-03-09.pdf.bak-"),
     );
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(mockCopy).toHaveBeenNthCalledWith(
       2,
       "file:///tmp/split-bill.pdf",
-      "file:///docs/grocery-bill-2026-03-09.pdf",
+      expect.stringContaining(
+        "file:///docs/grocery-bill-2026-03-09.pdf.tmp-",
+      ),
     );
     expect(shareAsync).toHaveBeenLastCalledWith(
       "file:///docs/grocery-bill-2026-03-09.pdf",

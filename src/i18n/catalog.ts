@@ -317,6 +317,10 @@ const enPlain = {
   "flow.results.invalidBackHome": "Back to home",
   "flow.results.invalidBackHomeA11y": "Go back to home",
   "flow.results.exportPdfA11y": "Export as PDF",
+  "flow.results.pdfActionsTitle": "PDF options",
+  "flow.results.pdfActionShare": "Share PDF",
+  "flow.results.pdfActionDownload": "Download PDF",
+  "flow.results.pdfDownloadFailed": "Could not download the PDF.",
   "flow.results.shareA11y": "Share results",
   "flow.results.pdfUnavailable":
     "PDF export is not available for this split.",
@@ -907,6 +911,10 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.results.invalidBackHome": "Voltar ao início",
   "flow.results.invalidBackHomeA11y": "Voltar ao ecrã inicial",
   "flow.results.exportPdfA11y": "Exportar como PDF",
+  "flow.results.pdfActionsTitle": "Opções de PDF",
+  "flow.results.pdfActionShare": "Partilhar PDF",
+  "flow.results.pdfActionDownload": "Descarregar PDF",
+  "flow.results.pdfDownloadFailed": "Não foi possível descarregar o PDF.",
   "flow.results.shareA11y": "Partilhar",
   "flow.results.pdfUnavailable":
     "A exportação em PDF não está disponível para esta divisão.",
