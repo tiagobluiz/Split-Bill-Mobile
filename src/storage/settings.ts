@@ -14,6 +14,7 @@ export type AppSettings = {
   balanceFeatureEnabled: boolean;
   trackPaymentsFeatureEnabled: boolean;
   defaultCurrency: string;
+  pdfDownloadDirectoryUri?: string;
   language: AppLanguage;
   humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
@@ -127,6 +128,12 @@ export async function getAppSettings() {
       typeof parsed.trackPaymentsFeatureEnabled === "boolean" ? parsed.trackPaymentsFeatureEnabled : true,
   });
 
+  const pdfDownloadDirectoryUri =
+    typeof parsed.pdfDownloadDirectoryUri === "string" &&
+    parsed.pdfDownloadDirectoryUri.trim()
+      ? parsed.pdfDownloadDirectoryUri.trim()
+      : undefined;
+
   return {
     ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
     ownerProfileImageUri:
@@ -137,6 +144,9 @@ export async function getAppSettings() {
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
         : "EUR",
+    ...(pdfDownloadDirectoryUri
+      ? { pdfDownloadDirectoryUri }
+      : {}),
     language:
       parsed.language === undefined
         ? translationDefaults.language

@@ -13,8 +13,9 @@ import {
 import { AppScreen, EmptyState, FloatingFooter } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
-  buildSettlementPdfFile,
+  downloadSettlementPdfToDevice,
   exportSettlementPdf,
+  isDirectoryPickerCancelledError,
 } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
@@ -52,6 +53,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     markBillPaid,
     revertBillPaid,
     toggleParticipantPaid,
+    updateSettings,
   } = useSplitStore(
     useShallow((state) => ({
       markCompleted: state.markCompleted,
@@ -59,11 +61,13 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       markBillPaid: state.markBillPaid,
       revertBillPaid: state.revertBillPaid,
       toggleParticipantPaid: state.toggleParticipantPaid,
+      updateSettings: state.updateSettings,
     })),
   );
   const hasAutoCompletedRef = useRef<string | null>(null);
   const [exportPdfPending, setExportPdfPending] = useState(false);
   const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
+  const [pdfNoticeTitle, setPdfNoticeTitle] = useState<string | undefined>(undefined);
   const [showPdfActions, setShowPdfActions] = useState(false);
   const didLongPressPdfRef = useRef(false);
   const settlement = getSettlementPreview(record);
@@ -249,6 +253,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   return;
                 }
                 if (!pdfData) {
+                  setPdfNoticeTitle(undefined);
                   setPdfNoticeMessages([
                     t("flow.results.pdfUnavailable"),
                   ]);
@@ -260,6 +265,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   await exportSettlementPdf(record.values, locale);
                 } catch (error) {
                   console.warn("Failed to export split PDF", error);
+                  setPdfNoticeTitle(undefined);
                   setPdfNoticeMessages([t("flow.results.pdfFailed")]);
                 } finally {
                   setExportPdfPending(false);
@@ -595,8 +601,12 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         </YStack>
       </ScrollView>
       <SplitNoticeModal
+        title={pdfNoticeTitle}
         messages={pdfNoticeMessages}
-        onDismiss={() => setPdfNoticeMessages([])}
+        onDismiss={() => {
+          setPdfNoticeMessages([]);
+          setPdfNoticeTitle(undefined);
+        }}
       />
       {showPdfActions ? (
         <ActionSheetModal
@@ -608,6 +618,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
+                  setPdfNoticeTitle(undefined);
                   setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
                   return;
                 }
@@ -617,6 +628,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                     await exportSettlementPdf(record.values, locale);
                   } catch (error) {
                     console.warn("Failed to export split PDF", error);
+                    setPdfNoticeTitle(undefined);
                     setPdfNoticeMessages([t("flow.results.pdfFailed")]);
                   } finally {
                     setExportPdfPending(false);
@@ -630,18 +642,33 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
+                  setPdfNoticeTitle(undefined);
                   setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
                   return;
                 }
                 void (async () => {
                   try {
                     setExportPdfPending(true);
-                    await buildSettlementPdfFile(
+                    await downloadSettlementPdfToDevice(
                       record.values,
                       locale,
+                      {
+                        preferredDirectoryUri:
+                          settings.pdfDownloadDirectoryUri,
+                        onDirectoryPicked: (directoryUri) =>
+                          updateSettings({
+                            pdfDownloadDirectoryUri: directoryUri,
+                          }),
+                      },
                     );
+                    setPdfNoticeTitle(t("flow.results.pdfDownloadedTitle"));
+                    setPdfNoticeMessages([t("flow.results.pdfDownloaded")]);
                   } catch (error) {
+                    if (isDirectoryPickerCancelledError(error)) {
+                      return;
+                    }
                     console.warn("Failed to download split PDF", error);
+                    setPdfNoticeTitle(undefined);
                     setPdfNoticeMessages([t("flow.results.pdfDownloadFailed")]);
                   } finally {
                     setExportPdfPending(false);

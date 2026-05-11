@@ -6,10 +6,46 @@ const mockCopy = jest.fn();
 const mockMove = jest.fn();
 const mockDelete = jest.fn();
 const mockExistingUris = new Set<string>();
+const mockExistingDirectoryUris = new Set<string>();
+const mockUnreadableDirectoryUris = new Set<string>();
+const mockPickDirectoryAsync = jest.fn();
+const mockSafDirectoryEntries = new Map<string, string[]>();
+const mockSafCreateFileAsync = jest.fn();
+const mockLegacyCopyAsync = jest.fn();
+const mockLegacyReadAsStringAsync = jest.fn();
+const mockLegacyWriteAsStringAsync = jest.fn();
 
 jest.mock("expo-file-system", () => ({
   Paths: {
     document: { uri: "file:///docs/" },
+  },
+  Directory: class MockDirectory {
+    uri: string;
+
+    constructor(...segments: Array<{ uri?: string } | string>) {
+      const normalized = segments.map((segment) =>
+        typeof segment === "string" ? segment : (segment.uri ?? "")
+      );
+      const [firstSegment, ...rest] = normalized;
+      const normalizedFirstSegment = firstSegment.replace(/\/+$/, "");
+      const trimmedRest = rest.map((segment) => segment.replace(/^\/+/, ""));
+      this.uri = [normalizedFirstSegment, ...trimmedRest].join("/");
+    }
+
+    get exists() {
+      return mockExistingDirectoryUris.has(this.uri);
+    }
+
+    list() {
+      if (!this.exists || mockUnreadableDirectoryUris.has(this.uri)) {
+        throw new Error(`Cannot read directory ${this.uri}`);
+      }
+      return [];
+    }
+
+    static pickDirectoryAsync(initialUri?: string) {
+      return mockPickDirectoryAsync(initialUri);
+    }
   },
   File: class MockFile {
     uri: string;
@@ -50,6 +86,19 @@ jest.mock("expo-file-system", () => ({
   },
 }));
 
+jest.mock("expo-file-system/legacy", () => ({
+  copyAsync: (...args: any[]) => mockLegacyCopyAsync(...args),
+  readAsStringAsync: (...args: any[]) => mockLegacyReadAsStringAsync(...args),
+  writeAsStringAsync: (...args: any[]) => mockLegacyWriteAsStringAsync(...args),
+  EncodingType: {
+    Base64: "base64",
+  },
+  StorageAccessFramework: {
+    readDirectoryAsync: jest.fn(async (uri: string) => mockSafDirectoryEntries.get(uri) ?? []),
+    createFileAsync: (...args: any[]) => mockSafCreateFileAsync(...args),
+  },
+}));
+
 jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(),
   shareAsync: jest.fn(),
@@ -71,8 +120,10 @@ import * as Sharing from "expo-sharing";
 
 import {
   buildSettlementPdfFile,
+  downloadSettlementPdfToDevice,
   renderSettlementPdfHtml,
   exportSettlementPdf,
+  isDirectoryPickerCancelledError,
 } from "./exportSettlementPdf";
 import type { SplitFormValues } from "../domain";
 
@@ -80,6 +131,15 @@ describe("mobile PDF export", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockExistingUris.clear();
+    mockExistingDirectoryUris.clear();
+    mockUnreadableDirectoryUris.clear();
+    mockPickDirectoryAsync.mockReset();
+    mockSafDirectoryEntries.clear();
+    mockSafCreateFileAsync.mockReset();
+    mockLegacyCopyAsync.mockReset();
+    mockLegacyReadAsStringAsync.mockReset();
+    mockLegacyWriteAsStringAsync.mockReset();
+    mockExistingDirectoryUris.add("file:///docs");
     jest.useFakeTimers().setSystemTime(
       new Date("2026-03-09T12:00:00.000Z"),
     );
@@ -254,6 +314,269 @@ describe("mobile PDF export", () => {
     expect(shareAsync).not.toHaveBeenCalled();
   });
 
+  it("downloads a generated PDF into a picked visible directory", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const onDirectoryPicked = jest.fn();
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add("file:///downloads");
+    mockPickDirectoryAsync.mockResolvedValue({ uri: "file:///downloads" });
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+      {
+        onDirectoryPicked,
+      },
+    );
+
+    expect(mockPickDirectoryAsync).toHaveBeenCalled();
+    expect(mockCopy).toHaveBeenLastCalledWith(
+      "file:///docs/grocery-bill-2026-03-09.pdf",
+      "file:///downloads/grocery-bill-2026-03-09.pdf",
+    );
+    expect(result).toEqual({
+      uri: "file:///downloads/grocery-bill-2026-03-09.pdf",
+      fileName: "grocery-bill-2026-03-09.pdf",
+      directoryUri: "file:///downloads",
+    });
+    expect(onDirectoryPicked).toHaveBeenCalledWith("file:///downloads");
+  });
+
+  it("reuses the remembered visible directory without opening picker", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const onDirectoryPicked = jest.fn();
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add("file:///downloads");
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+      {
+        preferredDirectoryUri: "file:///downloads",
+        onDirectoryPicked,
+      },
+    );
+
+    expect(mockPickDirectoryAsync).not.toHaveBeenCalled();
+    expect(result.directoryUri).toBe("file:///downloads");
+    expect(onDirectoryPicked).toHaveBeenCalledWith("file:///downloads");
+  });
+
+  it("falls back to picker when remembered directory cannot be read", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add("file:///downloads");
+    mockUnreadableDirectoryUris.add("file:///downloads");
+    mockExistingDirectoryUris.add("file:///documents");
+    mockPickDirectoryAsync.mockResolvedValue({ uri: "file:///documents" });
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+      {
+        preferredDirectoryUri: "file:///downloads",
+      },
+    );
+
+    expect(mockPickDirectoryAsync).toHaveBeenCalledWith("file:///downloads");
+    expect(result.directoryUri).toBe("file:///documents");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("saves duplicate download names with suffixes", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add("file:///downloads");
+    mockExistingUris.add("file:///downloads/grocery-bill-2026-03-09.pdf");
+    mockPickDirectoryAsync.mockResolvedValue({ uri: "file:///downloads" });
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(result.fileName).toBe("grocery-bill-2026-03-09 (1).pdf");
+    expect(result.uri).toBe("file:///downloads/grocery-bill-2026-03-09 (1).pdf");
+  });
+
+  it("throws a typed cancellation error when directory picker is cancelled", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockPickDirectoryAsync.mockRejectedValue(new Error("Picker cancelled"));
+
+    let thrownError: unknown;
+    try {
+      await downloadSettlementPdfToDevice(
+        {
+          ...(pdfFixture.input as SplitFormValues),
+          splitName: "Grocery bill",
+        },
+        pdfFixture.assumptions.locale,
+      );
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toMatchObject({
+      name: "DirectoryPickerCancelledError",
+    });
+    expect(isDirectoryPickerCancelledError(thrownError)).toBe(true);
+
+    expect(
+      isDirectoryPickerCancelledError(new Error("noop")),
+    ).toBe(false);
+  });
+
+  it("treats empty picker result as cancellation", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockPickDirectoryAsync.mockResolvedValue(undefined);
+
+    await expect(
+      downloadSettlementPdfToDevice(
+        {
+          ...(pdfFixture.input as SplitFormValues),
+          splitName: "Grocery bill",
+        },
+        pdfFixture.assumptions.locale,
+      ),
+    ).rejects.toMatchObject({
+      name: "DirectoryPickerCancelledError",
+    });
+  });
+
+  it("does not fail download when persisting picked directory fails", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const onDirectoryPicked = jest.fn(async () => {
+      throw new Error("db locked");
+    });
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add("file:///downloads");
+    mockPickDirectoryAsync.mockResolvedValue({ uri: "file:///downloads" });
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+      { onDirectoryPicked },
+    );
+
+    expect(result.uri).toBe("file:///downloads/grocery-bill-2026-03-09.pdf");
+    expect(onDirectoryPicked).toHaveBeenCalledWith("file:///downloads");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Failed to persist selected PDF folder URI",
+      expect.any(Error),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("downloads into SAF tree directories via StorageAccessFramework", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const safTreeUri =
+      "content://com.android.externalstorage.documents/tree/primary%3ATest";
+    const existingSafEntry =
+      "content://com.android.externalstorage.documents/tree/primary%3ATest/document/primary%3ATest%2Fsplit-bill-2026-03-09.pdf";
+    const createdSafFileUri =
+      "content://com.android.externalstorage.documents/tree/primary%3ATest/document/primary%3ATest%2Fsplit-bill-2026-03-09%20(1).pdf";
+
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    mockExistingDirectoryUris.add(safTreeUri);
+    mockPickDirectoryAsync.mockResolvedValue({ uri: safTreeUri });
+    mockSafDirectoryEntries.set(safTreeUri, [existingSafEntry]);
+    mockSafCreateFileAsync.mockResolvedValue(createdSafFileUri);
+    mockLegacyReadAsStringAsync.mockResolvedValue("BASE64PDF");
+    mockLegacyWriteAsStringAsync.mockResolvedValue(undefined);
+
+    const result = await downloadSettlementPdfToDevice(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Split bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(mockSafCreateFileAsync).toHaveBeenCalledWith(
+      safTreeUri,
+      "split-bill-2026-03-09 (1)",
+      "application/pdf",
+    );
+    expect(mockLegacyReadAsStringAsync).toHaveBeenCalledWith(
+      "file:///docs/split-bill-2026-03-09.pdf",
+      { encoding: "base64" },
+    );
+    expect(mockLegacyWriteAsStringAsync).toHaveBeenCalledWith(
+      createdSafFileUri,
+      "BASE64PDF",
+      {
+        encoding: "base64",
+      },
+    );
+    expect(mockLegacyCopyAsync).not.toHaveBeenCalledWith({
+      from: "file:///docs/split-bill-2026-03-09.pdf",
+      to: createdSafFileUri,
+    });
+    expect(result).toEqual({
+      uri: createdSafFileUri,
+      fileName: "split-bill-2026-03-09 (1).pdf",
+      directoryUri: safTreeUri,
+    });
+  });
+
   it("replaces an existing named PDF before sharing again", async () => {
     const printToFileAsync = Print.printToFileAsync as jest.Mock;
     const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
@@ -285,7 +608,7 @@ describe("mobile PDF export", () => {
     );
 
     expect(mockDelete).toHaveBeenCalledWith(
-      expect.stringContaining("file:///docs/grocery-bill-2026-03-09.pdf.bak-"),
+      "file:///docs/grocery-bill-2026-03-09.pdf",
     );
     expect(mockDelete).toHaveBeenCalledWith("file:///tmp/split-bill.pdf");
     expect(mockCopy).toHaveBeenNthCalledWith(
