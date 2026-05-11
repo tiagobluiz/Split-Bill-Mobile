@@ -29,6 +29,12 @@ describe("ui primitives", () => {
 
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getByText("footer")).toBeTruthy();
+    expect(styles.footerHost.zIndex).toBe(20);
+    expect(styles.footerHost.elevation).toBe(20);
+    expect(styles.footerHost.overflow).toBe("hidden");
+    expect(styles.footerHost.backgroundColor).toBe("transparent");
+    expect(styles.footer.borderTopWidth).toBeUndefined();
+    expect(styles.footer.backgroundColor).toBe(styles.screen.backgroundColor);
   });
 
   it("renders app screen without scroll when requested", () => {

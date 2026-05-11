@@ -723,6 +723,11 @@ export const screenStyles = StyleSheet.create({
   },
   splitFooterInlineSummary: {
     gap: 4,
+    marginTop: 4,
+  },
+  itemsFooterInlineSummary: {
+    gap: 4,
+    marginTop: 4,
   },
   resultsInvalidCard: {
     marginTop: 24,
