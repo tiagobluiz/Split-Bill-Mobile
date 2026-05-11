@@ -207,6 +207,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   );
   const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
+  const activeRatePairRef = useRef("");
   const buildRateMapFromRecord = (currentRecord: DraftRecord) => {
     const savedByPair = currentRecord.values.exchangeRatesByPair ?? {};
     if (Object.keys(savedByPair).length > 0) {
@@ -338,8 +339,12 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
 
   useEffect(() => {
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
+    const pairChanged = activeRatePairRef.current !== pairKey;
+    if (pairChanged) {
+      activeRatePairRef.current = pairKey;
+    }
     const savedPairRate = rateByPair[pairKey];
-    if (!savedPairRate && rateSource === "manual") {
+    if (!savedPairRate && rateSource === "manual" && !pairChanged) {
       return;
     }
     if (!savedPairRate) {
@@ -351,7 +356,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     setRateInput(String(savedPairRate.rate));
     setRateSource(savedPairRate.rateSource);
     setRateUpdatedAt(savedPairRate.rateUpdatedAt ?? null);
-  }, [normalizedCurrency, normalizedTargetCurrency, rateByPair, rateSource]);
+  }, [normalizedCurrency, normalizedTargetCurrency, rateSource]);
 
   useEffect(() => {
     if (!needsConversion) {
