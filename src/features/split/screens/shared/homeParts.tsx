@@ -112,6 +112,8 @@ export function RecordRow({
   return (
     <Swipeable
       overshootRight={false}
+      containerStyle={screenStyles.swipeableVisibleContainer}
+      childrenContainerStyle={screenStyles.swipeableVisibleContainer}
       renderRightActions={() => (
         <Pressable
           accessibilityRole="button"

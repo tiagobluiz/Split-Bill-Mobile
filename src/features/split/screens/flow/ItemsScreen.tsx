@@ -470,6 +470,8 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   <Swipeable
                     key={item.id}
                     overshootRight={false}
+                    containerStyle={screenStyles.swipeableVisibleContainer}
+                    childrenContainerStyle={screenStyles.swipeableVisibleContainer}
                     renderRightActions={() => (
                       <Pressable
                         accessibilityRole="button"
@@ -490,58 +492,60 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       </Pressable>
                     )}
                   >
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open item ${itemTitle}`}
-                      accessibilityActions={[
-                        { name: "delete", label: `Delete item ${itemTitle}` },
-                      ]}
-                      onAccessibilityAction={(event) => {
-                        if (event.nativeEvent.actionName === "delete") {
-                          queueItemDelete(item.id, itemTitle);
+                    <View style={screenStyles.recentShadowWrap}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open item ${itemTitle}`}
+                        accessibilityActions={[
+                          { name: "delete", label: `Delete item ${itemTitle}` },
+                        ]}
+                        onAccessibilityAction={(event) => {
+                          if (event.nativeEvent.actionName === "delete") {
+                            queueItemDelete(item.id, itemTitle);
+                          }
+                        }}
+                        style={screenStyles.itemsListCard}
+                        onPress={() =>
+                          router.push(`/split/${draftId}/assign/${item.id}`)
                         }
-                      }}
-                      style={screenStyles.itemsListCard}
-                      onPress={() =>
-                        router.push(`/split/${draftId}/assign/${item.id}`)
-                      }
-                    >
-                    <XStack
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap="$4"
-                    >
-                      <YStack flex={1} gap="$1.5">
+                      >
+                      <XStack
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap="$4"
+                      >
+                        <YStack flex={1} gap="$1.5">
+                          <Text
+                            fontFamily={FONTS.headlineBold}
+                            fontSize={18}
+                            color={PALETTE.onSurface}
+                          >
+                            {itemTitle}
+                          </Text>
+                          <Text
+                            fontFamily={FONTS.bodyBold}
+                            fontSize={11}
+                            color={PALETTE.onSurfaceVariant}
+                            textTransform="uppercase"
+                            letterSpacing={1.5}
+                          >
+                            {getItemCategoryLabel(item)}
+                          </Text>
+                        </YStack>
                         <Text
                           fontFamily={FONTS.headlineBold}
                           fontSize={18}
                           color={PALETTE.onSurface}
                         >
-                          {itemTitle}
+                          {formatMoney(
+                            parseMoneyToCents(item.price) ?? 0,
+                            record.values.currency,
+                            locale,
+                          )}
                         </Text>
-                        <Text
-                          fontFamily={FONTS.bodyBold}
-                          fontSize={11}
-                          color={PALETTE.onSurfaceVariant}
-                          textTransform="uppercase"
-                          letterSpacing={1.5}
-                        >
-                          {getItemCategoryLabel(item)}
-                        </Text>
-                      </YStack>
-                      <Text
-                        fontFamily={FONTS.headlineBold}
-                        fontSize={18}
-                        color={PALETTE.onSurface}
-                      >
-                        {formatMoney(
-                          parseMoneyToCents(item.price) ?? 0,
-                          record.values.currency,
-                          locale,
-                        )}
-                      </Text>
-                    </XStack>
-                    </Pressable>
+                      </XStack>
+                      </Pressable>
+                    </View>
                   </Swipeable>
                 );
               })}

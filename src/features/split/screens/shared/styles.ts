@@ -32,7 +32,7 @@ export const screenStyles = StyleSheet.create({
     zIndex: 5,
   },
   reviewListViewport: {
-    overflow: "hidden",
+    overflow: "visible",
   },
   splitScrollViewport: {
     flex: 1,
@@ -40,6 +40,9 @@ export const screenStyles = StyleSheet.create({
   },
   reviewListContent: {
     paddingTop: 20,
+  },
+  swipeableVisibleContainer: {
+    overflow: "visible",
   },
   stickyHomeHeader: {
     backgroundColor: PALETTE.surface,
@@ -851,9 +854,14 @@ export const screenStyles = StyleSheet.create({
     paddingVertical: 0,
   },
   recentShadowWrap: {
+    paddingHorizontal: 6,
+    marginHorizontal: -6,
     paddingBottom: 6,
     marginBottom: -6,
     overflow: "visible",
+  },
+  reviewLastItemShadowSpacer: {
+    marginBottom: 6,
   },
   settingsInlineAction: {
     width: 40,
