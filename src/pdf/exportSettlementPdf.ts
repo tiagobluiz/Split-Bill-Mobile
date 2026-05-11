@@ -46,7 +46,17 @@ function isPickerCancellationError(error: unknown) {
     "message" in error && typeof error.message === "string"
       ? error.message.toLowerCase()
       : "";
-  return maybeMessage.includes("cancel");
+  const knownCancellationPhrases = [
+    "cancelled by user",
+    "canceled by user",
+    "user cancelled",
+    "user canceled",
+    "picker cancelled",
+    "picker canceled",
+  ];
+  return knownCancellationPhrases.some((phrase) =>
+    maybeMessage.includes(phrase),
+  );
 }
 
 function escapeHtml(value: string) {
@@ -731,6 +741,17 @@ async function copyFileToSafUri(sourceFileUri: string, destinationSafFileUri: st
   );
 }
 
+function cleanupInternalCopy(uri: string) {
+  try {
+    const file = new File(uri);
+    if (file.exists) {
+      file.delete();
+    }
+  } catch (error) {
+    console.warn("Failed to clean up internal PDF copy", error);
+  }
+}
+
 export type DownloadSettlementPdfToDeviceOptions = {
   preferredDirectoryUri?: string;
   pickDirectory?: (
@@ -832,6 +853,7 @@ export async function downloadSettlementPdfToDevice(
     try {
       const saved = await copyIntoDirectory(preferredDirectory);
       await persistPickedDirectory(saved.directoryUri);
+      cleanupInternalCopy(generatedPdf.uri);
       return saved;
     } catch (error) {
       console.warn(
@@ -847,6 +869,7 @@ export async function downloadSettlementPdfToDevice(
   );
   const saved = await copyIntoDirectory(selectedDirectory);
   await persistPickedDirectory(saved.directoryUri);
+  cleanupInternalCopy(generatedPdf.uri);
   return saved;
 }
 

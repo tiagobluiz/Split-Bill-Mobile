@@ -66,8 +66,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   );
   const hasAutoCompletedRef = useRef<string | null>(null);
   const [exportPdfPending, setExportPdfPending] = useState(false);
-  const [pdfNoticeMessages, setPdfNoticeMessages] = useState<string[]>([]);
-  const [pdfNoticeTitle, setPdfNoticeTitle] = useState<string | undefined>(undefined);
+  const [pdfNotice, setPdfNotice] = useState<{
+    title?: string;
+    messages: string[];
+  }>({ messages: [] });
   const [showPdfActions, setShowPdfActions] = useState(false);
   const didLongPressPdfRef = useRef(false);
   const settlement = getSettlementPreview(record);
@@ -253,10 +255,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   return;
                 }
                 if (!pdfData) {
-                  setPdfNoticeTitle(undefined);
-                  setPdfNoticeMessages([
-                    t("flow.results.pdfUnavailable"),
-                  ]);
+                  setPdfNotice({
+                    title: undefined,
+                    messages: [t("flow.results.pdfUnavailable")],
+                  });
                   return;
                 }
 
@@ -265,8 +267,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   await exportSettlementPdf(record.values, locale);
                 } catch (error) {
                   console.warn("Failed to export split PDF", error);
-                  setPdfNoticeTitle(undefined);
-                  setPdfNoticeMessages([t("flow.results.pdfFailed")]);
+                  setPdfNotice({
+                    title: undefined,
+                    messages: [t("flow.results.pdfFailed")],
+                  });
                 } finally {
                   setExportPdfPending(false);
                 }
@@ -601,11 +605,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         </YStack>
       </ScrollView>
       <SplitNoticeModal
-        title={pdfNoticeTitle}
-        messages={pdfNoticeMessages}
+        title={pdfNotice.title}
+        messages={pdfNotice.messages}
         onDismiss={() => {
-          setPdfNoticeMessages([]);
-          setPdfNoticeTitle(undefined);
+          setPdfNotice({ messages: [] });
         }}
       />
       {showPdfActions ? (
@@ -618,8 +621,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
-                  setPdfNoticeTitle(undefined);
-                  setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
+                  setPdfNotice({
+                    title: undefined,
+                    messages: [t("flow.results.pdfUnavailable")],
+                  });
                   return;
                 }
                 void (async () => {
@@ -628,8 +633,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                     await exportSettlementPdf(record.values, locale);
                   } catch (error) {
                     console.warn("Failed to export split PDF", error);
-                    setPdfNoticeTitle(undefined);
-                    setPdfNoticeMessages([t("flow.results.pdfFailed")]);
+                    setPdfNotice({
+                      title: undefined,
+                      messages: [t("flow.results.pdfFailed")],
+                    });
                   } finally {
                     setExportPdfPending(false);
                   }
@@ -642,8 +649,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 didLongPressPdfRef.current = false;
                 setShowPdfActions(false);
                 if (!pdfData) {
-                  setPdfNoticeTitle(undefined);
-                  setPdfNoticeMessages([t("flow.results.pdfUnavailable")]);
+                  setPdfNotice({
+                    title: undefined,
+                    messages: [t("flow.results.pdfUnavailable")],
+                  });
                   return;
                 }
                 void (async () => {
@@ -661,15 +670,19 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           }),
                       },
                     );
-                    setPdfNoticeTitle(t("flow.results.pdfDownloadedTitle"));
-                    setPdfNoticeMessages([t("flow.results.pdfDownloaded")]);
+                    setPdfNotice({
+                      title: t("flow.results.pdfDownloadedTitle"),
+                      messages: [t("flow.results.pdfDownloaded")],
+                    });
                   } catch (error) {
                     if (isDirectoryPickerCancelledError(error)) {
                       return;
                     }
                     console.warn("Failed to download split PDF", error);
-                    setPdfNoticeTitle(undefined);
-                    setPdfNoticeMessages([t("flow.results.pdfDownloadFailed")]);
+                    setPdfNotice({
+                      title: undefined,
+                      messages: [t("flow.results.pdfDownloadFailed")],
+                    });
                   } finally {
                     setExportPdfPending(false);
                   }
