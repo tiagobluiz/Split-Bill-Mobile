@@ -130,6 +130,49 @@ describe("settings storage", () => {
     });
   });
 
+  it("loads and saves the optional PDF download directory URI", async () => {
+    const { database, settingsModule } = await loadModule({
+      row: {
+        key: "app-settings",
+        payload: JSON.stringify({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "",
+          balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
+          defaultCurrency: "EUR",
+          language: "en",
+          humour: "plain",
+          splitListAmountDisplay: "remaining",
+          customCurrencies: [],
+          pdfDownloadDirectoryUri: "file:///downloads",
+        }),
+      },
+    });
+
+    await settingsModule.initializeSettingsStorage();
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
+      ownerName: "Tiago",
+      pdfDownloadDirectoryUri: "file:///downloads",
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+      pdfDownloadDirectoryUri: "file:///documents",
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    const persistedPayload = JSON.parse(saveArgs[1][1]);
+    expect(persistedPayload.pdfDownloadDirectoryUri).toBe("file:///documents");
+  });
+
   it("falls back to defaults when settings do not exist or are malformed", async () => {
     const { settingsModule } = await loadModule({
       row: {

@@ -26,12 +26,13 @@ let runtimeSettings: TranslationSettings = {
   humour: DEFAULT_HUMOUR,
 };
 
-function interpolate(template: string, params?: TranslateParams) {
+function interpolate(template: unknown, params?: TranslateParams) {
+  const safeTemplate = typeof template === "string" ? template : "";
   if (!params) {
-    return template;
+    return safeTemplate;
   }
 
-  return template.replace(/\{(\w+)\}/g, (_match, token: string) => {
+  return safeTemplate.replace(/\{(\w+)\}/g, (_match, token: string) => {
     const value = params[token];
     return value === undefined ? "" : String(value);
   });
@@ -85,14 +86,20 @@ export function translateWithSettings(
   const fallbackTone = normalizeHumour(options?.fallbackTone ?? "plain");
   const languageCatalog = translationCatalog[language];
   const defaultCatalog = translationCatalog[DEFAULT_LANGUAGE];
-  const defaultResolved = defaultCatalog.plain[key] as string;
+  const defaultResolved =
+    typeof defaultCatalog.plain[key] === "string"
+      ? (defaultCatalog.plain[key] as string)
+      : String(key);
   const maxLength = options?.maxLength;
 
   const candidates = [
     languageCatalog[humour][key],
     languageCatalog[fallbackTone][key],
     defaultResolved,
-  ].filter((candidate): candidate is string => Boolean(candidate));
+  ].filter(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.length > 0,
+  );
 
   const resolved = maxLength
     ? candidates.find((candidate) => candidate.length <= maxLength) ??

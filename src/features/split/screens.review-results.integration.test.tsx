@@ -678,6 +678,43 @@ describe("split screens", () => {
     expect(screen.queryByText("Your PDF is ready to share or save.")).toBeNull();
   });
 
+  it("downloads PDF from the long-press actions and persists selected folder", async () => {
+    const downloadSettlementPdfToDeviceSpy = jest
+      .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
+      .mockImplementation(async (_values, _locale, options) => {
+        await options?.onDirectoryPicked?.("file:///downloads");
+        return {
+          uri: "file:///downloads/split-bill-2026-03-09.pdf",
+          fileName: "split-bill-2026-03-09.pdf",
+          directoryUri: "file:///downloads",
+        };
+      });
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
+    fireEvent.press(screen.getByText("Download PDF"));
+
+    await waitFor(() => {
+      expect(downloadSettlementPdfToDeviceSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          currency: "EUR",
+        }),
+        expect.any(String),
+        expect.objectContaining({
+          preferredDirectoryUri: undefined,
+          onDirectoryPicked: expect.any(Function),
+        }),
+      );
+    });
+    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+      pdfDownloadDirectoryUri: "file:///downloads",
+    });
+  });
+
   it("supports marking the whole bill as paid and reverting it", async () => {
     const { rerender } = render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
@@ -1074,6 +1111,47 @@ describe("split screens", () => {
       expect(screen.getByText("Could not generate the PDF.")).toBeTruthy();
     });
     expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("shows download failure feedback when saving PDF to visible folder fails", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    jest
+      .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
+      .mockRejectedValueOnce(new Error("save down"));
+
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
+    fireEvent.press(screen.getByText("Download PDF"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Almost there")).toBeTruthy();
+      expect(screen.getByText("Could not download the PDF.")).toBeTruthy();
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("does not show download failure feedback when user cancels directory picker", async () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    jest
+      .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
+      .mockRejectedValueOnce(new pdfExportModule.DirectoryPickerCancelledError());
+
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
+    fireEvent.press(screen.getByText("Download PDF"));
+
+    await waitFor(() => {
+      expect(
+        pdfExportModule.downloadSettlementPdfToDevice,
+      ).toHaveBeenCalled();
+    });
+    expect(screen.queryByText("Could not download the PDF.")).toBeNull();
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      "Failed to download split PDF",
+      expect.anything(),
+    );
     warnSpy.mockRestore();
   });
 

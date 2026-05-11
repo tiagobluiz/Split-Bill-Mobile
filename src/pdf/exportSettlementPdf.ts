@@ -1,7 +1,8 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
+import * as LegacyFileSystem from "expo-file-system/legacy";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
@@ -9,6 +10,54 @@ import { formatMoney, type SplitFormValues } from "../domain/splitter";
 import { t } from "../i18n";
 
 const PDF_HEADER_ASSET = require("../../assets/split-bill-pdf-header.png");
+const DOWNLOAD_DUPLICATE_MAX_INDEX = 999;
+const INTERNAL_FILE_NAME_MAX_INDEX = 999;
+
+export class DirectoryPickerCancelledError extends Error {
+  constructor() {
+    super("Directory picker was cancelled by user.");
+    this.name = "DirectoryPickerCancelledError";
+  }
+}
+
+function isPickerCancellationError(error: unknown) {
+  if (error instanceof DirectoryPickerCancelledError) {
+    return true;
+  }
+
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeCode =
+    "code" in error && typeof error.code === "string"
+      ? error.code.toLowerCase()
+      : "";
+  if (
+    maybeCode === "err_canceled" ||
+    maybeCode === "err_cancelled" ||
+    maybeCode === "user_canceled" ||
+    maybeCode === "user_cancelled"
+  ) {
+    return true;
+  }
+
+  const maybeMessage =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+  const knownCancellationPhrases = [
+    "cancelled by user",
+    "canceled by user",
+    "user cancelled",
+    "user canceled",
+    "picker cancelled",
+    "picker canceled",
+  ];
+  return knownCancellationPhrases.some((phrase) =>
+    maybeMessage.includes(phrase),
+  );
+}
 
 function escapeHtml(value: string) {
   return value
@@ -481,46 +530,16 @@ export async function buildSettlementPdfFile(
 
   const sourceFile = new File(uri);
   const destinationFile = new File(Paths.document, data.fileName);
-  const tempDestinationFile = new File(
-    Paths.document,
-    `${data.fileName}.tmp-${Date.now()}`,
-  );
-  const backupDestinationFile = new File(
-    Paths.document,
-    `${data.fileName}.bak-${Date.now()}`,
-  );
+  const tempDestinationFile = buildUniqueInternalFileName(data.fileName, "tmp");
   try {
     sourceFile.copy(tempDestinationFile);
-    let movedExistingToBackup = false;
     if (destinationFile.exists) {
-      destinationFile.move(backupDestinationFile);
-      movedExistingToBackup = true;
+      destinationFile.delete();
     }
-    try {
-      tempDestinationFile.move(destinationFile);
-    } catch (error) {
-      if (movedExistingToBackup && backupDestinationFile.exists) {
-        backupDestinationFile.move(destinationFile);
-      }
-      throw error;
-    }
-    if (backupDestinationFile.exists) {
-      backupDestinationFile.delete();
-    }
+    tempDestinationFile.move(destinationFile);
   } catch (error) {
-    let restoreFailed = false;
-    if (backupDestinationFile.exists && !destinationFile.exists) {
-      try {
-        backupDestinationFile.move(destinationFile);
-      } catch {
-        restoreFailed = true;
-      }
-    }
     if (tempDestinationFile.exists) {
       tempDestinationFile.delete();
-    }
-    if (backupDestinationFile.exists && !restoreFailed) {
-      backupDestinationFile.delete();
     }
     throw error;
   } finally {
@@ -533,6 +552,329 @@ export async function buildSettlementPdfFile(
     uri: destinationFile.uri,
     fileName: data.fileName,
   };
+}
+
+function splitFileNameAndExtension(fileName: string) {
+  const lastDot = fileName.lastIndexOf(".");
+  if (lastDot <= 0) {
+    return {
+      baseName: fileName,
+      extension: "",
+    };
+  }
+
+  return {
+    baseName: fileName.slice(0, lastDot),
+    extension: fileName.slice(lastDot),
+  };
+}
+
+function createDuplicateSafeName(fileName: string, index: number) {
+  if (index === 0) {
+    return fileName;
+  }
+
+  const { baseName, extension } = splitFileNameAndExtension(fileName);
+  return `${baseName} (${index})${extension}`;
+}
+
+function buildAvailableDestinationFile(
+  directory: Directory,
+  preferredFileName: string,
+) {
+  for (let index = 0; index <= DOWNLOAD_DUPLICATE_MAX_INDEX; index += 1) {
+    const candidateName = createDuplicateSafeName(preferredFileName, index);
+    const candidateFile = new File(directory, candidateName);
+    if (!candidateFile.exists) {
+      return {
+        file: candidateFile,
+        fileName: candidateName,
+      };
+    }
+  }
+
+  throw new Error("Could not create a unique PDF filename.");
+}
+
+function isSafTreeUri(uri: string) {
+  return uri.startsWith("content://") && uri.includes("/tree/");
+}
+
+function decodeSafNameFromUri(uri: string) {
+  const withoutQuery = uri.split("?")[0] ?? uri;
+  const segments = withoutQuery.split("/");
+  const lastSegment = segments[segments.length - 1] ?? "";
+  try {
+    const decoded = decodeURIComponent(lastSegment);
+    const slashIndex = decoded.lastIndexOf("/");
+    if (slashIndex >= 0 && slashIndex < decoded.length - 1) {
+      return decoded.slice(slashIndex + 1);
+    }
+    return decoded;
+  } catch {
+    return lastSegment;
+  }
+}
+
+async function buildAvailableDestinationNameForSafDirectory(
+  directoryUri: string,
+  preferredFileName: string,
+) {
+  const existingUris = await LegacyFileSystem.StorageAccessFramework.readDirectoryAsync(
+    directoryUri,
+  );
+  const existingNames = new Set(
+    existingUris.map((uri) => decodeSafNameFromUri(uri)),
+  );
+
+  for (let index = 0; index <= DOWNLOAD_DUPLICATE_MAX_INDEX; index += 1) {
+    const candidateName = createDuplicateSafeName(preferredFileName, index);
+    if (!existingNames.has(candidateName)) {
+      return candidateName;
+    }
+  }
+
+  throw new Error("Could not create a unique PDF filename in SAF directory.");
+}
+
+async function createSafDestinationFile(
+  directoryUri: string,
+  preferredFileName: string,
+) {
+  const firstCandidateName = await buildAvailableDestinationNameForSafDirectory(
+    directoryUri,
+    preferredFileName,
+  );
+  let startIndex = 0;
+  if (firstCandidateName !== preferredFileName) {
+    startIndex = 1;
+  }
+
+  for (
+    let index = startIndex;
+    index <= DOWNLOAD_DUPLICATE_MAX_INDEX;
+    index += 1
+  ) {
+    const candidateName =
+      startIndex === 0 && index === 0
+        ? firstCandidateName
+        : createDuplicateSafeName(preferredFileName, index);
+    const { baseName } = splitFileNameAndExtension(candidateName);
+    try {
+      const destinationUri =
+        await LegacyFileSystem.StorageAccessFramework.createFileAsync(
+          directoryUri,
+          baseName,
+          "application/pdf",
+        );
+      return {
+        fileUri: destinationUri,
+        fileName: candidateName,
+      };
+    } catch (error) {
+      if (!isFileAlreadyExistsError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Could not create a unique PDF filename in SAF directory.");
+}
+
+function buildUniqueInternalFileName(fileName: string, suffix: string) {
+  const { baseName, extension } = splitFileNameAndExtension(fileName);
+  const timestamp = Date.now();
+  for (let index = 0; index <= INTERNAL_FILE_NAME_MAX_INDEX; index += 1) {
+    const serial = index === 0 ? "" : `-${index}`;
+    const candidateName = `${baseName}${extension}.${suffix}-${timestamp}${serial}`;
+    const candidateFile = new File(Paths.document, candidateName);
+    if (!candidateFile.exists) {
+      return candidateFile;
+    }
+  }
+
+  throw new Error(`Could not create a unique ${suffix} file name.`);
+}
+
+function isFileAlreadyExistsError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : "";
+  return message.includes("FileAlreadyExistsException");
+}
+
+async function copyFileWithLegacySafFallback(
+  sourceFileUri: string,
+  destinationFile: File,
+): Promise<void> {
+  try {
+    new File(sourceFileUri).copy(destinationFile);
+    return;
+  } catch (error) {
+    const destinationUri = destinationFile.uri;
+    const isSafUri = destinationUri.startsWith("content://");
+    if (!isSafUri) {
+      throw error;
+    }
+  }
+
+  await LegacyFileSystem.copyAsync({
+    from: sourceFileUri,
+    to: destinationFile.uri,
+  });
+}
+
+async function copyFileToSafUri(sourceFileUri: string, destinationSafFileUri: string) {
+  const sourceBase64 = await LegacyFileSystem.readAsStringAsync(sourceFileUri, {
+    encoding: LegacyFileSystem.EncodingType.Base64,
+  });
+  await LegacyFileSystem.writeAsStringAsync(
+    destinationSafFileUri,
+    sourceBase64,
+    {
+      encoding: LegacyFileSystem.EncodingType.Base64,
+    },
+  );
+}
+
+function cleanupInternalCopy(uri: string) {
+  try {
+    const file = new File(uri);
+    if (file.exists) {
+      file.delete();
+    }
+  } catch (error) {
+    console.warn("Failed to clean up internal PDF copy", error);
+  }
+}
+
+export type DownloadSettlementPdfToDeviceOptions = {
+  preferredDirectoryUri?: string;
+  pickDirectory?: (
+    initialUri?: string,
+  ) => Promise<{ uri?: string } | Directory | null | undefined>;
+  onDirectoryPicked?: (directoryUri: string) => void | Promise<void>;
+};
+
+function tryResolvePreferredDirectory(preferredDirectoryUri?: string) {
+  if (!preferredDirectoryUri) {
+    return null;
+  }
+
+  try {
+    const directory = new Directory(preferredDirectoryUri);
+    if (!directory.exists) {
+      return null;
+    }
+    directory.list();
+    return directory;
+  } catch (error) {
+    console.warn("Failed to reuse previously selected PDF folder", error);
+    return null;
+  }
+}
+
+async function requestVisibleDirectory(
+  preferredDirectoryUri: string | undefined,
+  pickDirectory: (
+    initialUri?: string,
+  ) => Promise<{ uri?: string } | Directory | null | undefined>,
+) {
+  try {
+    const selectedDirectory = await pickDirectory(preferredDirectoryUri);
+    const uri = selectedDirectory?.uri;
+    if (!uri || !uri.trim()) {
+      throw new DirectoryPickerCancelledError();
+    }
+    return new Directory(uri);
+  } catch (error) {
+    if (isPickerCancellationError(error)) {
+      throw new DirectoryPickerCancelledError();
+    }
+    throw error;
+  }
+}
+
+export async function downloadSettlementPdfToDevice(
+  values: SplitFormValues,
+  locale = "en-US",
+  options: DownloadSettlementPdfToDeviceOptions = {},
+): Promise<{ uri: string; fileName: string; directoryUri: string }> {
+  const generatedPdf = await buildSettlementPdfFile(values, locale);
+  const sourceFile = new File(generatedPdf.uri);
+  const pickDirectory = options.pickDirectory ?? Directory.pickDirectoryAsync;
+
+  const persistPickedDirectory = async (directoryUri: string) => {
+    if (!options.onDirectoryPicked) {
+      return;
+    }
+
+    try {
+      await options.onDirectoryPicked(directoryUri);
+    } catch (error) {
+      console.warn("Failed to persist selected PDF folder URI", error);
+    }
+  };
+
+  const copyIntoDirectory = async (directory: Directory) => {
+    if (isSafTreeUri(directory.uri)) {
+      const safDestination = await createSafDestinationFile(
+        directory.uri,
+        generatedPdf.fileName,
+      );
+      await copyFileToSafUri(generatedPdf.uri, safDestination.fileUri);
+      return {
+        uri: safDestination.fileUri,
+        fileName: safDestination.fileName,
+        directoryUri: directory.uri,
+      };
+    }
+
+    const destination = buildAvailableDestinationFile(
+      directory,
+      generatedPdf.fileName,
+    );
+    await copyFileWithLegacySafFallback(generatedPdf.uri, destination.file);
+    return {
+      uri: destination.file.uri,
+      fileName: destination.fileName,
+      directoryUri: directory.uri,
+    };
+  };
+
+  const preferredDirectory = tryResolvePreferredDirectory(
+    options.preferredDirectoryUri,
+  );
+  if (preferredDirectory) {
+    try {
+      const saved = await copyIntoDirectory(preferredDirectory);
+      await persistPickedDirectory(saved.directoryUri);
+      cleanupInternalCopy(generatedPdf.uri);
+      return saved;
+    } catch (error) {
+      console.warn(
+        "Failed to write PDF into previously selected folder, reprompting user",
+        error,
+      );
+    }
+  }
+
+  const selectedDirectory = await requestVisibleDirectory(
+    options.preferredDirectoryUri,
+    pickDirectory,
+  );
+  const saved = await copyIntoDirectory(selectedDirectory);
+  await persistPickedDirectory(saved.directoryUri);
+  cleanupInternalCopy(generatedPdf.uri);
+  return saved;
+}
+
+export function isDirectoryPickerCancelledError(error: unknown) {
+  return error instanceof DirectoryPickerCancelledError;
 }
 
 export async function exportSettlementPdf(

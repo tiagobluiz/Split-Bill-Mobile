@@ -320,6 +320,8 @@ const enPlain = {
   "flow.results.pdfActionsTitle": "PDF options",
   "flow.results.pdfActionShare": "Share PDF",
   "flow.results.pdfActionDownload": "Download PDF",
+  "flow.results.pdfDownloadedTitle": "Download complete",
+  "flow.results.pdfDownloaded": "PDF downloaded successfully.",
   "flow.results.pdfDownloadFailed": "Could not download the PDF.",
   "flow.results.shareA11y": "Share results",
   "flow.results.pdfUnavailable":
@@ -914,6 +916,8 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.results.pdfActionsTitle": "Opções de PDF",
   "flow.results.pdfActionShare": "Partilhar PDF",
   "flow.results.pdfActionDownload": "Descarregar PDF",
+  "flow.results.pdfDownloadedTitle": "Descarregamento concluído",
+  "flow.results.pdfDownloaded": "PDF descarregado com sucesso.",
   "flow.results.pdfDownloadFailed": "Não foi possível descarregar o PDF.",
   "flow.results.shareA11y": "Partilhar",
   "flow.results.pdfUnavailable":
