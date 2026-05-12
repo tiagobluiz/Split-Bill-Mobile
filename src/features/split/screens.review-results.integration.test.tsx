@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import { Alert, Keyboard, Share, StyleSheet, TextInput, View } from "react-native";
 import { ScrollView } from "react-native";
 import * as domain from "../../domain";
 import * as pdfExportModule from "../../pdf/exportSettlementPdf";
 import { buildRecordRoute } from "./screens/shared/recordUtils";
+import { screenStyles } from "./screens/shared/styles";
 
 import {
   AssignItemScreen,
@@ -774,6 +775,34 @@ describe("split screens", () => {
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
     fireEvent.press(screen.getByLabelText("Mark Zoe as paid"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe");
+  });
+
+  it("renders results breakdown rows without per-row footer spacer styles", async () => {
+    const view = render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    const breakdownCards = view.UNSAFE_getAllByType(View).filter((node) => {
+      const style = node.props.style;
+      return Array.isArray(style) && style.includes(screenStyles.resultsBreakdownCard);
+    });
+    expect(breakdownCards.length).toBeGreaterThan(0);
+
+    const cardsWithFooterSpacer = breakdownCards.filter((node) => {
+      const style = node.props.style;
+      return (
+        Array.isArray(style) &&
+        style.some(
+          (entry) =>
+            Boolean(entry) &&
+            typeof entry === "object" &&
+            "marginBottom" in entry &&
+            (entry as { marginBottom?: unknown }).marginBottom === 6,
+        )
+      );
+    });
+    expect(cardsWithFooterSpacer).toHaveLength(0);
   });
 
   it("renders reverse-settlement breakdowns using the people owed by the payer", async () => {

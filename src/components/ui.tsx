@@ -11,7 +11,7 @@ import {
 
 import { FONTS, PALETTE } from "../theme/palette";
 
-const FOOTER_PADDING_TOP = 18;
+const FOOTER_PADDING_TOP = 0;
 const FOOTER_PADDING_BOTTOM = 28;
 const FOOTER_OVERLAY_HEIGHT = 132;
 const SCROLL_BOTTOM_SPACER = FOOTER_OVERLAY_HEIGHT + FOOTER_PADDING_TOP + FOOTER_PADDING_BOTTOM + 20;
@@ -41,7 +41,9 @@ export function AppScreen({
   return (
     <View style={styles.screen}>
       {content}
-      {footer ? <View style={styles.footerHost}>{footer}</View> : null}
+      {footer ? (
+        <View style={styles.footerHost}>{footer}</View>
+      ) : null}
     </View>
   );
 }
@@ -374,16 +376,18 @@ export const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: "transparent",
+    zIndex: 20,
+    elevation: 20,
+    overflow: "hidden",
   },
   footer: {
     paddingHorizontal: 24,
     paddingTop: FOOTER_PADDING_TOP,
     paddingBottom: FOOTER_PADDING_BOTTOM,
-    backgroundColor: PALETTE.footerGlass,
+    backgroundColor: PALETTE.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderColor: PALETTE.outlineVariant,
   },
   input: {
     minHeight: 56,

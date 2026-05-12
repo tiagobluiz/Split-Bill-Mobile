@@ -328,7 +328,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                 </Pressable>
               </View>
             ) : null}
-            <YStack gap="$1">
+            <YStack style={screenStyles.itemsFooterInlineSummary}>
               <Text
                 fontFamily={FONTS.bodyBold}
                 fontSize={10}
