@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#A54206"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.miagology.splitbill",
@@ -37,6 +32,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#A54206",
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "imageWidth": 300
+        }
+      ],
       "expo-router",
       "expo-font",
       "expo-sqlite",
