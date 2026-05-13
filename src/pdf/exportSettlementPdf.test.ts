@@ -117,6 +117,7 @@ import pdfFixture from "../../docs/logic/fixtures/pdf-export-mixed-modes.json";
 import * as Print from "expo-print";
 import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
+import { File } from "expo-file-system";
 
 import {
   buildSettlementPdfFile,
@@ -685,6 +686,50 @@ describe("mobile PDF export", () => {
     ).rejects.toThrow("printer unavailable");
   });
 
+  it("uses legacy file-system reads for header image when base64Sync fails", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+    const fromModule = Asset.fromModule as unknown as jest.Mock;
+    const base64SyncSpy = jest
+      .spyOn((File as any).prototype, "base64Sync")
+      .mockImplementationOnce(() => {
+        throw new Error("URI is not absolute");
+      });
+
+    fromModule.mockReturnValueOnce({
+      localUri: "/data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
+      downloadAsync: jest.fn().mockResolvedValue(undefined),
+    });
+    mockLegacyReadAsStringAsync.mockResolvedValue("LEGACY_BASE64_HEADER");
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    isAvailableAsync.mockResolvedValue(true);
+    shareAsync.mockResolvedValue(undefined);
+
+    await exportSettlementPdf(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(mockLegacyReadAsStringAsync).toHaveBeenCalledWith(
+      "file:///data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
+      { encoding: "base64" },
+    );
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("data:image/png;base64,LEGACY_BASE64_HEADER"),
+      }),
+    );
+    base64SyncSpy.mockRestore();
+  });
+
   it("falls back to exporting without a branded header when image loading fails", async () => {
     const printToFileAsync = Print.printToFileAsync as jest.Mock;
     const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
@@ -716,5 +761,33 @@ describe("mobile PDF export", () => {
         html: expect.not.stringContaining("data:image/png;base64,"),
       }),
     );
+  });
+
+  it("fails when header loading fails and fallback is explicitly disabled", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const fromModule = Asset.fromModule as unknown as jest.Mock;
+
+    fromModule.mockReturnValueOnce({
+      localUri: null,
+      downloadAsync: jest.fn().mockRejectedValueOnce(new Error("asset down")),
+    });
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+
+    await expect(
+      buildSettlementPdfFile(
+        {
+          ...(pdfFixture.input as SplitFormValues),
+          splitName: "Grocery bill",
+        },
+        pdfFixture.assumptions.locale,
+        { allowHeaderlessWhenAssetUnavailable: false },
+      ),
+    ).rejects.toThrow("Failed to load PDF header image asset.");
+
+    expect(printToFileAsync).not.toHaveBeenCalled();
   });
 });
