@@ -601,7 +601,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   <Pressable
                     key={person.participantId}
                     accessibilityRole="button"
-                    accessibilityLabel={togglePaidA11yLabel}
+                    accessibilityHint={togglePaidA11yLabel}
                     style={[
                       screenStyles.resultsBreakdownCard,
                       isSettled
