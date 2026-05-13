@@ -725,6 +725,77 @@ describe("split store", () => {
     expect(storageMocks.saveRecord).toHaveBeenCalled();
   });
 
+  it("reopens a completed split as draft when value edits change the record", async () => {
+    const completedRecord = createRecord({
+      status: "completed",
+      step: 6,
+      completedAt: "2026-04-05T10:00:00.000Z",
+    });
+    const { storeModule } = await loadReadyStore({ record: completedRecord });
+
+    await storeModule.useSplitStore.getState().createItem({
+      id: "item-added-after-settled",
+      name: "Dessert",
+      price: "7.25",
+      category: "",
+      splitMode: "even",
+      allocations: [
+        { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+        { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+      ],
+    });
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()).toEqual(
+      expect.objectContaining({
+        status: "draft",
+        completedAt: null,
+        step: 5,
+      }),
+    );
+  });
+
+  it("keeps completed status for settlement-only edits", async () => {
+    const completedRecord = createRecord({
+      status: "completed",
+      step: 6,
+      completedAt: "2026-04-05T10:00:00.000Z",
+      settlementState: {
+        settledParticipantIds: ["bruno"],
+      },
+    });
+    const { storeModule } = await loadReadyStore({ record: completedRecord });
+
+    await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()).toEqual(
+      expect.objectContaining({
+        status: "completed",
+        step: 6,
+      }),
+    );
+  });
+
+  it("does not reopen completed status for no-op value edits", async () => {
+    const completedRecord = createRecord({
+      status: "completed",
+      step: 6,
+      completedAt: "2026-04-05T10:00:00.000Z",
+    });
+    const { storeModule } = await loadReadyStore({ record: completedRecord });
+
+    await storeModule.useSplitStore
+      .getState()
+      .updateItemField("item-even", "name", "Milk");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()).toEqual(
+      expect.objectContaining({
+        status: "completed",
+        completedAt: "2026-04-05T10:00:00.000Z",
+        step: 6,
+      }),
+    );
+  });
+
   it("marks and reverts paid settlement state for the active record", async () => {
     const record = createRecord();
     const { storeModule } = await loadStore({

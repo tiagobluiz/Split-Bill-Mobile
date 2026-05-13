@@ -157,14 +157,28 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
 function normalizeActiveRecordMutation(
   record: DraftRecord,
   mutator: (draft: DraftRecord) => void,
+  options?: {
+    recomputeStatusOnValueChange?: boolean;
+  },
 ) {
   const nextRecord = cloneDeep(record);
+  const previousValuesSnapshot = JSON.stringify(record.values);
   if (!nextRecord.settlementState) {
     nextRecord.settlementState = {
       settledParticipantIds: [],
     };
   }
   mutator(nextRecord);
+  const hasValuesChanged =
+    previousValuesSnapshot !== JSON.stringify(nextRecord.values);
+  if (
+    options?.recomputeStatusOnValueChange &&
+    record.status === "completed" &&
+    hasValuesChanged
+  ) {
+    nextRecord.status = "draft";
+    nextRecord.completedAt = null;
+  }
   const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
   nextRecord.settlementState = {
     settledParticipantIds: (
@@ -376,7 +390,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         if (exchangeRatesByPair !== undefined) {
           draft.values.exchangeRatesByPair = exchangeRatesByPair;
         }
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async setStep(step) {
@@ -408,14 +422,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ),
           );
         draft.values = ensureItemsAligned(draft.values);
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async setPayer(participantId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.payerParticipantId = participantId;
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async createItem(item) {
@@ -426,7 +440,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           draft.values.participants,
         );
         draft.values.items.push(syncedItem);
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async saveItemSplit(itemId, item) {
@@ -439,7 +453,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.values.items = draft.values.items.map((entry) =>
           entry.id === itemId ? syncedItem : entry,
         );
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async updateItemField(itemId, field, value) {
@@ -448,7 +462,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.values.items = draft.values.items.map((item) =>
           item.id === itemId ? { ...item, [field]: value } : item,
         );
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async removeItem(itemId) {
@@ -457,7 +471,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.values.items = draft.values.items.filter(
           (item) => item.id !== itemId,
         );
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async setItemSplitMode(itemId, splitMode) {
@@ -493,7 +507,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async toggleEvenIncluded(itemId, participantId) {
@@ -511,7 +525,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               }
             : item,
         );
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async setItemSharesValue(itemId, participantId, nextValue) {
@@ -529,7 +543,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               }
             : item,
         );
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async setItemPercentValue(itemId, participantId, nextValue) {
@@ -553,7 +567,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           didChange = true;
           return { ...item, allocations: nextAllocations };
         });
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
     return didChange;
   },
@@ -587,7 +601,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async focusOnlyParticipant(itemId, participantId) {
@@ -627,7 +641,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             })),
           };
         });
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
   },
   async importPastedList(rawInput, mode) {
@@ -667,7 +681,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
                 ...existingItems,
                 ...importedItems,
               ];
-      }),
+      }, { recomputeStatusOnValueChange: true }),
     );
     return {
       warningCodes: [
