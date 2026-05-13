@@ -1,6 +1,15 @@
-import type { PropsWithChildren, ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useCallback, useMemo, useState, type PropsWithChildren, type ReactNode } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Circle as TamaguiCircle,
   Paragraph as TamaguiParagraph,
@@ -11,10 +20,12 @@ import {
 
 import { FONTS, PALETTE } from "../theme/palette";
 
-const FOOTER_PADDING_TOP = 0;
-const FOOTER_PADDING_BOTTOM = 28;
-const FOOTER_OVERLAY_HEIGHT = 132;
-const SCROLL_BOTTOM_SPACER = FOOTER_OVERLAY_HEIGHT + FOOTER_PADDING_TOP + FOOTER_PADDING_BOTTOM + 20;
+const FOOTER_SIDE_PADDING = 20;
+const FOOTER_TOP_PADDING = 8;
+const FOOTER_BOTTOM_MIN_INSET = 14;
+const DEFAULT_FOOTER_FALLBACK_HEIGHT = 154;
+const DEFAULT_FOOTER_CONTENT_GAP = 16;
+const DEFAULT_SCROLL_BOTTOM_SPACER = 28;
 const Circle = TamaguiCircle as any;
 const Paragraph = TamaguiParagraph as any;
 const Text = TamaguiText as any;
@@ -35,7 +46,7 @@ export function AppScreen({
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.flex, footer ? styles.nonScrollContentWithFooter : null]}>{children}</View>
+    <View style={styles.flex}>{children}</View>
   );
 
   return (
@@ -211,7 +222,92 @@ export function QuietButton({ label, onPress, disabled }: { label: string; onPre
 }
 
 export function FloatingFooter({ children }: PropsWithChildren) {
-  return <View style={styles.footer}>{children}</View>;
+  return (
+    <View style={styles.footerFrame}>
+      {children}
+    </View>
+  );
+}
+
+export function FooterBubble({
+  children,
+  style,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  return <View style={[styles.footerBubble, style]}>{children}</View>;
+}
+
+export function useFloatingFooterInset(options?: {
+  fallbackHeight?: number;
+  contentSafetyGap?: number;
+}) {
+  const fallbackHeight = options?.fallbackHeight ?? DEFAULT_FOOTER_FALLBACK_HEIGHT;
+  const contentSafetyGap =
+    options?.contentSafetyGap ?? DEFAULT_FOOTER_CONTENT_GAP;
+  const [measuredFooterHeight, setMeasuredFooterHeight] = useState(0);
+
+  const onMeasuredHeight = useCallback((height: number) => {
+    const roundedHeight = Math.max(0, Math.round(height));
+    setMeasuredFooterHeight((current) =>
+      current === roundedHeight ? current : roundedHeight,
+    );
+  }, []);
+
+  const insetBottom = useMemo(
+    () =>
+      (measuredFooterHeight > 0 ? measuredFooterHeight : fallbackHeight) +
+      contentSafetyGap,
+    [contentSafetyGap, fallbackHeight, measuredFooterHeight],
+  );
+
+  return {
+    insetBottom,
+    measuredFooterHeight,
+    onMeasuredHeight,
+  };
+}
+
+export function MeasuredFloatingFooter({
+  children,
+  onMeasuredHeight,
+}: PropsWithChildren<{
+  onMeasuredHeight?: (height: number) => void;
+}>) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      testID="measured-floating-footer"
+      onLayout={(event) => {
+        onMeasuredHeight?.(event.nativeEvent.layout.height);
+      }}
+      style={[
+        styles.footerFrame,
+        { paddingBottom: Math.max(insets.bottom, FOOTER_BOTTOM_MIN_INSET) },
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function StackedFloatingFooter({
+  children,
+  onMeasuredHeight,
+}: PropsWithChildren<{ onMeasuredHeight?: (height: number) => void }>) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      testID="stacked-floating-footer"
+      onLayout={(event) => {
+        onMeasuredHeight?.(event.nativeEvent.layout.height);
+      }}
+      style={[
+        styles.footerFrame,
+        { paddingBottom: Math.max(insets.bottom, FOOTER_BOTTOM_MIN_INSET) },
+      ]}
+    >
+      <YStack gap="$3">{children}</YStack>
+    </View>
+  );
 }
 
 export function SoftInput({
@@ -310,10 +406,13 @@ export function EmptyState({
 export const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: PALETTE.surface },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: SCROLL_BOTTOM_SPACER, gap: 24 },
-  nonScrollContentWithFooter: {
-    paddingBottom: FOOTER_OVERLAY_HEIGHT,
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: DEFAULT_SCROLL_BOTTOM_SPACER,
+    gap: 24,
   },
+  nonScrollContentWithFooter: {},
   hero: {
     borderRadius: 28,
     paddingHorizontal: 24,
@@ -379,15 +478,25 @@ export const styles = StyleSheet.create({
     backgroundColor: "transparent",
     zIndex: 20,
     elevation: 20,
-    overflow: "hidden",
+    overflow: "visible",
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: FOOTER_PADDING_TOP,
-    paddingBottom: FOOTER_PADDING_BOTTOM,
-    backgroundColor: PALETTE.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+  footerFrame: {
+    paddingHorizontal: FOOTER_SIDE_PADDING,
+    paddingTop: FOOTER_TOP_PADDING,
+    paddingBottom: FOOTER_BOTTOM_MIN_INSET,
+  },
+  footerBubble: {
+    backgroundColor: PALETTE.surfaceContainerLowest,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: PALETTE.outlineVariant,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: PALETTE.primary,
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 5,
   },
   input: {
     minHeight: 56,

@@ -33,7 +33,6 @@ import {
   AvatarBadge,
   EmptyState,
   FieldLabel,
-  FloatingFooter,
   HeroCard,
   PrimaryButton,
   QuietButton,
@@ -41,8 +40,10 @@ import {
   SecondaryButton,
   SectionCard,
   SectionEyebrow,
+  StackedFloatingFooter,
   SoftInput,
   StatPill,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { createId, formatMoney, normalizeMoneyInput } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
@@ -123,6 +124,8 @@ export function HomeScreenView() {
       })),
     );
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 260 });
   const locale = getDeviceLocale();
   const [activeTab, setActiveTab] = useState<HomeTabKey>("home");
   const [pendingDelete, setPendingDelete] = useState<null | {
@@ -595,10 +598,11 @@ export function HomeScreenView() {
     <YStack flex={1}>
       {renderMainHeader()}
       <ScrollView
+        testID="home-tab-scroll"
         style={screenStyles.flex}
         contentContainerStyle={[
           screenStyles.mainTabScrollContent,
-          { paddingBottom: 196 + Math.max(insets.bottom, 12) },
+          { paddingBottom: footerInsetBottom },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -817,6 +821,7 @@ export function HomeScreenView() {
         </YStack>
       ) : null}
       <ScrollView
+        testID="splits-tab-scroll"
         style={screenStyles.flex}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -834,7 +839,7 @@ export function HomeScreenView() {
         }}
         contentContainerStyle={[
           screenStyles.homeScrollContent,
-          { paddingBottom: 148 + Math.max(insets.bottom, 12) },
+          { paddingBottom: footerInsetBottom },
         ]}
       >
         <YStack gap="$5">
@@ -929,11 +934,12 @@ export function HomeScreenView() {
     <YStack flex={1}>
       {renderMainHeader()}
       <ScrollView
+        testID="settings-tab-scroll"
         style={screenStyles.flex}
         nestedScrollEnabled
         contentContainerStyle={[
           screenStyles.mainTabScrollContent,
-          { paddingBottom: 360 + Math.max(insets.bottom, 32) },
+          { paddingBottom: footerInsetBottom },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -1333,58 +1339,56 @@ export function HomeScreenView() {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
-          <YStack gap="$3">
-            {activeTab === "settings" ? (
-              <PrimaryButton
-                label={t("settings.save")}
-                onPress={() => void saveSettings()}
-                disabled={!settingsDirty}
-              />
-            ) : null}
-            {pendingDelete ? (
-              <View style={screenStyles.undoBanner}>
-                <YStack flex={1} gap="$1">
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={14}
-                    color={PALETTE.onPrimary}
-                  >
-                    {t("home.undoSplitDeleted")}
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={12}
-                    color="rgba(255,255,255,0.82)"
-                  >
-                    {pendingDelete.title}
-                  </Text>
-                </YStack>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Undo delete"
-                  style={screenStyles.undoButton}
-                  onPress={() => {
-                    clearTimeout(deleteTimeoutRef.current);
-                    deleteTimeoutRef.current = null;
-                    setPendingDelete(null);
-                  }}
+        <StackedFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+          {activeTab === "settings" ? (
+            <PrimaryButton
+              label={t("settings.save")}
+              onPress={() => void saveSettings()}
+              disabled={!settingsDirty}
+            />
+          ) : null}
+          {pendingDelete ? (
+            <View style={screenStyles.undoBanner}>
+              <YStack flex={1} gap="$1">
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={14}
+                  color={PALETTE.onPrimary}
                 >
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={12}
-                    color={PALETTE.onPrimary}
-                    textTransform="uppercase"
-                    letterSpacing={1.6}
-                  >
-                    {t("common.undo")}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-            <HomeTabBar activeTab={activeTab} onChange={attemptTabChange} />
-          </YStack>
-        </FloatingFooter>
+                  {t("home.undoSplitDeleted")}
+                </Text>
+                <Text
+                  fontFamily={FONTS.bodyMedium}
+                  fontSize={12}
+                  color="rgba(255,255,255,0.82)"
+                >
+                  {pendingDelete.title}
+                </Text>
+              </YStack>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Undo delete"
+                style={screenStyles.undoButton}
+                onPress={() => {
+                  clearTimeout(deleteTimeoutRef.current);
+                  deleteTimeoutRef.current = null;
+                  setPendingDelete(null);
+                }}
+              >
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={12}
+                  color={PALETTE.onPrimary}
+                  textTransform="uppercase"
+                  letterSpacing={1.6}
+                >
+                  {t("common.undo")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <HomeTabBar activeTab={activeTab} onChange={attemptTabChange} />
+        </StackedFloatingFooter>
       }
     >
       {activeTab === "home" ? renderHomeContent() : null}

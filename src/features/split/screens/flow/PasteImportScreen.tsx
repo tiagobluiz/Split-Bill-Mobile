@@ -16,11 +16,12 @@ import {
   AppScreen,
   EmptyState,
   FieldLabel,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   PrimaryButton,
   SectionCard,
   SectionEyebrow,
   SoftInput,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -101,6 +102,8 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
   const importPastedList = useSplitStore((state) => state.importPastedList);
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 236 });
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"append" | "replace">("append");
@@ -227,7 +230,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <YStack gap="$2.5">
             {step === 1 ? (
               <>
@@ -311,7 +314,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
               </YStack>
             )}
           </YStack>
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -336,7 +339,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         style={screenStyles.flex}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
-          { paddingBottom: 228 + Math.max(insets.bottom, 14), gap: 22 },
+          { paddingBottom: footerInsetBottom, gap: 22 },
         ]}
         showsVerticalScrollIndicator={false}
       >

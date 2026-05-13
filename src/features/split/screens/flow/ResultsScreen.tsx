@@ -18,7 +18,12 @@ import {
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import { AppScreen, EmptyState, FloatingFooter } from "../../../../components/ui";
+import {
+  AppScreen,
+  EmptyState,
+  MeasuredFloatingFooter,
+  useFloatingFooterInset,
+} from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
   downloadSettlementPdfToDevice,
@@ -81,6 +86,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     title?: string;
     messages: string[];
   }>({ messages: [] });
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
@@ -349,7 +356,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       <AppScreen
         scroll={false}
         footer={
-          <FloatingFooter>
+          <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("flow.results.actionsCtaA11y")}
@@ -367,7 +374,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 </Text>
               </XStack>
             </Pressable>
-          </FloatingFooter>
+          </MeasuredFloatingFooter>
         }
       >
       <View
@@ -382,89 +389,92 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         />
       </View>
       <View style={screenStyles.participantsScrollContent}>
-        <View style={screenStyles.resultsHeroCard}>
-          <View style={screenStyles.resultsHeroGlow} />
-          <YStack gap="$2">
-            <Text
-              fontFamily={FONTS.bodyBold}
-              fontSize={11}
-              color="rgba(255,255,255,0.78)"
-              textTransform="uppercase"
-              letterSpacing={1.8}
-            >
-              {trackPaymentsEnabled ? t("flow.results.totalSettled") : t("flow.results.totalBill")}
-            </Text>
-            {trackPaymentsEnabled ? (
-              <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
+        <YStack gap="$5">
+          <View style={screenStyles.resultsHeroCard}>
+            <View style={screenStyles.resultsHeroGlow} />
+            <YStack gap="$2">
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={11}
+                color="rgba(255,255,255,0.78)"
+                textTransform="uppercase"
+                letterSpacing={1.8}
+              >
+                {trackPaymentsEnabled ? t("flow.results.totalSettled") : t("flow.results.totalBill")}
+              </Text>
+              {trackPaymentsEnabled ? (
+                <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
+                  <Text
+                    fontFamily={FONTS.headlineBlack}
+                    fontSize={32}
+                    color={PALETTE.onPrimary}
+                    letterSpacing={-1.2}
+                  >
+                    {money(settledOwedCents)}
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.headlineBold}
+                    fontSize={20}
+                    color="rgba(255,255,255,0.82)"
+                  >
+                    /
+                    {money(totalOwedCents)}
+                  </Text>
+                </XStack>
+              ) : (
                 <Text
                   fontFamily={FONTS.headlineBlack}
                   fontSize={32}
                   color={PALETTE.onPrimary}
                   letterSpacing={-1.2}
                 >
-                  {money(settledOwedCents)}
+                  {money(settlement.data.totalCents)}
                 </Text>
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={20}
-                  color="rgba(255,255,255,0.82)"
-                >
-                  /
-                  {money(totalOwedCents)}
-                </Text>
-              </XStack>
-            ) : (
-              <Text
-                fontFamily={FONTS.headlineBlack}
-                fontSize={32}
-                color={PALETTE.onPrimary}
-                letterSpacing={-1.2}
-              >
-                {money(settlement.data.totalCents)}
-              </Text>
-            )}
-          </YStack>
-          {trackPaymentsEnabled ? (
-            <View style={screenStyles.resultsProgressTrack}>
-              <View
-                style={[
-                  screenStyles.resultsProgressFill,
-                  { width: `${settlementProgressPercent}%` },
-                ]}
-              />
-            </View>
-          ) : null}
-          <XStack alignItems="center" gap="$2.5" paddingTop="$3">
+              )}
+            </YStack>
             {trackPaymentsEnabled ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  allPaid ? t("flow.results.revertMarkPaidA11y") : t("flow.results.markPaidA11y")
-                }
-                style={screenStyles.resultsHeroChip}
-                onPress={() =>
-                  void runPaymentAction(
-                    allPaid ? revertBillPaid : markBillPaid,
-                    t("flow.results.markPaidFailed"),
-                  )
-                }
-              >
-                {allPaid ? (
-                  <RotateCcw color={PALETTE.primary} size={12} />
-                ) : (
-                  <Check color={PALETTE.primary} size={12} />
-                )}
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={11}
-                  color={PALETTE.primary}
-                >
-                  {allPaid ? t("flow.results.revertMarkPaid") : t("flow.results.markPaid")}
-                </Text>
-              </Pressable>
+              <View style={screenStyles.resultsProgressTrack}>
+                <View
+                  style={[
+                    screenStyles.resultsProgressFill,
+                    { width: `${settlementProgressPercent}%` },
+                  ]}
+                />
+              </View>
             ) : null}
-          </XStack>
-        </View>
+            <XStack alignItems="center" gap="$2.5" paddingTop="$3">
+              {trackPaymentsEnabled ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    allPaid ? t("flow.results.revertMarkPaidA11y") : t("flow.results.markPaidA11y")
+                  }
+                  style={screenStyles.resultsHeroChip}
+                  onPress={() =>
+                    void runPaymentAction(
+                      allPaid ? revertBillPaid : markBillPaid,
+                      t("flow.results.markPaidFailed"),
+                    )
+                  }
+                >
+                  {allPaid ? (
+                    <RotateCcw color={PALETTE.primary} size={12} />
+                  ) : (
+                    <Check color={PALETTE.primary} size={12} />
+                  )}
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={11}
+                    color={PALETTE.primary}
+                  >
+                    {allPaid ? t("flow.results.revertMarkPaid") : t("flow.results.markPaid")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </XStack>
+          </View>
+          <View style={screenStyles.reviewStickySeparator} />
+        </YStack>
       </View>
       <ScrollView
         style={screenStyles.flex}
@@ -472,7 +482,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           screenStyles.participantsScrollContent,
           {
             paddingTop: 14,
-            paddingBottom: 186 + Math.max(insets.bottom, 14),
+            paddingBottom: footerInsetBottom,
             gap: 22,
           },
         ]}

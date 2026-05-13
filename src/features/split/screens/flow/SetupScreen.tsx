@@ -49,7 +49,7 @@ import {
   AvatarBadge,
   EmptyState,
   FieldLabel,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   HeroCard,
   PrimaryButton,
   QuietButton,
@@ -59,6 +59,7 @@ import {
   SectionEyebrow,
   SoftInput,
   StatPill,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import {
   buildShareSummary,
@@ -208,6 +209,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
   const activeRatePairRef = useRef("");
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 186 });
   const buildRateMapFromRecord = (currentRecord: DraftRecord) => {
     const savedByPair = currentRecord.values.exchangeRatesByPair ?? {};
     if (Object.keys(savedByPair).length > 0) {
@@ -448,7 +451,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
             accessibilityLabel={t("flow.setup.nextA11y")}
             disabled={!isSetupStepReady}
@@ -474,7 +477,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               await persistAndContinue();
             }}
           />
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -493,7 +496,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         keyboardShouldPersistTaps="always"
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
-          { paddingBottom: 172 + Math.max(insets.bottom, 14) },
+          { paddingBottom: footerInsetBottom },
         ]}
         showsVerticalScrollIndicator={false}
       >

@@ -3021,3 +3021,66 @@ describe("split screens", () => {
 
 });
 
+
+describe("floating footer layout", () => {
+  const getPaddingBottom = (style: any) => {
+    const flattened = StyleSheet.flatten(style) ?? {};
+    return typeof flattened.paddingBottom === "number" ? flattened.paddingBottom : 0;
+  };
+
+  beforeEach(() => {
+    mockStoreState = buildStore();
+  });
+
+  it("keeps home content scroll-safe with stacked floating footer measurement", () => {
+    render(<HomeScreen />);
+
+    const homeScroll = screen.getByTestId("home-tab-scroll");
+    const initialPaddingBottom = getPaddingBottom(homeScroll.props.contentContainerStyle);
+    expect(initialPaddingBottom).toBeGreaterThan(0);
+
+    fireEvent(screen.getByTestId("stacked-floating-footer"), "layout", {
+      nativeEvent: { layout: { height: 320 } },
+    });
+
+    const updatedPaddingBottom = getPaddingBottom(
+      screen.getByTestId("home-tab-scroll").props.contentContainerStyle,
+    );
+    expect(updatedPaddingBottom).toBe(336);
+  });
+
+  it("keeps items content reachable under the measured floating footer", () => {
+    render(<ItemsScreen draftId="draft-1" />);
+
+    const itemsScroll = screen.getByTestId("items-scroll");
+    const initialPaddingBottom = getPaddingBottom(itemsScroll.props.contentContainerStyle);
+    expect(initialPaddingBottom).toBeGreaterThan(0);
+
+    fireEvent(screen.getByTestId("measured-floating-footer"), "layout", {
+      nativeEvent: { layout: { height: 280 } },
+    });
+
+    const updatedPaddingBottom = getPaddingBottom(
+      screen.getByTestId("items-scroll").props.contentContainerStyle,
+    );
+    expect(updatedPaddingBottom).toBe(296);
+  });
+
+  it("updates items bottom inset when footer height changes", () => {
+    render(<ItemsScreen draftId="draft-1" />);
+
+    fireEvent(screen.getByTestId("measured-floating-footer"), "layout", {
+      nativeEvent: { layout: { height: 140 } },
+    });
+    expect(
+      getPaddingBottom(screen.getByTestId("items-scroll").props.contentContainerStyle),
+    ).toBe(156);
+
+    fireEvent(screen.getByTestId("measured-floating-footer"), "layout", {
+      nativeEvent: { layout: { height: 220 } },
+    });
+    expect(
+      getPaddingBottom(screen.getByTestId("items-scroll").props.contentContainerStyle),
+    ).toBe(236);
+  });
+});

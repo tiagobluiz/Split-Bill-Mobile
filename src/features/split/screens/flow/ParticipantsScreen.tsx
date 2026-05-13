@@ -50,7 +50,7 @@ import {
   AvatarBadge,
   EmptyState,
   FieldLabel,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   HeroCard,
   QuietButton,
   ScreenHeader,
@@ -59,6 +59,7 @@ import {
   SectionEyebrow,
   SoftInput,
   StatPill,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import {
   buildShareSummary,
@@ -183,6 +184,8 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   const participantInputRef = useRef<TextInput>(null);
   const participantNameRef = useRef(name);
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 186 });
   useEffect(() => {
     participantNameRef.current = name;
   }, [name]);
@@ -254,7 +257,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
             accessibilityLabel={t("flow.participants.nextA11y")}
             accessibilityHint={
@@ -275,7 +278,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               router.push(`/split/${draftId}/payer`);
             }}
           />
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -294,7 +297,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         keyboardShouldPersistTaps="always"
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
-          { paddingBottom: 172 + Math.max(insets.bottom, 14) },
+          { paddingBottom: footerInsetBottom },
         ]}
         showsVerticalScrollIndicator={false}
       >
