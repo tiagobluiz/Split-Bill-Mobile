@@ -493,17 +493,12 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               </Text>
             </XStack>
             <YStack gap="$3">
-              {owingPeople.map((person) => (
-                <View
-                  key={person.participantId}
-                  style={[
-                    screenStyles.resultsBreakdownCard,
-                    trackPaymentsEnabled &&
-                    settledParticipantIds.has(person.participantId)
-                      ? screenStyles.resultsBreakdownCardSettled
-                      : null,
-                  ]}
-                >
+              {owingPeople.map((person) => {
+                const isSettled = settledParticipantIds.has(person.participantId);
+                const togglePaidA11yLabel = isSettled
+                  ? t("flow.results.togglePaidAddBackA11y", { name: person.name })
+                  : t("flow.results.togglePaidSettleA11y", { name: person.name });
+                const rowContent = (
                   <XStack
                     alignItems="center"
                     justifyContent="space-between"
@@ -537,16 +532,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           fontSize={20}
                           color={PALETTE.primary}
                           textDecorationLine={
-                            trackPaymentsEnabled &&
-                            settledParticipantIds.has(person.participantId)
+                            trackPaymentsEnabled && isSettled
                               ? "line-through"
                               : "none"
                           }
                         >
                           {money(Math.abs(person.netCents))}
                         </Text>
-                        {trackPaymentsEnabled &&
-                        settledParticipantIds.has(person.participantId) ? (
+                        {trackPaymentsEnabled && isSettled ? (
                           <Text
                             fontFamily={FONTS.bodyBold}
                             fontSize={12}
@@ -569,37 +562,63 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                         ) : null}
                       </YStack>
                       {trackPaymentsEnabled ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={
-                            settledParticipantIds.has(person.participantId)
-                              ? t("flow.results.togglePaidAddBackA11y", { name: person.name })
-                              : t("flow.results.togglePaidSettleA11y", { name: person.name })
-                          }
+                        <View
                           style={[
                             screenStyles.resultsCheckBubble,
-                            settledParticipantIds.has(person.participantId)
+                            isSettled
                               ? screenStyles.resultsCheckBubbleSettled
                               : null,
                           ]}
-                          onPress={() =>
-                            void runPaymentAction(
-                              () => toggleParticipantPaid(person.participantId),
-                              t("flow.results.togglePaidFailed", { name: person.name }),
-                            )
-                          }
                         >
-                          {settledParticipantIds.has(person.participantId) ? (
+                          {isSettled ? (
                             <Minus color={PALETTE.onPrimary} size={14} />
                           ) : (
                             <Check color={PALETTE.onPrimary} size={14} />
                           )}
-                        </Pressable>
+                        </View>
                       ) : null}
                     </XStack>
                   </XStack>
-                </View>
-              ))}
+                );
+
+                if (!trackPaymentsEnabled) {
+                  return (
+                    <View
+                      key={person.participantId}
+                      style={[
+                        screenStyles.resultsBreakdownCard,
+                        isSettled
+                          ? screenStyles.resultsBreakdownCardSettled
+                          : null,
+                      ]}
+                    >
+                      {rowContent}
+                    </View>
+                  );
+                }
+
+                return (
+                  <Pressable
+                    key={person.participantId}
+                    accessibilityRole="button"
+                    accessibilityLabel={togglePaidA11yLabel}
+                    style={[
+                      screenStyles.resultsBreakdownCard,
+                      isSettled
+                        ? screenStyles.resultsBreakdownCardSettled
+                        : null,
+                    ]}
+                    onPress={() =>
+                      void runPaymentAction(
+                        () => toggleParticipantPaid(person.participantId),
+                        t("flow.results.togglePaidFailed", { name: person.name }),
+                      )
+                    }
+                  >
+                    {rowContent}
+                  </Pressable>
+                );
+              })}
             </YStack>
           </YStack>
         </YStack>

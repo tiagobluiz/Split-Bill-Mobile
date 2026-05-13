@@ -777,6 +777,22 @@ describe("split screens", () => {
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe");
   });
 
+  it("toggles participant paid state when pressing the participant row content", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        status: "completed",
+        step: 5,
+        settlementState: {
+          settledParticipantIds: ["bruno"],
+        },
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("Bruno"));
+    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
+  });
+
   it("renders results breakdown rows without per-row footer spacer styles", async () => {
     const view = render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
