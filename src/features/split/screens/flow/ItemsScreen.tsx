@@ -302,7 +302,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             {showMoreBelowCue ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Scroll to bottom"
+                accessibilityLabel={t("flow.items.scrollToBottom")}
                 style={{
                   alignSelf: "center",
                   width: 34,

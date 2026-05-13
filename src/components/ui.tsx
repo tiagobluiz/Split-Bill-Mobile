@@ -412,7 +412,6 @@ export const styles = StyleSheet.create({
     paddingBottom: DEFAULT_SCROLL_BOTTOM_SPACER,
     gap: 24,
   },
-  nonScrollContentWithFooter: {},
   hero: {
     borderRadius: 28,
     paddingHorizontal: 24,
