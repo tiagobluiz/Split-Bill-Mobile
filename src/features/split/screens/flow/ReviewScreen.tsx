@@ -12,8 +12,9 @@ import {
 import {
   AppScreen,
   EmptyState,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   SectionEyebrow,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -57,6 +58,8 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
   const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>(
     [],
   );
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 186 });
   const [reviewViewportHeight, setReviewViewportHeight] = useState(0);
   const [reviewContentHeight, setReviewContentHeight] = useState(0);
 
@@ -91,7 +94,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
             label={t("flow.review.showResults")}
             disabled={!isReviewReady}
@@ -113,7 +116,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
               router.push(`/split/${draftId}/results`);
             }}
           />
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -189,7 +192,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingBottom: 172 + Math.max(insets.bottom, 14),
+            paddingBottom: footerInsetBottom,
           },
         ]}
         showsVerticalScrollIndicator={false}

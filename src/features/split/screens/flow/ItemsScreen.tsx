@@ -49,8 +49,9 @@ import {
   AppScreen,
   AvatarBadge,
   EmptyState,
+  FooterBubble,
   FieldLabel,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   HeroCard,
   QuietButton,
   ScreenHeader,
@@ -59,6 +60,7 @@ import {
   SectionEyebrow,
   SoftInput,
   StatPill,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import {
   buildShareSummary,
@@ -180,10 +182,16 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     title: string;
   }>(null);
   const itemDeleteTimeoutRef = useRef<any>(null);
+  const itemsScrollRef = useRef<ScrollView | null>(null);
   const pendingItemDeleteRef = useRef<null | { id: string; title: string }>(
     null,
   );
   const insets = useSafeAreaInsets();
+  const [itemsViewportHeight, setItemsViewportHeight] = useState(0);
+  const [itemsContentHeight, setItemsContentHeight] = useState(0);
+  const [isNearBottom, setIsNearBottom] = useState(false);
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 206 });
   useEffect(() => {
     return () => {
       if (itemDeleteTimeoutRef.current) {
@@ -241,6 +249,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     record.values.currency,
     locale,
   );
+  const showMoreBelowCue =
+    itemsViewportHeight > 0 &&
+    itemsContentHeight > itemsViewportHeight + 1 &&
+    !isNearBottom;
   const addManualItem = async () => {
     setItemsNoticeMessages([]);
     router.push(`/split/${draftId}/assign/new`);
@@ -285,128 +297,159 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
-          <YStack gap="$3.5">
-            {pendingItemDelete ? (
-              <View style={screenStyles.undoBanner}>
-                <YStack flex={1} gap="$1">
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={14}
-                    color={PALETTE.onPrimary}
-                  >
-                    {t("flow.items.itemDeleted")}
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={12}
-                    color="rgba(255,255,255,0.82)"
-                  >
-                    {pendingItemDelete.title}
-                  </Text>
-                </YStack>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flow.items.undoDelete")}
-                  style={screenStyles.undoButton}
-                  onPress={() => {
-                    clearTimeout(itemDeleteTimeoutRef.current);
-                    itemDeleteTimeoutRef.current = null;
-                    pendingItemDeleteRef.current = null;
-                    setPendingItemDelete(null);
-                  }}
-                >
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={12}
-                    color={PALETTE.onPrimary}
-                    textTransform="uppercase"
-                    letterSpacing={1.6}
-                  >
-                    {t("common.undo")}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-            <YStack style={screenStyles.itemsFooterInlineSummary}>
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={10}
-                color={PALETTE.onSurfaceVariant}
-                textTransform="uppercase"
-                letterSpacing={2.1}
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+          <YStack gap="$2">
+            {showMoreBelowCue ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("flow.items.scrollToBottom")}
+                style={{
+                  alignSelf: "center",
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  backgroundColor: "rgba(255,253,250,0.96)",
+                  borderWidth: 1,
+                  borderColor: PALETTE.outlineVariant,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: PALETTE.primary,
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: 3,
+                }}
+                onPress={() => {
+                  itemsScrollRef.current?.scrollToEnd({ animated: true });
+                }}
               >
-                {t("flow.items.runningTotal")}
-              </Text>
-              <XStack alignItems="flex-end" gap="$2.5">
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={30}
-                  color={PALETTE.onSurface}
-                  letterSpacing={-1.2}
-                >
-                  {runningTotal}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={14}
-                  color={PALETTE.onSurfaceVariant}
-                  paddingBottom="$1"
-                >
-                  {t(
-                    visibleItems.length === 1
-                      ? "flow.items.itemCount.one"
-                      : "flow.items.itemCount.other",
-                    { count: visibleItems.length },
-                  )}
-                </Text>
-              </XStack>
-            </YStack>
-            <FlowContinueButton
-              accessibilityLabel={t("flow.items.nextA11y")}
-              accessibilityHint={
-                isItemsStepReady
-                  ? t("flow.items.nextHintReady")
-                  : t("flow.items.nextHintBlocked")
-              }
-              disabled={!isItemsStepReady}
-              label={t("flow.items.next", undefined, { maxLength: 18 })}
-              onPress={async () => {
-                if (!isItemsStepReady) {
-                  setItemsNoticeMessages([
-                    ...new Set(
-                      effectiveStepTwoErrors.map(getFriendlySplitMessage),
-                    ),
-                  ]);
-                  return;
-                }
-                if (pendingItemDelete) {
-                  try {
-                    await commitPendingItemDelete(pendingItemDelete);
-                  } catch (error) {
-                    console.warn(
-                      "Failed to remove pending item before continuing",
-                      error,
-                    );
-                    pendingItemDeleteRef.current = null;
-                    setPendingItemDelete(null);
-                    setItemsNoticeMessages([t("flow.items.deleteFailed")]);
-                    return;
+                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+              </Pressable>
+            ) : null}
+            <FooterBubble>
+              <YStack gap="$3.5">
+                {pendingItemDelete ? (
+                  <View style={screenStyles.undoBanner}>
+                    <YStack flex={1} gap="$1">
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={14}
+                        color={PALETTE.onPrimary}
+                      >
+                        {t("flow.items.itemDeleted")}
+                      </Text>
+                      <Text
+                        fontFamily={FONTS.bodyMedium}
+                        fontSize={12}
+                        color="rgba(255,255,255,0.82)"
+                      >
+                        {pendingItemDelete.title}
+                      </Text>
+                    </YStack>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("flow.items.undoDelete")}
+                      style={screenStyles.undoButton}
+                      onPress={() => {
+                        clearTimeout(itemDeleteTimeoutRef.current);
+                        itemDeleteTimeoutRef.current = null;
+                        pendingItemDeleteRef.current = null;
+                        setPendingItemDelete(null);
+                      }}
+                    >
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={12}
+                        color={PALETTE.onPrimary}
+                        textTransform="uppercase"
+                        letterSpacing={1.6}
+                      >
+                        {t("common.undo")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                <YStack style={screenStyles.itemsFooterInlineSummary}>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={2.1}
+                  >
+                    {t("flow.items.runningTotal")}
+                  </Text>
+                  <XStack alignItems="flex-end" gap="$2.5">
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={30}
+                      color={PALETTE.onSurface}
+                      letterSpacing={-1.2}
+                    >
+                      {runningTotal}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                      paddingBottom="$1"
+                    >
+                      {t(
+                        visibleItems.length === 1
+                          ? "flow.items.itemCount.one"
+                          : "flow.items.itemCount.other",
+                        { count: visibleItems.length },
+                      )}
+                    </Text>
+                  </XStack>
+                </YStack>
+                <FlowContinueButton
+                  accessibilityLabel={t("flow.items.nextA11y")}
+                  accessibilityHint={
+                    isItemsStepReady
+                      ? t("flow.items.nextHintReady")
+                      : t("flow.items.nextHintBlocked")
                   }
-                }
-                await setStep(5);
-                const nextItem = getNextPendingSplitItem(
-                  effectiveRecordForStep,
-                );
-                router.push(
-                  nextItem
-                    ? `/split/${draftId}/split/${nextItem.id}`
-                    : `/split/${draftId}/overview`,
-                );
-              }}
-            />
+                  disabled={!isItemsStepReady}
+                  label={t("flow.items.next", undefined, { maxLength: 18 })}
+                  onPress={async () => {
+                    if (!isItemsStepReady) {
+                      setItemsNoticeMessages([
+                        ...new Set(
+                          effectiveStepTwoErrors.map(getFriendlySplitMessage),
+                        ),
+                      ]);
+                      return;
+                    }
+                    if (pendingItemDelete) {
+                      try {
+                        await commitPendingItemDelete(pendingItemDelete);
+                      } catch (error) {
+                        console.warn(
+                          "Failed to remove pending item before continuing",
+                          error,
+                        );
+                        pendingItemDeleteRef.current = null;
+                        setPendingItemDelete(null);
+                        setItemsNoticeMessages([t("flow.items.deleteFailed")]);
+                        return;
+                      }
+                    }
+                    await setStep(5);
+                    const nextItem = getNextPendingSplitItem(
+                      effectiveRecordForStep,
+                    );
+                    router.push(
+                      nextItem
+                        ? `/split/${draftId}/split/${nextItem.id}`
+                        : `/split/${draftId}/overview`,
+                    );
+                  }}
+                />
+              </YStack>
+            </FooterBubble>
           </YStack>
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -421,10 +464,25 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
         />
       </View>
       <ScrollView
+        testID="items-scroll"
+        ref={itemsScrollRef}
         style={screenStyles.flex}
+        onLayout={(event) => {
+          setItemsViewportHeight(event.nativeEvent.layout.height);
+        }}
+        onContentSizeChange={(_, contentHeight) => {
+          setItemsContentHeight(contentHeight);
+        }}
+        onScroll={({ nativeEvent }) => {
+          const distanceFromBottom =
+            nativeEvent.contentSize.height -
+            (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
+          setIsNearBottom(distanceFromBottom <= 20);
+        }}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
-          { paddingBottom: 188 + Math.max(insets.bottom, 14), gap: 22 },
+          { paddingBottom: footerInsetBottom, gap: 22 },
         ]}
         showsVerticalScrollIndicator={false}
       >

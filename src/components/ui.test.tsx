@@ -5,9 +5,11 @@ import {
   AppScreen,
   AvatarBadge,
   EmptyState,
+  FooterBubble,
   FieldLabel,
   FloatingFooter,
   HeroCard,
+  MeasuredFloatingFooter,
   PrimaryButton,
   QuietButton,
   ScreenHeader,
@@ -15,6 +17,7 @@ import {
   SectionCard,
   SectionEyebrow,
   SoftInput,
+  StackedFloatingFooter,
   StatPill,
   styles,
 } from "./ui";
@@ -31,10 +34,10 @@ describe("ui primitives", () => {
     expect(screen.getByText("footer")).toBeTruthy();
     expect(styles.footerHost.zIndex).toBe(20);
     expect(styles.footerHost.elevation).toBe(20);
-    expect(styles.footerHost.overflow).toBe("hidden");
+    expect(styles.footerHost.overflow).toBe("visible");
     expect(styles.footerHost.backgroundColor).toBe("transparent");
-    expect(styles.footer.borderTopWidth).toBeUndefined();
-    expect(styles.footer.backgroundColor).toBe(styles.screen.backgroundColor);
+    expect(styles.footerBubble.borderRadius).toBe(32);
+    expect(styles.footerFrame.paddingHorizontal).toBe(20);
   });
 
   it("renders app screen without scroll when requested", () => {
@@ -47,7 +50,7 @@ describe("ui primitives", () => {
     expect(screen.getByText("static content")).toBeTruthy();
     expect(screen.getByText("footer")).toBeTruthy();
     const contentParent = view.getByText("static content").parent?.parent;
-    expect(contentParent?.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ paddingBottom: 132 })]));
+    expect(contentParent?.props.style).toEqual(expect.objectContaining({ flex: 1 }));
   });
 
   it("renders the screen header with and without optional content", () => {
@@ -93,6 +96,12 @@ describe("ui primitives", () => {
         <FloatingFooter>
           <Text>footer slot</Text>
         </FloatingFooter>
+        <FooterBubble>
+          <Text>bubble slot</Text>
+        </FooterBubble>
+        <StackedFloatingFooter>
+          <Text>stack slot</Text>
+        </StackedFloatingFooter>
       </>
     );
 
@@ -101,6 +110,25 @@ describe("ui primitives", () => {
     expect(screen.getByText("Eyebrow label")).toBeTruthy();
     expect(screen.getByText("Field label")).toBeTruthy();
     expect(screen.getByText("footer slot")).toBeTruthy();
+    expect(screen.getByText("bubble slot")).toBeTruthy();
+    expect(screen.getByText("stack slot")).toBeTruthy();
+  });
+
+  it("reports measured floating footer height", () => {
+    const onMeasuredHeight = jest.fn();
+    render(
+      <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+        <Text>measured slot</Text>
+      </MeasuredFloatingFooter>
+    );
+
+    const bubble = screen.getByText("measured slot").parent;
+    const frame = bubble?.parent;
+    fireEvent(frame as any, "layout", {
+      nativeEvent: { layout: { height: 123.4 } },
+    });
+
+    expect(onMeasuredHeight).toHaveBeenCalledWith(123.4);
   });
 
   it("fires primary, secondary, and quiet button callbacks and respects disabled state", () => {
@@ -205,6 +233,6 @@ describe("ui primitives", () => {
     expect(screen.getByText("CD")).toBeTruthy();
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getByText("5")).toBeTruthy();
-    expect(styles.footer.borderTopLeftRadius).toBe(28);
+    expect(styles.footerBubble.borderRadius).toBe(32);
   });
 });

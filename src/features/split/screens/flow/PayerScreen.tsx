@@ -13,7 +13,8 @@ import {
 import {
   AppScreen,
   EmptyState,
-  FloatingFooter,
+  MeasuredFloatingFooter,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -42,6 +43,8 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
   );
   const [showPayerHint, setShowPayerHint] = useState(false);
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 186 });
 
   if (!record) {
     return (
@@ -62,7 +65,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
             accessibilityLabel={t("flow.payer.nextA11y")}
             disabled={!record.values.payerParticipantId}
@@ -77,7 +80,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
               router.push(`/split/${draftId}/items`);
             }}
           />
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -96,7 +99,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingBottom: 172 + Math.max(insets.bottom, 14),
+            paddingBottom: footerInsetBottom,
             gap: 26,
           },
         ]}

@@ -12,10 +12,11 @@ import {
 import {
   AppScreen,
   EmptyState,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   HeroCard,
   SectionCard,
   SectionEyebrow,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -47,6 +48,8 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
   const record = useRecord(draftId);
   const settings = useSplitStore((state) => state.settings);
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 140 });
   const [reviewNoticeMessages, setReviewNoticeMessages] = useState<string[]>(
     [],
   );
@@ -80,7 +83,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
             label={t("flow.overview.finalize")}
             onPress={() => {
@@ -93,7 +96,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
               router.push(`/split/${draftId}/results`);
             }}
           />
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -109,7 +112,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
         contentContainerStyle={[
           screenStyles.reviewScrollContent,
           {
-            paddingBottom: 126 + Math.max(insets.bottom, 14),
+            paddingBottom: footerInsetBottom,
           },
         ]}
         showsVerticalScrollIndicator={false}

@@ -14,9 +14,11 @@ import {
 import {
   AppScreen,
   EmptyState,
+  FooterBubble,
   FieldLabel,
-  FloatingFooter,
+  MeasuredFloatingFooter,
   SectionCard,
+  useFloatingFooterInset,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -62,8 +64,6 @@ const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 const MAX_ITEM_NAME_LENGTH = 25;
-const SPLIT_FOOTER_BASE_PADDING = 164;
-const FLOATING_FOOTER_VERTICAL_PADDING = 46;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
   "Produce",
@@ -106,6 +106,8 @@ export function AssignItemScreen({
   const nameInputRef = useRef<TextInput>(null);
   const priceInputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
+  const { insetBottom: footerInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 178 });
 
   useEffect(() => {
     if (!record) {
@@ -268,7 +270,7 @@ export function AssignItemScreen({
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <XStack gap="$3" alignItems="center">
             {!isNewItem ? (
               <Pressable
@@ -295,7 +297,7 @@ export function AssignItemScreen({
               />
             </View>
           </XStack>
-        </FloatingFooter>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -314,7 +316,7 @@ export function AssignItemScreen({
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingBottom: 164 + Math.max(insets.bottom, 14),
+            paddingBottom: footerInsetBottom,
             gap: 22,
           },
         ]}
@@ -490,13 +492,14 @@ export function SplitItemScreen({
   >(null);
   const [splitNoticeMessages, setSplitNoticeMessages] = useState<string[]>([]);
   const [percentSliderResetKey, setPercentSliderResetKey] = useState(0);
-  const [footerHeight, setFooterHeight] = useState(0);
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
     shares: DraftRecord["values"]["items"][number]["allocations"];
     percent: DraftRecord["values"]["items"][number]["allocations"];
   } | null>(null);
   const insets = useSafeAreaInsets();
+  const { insetBottom: splitFooterInsetBottom, onMeasuredHeight } =
+    useFloatingFooterInset({ fallbackHeight: 196 });
 
   useEffect(() => {
     if (!record) {
@@ -579,10 +582,6 @@ export function SplitItemScreen({
     (sum, allocation) => sum + (parseFloat(allocation.percent) || 0),
     0,
   );
-  const splitScrollBottomPadding =
-    footerHeight > 0
-      ? footerHeight
-      : SPLIT_FOOTER_BASE_PADDING + Math.max(insets.bottom, 14);
   const displayTotalPercent =
     Math.abs(totalPercent - 100) <= 0.01
       ? "100"
@@ -884,119 +883,110 @@ export function SplitItemScreen({
     <AppScreen
       scroll={false}
       footer={
-        <FloatingFooter>
-          <View
-            onLayout={(event) => {
-              const nextHeight =
-                Math.round(event.nativeEvent.layout.height) +
-                FLOATING_FOOTER_VERTICAL_PADDING;
-              setFooterHeight((current) =>
-                current === nextHeight ? current : nextHeight,
-              );
-            }}
-          >
-          <YStack gap="$3">
-            {item.splitMode === "even" ? (
-              <YStack style={screenStyles.splitFooterInlineSummary}>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={10}
-                  color={PALETTE.onSurfaceVariant}
-                  textTransform="uppercase"
-                  letterSpacing={2.1}
-                >
-                  {t("flow.splitItem.splitBy")}
-                </Text>
-                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+          <FooterBubble>
+            <YStack gap="$3">
+              {item.splitMode === "even" ? (
+                <YStack style={screenStyles.splitFooterInlineSummary}>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={2.1}
+                  >
+                    {t("flow.splitItem.splitBy")}
+                  </Text>
+                  <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={30}
+                      color={PALETTE.onSurface}
+                      letterSpacing={-1.1}
+                    >
+                      {assignedCount}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                    >
+                      {t("flow.splitItem.shareRate", {
+                        amount: formatMoney(
+                          evenShareDisplayCents,
+                          record.values.currency,
+                          locale,
+                        ),
+                      })}
+                    </Text>
+                  </XStack>
+                </YStack>
+              ) : null}
+              {item.splitMode === "shares" ? (
+                <YStack style={screenStyles.splitFooterInlineSummary}>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={2.1}
+                  >
+                    {t("flow.splitItem.totalShares")}
+                  </Text>
+                  <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={30}
+                      color={PALETTE.onSurface}
+                      letterSpacing={-1.1}
+                    >
+                      {totalShares}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                    >
+                      {t("flow.splitItem.shareRate", {
+                        amount: formatMoney(
+                          Math.round(shareValue),
+                          record.values.currency,
+                          locale,
+                        ),
+                      })}
+                    </Text>
+                  </XStack>
+                </YStack>
+              ) : null}
+              {item.splitMode === "percent" ? (
+                <YStack style={screenStyles.splitFooterInlineSummary}>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={2.1}
+                  >
+                    {t("flow.splitItem.mode.percent")}
+                  </Text>
                   <Text
                     fontFamily={FONTS.headlineBlack}
                     fontSize={30}
                     color={PALETTE.onSurface}
                     letterSpacing={-1.1}
                   >
-                    {assignedCount}
+                    {t("flow.splitItem.totalPercent", { percent: displayTotalPercent })}
                   </Text>
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={14}
-                    color={PALETTE.onSurfaceVariant}
-                  >
-                    {t("flow.splitItem.shareRate", {
-                      amount: formatMoney(
-                        evenShareDisplayCents,
-                        record.values.currency,
-                        locale,
-                      ),
-                    })}
-                  </Text>
-                </XStack>
-              </YStack>
-            ) : null}
-            {item.splitMode === "shares" ? (
-              <YStack style={screenStyles.splitFooterInlineSummary}>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={10}
-                  color={PALETTE.onSurfaceVariant}
-                  textTransform="uppercase"
-                  letterSpacing={2.1}
-                >
-                  {t("flow.splitItem.totalShares")}
-                </Text>
-                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
-                  <Text
-                    fontFamily={FONTS.headlineBlack}
-                    fontSize={30}
-                    color={PALETTE.onSurface}
-                    letterSpacing={-1.1}
-                  >
-                    {totalShares}
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={14}
-                    color={PALETTE.onSurfaceVariant}
-                  >
-                    {t("flow.splitItem.shareRate", {
-                      amount: formatMoney(
-                        Math.round(shareValue),
-                        record.values.currency,
-                        locale,
-                      ),
-                    })}
-                  </Text>
-                </XStack>
-              </YStack>
-            ) : null}
-            {item.splitMode === "percent" ? (
-              <YStack style={screenStyles.splitFooterInlineSummary}>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={10}
-                  color={PALETTE.onSurfaceVariant}
-                  textTransform="uppercase"
-                  letterSpacing={2.1}
-                >
-                  {t("flow.splitItem.mode.percent")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={30}
-                  color={PALETTE.onSurface}
-                  letterSpacing={-1.1}
-                >
-                  {t("flow.splitItem.totalPercent", { percent: displayTotalPercent })}
-                </Text>
-              </YStack>
-            ) : null}
-            <FlowContinueButton
-              label={ctaLabel}
-              disabled={!isSplitReady}
-              onPress={() => void confirmSplit()}
-            />
-          </YStack>
-          </View>
-        </FloatingFooter>
+                </YStack>
+              ) : null}
+              <FlowContinueButton
+                label={ctaLabel}
+                disabled={!isSplitReady}
+                onPress={() => void confirmSplit()}
+              />
+            </YStack>
+          </FooterBubble>
+        </MeasuredFloatingFooter>
       }
     >
       <View
@@ -1016,7 +1006,7 @@ export function SplitItemScreen({
           contentContainerStyle={[
             screenStyles.participantsScrollContent,
             {
-              paddingBottom: splitScrollBottomPadding,
+              paddingBottom: splitFooterInsetBottom,
               gap: 22,
             },
           ]}
