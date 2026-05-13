@@ -771,10 +771,26 @@ describe("split screens", () => {
 
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Add Bruno back to owed"));
+    fireEvent.press(screen.getByText("Bruno"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
-    fireEvent.press(screen.getByLabelText("Mark Zoe as paid"));
+    fireEvent.press(screen.getByText("Zoe"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe");
+  });
+
+  it("toggles participant paid state when pressing the participant row content", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        status: "completed",
+        step: 5,
+        settlementState: {
+          settledParticipantIds: ["bruno"],
+        },
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("Bruno"));
+    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
   });
 
   it("renders results breakdown rows without per-row footer spacer styles", async () => {
@@ -1228,7 +1244,7 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    fireEvent.press(screen.getByLabelText("Mark Bruno as paid"));
+    fireEvent.press(screen.getByText("Bruno"));
     await waitFor(() => {
       expect(mockAlert).toHaveBeenCalledWith("Please try again.", "Could not update Bruno's payment status.", undefined);
     });

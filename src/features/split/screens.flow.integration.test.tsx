@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert, Keyboard, Linking, Platform, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
+import { screenStyles } from "./screens/shared/styles";
 
 import {
   AssignItemScreen,
@@ -1575,6 +1576,35 @@ describe("split screens", () => {
     expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
   });
 
+  it("shows Save Item as visually disabled until name and price are valid but still allows validation on press", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+
+    const getSaveButton = () => screen.getByLabelText("Save item");
+    const hasDisabledStyle = () => {
+      const style = getSaveButton().props.style;
+      return Array.isArray(style) && style.includes(screenStyles.participantsContinueButtonDisabled);
+    };
+
+    expect(hasDisabledStyle()).toBe(true);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+    expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
+    expect(mockStoreState.createItem).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item name"), "Water");
+      fireEvent.changeText(screen.getByLabelText("Item price"), "0");
+    });
+    expect(hasDisabledStyle()).toBe(true);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByLabelText("Item price"), "2.50");
+    });
+    expect(hasDisabledStyle()).toBe(false);
+  });
+
   it("does not allow saving a new zero-price item and keeps the editor open", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     await act(async () => {
@@ -2990,5 +3020,4 @@ describe("split screens", () => {
   });
 
 });
-
 

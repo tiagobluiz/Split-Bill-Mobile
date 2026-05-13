@@ -185,6 +185,7 @@ export function AssignItemScreen({
   const hasValidName = trimmedItemName.length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
+  const isSaveReady = hasValidName && hasValidPrice;
   const duplicateItemExists = itemHasDuplicate(
     record.values.items,
     {
@@ -289,6 +290,7 @@ export function AssignItemScreen({
               <FlowContinueButton
                 accessibilityLabel={t("flow.itemDetail.saveA11y")}
                 label={t("flow.itemDetail.save")}
+                disabled={!isSaveReady}
                 onPress={() => void saveEditor()}
               />
             </View>
