@@ -559,6 +559,36 @@ export const screenStyles = StyleSheet.create({
   actionSheetButtonDanger: {
     backgroundColor: PALETTE.dangerSurface,
   },
+  actionIconGridRow: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionIconGridButton: {
+    flex: 1,
+    minHeight: 112,
+    borderRadius: 20,
+    backgroundColor: PALETTE.surfaceContainerLow,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  actionIconGridBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: PALETTE.brandOverlayStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionIconGridLabelWrap: {
+    minHeight: 34,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   progressTrack: {
     height: 8,
     borderRadius: 999,

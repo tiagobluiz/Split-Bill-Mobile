@@ -3,7 +3,15 @@ import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
-import { Check, FileJson, Minus, RotateCcw, Share2 } from "lucide-react-native";
+import {
+  ClipboardCopy,
+  Check,
+  FileJson,
+  FileText,
+  Minus,
+  RotateCcw,
+  Share2,
+} from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -36,12 +44,15 @@ import {
   formatAppMoney,
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
-import { ActionSheetModal } from "../shared/modals";
+import { ActionIconGridModal } from "../shared/modals";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
+// Save/download is intentionally hidden from the results actions UX.
+// Re-enable by flipping this flag back to true.
+const ENABLE_SAVE_PDF_ACTION = false;
 
 export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
@@ -70,8 +81,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     title?: string;
     messages: string[];
   }>({ messages: [] });
-  const [showPdfActions, setShowPdfActions] = useState(false);
-  const didLongPressPdfRef = useRef(false);
+  const [showResultsActions, setShowResultsActions] = useState(false);
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
@@ -233,75 +243,118 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       Alert.alert(t("common.tryAgain"), failureMessage);
     }
   };
+  const shareResults = async () => {
+    try {
+      await Share.share({ message: summary });
+    } catch (error) {
+      console.warn("Failed to share split results", error);
+      Alert.alert(
+        t("flow.results.shareFailedTitle"),
+        t("flow.results.shareFailedBody"),
+      );
+    }
+  };
+  const savePdfAction = {
+    label: t("flow.results.pdfActionSaveMultiline"),
+    accessibilityLabel: t("flow.results.pdfActionSave"),
+    icon: <FileJson color={PALETTE.primary} size={18} />,
+    disabled: exportPdfPending,
+    onPress: () => {
+      setShowResultsActions(false);
+      if (!pdfData) {
+        setPdfNotice({
+          title: undefined,
+          messages: [t("flow.results.pdfUnavailable")],
+        });
+        return;
+      }
+      void (async () => {
+        try {
+          setExportPdfPending(true);
+          await downloadSettlementPdfToDevice(record.values, locale, {
+            preferredDirectoryUri: settings.pdfDownloadDirectoryUri,
+            onDirectoryPicked: (directoryUri) =>
+              updateSettings({
+                pdfDownloadDirectoryUri: directoryUri,
+              }),
+          });
+          setPdfNotice({
+            title: t("flow.results.pdfDownloadedTitle"),
+            messages: [t("flow.results.pdfDownloaded")],
+          });
+        } catch (error) {
+          if (isDirectoryPickerCancelledError(error)) {
+            return;
+          }
+          console.warn("Failed to download split PDF", error);
+          setPdfNotice({
+            title: undefined,
+            messages: [t("flow.results.pdfDownloadFailed")],
+          });
+        } finally {
+          setExportPdfPending(false);
+        }
+      })();
+    },
+  };
+  const actionOptions = [
+    {
+      label: t("flow.results.pdfActionShareMultiline"),
+      accessibilityLabel: t("flow.results.pdfActionShare"),
+      icon: <FileText color={PALETTE.primary} size={18} />,
+      disabled: exportPdfPending,
+      onPress: () => {
+        setShowResultsActions(false);
+        if (!pdfData) {
+          setPdfNotice({
+            title: undefined,
+            messages: [t("flow.results.pdfUnavailable")],
+          });
+          return;
+        }
+        void (async () => {
+          try {
+            setExportPdfPending(true);
+            await exportSettlementPdf(record.values, locale);
+          } catch (error) {
+            console.warn("Failed to export split PDF", error);
+            setPdfNotice({
+              title: undefined,
+              messages: [t("flow.results.pdfFailed")],
+            });
+          } finally {
+            setExportPdfPending(false);
+          }
+        })();
+      },
+    },
+    {
+      label: t("flow.results.shareResultsMultiline"),
+      accessibilityLabel: t("flow.results.shareA11y"),
+      icon: <ClipboardCopy color={PALETTE.primary} size={18} />,
+      disabled: exportPdfPending,
+      onPress: () => {
+        setShowResultsActions(false);
+        void shareResults();
+      },
+    },
+  ];
+  // Reviewed/approved save flow is preserved here and can be restored by toggling the flag.
+  if (ENABLE_SAVE_PDF_ACTION) {
+    actionOptions.unshift(savePdfAction);
+  }
 
   return (
-    <AppScreen
-      scroll={false}
-      footer={
-        <FloatingFooter>
-          <XStack gap="$3">
+    <>
+      <AppScreen
+        scroll={false}
+        footer={
+          <FloatingFooter>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("flow.results.exportPdfA11y")}
-              style={screenStyles.resultsSecondaryButton}
-              disabled={exportPdfPending}
-              onLongPress={() => {
-                didLongPressPdfRef.current = true;
-                setShowPdfActions(true);
-              }}
-              onPress={async () => {
-                if (didLongPressPdfRef.current) {
-                  didLongPressPdfRef.current = false;
-                  return;
-                }
-                if (!pdfData) {
-                  setPdfNotice({
-                    title: undefined,
-                    messages: [t("flow.results.pdfUnavailable")],
-                  });
-                  return;
-                }
-
-                try {
-                  setExportPdfPending(true);
-                  await exportSettlementPdf(record.values, locale);
-                } catch (error) {
-                  console.warn("Failed to export split PDF", error);
-                  setPdfNotice({
-                    title: undefined,
-                    messages: [t("flow.results.pdfFailed")],
-                  });
-                } finally {
-                  setExportPdfPending(false);
-                }
-              }}
-            >
-              <XStack alignItems="center" justifyContent="center" gap="$2.5">
-                <FileJson color={PALETTE.onSecondaryContainer} size={18} />
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={15}
-                  color={PALETTE.onSecondaryContainer}
-                >
-                  PDF
-                </Text>
-              </XStack>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("flow.results.shareA11y")}
+              accessibilityLabel={t("flow.results.actionsCtaA11y")}
               style={screenStyles.resultsPrimaryButton}
-              onPress={async () => {
-                try {
-                  await Share.share({ message: summary });
-                } catch (error) {
-                  console.warn("Failed to share split results", error);
-                  Alert.alert(
-                    t("flow.results.shareFailedTitle"),
-                    t("flow.results.shareFailedBody"),
-                  );
-                }
-              }}
+              onPress={() => setShowResultsActions(true)}
             >
               <XStack alignItems="center" justifyContent="center" gap="$2.5">
                 <Share2 color={PALETTE.onPrimary} size={18} />
@@ -310,14 +363,13 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   fontSize={15}
                   color={PALETTE.onPrimary}
                 >
-                  {t("flow.results.shareA11y")}
+                  {t("flow.results.actionsCta")}
                 </Text>
               </XStack>
             </Pressable>
-          </XStack>
-        </FloatingFooter>
-      }
-    >
+          </FloatingFooter>
+        }
+      >
       <View
         style={[
           screenStyles.stickyFlowHeader,
@@ -630,91 +682,16 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           setPdfNotice({ messages: [] });
         }}
       />
-      {showPdfActions ? (
-        <ActionSheetModal
-          title={t("flow.results.pdfActionsTitle")}
-          options={[
-            {
-              label: t("flow.results.pdfActionShare"),
-              onPress: () => {
-                didLongPressPdfRef.current = false;
-                setShowPdfActions(false);
-                if (!pdfData) {
-                  setPdfNotice({
-                    title: undefined,
-                    messages: [t("flow.results.pdfUnavailable")],
-                  });
-                  return;
-                }
-                void (async () => {
-                  try {
-                    setExportPdfPending(true);
-                    await exportSettlementPdf(record.values, locale);
-                  } catch (error) {
-                    console.warn("Failed to export split PDF", error);
-                    setPdfNotice({
-                      title: undefined,
-                      messages: [t("flow.results.pdfFailed")],
-                    });
-                  } finally {
-                    setExportPdfPending(false);
-                  }
-                })();
-              },
-            },
-            {
-              label: t("flow.results.pdfActionDownload"),
-              onPress: () => {
-                didLongPressPdfRef.current = false;
-                setShowPdfActions(false);
-                if (!pdfData) {
-                  setPdfNotice({
-                    title: undefined,
-                    messages: [t("flow.results.pdfUnavailable")],
-                  });
-                  return;
-                }
-                void (async () => {
-                  try {
-                    setExportPdfPending(true);
-                    await downloadSettlementPdfToDevice(
-                      record.values,
-                      locale,
-                      {
-                        preferredDirectoryUri:
-                          settings.pdfDownloadDirectoryUri,
-                        onDirectoryPicked: (directoryUri) =>
-                          updateSettings({
-                            pdfDownloadDirectoryUri: directoryUri,
-                          }),
-                      },
-                    );
-                    setPdfNotice({
-                      title: t("flow.results.pdfDownloadedTitle"),
-                      messages: [t("flow.results.pdfDownloaded")],
-                    });
-                  } catch (error) {
-                    if (isDirectoryPickerCancelledError(error)) {
-                      return;
-                    }
-                    console.warn("Failed to download split PDF", error);
-                    setPdfNotice({
-                      title: undefined,
-                      messages: [t("flow.results.pdfDownloadFailed")],
-                    });
-                  } finally {
-                    setExportPdfPending(false);
-                  }
-                })();
-              },
-            },
-          ]}
+      </AppScreen>
+      {showResultsActions ? (
+        <ActionIconGridModal
+          title={t("flow.results.actionsTitle")}
+          options={actionOptions}
           onDismiss={() => {
-            didLongPressPdfRef.current = false;
-            setShowPdfActions(false);
+            setShowResultsActions(false);
           }}
         />
       ) : null}
-    </AppScreen>
+    </>
   );
 }

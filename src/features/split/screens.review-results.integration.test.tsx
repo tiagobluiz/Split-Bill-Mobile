@@ -665,9 +665,14 @@ describe("split screens", () => {
     expect(screen.getByText("Breakdown")).toBeTruthy();
     expect(screen.getByText("Mark as Paid")).toBeTruthy();
     expect(screen.getAllByText(/3,00|EUR 3.00/).length).toBeGreaterThan(0);
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    expect(screen.queryByLabelText("Save PDF")).toBeNull();
+    expect(screen.getByLabelText("Share PDF")).toBeTruthy();
+    expect(screen.getByLabelText("Share results")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Share results"));
     expect(mockShare).toHaveBeenCalled();
-    fireEvent.press(screen.getByLabelText("Export as PDF"));
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share PDF"));
     await waitFor(() => {
       expect(exportSettlementPdfSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -679,7 +684,7 @@ describe("split screens", () => {
     expect(screen.queryByText("Your PDF is ready to share or save.")).toBeNull();
   });
 
-  it("downloads PDF from the long-press actions and persists selected folder", async () => {
+  it("hides Save PDF from the actions popup while preserving share actions", async () => {
     const downloadSettlementPdfToDeviceSpy = jest
       .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
       .mockImplementation(async (_values, _locale, options) => {
@@ -696,24 +701,9 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
-    fireEvent.press(screen.getByText("Download PDF"));
-
-    await waitFor(() => {
-      expect(downloadSettlementPdfToDeviceSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          currency: "EUR",
-        }),
-        expect.any(String),
-        expect.objectContaining({
-          preferredDirectoryUri: undefined,
-          onDirectoryPicked: expect.any(Function),
-        }),
-      );
-    });
-    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
-      pdfDownloadDirectoryUri: "file:///downloads",
-    });
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    expect(screen.queryByLabelText("Save PDF")).toBeNull();
+    expect(downloadSettlementPdfToDeviceSpy).not.toHaveBeenCalled();
   });
 
   it("supports marking the whole bill as paid and reverting it", async () => {
@@ -752,7 +742,7 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(screen.getByText("Final Results")).toBeTruthy();
     });
-    expect(screen.getByLabelText("Share results")).toBeTruthy();
+    expect(screen.getByLabelText("Open share and export actions")).toBeTruthy();
     expect(mockStoreState.markCompleted).not.toHaveBeenCalled();
   });
 
@@ -1126,7 +1116,7 @@ describe("split screens", () => {
 
   it("renders results fallback subtitle and skips export when PDF data is unavailable", () => {
     const store = require("./store");
-    store.getPdfExportPreview.mockReturnValueOnce(null);
+    store.getPdfExportPreview.mockReturnValue(null);
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1137,7 +1127,8 @@ describe("split screens", () => {
     ];
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Export as PDF"));
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share PDF"));
     expect(screen.getByText("Almost there")).toBeTruthy();
     expect(screen.getByText("PDF export is not available for this split.")).toBeTruthy();
   });
@@ -1149,7 +1140,8 @@ describe("split screens", () => {
       .mockRejectedValueOnce(new Error("pdf down"));
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Export as PDF"));
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share PDF"));
 
     await waitFor(() => {
       expect(screen.getByText("Almost there")).toBeTruthy();
@@ -1159,45 +1151,16 @@ describe("split screens", () => {
     warnSpy.mockRestore();
   });
 
-  it("shows download failure feedback when saving PDF to visible folder fails", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+  it("does not expose Save PDF failure flows while save action is hidden", async () => {
     jest
       .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
       .mockRejectedValueOnce(new Error("save down"));
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
-    fireEvent.press(screen.getByText("Download PDF"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Almost there")).toBeTruthy();
-      expect(screen.getByText("Could not download the PDF.")).toBeTruthy();
-    });
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
-  it("does not show download failure feedback when user cancels directory picker", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    jest
-      .spyOn(pdfExportModule, "downloadSettlementPdfToDevice")
-      .mockRejectedValueOnce(new pdfExportModule.DirectoryPickerCancelledError());
-
-    render(<ResultsScreen draftId="draft-1" />);
-    fireEvent(screen.getByLabelText("Export as PDF"), "onLongPress");
-    fireEvent.press(screen.getByText("Download PDF"));
-
-    await waitFor(() => {
-      expect(
-        pdfExportModule.downloadSettlementPdfToDevice,
-      ).toHaveBeenCalled();
-    });
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(screen.queryByText("Could not download the PDF.")).toBeNull();
-    expect(warnSpy).not.toHaveBeenCalledWith(
-      "Failed to download split PDF",
-      expect.anything(),
-    );
-    warnSpy.mockRestore();
+    expect(pdfExportModule.downloadSettlementPdfToDevice).not.toHaveBeenCalled();
   });
 
   it("handles markCompleted failures without crashing results rendering", async () => {
