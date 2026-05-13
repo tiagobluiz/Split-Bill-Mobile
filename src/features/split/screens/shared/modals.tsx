@@ -1,11 +1,17 @@
+import { type ReactNode } from "react";
 import { Pressable, View } from "react-native";
-import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
+import {
+  Text as TamaguiText,
+  XStack as TamaguiXStack,
+  YStack as TamaguiYStack,
+} from "tamagui";
 
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { t } from "../../../../i18n";
 import { screenStyles } from "./styles";
 
 const Text = TamaguiText as any;
+const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function ActionSheetModal({
@@ -78,6 +84,75 @@ export function ActionSheetModal({
               </YStack>
             </Pressable>
           ))}
+        </YStack>
+      </View>
+    </View>
+  );
+}
+
+export function ActionIconGridModal({
+  title,
+  options,
+  onDismiss,
+}: {
+  title: string;
+  options: Array<{
+    label: string;
+    accessibilityLabel?: string;
+    icon: ReactNode;
+    onPress: () => void;
+    disabled?: boolean;
+  }>;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("modal.dismissActionSheet")}
+        style={screenStyles.splitNoticeBackdrop}
+        onPress={onDismiss}
+      />
+      <View style={screenStyles.actionSheetCard}>
+        <YStack gap="$3.5">
+          <Text
+            fontFamily={FONTS.headlineBold}
+            fontSize={22}
+            color={PALETTE.onSurface}
+          >
+            {title}
+          </Text>
+          <XStack style={screenStyles.actionIconGridRow}>
+            {options.map((option) => (
+              <Pressable
+                key={option.label}
+                accessibilityRole="button"
+                accessibilityLabel={option.accessibilityLabel ?? option.label}
+                accessibilityState={{ disabled: Boolean(option.disabled) }}
+                disabled={option.disabled}
+                style={[
+                  screenStyles.actionIconGridButton,
+                  option.disabled ? { opacity: 0.55 } : null,
+                ]}
+                onPress={option.disabled ? undefined : option.onPress}
+              >
+                <View style={screenStyles.actionIconGridBadge}>
+                  {option.icon}
+                </View>
+                <View style={screenStyles.actionIconGridLabelWrap}>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={13}
+                    color={PALETTE.onSurface}
+                    lineHeight={17}
+                    textAlign="center"
+                  >
+                    {option.label}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </XStack>
         </YStack>
       </View>
     </View>

@@ -42,6 +42,7 @@ jest.mock("lucide-react-native", () => {
     ChevronDown: Icon,
     ClipboardCopy: Icon,
     Equal: Icon,
+    FileText: Icon,
     FileJson: Icon,
     Filter: Icon,
     Hash: Icon,
