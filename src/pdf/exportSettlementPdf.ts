@@ -87,21 +87,53 @@ function getPdfDocumentLanguage(locale: string) {
   return locale.split(/[-_]/)[0] || "en";
 }
 
-async function getPdfHeaderImageDataUri(): Promise<string | undefined> {
+function normalizeUriForExpoFileSystem(uri: string) {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(uri)) {
+    return uri;
+  }
+  if (uri.startsWith("//")) {
+    return `file:${uri}`;
+  }
+  if (uri.startsWith("/")) {
+    return `file://${uri}`;
+  }
+  return uri;
+}
+
+async function getPdfHeaderImageDataUri(): Promise<string> {
+  let localUriForLog = "";
+  let assetUriForLog = "";
   try {
     const asset = Asset.fromModule(PDF_HEADER_ASSET);
     await asset.downloadAsync();
-    const localUri = asset.localUri ?? asset.uri;
+    localUriForLog = asset.localUri ?? "";
+    assetUriForLog = asset.uri ?? "";
+    const localUri = localUriForLog || assetUriForLog;
     if (!localUri) {
-      return undefined;
+      throw new Error("PDF header image asset URI is unavailable.");
     }
 
-    const imageFile = new File(localUri);
-    const base64 = imageFile.base64Sync();
+    const normalizedUri = normalizeUriForExpoFileSystem(localUri);
+    let base64 = "";
+    try {
+      const imageFile = new File(normalizedUri);
+      base64 = imageFile.base64Sync();
+    } catch {
+      base64 = await LegacyFileSystem.readAsStringAsync(normalizedUri, {
+        encoding: LegacyFileSystem.EncodingType.Base64,
+      });
+    }
+    if (!base64) {
+      throw new Error("PDF header image asset base64 payload is empty.");
+    }
     return `data:image/png;base64,${base64}`;
   } catch (error) {
-    console.warn("Failed to load PDF header image asset", error);
-    return undefined;
+    console.warn("Failed to load PDF header image asset", {
+      localUri: localUriForLog,
+      assetUri: assetUriForLog,
+      error,
+    });
+    throw new Error("Failed to load PDF header image asset.");
   }
 }
 
@@ -516,12 +548,30 @@ export function renderSettlementPdfHtml(
   </html>`;
 }
 
+export type BuildSettlementPdfFileOptions = {
+  allowHeaderlessWhenAssetUnavailable?: boolean;
+};
+
 export async function buildSettlementPdfFile(
   values: SplitFormValues,
   locale = "en-US",
+  options: BuildSettlementPdfFileOptions = {},
 ): Promise<{ uri: string; fileName: string }> {
   const data = buildPdfExportData(values, new Date(), locale);
-  const headerImageDataUri = await getPdfHeaderImageDataUri();
+  const allowHeaderlessFallback =
+    options.allowHeaderlessWhenAssetUnavailable ?? true;
+  let headerImageDataUri: string | undefined;
+  try {
+    headerImageDataUri = await getPdfHeaderImageDataUri();
+  } catch (error) {
+    if (!allowHeaderlessFallback) {
+      throw error;
+    }
+    console.warn(
+      "Proceeding with headerless PDF export because fallback was explicitly enabled",
+      error,
+    );
+  }
   const html = renderSettlementPdfHtml(data, locale, headerImageDataUri);
   const { uri } = await Print.printToFileAsync({
     html,
@@ -754,6 +804,7 @@ function cleanupInternalCopy(uri: string) {
 
 export type DownloadSettlementPdfToDeviceOptions = {
   preferredDirectoryUri?: string;
+  allowHeaderlessWhenAssetUnavailable?: boolean;
   pickDirectory?: (
     initialUri?: string,
   ) => Promise<{ uri?: string } | Directory | null | undefined>;
@@ -804,7 +855,10 @@ export async function downloadSettlementPdfToDevice(
   locale = "en-US",
   options: DownloadSettlementPdfToDeviceOptions = {},
 ): Promise<{ uri: string; fileName: string; directoryUri: string }> {
-  const generatedPdf = await buildSettlementPdfFile(values, locale);
+  const generatedPdf = await buildSettlementPdfFile(values, locale, {
+    allowHeaderlessWhenAssetUnavailable:
+      options.allowHeaderlessWhenAssetUnavailable,
+  });
   const sourceFile = new File(generatedPdf.uri);
   const pickDirectory = options.pickDirectory ?? Directory.pickDirectoryAsync;
 
@@ -880,13 +934,14 @@ export function isDirectoryPickerCancelledError(error: unknown) {
 export async function exportSettlementPdf(
   values: SplitFormValues,
   locale = "en-US",
+  options: BuildSettlementPdfFileOptions = {},
 ): Promise<void> {
   const sharingAvailable = await Sharing.isAvailableAsync();
   if (!sharingAvailable) {
     throw new Error(t("pdf.sharingUnavailable"));
   }
 
-  const pdfFile = await buildSettlementPdfFile(values, locale);
+  const pdfFile = await buildSettlementPdfFile(values, locale, options);
   await Sharing.shareAsync(pdfFile.uri, {
     mimeType: "application/pdf",
     UTI: "com.adobe.pdf",
