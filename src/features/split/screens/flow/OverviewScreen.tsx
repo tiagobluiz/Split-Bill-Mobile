@@ -82,6 +82,12 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <SplitNoticeModal
+          messages={reviewNoticeMessages}
+          onDismiss={() => setReviewNoticeMessages([])}
+        />
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
@@ -214,10 +220,6 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
           <ErrorList messages={[...new Set(errorMessages)]} />
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        messages={reviewNoticeMessages}
-        onDismiss={() => setReviewNoticeMessages([])}
-      />
     </AppScreen>
   );
 }

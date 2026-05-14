@@ -256,6 +256,12 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <SplitNoticeModal
+          messages={participantsNoticeMessages}
+          onDismiss={() => setParticipantsNoticeMessages([])}
+        />
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
@@ -432,10 +438,6 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        messages={participantsNoticeMessages}
-        onDismiss={() => setParticipantsNoticeMessages([])}
-      />
     </AppScreen>
   );
 }

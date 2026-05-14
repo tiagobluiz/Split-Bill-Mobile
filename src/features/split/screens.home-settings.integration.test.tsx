@@ -1208,6 +1208,30 @@ describe("split screens", () => {
     });
   });
 
+  it("keeps the split rows popup interactive above the settings footer actions", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    expect(screen.getByText("Save Settings")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(screen.getByText("Choose what split rows show")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
+    expect(screen.queryByText("Choose what split rows show")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    fireEvent.press(screen.getByLabelText("Total bill"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Settings"));
+    });
+
+    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        splitListAmountDisplay: "total",
+      }),
+    );
+  });
+
   it("shows settings validation popups and supports custom/default currency updates", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",

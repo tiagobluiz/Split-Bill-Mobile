@@ -64,6 +64,12 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <SplitNoticeModal
+          messages={showPayerHint ? payerErrors : []}
+          onDismiss={() => setShowPayerHint(false)}
+        />
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
@@ -155,10 +161,6 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        messages={showPayerHint ? payerErrors : []}
-        onDismiss={() => setShowPayerHint(false)}
-      />
     </AppScreen>
   );
 }

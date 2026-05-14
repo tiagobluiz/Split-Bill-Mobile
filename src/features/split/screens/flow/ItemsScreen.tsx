@@ -296,6 +296,12 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <SplitNoticeModal
+          messages={itemsNoticeMessages}
+          onDismiss={() => setItemsNoticeMessages([])}
+        />
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <YStack gap="$2">
@@ -630,10 +636,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        messages={itemsNoticeMessages}
-        onDismiss={() => setItemsNoticeMessages([])}
-      />
     </AppScreen>
   );
 }

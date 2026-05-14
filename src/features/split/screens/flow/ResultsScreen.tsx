@@ -352,10 +352,29 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   }
 
   return (
-    <>
-      <AppScreen
-        scroll={false}
-        footer={
+    <AppScreen
+      scroll={false}
+      overlay={(
+        <>
+          <SplitNoticeModal
+            title={pdfNotice.title}
+            messages={pdfNotice.messages}
+            onDismiss={() => {
+              setPdfNotice({ messages: [] });
+            }}
+          />
+          {showResultsActions ? (
+            <ActionIconGridModal
+              title={t("flow.results.actionsTitle")}
+              options={actionOptions}
+              onDismiss={() => {
+                setShowResultsActions(false);
+              }}
+            />
+          ) : null}
+        </>
+      )}
+      footer={
           <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
             <Pressable
               accessibilityRole="button"
@@ -685,23 +704,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        title={pdfNotice.title}
-        messages={pdfNotice.messages}
-        onDismiss={() => {
-          setPdfNotice({ messages: [] });
-        }}
-      />
-      </AppScreen>
-      {showResultsActions ? (
-        <ActionIconGridModal
-          title={t("flow.results.actionsTitle")}
-          options={actionOptions}
-          onDismiss={() => {
-            setShowResultsActions(false);
-          }}
-        />
-      ) : null}
-    </>
+    </AppScreen>
   );
 }

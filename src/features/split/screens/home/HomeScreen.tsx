@@ -1338,6 +1338,247 @@ export function HomeScreenView() {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <>
+          <SplitNoticeModal
+            title={settingsNoticeTitle}
+            messages={settingsNoticeMessages}
+            onDismiss={() => {
+              setSettingsNoticeTitle(t("common.almostThere"));
+              setSettingsNoticeMessages([]);
+            }}
+          />
+          {profileActionMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.profilePicture")}
+              onDismiss={() => setProfileActionMenuOpen(false)}
+              options={[
+                ...(ownerProfileImageUriDraft
+                  ? [
+                      {
+                        label: t("settings.profilePictureRemove"),
+                        tone: "danger" as const,
+                        onPress: () => {
+                          setOwnerProfileImageUriDraft("");
+                          setProfileActionMenuOpen(false);
+                        },
+                      },
+                    ]
+                  : []),
+                {
+                  label: t("settings.profilePictureTake"),
+                  onPress: () => void pickProfileImage("camera"),
+                },
+                {
+                  label: t("settings.profilePictureUpload"),
+                  onPress: () => void pickProfileImage("library"),
+                },
+                {
+                  label: t("common.cancel"),
+                  onPress: () => setProfileActionMenuOpen(false),
+                },
+              ]}
+            />
+          ) : null}
+          {languageMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.pickLanguage")}
+              options={[
+                {
+                  label: t("settings.language.en"),
+                  selected: languageDraft === "en",
+                  onPress: () => {
+                    setLanguageDraft("en");
+                    setLanguageMenuOpen(false);
+                  },
+                },
+                {
+                  label: t("settings.language.pt"),
+                  selected: languageDraft === "pt",
+                  onPress: () => {
+                    setLanguageDraft("pt");
+                    setLanguageMenuOpen(false);
+                  },
+                },
+              ]}
+              onDismiss={() => setLanguageMenuOpen(false)}
+            />
+          ) : null}
+          {humourMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.pickTone")}
+              options={[
+                {
+                  label: t("settings.humour.plain"),
+                  selected: humourDraft === "plain",
+                  onPress: () => {
+                    setHumourDraft("plain");
+                    setHumourMenuOpen(false);
+                  },
+                },
+                {
+                  label: t("settings.humour.sassy"),
+                  selected: humourDraft === "sassy",
+                  onPress: () => {
+                    setHumourDraft("sassy");
+                    setHumourMenuOpen(false);
+                  },
+                },
+                {
+                  label: t("settings.humour.unhinged"),
+                  selected: humourDraft === "unhinged",
+                  onPress: () => {
+                    setHumourDraft("unhinged");
+                    setHumourMenuOpen(false);
+                  },
+                },
+              ]}
+              onDismiss={() => setHumourMenuOpen(false)}
+            />
+          ) : null}
+          {splitListAmountDisplayMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.splitRowsPickerTitle")}
+              options={availableSplitListAmountDisplayOptions.map((option) => ({
+                label: option.label,
+                description: option.description,
+                selected: option.key === splitListAmountDisplayDraft,
+                disabled: option.disabled,
+                onPress: () => {
+                  setSplitListAmountDisplayDraft(option.key);
+                  setSplitListAmountDisplayMenuOpen(false);
+                },
+              }))}
+              onDismiss={() => setSplitListAmountDisplayMenuOpen(false)}
+            />
+          ) : null}
+          {currencyModalOpen ? (
+            <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
+              <View style={screenStyles.splitNoticeBackdrop} />
+              <View style={screenStyles.splitNoticeCard}>
+                <YStack gap="$3">
+                  <Text
+                    fontFamily={FONTS.headlineBold}
+                    fontSize={22}
+                    color={PALETTE.onSurface}
+                  >
+                    {t("settings.currencyAddTitle")}
+                  </Text>
+                  <View
+                    style={[
+                      screenStyles.assignInputShell,
+                      customCurrencyErrors.name
+                        ? screenStyles.assignInputShellError
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      value={customCurrencyName}
+                      onChangeText={(value) => {
+                        setCustomCurrencyName(value.slice(0, 15));
+                        if (customCurrencyErrors.name) {
+                          setCustomCurrencyErrors((current) => ({
+                            ...current,
+                            name: false,
+                          }));
+                        }
+                      }}
+                      placeholder={t("settings.currencyNamePlaceholder")}
+                      placeholderTextColor={PALETTE.inputPlaceholder}
+                      style={screenStyles.assignInput}
+                      returnKeyType="next"
+                      onSubmitEditing={() =>
+                        customCurrencySymbolInputRef.current?.focus()
+                      }
+                      maxLength={15}
+                    />
+                  </View>
+                  <View
+                    style={[
+                      screenStyles.assignInputShell,
+                      customCurrencyErrors.symbol
+                        ? screenStyles.assignInputShellError
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      ref={customCurrencySymbolInputRef}
+                      value={customCurrencySymbol}
+                      onChangeText={(value) => {
+                        setCustomCurrencySymbol(value.slice(0, 3));
+                        if (customCurrencyErrors.symbol) {
+                          setCustomCurrencyErrors((current) => ({
+                            ...current,
+                            symbol: false,
+                          }));
+                        }
+                      }}
+                      placeholder={t("settings.currencySymbolPlaceholder")}
+                      placeholderTextColor={PALETTE.inputPlaceholder}
+                      style={screenStyles.assignInput}
+                      returnKeyType="done"
+                      onSubmitEditing={() => void addCustomCurrency()}
+                      maxLength={3}
+                    />
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Save custom currency"
+                    style={screenStyles.splitNoticeButton}
+                    onPress={() => void addCustomCurrency()}
+                  >
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={14}
+                      color={PALETTE.onPrimary}
+                    >
+                      {t("settings.currencySave")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel custom currency"
+                    style={screenStyles.actionSheetButton}
+                    onPress={() => {
+                      setCurrencyModalOpen(false);
+                      setCustomCurrencyErrors({ name: false, symbol: false });
+                    }}
+                  >
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                    >
+                      {t("common.cancel")}
+                    </Text>
+                  </Pressable>
+                </YStack>
+              </View>
+            </View>
+          ) : null}
+          {pendingTabChange ? (
+            <ConfirmChoiceModal
+              title={t("settings.confirmSave.title")}
+              body={t("settings.confirmSave.body")}
+              confirmLabel={t("settings.confirmSave.confirm")}
+              discardLabel={t("settings.confirmSave.discard")}
+              onConfirm={() => {
+                void saveSettings().then((saved) => {
+                  if (saved) {
+                    setActiveTab(pendingTabChange);
+                    setPendingTabChange(null);
+                  }
+                });
+              }}
+              onDiscard={() => {
+                discardSettingsDraft();
+                setActiveTab(pendingTabChange);
+                setPendingTabChange(null);
+              }}
+            />
+          ) : null}
+        </>
+      )}
       footer={
         <StackedFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           {activeTab === "settings" ? (
@@ -1394,240 +1635,6 @@ export function HomeScreenView() {
       {activeTab === "home" ? renderHomeContent() : null}
       {activeTab === "splits" ? renderSplitsContent() : null}
       {activeTab === "settings" ? renderSettingsContent() : null}
-      <SplitNoticeModal
-        title={settingsNoticeTitle}
-        messages={settingsNoticeMessages}
-        onDismiss={() => {
-          setSettingsNoticeTitle(t("common.almostThere"));
-          setSettingsNoticeMessages([]);
-        }}
-      />
-      {profileActionMenuOpen ? (
-        <ActionSheetModal
-          title={t("settings.profilePicture")}
-          onDismiss={() => setProfileActionMenuOpen(false)}
-          options={[
-            ...(ownerProfileImageUriDraft
-              ? [
-                  {
-                    label: t("settings.profilePictureRemove"),
-                    tone: "danger" as const,
-                    onPress: () => {
-                      setOwnerProfileImageUriDraft("");
-                      setProfileActionMenuOpen(false);
-                    },
-                  },
-                ]
-              : []),
-            {
-              label: t("settings.profilePictureTake"),
-              onPress: () => void pickProfileImage("camera"),
-            },
-            {
-              label: t("settings.profilePictureUpload"),
-              onPress: () => void pickProfileImage("library"),
-            },
-            { label: t("common.cancel"), onPress: () => setProfileActionMenuOpen(false) },
-          ]}
-        />
-      ) : null}
-      {languageMenuOpen ? (
-        <ActionSheetModal
-          title={t("settings.pickLanguage")}
-          options={[
-            {
-              label: t("settings.language.en"),
-              selected: languageDraft === "en",
-              onPress: () => {
-                setLanguageDraft("en");
-                setLanguageMenuOpen(false);
-              },
-            },
-            {
-              label: t("settings.language.pt"),
-              selected: languageDraft === "pt",
-              onPress: () => {
-                setLanguageDraft("pt");
-                setLanguageMenuOpen(false);
-              },
-            },
-          ]}
-          onDismiss={() => setLanguageMenuOpen(false)}
-        />
-      ) : null}
-      {humourMenuOpen ? (
-        <ActionSheetModal
-          title={t("settings.pickTone")}
-          options={[
-            {
-              label: t("settings.humour.plain"),
-              selected: humourDraft === "plain",
-              onPress: () => {
-                setHumourDraft("plain");
-                setHumourMenuOpen(false);
-              },
-            },
-            {
-              label: t("settings.humour.sassy"),
-              selected: humourDraft === "sassy",
-              onPress: () => {
-                setHumourDraft("sassy");
-                setHumourMenuOpen(false);
-              },
-            },
-            {
-              label: t("settings.humour.unhinged"),
-              selected: humourDraft === "unhinged",
-              onPress: () => {
-                setHumourDraft("unhinged");
-                setHumourMenuOpen(false);
-              },
-            },
-          ]}
-          onDismiss={() => setHumourMenuOpen(false)}
-        />
-      ) : null}
-      {splitListAmountDisplayMenuOpen ? (
-        <ActionSheetModal
-          title={t("settings.splitRowsPickerTitle")}
-          options={availableSplitListAmountDisplayOptions.map((option) => ({
-            label: option.label,
-            description: option.description,
-            selected: option.key === splitListAmountDisplayDraft,
-            disabled: option.disabled,
-            onPress: () => {
-              setSplitListAmountDisplayDraft(option.key);
-              setSplitListAmountDisplayMenuOpen(false);
-            },
-          }))}
-          onDismiss={() => setSplitListAmountDisplayMenuOpen(false)}
-        />
-      ) : null}
-      {currencyModalOpen ? (
-        <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-          <View style={screenStyles.splitNoticeBackdrop} />
-          <View style={screenStyles.splitNoticeCard}>
-            <YStack gap="$3">
-              <Text
-                fontFamily={FONTS.headlineBold}
-                fontSize={22}
-                color={PALETTE.onSurface}
-              >
-                {t("settings.currencyAddTitle")}
-              </Text>
-              <View
-                style={[
-                  screenStyles.assignInputShell,
-                  customCurrencyErrors.name
-                    ? screenStyles.assignInputShellError
-                    : null,
-                ]}
-              >
-                <TextInput
-                  value={customCurrencyName}
-                  onChangeText={(value) => {
-                    setCustomCurrencyName(value.slice(0, 15));
-                    if (customCurrencyErrors.name) {
-                      setCustomCurrencyErrors((current) => ({
-                        ...current,
-                        name: false,
-                      }));
-                    }
-                  }}
-                  placeholder={t("settings.currencyNamePlaceholder")}
-                  placeholderTextColor={PALETTE.inputPlaceholder}
-                  style={screenStyles.assignInput}
-                  returnKeyType="next"
-                  onSubmitEditing={() =>
-                    customCurrencySymbolInputRef.current?.focus()
-                  }
-                  maxLength={15}
-                />
-              </View>
-              <View
-                style={[
-                  screenStyles.assignInputShell,
-                  customCurrencyErrors.symbol
-                    ? screenStyles.assignInputShellError
-                    : null,
-                ]}
-              >
-                <TextInput
-                  ref={customCurrencySymbolInputRef}
-                  value={customCurrencySymbol}
-                  onChangeText={(value) => {
-                    setCustomCurrencySymbol(value.slice(0, 3));
-                    if (customCurrencyErrors.symbol) {
-                      setCustomCurrencyErrors((current) => ({
-                        ...current,
-                        symbol: false,
-                      }));
-                    }
-                  }}
-                  placeholder={t("settings.currencySymbolPlaceholder")}
-                    placeholderTextColor={PALETTE.inputPlaceholder}
-                  style={screenStyles.assignInput}
-                  returnKeyType="done"
-                  onSubmitEditing={() => void addCustomCurrency()}
-                  maxLength={3}
-                />
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Save custom currency"
-                style={screenStyles.splitNoticeButton}
-                onPress={() => void addCustomCurrency()}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onPrimary}
-                >
-                  {t("settings.currencySave")}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Cancel custom currency"
-                style={screenStyles.actionSheetButton}
-                onPress={() => {
-                  setCurrencyModalOpen(false);
-                  setCustomCurrencyErrors({ name: false, symbol: false });
-                }}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("common.cancel")}
-                </Text>
-              </Pressable>
-            </YStack>
-          </View>
-        </View>
-      ) : null}
-      {pendingTabChange ? (
-        <ConfirmChoiceModal
-          title={t("settings.confirmSave.title")}
-          body={t("settings.confirmSave.body")}
-          confirmLabel={t("settings.confirmSave.confirm")}
-          discardLabel={t("settings.confirmSave.discard")}
-          onConfirm={() => {
-            void saveSettings().then((saved) => {
-              if (saved) {
-                setActiveTab(pendingTabChange);
-                setPendingTabChange(null);
-              }
-            });
-          }}
-          onDiscard={() => {
-            discardSettingsDraft();
-            setActiveTab(pendingTabChange);
-            setPendingTabChange(null);
-          }}
-        />
-      ) : null}
     </AppScreen>
   );
 }
