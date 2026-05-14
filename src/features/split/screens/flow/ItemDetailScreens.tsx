@@ -269,6 +269,49 @@ export function AssignItemScreen({
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <>
+          {showDiscardChangesModal ? (
+            <ConfirmChoiceModal
+              title={t("flow.itemDetail.confirmDiscard.title")}
+              body={t("flow.itemDetail.confirmDiscard.body")}
+              confirmLabel={t("flow.itemDetail.confirmDiscard.confirm")}
+              discardLabel={t("flow.itemDetail.confirmDiscard.discard")}
+              onConfirm={() => {
+                setShowDiscardChangesModal(false);
+                if (!isNewItem && sourceItem) {
+                  setEditorItem({ ...sourceItem });
+                }
+                if (isNewItem) {
+                  setEditorItem({
+                    ...createEmptyItem(record.values.participants),
+                    category: "General",
+                  });
+                }
+                router.back();
+              }}
+              onDiscard={() => setShowDiscardChangesModal(false)}
+            />
+          ) : null}
+          {showDeleteItemModal ? (
+            <ConfirmChoiceModal
+              title={t("flow.itemDetail.confirmDelete.title")}
+              body={t("flow.itemDetail.confirmDelete.body")}
+              confirmLabel={t("flow.itemDetail.confirmDelete.confirm")}
+              discardLabel={t("flow.itemDetail.confirmDelete.discard")}
+              onConfirm={() => {
+                setShowDeleteItemModal(false);
+                void removeItem(item.id).then(() => router.back());
+              }}
+              onDiscard={() => setShowDeleteItemModal(false)}
+            />
+          ) : null}
+          <SplitNoticeModal
+            messages={assignNoticeMessages}
+            onDismiss={() => setAssignNoticeMessages([])}
+          />
+        </>
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <XStack gap="$3" alignItems="center">
@@ -429,45 +472,6 @@ export function AssignItemScreen({
           </SectionCard>
         </YStack>
       </ScrollView>
-      {showDiscardChangesModal ? (
-        <ConfirmChoiceModal
-          title={t("flow.itemDetail.confirmDiscard.title")}
-          body={t("flow.itemDetail.confirmDiscard.body")}
-          confirmLabel={t("flow.itemDetail.confirmDiscard.confirm")}
-          discardLabel={t("flow.itemDetail.confirmDiscard.discard")}
-          onConfirm={() => {
-            setShowDiscardChangesModal(false);
-            if (!isNewItem && sourceItem) {
-              setEditorItem({ ...sourceItem });
-            }
-            if (isNewItem) {
-              setEditorItem({
-                ...createEmptyItem(record.values.participants),
-                category: "General",
-              });
-            }
-            router.back();
-          }}
-          onDiscard={() => setShowDiscardChangesModal(false)}
-        />
-      ) : null}
-      {showDeleteItemModal ? (
-        <ConfirmChoiceModal
-          title={t("flow.itemDetail.confirmDelete.title")}
-          body={t("flow.itemDetail.confirmDelete.body")}
-          confirmLabel={t("flow.itemDetail.confirmDelete.confirm")}
-          discardLabel={t("flow.itemDetail.confirmDelete.discard")}
-          onConfirm={() => {
-            setShowDeleteItemModal(false);
-            void removeItem(item.id).then(() => router.back());
-          }}
-          onDiscard={() => setShowDeleteItemModal(false)}
-        />
-      ) : null}
-      <SplitNoticeModal
-        messages={assignNoticeMessages}
-        onDismiss={() => setAssignNoticeMessages([])}
-      />
     </AppScreen>
   );
 }
@@ -882,6 +886,12 @@ export function SplitItemScreen({
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <SplitNoticeModal
+          messages={splitNoticeMessages}
+          onDismiss={() => setSplitNoticeMessages([])}
+        />
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FooterBubble>
@@ -1399,10 +1409,6 @@ export function SplitItemScreen({
           </YStack>
         </ScrollView>
       </View>
-      <SplitNoticeModal
-        messages={splitNoticeMessages}
-        onDismiss={() => setSplitNoticeMessages([])}
-      />
     </AppScreen>
   );
 }

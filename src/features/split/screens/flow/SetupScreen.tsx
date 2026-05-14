@@ -450,6 +450,42 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
+      overlay={(
+        <>
+          <SplitNoticeModal
+            messages={setupNoticeMessages}
+            onDismiss={() => setSetupNoticeMessages([])}
+          />
+          {currencyMenuOpen ? (
+            <ActionSheetModal
+              title={t("flow.setup.currency")}
+              options={currencyOptions.map((option) => ({
+                label: option.label,
+                selected: normalizedCurrency === option.code,
+                onPress: () => {
+                  requestPairRef.current = "";
+                  setCurrency(option.code);
+                  setCurrencyMenuOpen(false);
+                },
+              }))}
+              onDismiss={() => setCurrencyMenuOpen(false)}
+            />
+          ) : null}
+          {showRateConfirmModal ? (
+            <ConfirmChoiceModal
+              title={t("flow.setup.rateConfirmTitle")}
+              body={t("flow.setup.rateConfirmBody")}
+              confirmLabel={t("flow.setup.rateConfirmContinue")}
+              discardLabel={t("flow.setup.rateConfirmEdit")}
+              onConfirm={() => {
+                setShowRateConfirmModal(false);
+                void persistAndContinue();
+              }}
+              onDiscard={() => setShowRateConfirmModal(false)}
+            />
+          ) : null}
+        </>
+      )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FlowContinueButton
@@ -641,38 +677,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
           </YStack>
         </YStack>
       </ScrollView>
-      <SplitNoticeModal
-        messages={setupNoticeMessages}
-        onDismiss={() => setSetupNoticeMessages([])}
-      />
-      {currencyMenuOpen ? (
-        <ActionSheetModal
-          title={t("flow.setup.currency")}
-          options={currencyOptions.map((option) => ({
-            label: option.label,
-            selected: normalizedCurrency === option.code,
-            onPress: () => {
-              requestPairRef.current = "";
-              setCurrency(option.code);
-              setCurrencyMenuOpen(false);
-            },
-          }))}
-          onDismiss={() => setCurrencyMenuOpen(false)}
-        />
-      ) : null}
-      {showRateConfirmModal ? (
-        <ConfirmChoiceModal
-          title={t("flow.setup.rateConfirmTitle")}
-          body={t("flow.setup.rateConfirmBody")}
-          confirmLabel={t("flow.setup.rateConfirmContinue")}
-          discardLabel={t("flow.setup.rateConfirmEdit")}
-          onConfirm={() => {
-            setShowRateConfirmModal(false);
-            void persistAndContinue();
-          }}
-          onDiscard={() => setShowRateConfirmModal(false)}
-        />
-      ) : null}
     </AppScreen>
   );
 }

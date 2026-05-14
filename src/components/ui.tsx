@@ -36,7 +36,12 @@ export function AppScreen({
   children,
   scroll = true,
   footer,
-}: PropsWithChildren<{ scroll?: boolean; footer?: ReactNode }>) {
+  overlay,
+}: PropsWithChildren<{
+  scroll?: boolean;
+  footer?: ReactNode;
+  overlay?: ReactNode;
+}>) {
   const content = scroll ? (
     <ScrollView
       style={styles.flex}
@@ -54,6 +59,11 @@ export function AppScreen({
       {content}
       {footer ? (
         <View style={styles.footerHost}>{footer}</View>
+      ) : null}
+      {overlay ? (
+        <View style={styles.overlayHost} pointerEvents="box-none">
+          {overlay}
+        </View>
       ) : null}
     </View>
   );
@@ -477,6 +487,12 @@ export const styles = StyleSheet.create({
     backgroundColor: "transparent",
     zIndex: 20,
     elevation: 20,
+    overflow: "visible",
+  },
+  overlayHost: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
+    elevation: 30,
     overflow: "visible",
   },
   footerFrame: {

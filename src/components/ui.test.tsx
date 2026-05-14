@@ -25,15 +25,18 @@ import {
 describe("ui primitives", () => {
   it("renders app screen with scrolling content and footer", () => {
     render(
-      <AppScreen footer={<Text>footer</Text>}>
+      <AppScreen footer={<Text>footer</Text>} overlay={<Text>overlay</Text>}>
         <Text>content</Text>
       </AppScreen>
     );
 
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getByText("footer")).toBeTruthy();
+    expect(screen.getByText("overlay")).toBeTruthy();
     expect(styles.footerHost.zIndex).toBe(20);
     expect(styles.footerHost.elevation).toBe(20);
+    expect(styles.overlayHost.zIndex).toBeGreaterThan(styles.footerHost.zIndex as number);
+    expect(styles.overlayHost.elevation).toBeGreaterThan(styles.footerHost.elevation as number);
     expect(styles.footerHost.overflow).toBe("visible");
     expect(styles.footerHost.backgroundColor).toBe("transparent");
     expect(styles.footerBubble.borderRadius).toBe(32);
