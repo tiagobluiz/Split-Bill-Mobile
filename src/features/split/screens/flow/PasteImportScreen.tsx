@@ -15,6 +15,7 @@ import {
 import {
   AppScreen,
   EmptyState,
+  FooterBubble,
   FieldLabel,
   MeasuredFloatingFooter,
   PrimaryButton,
@@ -76,10 +77,6 @@ const AI_PROVIDERS: Array<{
     iconBackground: "#e8edff",
   },
 ];
-
-const IMPORT_STATUS_BACKGROUND = "#dff8f3";
-const IMPORT_STATUS_ICON_BACKGROUND = "#b9f0e5";
-const IMPORT_STATUS_CTA_BACKGROUND = "#c9f3eb";
 
 function AiProviderIcon({
   icon,
@@ -231,89 +228,91 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       scroll={false}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
-          <YStack gap="$2.5">
-            {step === 1 ? (
-              <>
-                <PrimaryButton
-                  label={t("flow.import.copyOpenAi")}
-                  icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
-                  onPress={() => void copyPromptAndOpenAi()}
-                />
-                <Pressable accessibilityRole="button" accessibilityLabel={t("flow.import.alreadyHaveListA11y")} onPress={openStepTwo}>
-                  <Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
-                    {t("flow.import.alreadyHaveList")}
+          <FooterBubble>
+            <YStack gap="$2.5">
+              {step === 1 ? (
+                <>
+                  <PrimaryButton
+                    label={t("flow.import.copyOpenAi")}
+                    icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
+                    onPress={() => void copyPromptAndOpenAi()}
+                  />
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("flow.import.alreadyHaveListA11y")} onPress={openStepTwo}>
+                    <Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold} fontSize={14}>
+                      {t("flow.import.alreadyHaveList")}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <YStack gap="$2.5">
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={2.1}
+                  >
+                    {t("flow.import.preview")}
                   </Text>
-                </Pressable>
-              </>
-            ) : (
-              <YStack gap="$2.5">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={10}
-                  color={PALETTE.onSurfaceVariant}
-                  textTransform="uppercase"
-                  letterSpacing={2.1}
-                >
-                  {t("flow.import.preview")}
-                </Text>
-                <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
-                  {[
-                    {
-                      label: t("flow.import.accepted"),
-                      value: `${parsedItemCount}`,
-                      color: PALETTE.onSurface,
-                    },
-                    {
-                      label: t("flow.import.total"),
-                      value: formatMoney(
-                        estimatedTotalCents,
-                        record.values.currency,
-                        locale,
-                      ),
-                      color: PALETTE.onSurface,
-                    },
-                    {
-                      label: t("flow.import.ignored"),
-                      value: `${ignoredLineCount}`,
-                      color:
-                        ignoredLineCount > 0
-                          ? PALETTE.primary
-                          : PALETTE.onSurface,
-                    },
-                  ].map((stat) => (
-                    <YStack
-                      key={stat.label}
-                      accessible={true}
-                      accessibilityLabel={t("flow.import.previewA11y", { label: stat.label, value: stat.value })}
-                      flex={1}
-                      gap="$0.5"
-                    >
-                      <Text
-                        fontFamily={FONTS.headlineBlack}
-                        fontSize={stat.label === "Total" ? 24 : 22}
-                        color={stat.color}
-                        letterSpacing={-1}
+                  <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
+                    {[
+                      {
+                        label: t("flow.import.accepted"),
+                        value: `${parsedItemCount}`,
+                        color: PALETTE.onSurface,
+                      },
+                      {
+                        label: t("flow.import.total"),
+                        value: formatMoney(
+                          estimatedTotalCents,
+                          record.values.currency,
+                          locale,
+                        ),
+                        color: PALETTE.onSurface,
+                      },
+                      {
+                        label: t("flow.import.ignored"),
+                        value: `${ignoredLineCount}`,
+                        color:
+                          ignoredLineCount > 0
+                            ? PALETTE.primary
+                            : PALETTE.onSurface,
+                      },
+                    ].map((stat) => (
+                      <YStack
+                        key={stat.label}
+                        accessible={true}
+                        accessibilityLabel={t("flow.import.previewA11y", { label: stat.label, value: stat.value })}
+                        flex={1}
+                        gap="$0.5"
                       >
-                        {stat.value}
-                      </Text>
-                      <Text
-                        fontFamily={FONTS.bodyMedium}
-                        fontSize={12}
-                        color={PALETTE.onSurfaceVariant}
-                      >
-                        {stat.label}
-                      </Text>
-                    </YStack>
-                  ))}
-                </XStack>
-                <FlowContinueButton
-                  label={t("flow.import.addReview")}
-                  onPress={() => void applyImport()}
-                  disabled={parsedItemCount === 0}
-                />
-              </YStack>
-            )}
-          </YStack>
+                        <Text
+                          fontFamily={FONTS.headlineBlack}
+                          fontSize={stat.label === "Total" ? 24 : 22}
+                          color={stat.color}
+                          letterSpacing={-1}
+                        >
+                          {stat.value}
+                        </Text>
+                        <Text
+                          fontFamily={FONTS.bodyMedium}
+                          fontSize={12}
+                          color={PALETTE.onSurfaceVariant}
+                        >
+                          {stat.label}
+                        </Text>
+                      </YStack>
+                    ))}
+                  </XStack>
+                  <FlowContinueButton
+                    label={t("flow.import.addReview")}
+                    onPress={() => void applyImport()}
+                    disabled={parsedItemCount === 0}
+                  />
+                </YStack>
+              )}
+            </YStack>
+          </FooterBubble>
         </MeasuredFloatingFooter>
       }
     >
