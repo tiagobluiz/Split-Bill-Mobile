@@ -1927,9 +1927,11 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add & Review Items"));
     });
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
-    expect(mockBack).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAlert).not.toHaveBeenCalled();
+      expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
+      expect(mockBack).toHaveBeenCalled();
+    });
   });
 
   it("shows invalid paste status before review and applies it as a no-op", async () => {
@@ -1943,9 +1945,11 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add & Review Items"));
     });
-    expect(mockBack).toHaveBeenCalled();
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
+    await waitFor(() => {
+      expect(mockBack).toHaveBeenCalled();
+      expect(mockAlert).not.toHaveBeenCalled();
+      expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
+    });
   });
 
   it("routes the paste close header action to home", () => {

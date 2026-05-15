@@ -257,11 +257,13 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
                     {[
                       {
+                        id: "accepted",
                         label: t("flow.import.accepted"),
                         value: `${parsedItemCount}`,
                         color: PALETTE.onSurface,
                       },
                       {
+                        id: "total",
                         label: t("flow.import.total"),
                         value: formatMoney(
                           estimatedTotalCents,
@@ -271,6 +273,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                         color: PALETTE.onSurface,
                       },
                       {
+                        id: "ignored",
                         label: t("flow.import.ignored"),
                         value: `${ignoredLineCount}`,
                         color:
@@ -280,7 +283,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                       },
                     ].map((stat) => (
                       <YStack
-                        key={stat.label}
+                        key={stat.id}
                         accessible={true}
                         accessibilityLabel={t("flow.import.previewA11y", { label: stat.label, value: stat.value })}
                         flex={1}
@@ -288,7 +291,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                       >
                         <Text
                           fontFamily={FONTS.headlineBlack}
-                          fontSize={stat.label === "Total" ? 24 : 22}
+                          fontSize={stat.id === "total" ? 24 : 22}
                           color={stat.color}
                           letterSpacing={-1}
                         >
