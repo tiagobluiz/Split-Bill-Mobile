@@ -1236,6 +1236,63 @@ describe("split screens", () => {
     expect(mockReplace).toHaveBeenCalledWith("/");
   });
 
+  it("keeps the items scroll-cue slot mounted while overflow exists and toggles cue visibility", () => {
+    render(<ItemsScreen draftId="draft-1" />);
+
+    const getCueButton = () =>
+      screen
+        .getByTestId("items-scroll-cue-slot")
+        .findByProps({ testID: "items-scroll-cue-button" });
+
+    const getCueOpacity = () => {
+      const flattened = StyleSheet.flatten(getCueButton().props.style) ?? {};
+      return typeof flattened.opacity === "number" ? flattened.opacity : 1;
+    };
+
+    const itemsScroll = screen.getByTestId("items-scroll");
+    act(() => {
+      itemsScroll.props.onLayout({
+        nativeEvent: { layout: { height: 300 } },
+      });
+      itemsScroll.props.onContentSizeChange(0, 900);
+    });
+
+    expect(screen.getByTestId("items-scroll-cue-slot")).toBeTruthy();
+    expect(screen.getByLabelText("Scroll to bottom")).toBeTruthy();
+    expect(getCueOpacity()).toBe(1);
+    expect(getCueButton().props.pointerEvents).toBe("auto");
+
+    act(() => {
+      itemsScroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 620 },
+          layoutMeasurement: { height: 300 },
+          contentSize: { height: 900 },
+        },
+      });
+    });
+
+    expect(screen.getByTestId("items-scroll-cue-slot")).toBeTruthy();
+    expect(screen.queryByLabelText("Scroll to bottom")).toBeNull();
+    expect(getCueOpacity()).toBe(0);
+    expect(getCueButton().props.pointerEvents).toBe("none");
+  });
+
+  it("does not render the items scroll-cue slot when content does not overflow", () => {
+    render(<ItemsScreen draftId="draft-1" />);
+
+    const itemsScroll = screen.getByTestId("items-scroll");
+    act(() => {
+      itemsScroll.props.onLayout({
+        nativeEvent: { layout: { height: 600 } },
+      });
+      itemsScroll.props.onContentSizeChange(0, 520);
+    });
+
+    expect(screen.queryByTestId("items-scroll-cue-slot")).toBeNull();
+    expect(screen.queryByTestId("items-scroll-cue-button")).toBeNull();
+    expect(screen.queryByLabelText("Scroll to bottom")).toBeNull();
+  });
   it("renders items loading, invalid review, valid review, and swipe-delete actions", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<ItemsScreen draftId="draft-1" />);

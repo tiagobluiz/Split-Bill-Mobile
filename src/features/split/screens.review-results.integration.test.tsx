@@ -667,12 +667,12 @@ describe("split screens", () => {
     expect(screen.getAllByText(/3,00|EUR 3.00/).length).toBeGreaterThan(0);
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
-    expect(screen.getByLabelText("Share PDF")).toBeTruthy();
-    expect(screen.getByLabelText("Share results")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Share results"));
+    expect(screen.getByLabelText("PDF")).toBeTruthy();
+    expect(screen.getByLabelText("Text")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Text"));
     expect(mockShare).toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
-    fireEvent.press(screen.getByLabelText("Share PDF"));
+    fireEvent.press(screen.getByLabelText("PDF"));
     await waitFor(() => {
       expect(exportSettlementPdfSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1128,7 +1128,7 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
-    fireEvent.press(screen.getByLabelText("Share PDF"));
+    fireEvent.press(screen.getByLabelText("PDF"));
     expect(screen.getByText("Almost there")).toBeTruthy();
     expect(screen.getByText("PDF export is not available for this split.")).toBeTruthy();
   });
@@ -1141,7 +1141,7 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
-    fireEvent.press(screen.getByLabelText("Share PDF"));
+    fireEvent.press(screen.getByLabelText("PDF"));
 
     await waitFor(() => {
       expect(screen.getByText("Almost there")).toBeTruthy();
