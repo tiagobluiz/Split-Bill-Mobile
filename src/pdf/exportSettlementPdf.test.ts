@@ -118,6 +118,7 @@ import * as Print from "expo-print";
 import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
 import { File } from "expo-file-system";
+import { Platform } from "react-native";
 
 import {
   buildSettlementPdfFile,
@@ -728,6 +729,66 @@ describe("mobile PDF export", () => {
       }),
     );
     base64SyncSpy.mockRestore();
+  });
+
+  it("falls back to local header image URI on Android when base64 loading fails", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+    const fromModule = Asset.fromModule as unknown as jest.Mock;
+    const platformOsDescriptor = Object.getOwnPropertyDescriptor(Platform, "OS");
+    const base64SyncSpy = jest
+      .spyOn((File as any).prototype, "base64Sync")
+      .mockImplementationOnce(() => {
+        throw new Error("base64 conversion failed");
+      });
+
+    try {
+      Object.defineProperty(Platform, "OS", {
+        configurable: true,
+        value: "android",
+      });
+      fromModule.mockReturnValueOnce({
+        localUri: "/data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
+        downloadAsync: jest.fn().mockResolvedValue(undefined),
+      });
+      mockLegacyReadAsStringAsync.mockRejectedValueOnce(
+        new Error("legacy read failed"),
+      );
+      printToFileAsync.mockResolvedValue({
+        uri: "file:///tmp/split-bill.pdf",
+        numberOfPages: 1,
+      });
+      mockExistingUris.add("file:///tmp/split-bill.pdf");
+      isAvailableAsync.mockResolvedValue(true);
+      shareAsync.mockResolvedValue(undefined);
+
+      await exportSettlementPdf(
+        {
+          ...(pdfFixture.input as SplitFormValues),
+          splitName: "Grocery bill",
+        },
+        pdfFixture.assumptions.locale,
+      );
+
+      expect(printToFileAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          html: expect.stringContaining(
+            "src=\"file:///data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png\"",
+          ),
+        }),
+      );
+    } finally {
+      if (platformOsDescriptor) {
+        Object.defineProperty(Platform, "OS", platformOsDescriptor);
+      } else {
+        Object.defineProperty(Platform, "OS", {
+          configurable: true,
+          value: "ios",
+        });
+      }
+      base64SyncSpy.mockRestore();
+    }
   });
 
   it("falls back to exporting without a branded header when image loading fails", async () => {

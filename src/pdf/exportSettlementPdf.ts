@@ -3,6 +3,7 @@ import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
 import { Directory, File, Paths } from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
@@ -100,7 +101,7 @@ function normalizeUriForExpoFileSystem(uri: string) {
   return uri;
 }
 
-async function getPdfHeaderImageDataUri(): Promise<string> {
+async function getPdfHeaderImageSource(): Promise<string> {
   let localUriForLog = "";
   let assetUriForLog = "";
   try {
@@ -128,6 +129,12 @@ async function getPdfHeaderImageDataUri(): Promise<string> {
     }
     return `data:image/png;base64,${base64}`;
   } catch (error) {
+    if (Platform.OS !== "ios") {
+      const fallbackUri = localUriForLog || assetUriForLog;
+      if (fallbackUri) {
+        return normalizeUriForExpoFileSystem(fallbackUri);
+      }
+    }
     console.warn("Failed to load PDF header image asset", {
       localUri: localUriForLog,
       assetUri: assetUriForLog,
@@ -137,10 +144,14 @@ async function getPdfHeaderImageDataUri(): Promise<string> {
   }
 }
 
+function renderHeaderImage(imageSource: string, altText: string) {
+  return `<img src="${escapeHtml(imageSource)}" alt="${escapeHtml(altText)}" />`;
+}
+
 export function renderSettlementPdfHtml(
   data: PdfExportData,
   locale = "en-US",
-  headerImageDataUri?: string,
+  headerImageSource?: string,
 ) {
   const totalCurrency = data.exchangeRate?.targetCurrency ?? data.currency;
   const totalRate = data.exchangeRate?.rate ?? 1;
@@ -244,10 +255,10 @@ export function renderSettlementPdfHtml(
     })
     .join("");
 
-  const brandedHeader = headerImageDataUri
+  const brandedHeader = headerImageSource
     ? `
       <div class="brand-banner">
-        <img src="${escapeHtml(headerImageDataUri)}" alt="${escapeHtml(data.appName)}" />
+        ${renderHeaderImage(headerImageSource, data.appName)}
       </div>
     `
     : "";
@@ -560,9 +571,9 @@ export async function buildSettlementPdfFile(
   const data = buildPdfExportData(values, new Date(), locale);
   const allowHeaderlessFallback =
     options.allowHeaderlessWhenAssetUnavailable ?? true;
-  let headerImageDataUri: string | undefined;
+  let headerImageSource: string | undefined;
   try {
-    headerImageDataUri = await getPdfHeaderImageDataUri();
+    headerImageSource = await getPdfHeaderImageSource();
   } catch (error) {
     if (!allowHeaderlessFallback) {
       throw error;
@@ -572,7 +583,7 @@ export async function buildSettlementPdfFile(
       error,
     );
   }
-  const html = renderSettlementPdfHtml(data, locale, headerImageDataUri);
+  const html = renderSettlementPdfHtml(data, locale, headerImageSource);
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
