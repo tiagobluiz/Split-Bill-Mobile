@@ -1770,6 +1770,17 @@ describe("split screens", () => {
     ).toBeNull();
   });
 
+  it("keeps AI handover footer actions and preview CTA visible across both steps", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    expect(screen.getByText("Copy Prompt & Open AI")).toBeTruthy();
+    expect(screen.getByText("I already have the item list")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+
+    expect(screen.getByText("Import preview")).toBeTruthy();
+    expect(screen.getByText("Add & Review Items")).toBeTruthy();
+  });
   it("excludes duplicate pasted rows from the import preview", () => {
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("I already have the item list"));
@@ -1913,10 +1924,14 @@ describe("split screens", () => {
     expect(screen.getByText("Import preview")).toBeTruthy();
     expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
     expect(screen.getByLabelText("Ignored: 0")).toBeTruthy();
-    expect(screen.getByText("Add & Review Items")).toBeDisabled();
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
-    expect(mockBack).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add & Review Items"));
+    });
+    await waitFor(() => {
+      expect(mockAlert).not.toHaveBeenCalled();
+      expect(mockStoreState.importPastedList).toHaveBeenCalledWith("", "append");
+      expect(mockBack).toHaveBeenCalled();
+    });
   });
 
   it("shows invalid paste status before review and applies it as a no-op", async () => {
@@ -1927,10 +1942,14 @@ describe("split screens", () => {
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.queryByText("Ignored 1 pasted line that did not match the expected format.")).toBeNull();
-    expect(screen.getByText("Add & Review Items")).toBeDisabled();
-    expect(mockBack).not.toHaveBeenCalled();
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(mockStoreState.importPastedList).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add & Review Items"));
+    });
+    await waitFor(() => {
+      expect(mockBack).toHaveBeenCalled();
+      expect(mockAlert).not.toHaveBeenCalled();
+      expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
+    });
   });
 
   it("routes the paste close header action to home", () => {
