@@ -331,7 +331,7 @@ const enPlain = {
   "flow.results.pdfDownloadedTitle": "Download complete",
   "flow.results.pdfDownloaded": "PDF downloaded successfully.",
   "flow.results.pdfDownloadFailed": "Could not download the PDF.",
-  "flow.results.shareA11y": "Text",
+  "flow.results.shareA11y": "Share as text",
   "flow.results.pdfUnavailable":
     "PDF export is not available for this split.",
   "flow.results.pdfFailed": "Could not generate the PDF.",
@@ -935,7 +935,7 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.results.pdfDownloadedTitle": "Descarregamento concluído",
   "flow.results.pdfDownloaded": "PDF descarregado com sucesso.",
   "flow.results.pdfDownloadFailed": "Não foi possível descarregar o PDF.",
-  "flow.results.shareA11y": "Texto",
+  "flow.results.shareA11y": "Partilhar como texto",
   "flow.results.pdfUnavailable":
     "A exportação em PDF não está disponível para esta divisão.",
   "flow.results.pdfFailed": "Não foi possível gerar o PDF.",

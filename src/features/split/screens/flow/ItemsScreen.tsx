@@ -307,6 +307,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             {hasOverflow ? (
               <View
                 testID="items-scroll-cue-slot"
+                pointerEvents="box-none"
                 style={screenStyles.itemsScrollCueSlot}
               >
                 <Pressable
