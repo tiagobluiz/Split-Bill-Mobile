@@ -3,7 +3,6 @@ import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
 import { Directory, File, Paths } from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
-import { Platform } from "react-native";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
@@ -101,43 +100,71 @@ function normalizeUriForExpoFileSystem(uri: string) {
   return uri;
 }
 
+function buildHeaderAssetUriCandidates(localUri: string, assetUri: string) {
+  const candidates = [
+    localUri,
+    normalizeUriForExpoFileSystem(localUri),
+    assetUri,
+    normalizeUriForExpoFileSystem(assetUri),
+  ].filter((uri) => uri && uri.trim()) as string[];
+
+  return [...new Set(candidates)];
+}
+
+function normalizeBase64Payload(value: string) {
+  const trimmed = value.trim();
+  const marker = "base64,";
+  const markerIndex = trimmed.indexOf(marker);
+  if (markerIndex >= 0) {
+    return trimmed.slice(markerIndex + marker.length);
+  }
+  return trimmed;
+}
+
+async function readBase64FromUri(uri: string) {
+  try {
+    const imageFile = new File(uri);
+    const value = imageFile.base64Sync();
+    return normalizeBase64Payload(value);
+  } catch {
+    const value = await LegacyFileSystem.readAsStringAsync(uri, {
+      encoding: LegacyFileSystem.EncodingType.Base64,
+    });
+    return normalizeBase64Payload(value);
+  }
+}
+
 async function getPdfHeaderImageSource(): Promise<string> {
   let localUriForLog = "";
   let assetUriForLog = "";
+  let attemptedUrisForLog: string[] = [];
   try {
     const asset = Asset.fromModule(PDF_HEADER_ASSET);
     await asset.downloadAsync();
     localUriForLog = asset.localUri ?? "";
     assetUriForLog = asset.uri ?? "";
-    const localUri = localUriForLog || assetUriForLog;
-    if (!localUri) {
+    const candidateUris = buildHeaderAssetUriCandidates(
+      localUriForLog,
+      assetUriForLog,
+    );
+    attemptedUrisForLog = candidateUris;
+    if (!candidateUris.length) {
       throw new Error("PDF header image asset URI is unavailable.");
     }
 
-    const normalizedUri = normalizeUriForExpoFileSystem(localUri);
-    let base64 = "";
-    try {
-      const imageFile = new File(normalizedUri);
-      base64 = imageFile.base64Sync();
-    } catch {
-      base64 = await LegacyFileSystem.readAsStringAsync(normalizedUri, {
-        encoding: LegacyFileSystem.EncodingType.Base64,
-      });
-    }
-    if (!base64) {
-      throw new Error("PDF header image asset base64 payload is empty.");
-    }
-    return `data:image/png;base64,${base64}`;
-  } catch (error) {
-    if (Platform.OS !== "ios") {
-      const fallbackUri = localUriForLog || assetUriForLog;
-      if (fallbackUri) {
-        return normalizeUriForExpoFileSystem(fallbackUri);
+    for (const uri of candidateUris) {
+      const base64 = await readBase64FromUri(uri).catch(() => "");
+      if (base64) {
+        return `data:image/png;base64,${base64}`;
       }
     }
+
+    throw new Error("PDF header image asset base64 payload is empty.");
+  } catch (error) {
     console.warn("Failed to load PDF header image asset", {
       localUri: localUriForLog,
       assetUri: assetUriForLog,
+      attemptedUris: attemptedUrisForLog,
       error,
     });
     throw new Error("Failed to load PDF header image asset.");
