@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import {
-  ClipboardCopy,
   Check,
   FileJson,
   FileText,
+  MessageCircle,
   Minus,
   RotateCcw,
   Share2,
@@ -338,7 +338,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     {
       label: t("flow.results.shareResultsMultiline"),
       accessibilityLabel: t("flow.results.shareA11y"),
-      icon: <ClipboardCopy color={PALETTE.primary} size={18} />,
+      icon: <MessageCircle color={PALETTE.primary} size={18} />,
       disabled: exportPdfPending,
       onPress: () => {
         setShowResultsActions(false);

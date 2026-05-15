@@ -249,10 +249,9 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     record.values.currency,
     locale,
   );
-  const showMoreBelowCue =
-    itemsViewportHeight > 0 &&
-    itemsContentHeight > itemsViewportHeight + 1 &&
-    !isNearBottom;
+  const hasOverflow =
+    itemsViewportHeight > 0 && itemsContentHeight > itemsViewportHeight + 1;
+  const showMoreBelowCue = hasOverflow && !isNearBottom;
   const addManualItem = async () => {
     setItemsNoticeMessages([]);
     router.push(`/split/${draftId}/assign/new`);
@@ -305,32 +304,34 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <YStack gap="$2">
-            {showMoreBelowCue ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("flow.items.scrollToBottom")}
-                style={{
-                  alignSelf: "center",
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
-                  backgroundColor: "rgba(255,253,250,0.96)",
-                  borderWidth: 1,
-                  borderColor: PALETTE.outlineVariant,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  shadowColor: PALETTE.primary,
-                  shadowOpacity: 0.08,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 3,
-                }}
-                onPress={() => {
-                  itemsScrollRef.current?.scrollToEnd({ animated: true });
-                }}
+            {hasOverflow ? (
+              <View
+                testID="items-scroll-cue-slot"
+                pointerEvents="box-none"
+                style={screenStyles.itemsScrollCueSlot}
               >
-                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-              </Pressable>
+                <Pressable
+                  testID="items-scroll-cue-button"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("flow.items.scrollToBottom")}
+                  accessibilityElementsHidden={!showMoreBelowCue}
+                  importantForAccessibility={
+                    showMoreBelowCue ? "auto" : "no-hide-descendants"
+                  }
+                  pointerEvents={showMoreBelowCue ? "auto" : "none"}
+                  style={[
+                    screenStyles.itemsScrollCueButton,
+                    !showMoreBelowCue
+                      ? screenStyles.itemsScrollCueButtonHidden
+                      : null,
+                  ]}
+                  onPress={() => {
+                    itemsScrollRef.current?.scrollToEnd({ animated: true });
+                  }}
+                >
+                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+                </Pressable>
+              </View>
             ) : null}
             <FooterBubble>
               <YStack gap="$3.5">
@@ -483,7 +484,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
           const distanceFromBottom =
             nativeEvent.contentSize.height -
             (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
-          setIsNearBottom(distanceFromBottom <= 20);
+          const nextIsNearBottom = distanceFromBottom <= 20;
+          setIsNearBottom((current) =>
+            current === nextIsNearBottom ? current : nextIsNearBottom,
+          );
         }}
         scrollEventThrottle={16}
         contentContainerStyle={[

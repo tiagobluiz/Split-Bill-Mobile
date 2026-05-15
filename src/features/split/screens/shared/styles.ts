@@ -566,15 +566,14 @@ export const screenStyles = StyleSheet.create({
   },
   actionIconGridButton: {
     flex: 1,
-    minHeight: 112,
+    minHeight: 104,
     borderRadius: 20,
     backgroundColor: PALETTE.surfaceContainerLow,
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     paddingHorizontal: 8,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 8,
+    paddingVertical: 12,
+    gap: 7,
   },
   actionIconGridBadge: {
     width: 42,
@@ -585,7 +584,7 @@ export const screenStyles = StyleSheet.create({
     justifyContent: "center",
   },
   actionIconGridLabelWrap: {
-    minHeight: 34,
+    minHeight: 20,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -758,6 +757,29 @@ export const screenStyles = StyleSheet.create({
   itemsFooterInlineSummary: {
     gap: 4,
     marginTop: 4,
+  },
+  itemsScrollCueSlot: {
+    minHeight: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemsScrollCueButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,253,250,0.96)",
+    borderWidth: 1,
+    borderColor: PALETTE.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: PALETTE.primary,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  itemsScrollCueButtonHidden: {
+    opacity: 0,
   },
   resultsInvalidCard: {
     marginTop: 24,
