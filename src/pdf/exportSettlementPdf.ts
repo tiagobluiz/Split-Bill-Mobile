@@ -134,6 +134,12 @@ async function readBase64FromUri(uri: string) {
   }
 }
 
+function createErrorWithCause(message: string, cause: unknown) {
+  const error = new Error(message);
+  (error as Error & { cause?: unknown }).cause = cause;
+  return error;
+}
+
 async function getPdfHeaderImageSource(): Promise<string> {
   let localUriForLog = "";
   let assetUriForLog = "";
@@ -153,7 +159,15 @@ async function getPdfHeaderImageSource(): Promise<string> {
     }
 
     for (const uri of candidateUris) {
-      const base64 = await readBase64FromUri(uri).catch(() => "");
+      let base64 = "";
+      try {
+        base64 = await readBase64FromUri(uri);
+      } catch (error) {
+        console.warn("PDF header base64 read failed for URI", {
+          uri,
+          error,
+        });
+      }
       if (base64) {
         return `data:image/png;base64,${base64}`;
       }
@@ -167,7 +181,7 @@ async function getPdfHeaderImageSource(): Promise<string> {
       attemptedUris: attemptedUrisForLog,
       error,
     });
-    throw new Error("Failed to load PDF header image asset.");
+    throw createErrorWithCause("Failed to load PDF header image asset.", error);
   }
 }
 
