@@ -719,12 +719,63 @@ describe("mobile PDF export", () => {
     );
 
     expect(mockLegacyReadAsStringAsync).toHaveBeenCalledWith(
-      "file:///data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
+      "/data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
       { encoding: "base64" },
     );
     expect(printToFileAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         html: expect.stringContaining("data:image/png;base64,LEGACY_BASE64_HEADER"),
+      }),
+    );
+    base64SyncSpy.mockRestore();
+  });
+
+  it("tries asset.uri base64 when localUri base64 loading fails", async () => {
+    const printToFileAsync = Print.printToFileAsync as jest.Mock;
+    const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;
+    const shareAsync = Sharing.shareAsync as jest.Mock;
+    const fromModule = Asset.fromModule as unknown as jest.Mock;
+    const base64SyncSpy = jest
+      .spyOn((File as any).prototype, "base64Sync")
+      .mockImplementation(() => {
+        throw new Error("base64 conversion failed");
+      });
+
+    fromModule.mockReturnValueOnce({
+      localUri: "/data/user/0/com.miagology.splitbill/files/split-bill-pdf-header.png",
+      uri: "file:///assets/split-bill-pdf-header.png",
+      downloadAsync: jest.fn().mockResolvedValue(undefined),
+    });
+    mockLegacyReadAsStringAsync.mockImplementation(async (uri: string) => {
+      if (uri.includes("/data/user/0/")) {
+        throw new Error("localUri read failed");
+      }
+      if (uri.includes("file:///assets/split-bill-pdf-header.png")) {
+        return "ASSET_URI_BASE64_HEADER";
+      }
+      throw new Error(`Unexpected URI: ${uri}`);
+    });
+    printToFileAsync.mockResolvedValue({
+      uri: "file:///tmp/split-bill.pdf",
+      numberOfPages: 1,
+    });
+    mockExistingUris.add("file:///tmp/split-bill.pdf");
+    isAvailableAsync.mockResolvedValue(true);
+    shareAsync.mockResolvedValue(undefined);
+
+    await exportSettlementPdf(
+      {
+        ...(pdfFixture.input as SplitFormValues),
+        splitName: "Grocery bill",
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(printToFileAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining(
+          "src=\"data:image/png;base64,ASSET_URI_BASE64_HEADER\"",
+        ),
       }),
     );
     base64SyncSpy.mockRestore();
