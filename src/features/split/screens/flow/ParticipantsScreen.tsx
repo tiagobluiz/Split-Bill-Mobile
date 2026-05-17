@@ -222,6 +222,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   ) => {
     const trimmed = rawName.trim();
     if (!trimmed) {
+      Keyboard.dismiss();
       return;
     }
     try {
