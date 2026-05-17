@@ -310,7 +310,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   <FlowContinueButton
                     label={t("flow.import.addReview")}
                     onPress={() => void applyImport()}
-                    disabled={parsedItemCount === 0}
                   />
                 </YStack>
               )}

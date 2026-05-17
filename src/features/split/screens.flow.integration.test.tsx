@@ -441,6 +441,26 @@ describe("split screens", () => {
     );
   });
 
+  it("dismisses the keyboard and skips participant updates for empty add submissions", async () => {
+    render(<ParticipantsScreen draftId="draft-1" />);
+    const dismissCallsBefore = (Keyboard.dismiss as jest.Mock).mock.calls.length;
+
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "   ");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add person"));
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "   ");
+    await act(async () => {
+      fireEvent(screen.getByPlaceholderText("Enter name"), "submitEditing");
+    });
+
+    expect(mockStoreState.updateParticipants).not.toHaveBeenCalled();
+    expect((Keyboard.dismiss as jest.Mock).mock.calls.length).toBe(
+      dismissCallsBefore + 2,
+    );
+  });
+
   it("opens the requested draft when the active record differs", async () => {
     mockStoreState.records = [buildRecord()];
     mockStoreState.activeRecordId = "other-draft";
@@ -1981,6 +2001,13 @@ describe("split screens", () => {
     expect(screen.getByText("Import preview")).toBeTruthy();
     expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
     expect(screen.getByLabelText("Ignored: 0")).toBeTruthy();
+    const addAndReviewButton = screen.getByLabelText("Add & Review Items");
+    const isVisuallyDisabled =
+      Array.isArray(addAndReviewButton.props.style) &&
+      addAndReviewButton.props.style.includes(
+        screenStyles.participantsContinueButtonDisabled,
+      );
+    expect(isVisuallyDisabled).toBe(false);
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add & Review Items"));
     });
