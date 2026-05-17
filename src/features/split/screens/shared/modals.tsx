@@ -102,6 +102,7 @@ export function ActionIconGridModal({
     icon: ReactNode;
     onPress: () => void;
     disabled?: boolean;
+    tone?: "default" | "danger";
   }>;
   onDismiss: () => void;
 }) {
@@ -132,18 +133,32 @@ export function ActionIconGridModal({
                 disabled={option.disabled}
                 style={[
                   screenStyles.actionIconGridButton,
+                  option.tone === "danger"
+                    ? screenStyles.actionIconGridButtonDanger
+                    : null,
                   option.disabled ? { opacity: 0.55 } : null,
                 ]}
                 onPress={option.disabled ? undefined : option.onPress}
               >
-                <View style={screenStyles.actionIconGridBadge}>
+                <View
+                  style={[
+                    screenStyles.actionIconGridBadge,
+                    option.tone === "danger"
+                      ? screenStyles.actionIconGridBadgeDanger
+                      : null,
+                  ]}
+                >
                   {option.icon}
                 </View>
                 <View style={screenStyles.actionIconGridLabelWrap}>
                   <Text
                     fontFamily={FONTS.bodyBold}
                     fontSize={13}
-                    color={PALETTE.onSurface}
+                    color={
+                      option.tone === "danger"
+                        ? PALETTE.danger
+                        : PALETTE.onSurface
+                    }
                     lineHeight={17}
                     textAlign="center"
                   >

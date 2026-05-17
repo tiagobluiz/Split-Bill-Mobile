@@ -597,6 +597,11 @@ export const screenStyles = StyleSheet.create({
     paddingVertical: 12,
     gap: 7,
   },
+  actionIconGridButtonDanger: {
+    backgroundColor: PALETTE.dangerSurface,
+    borderWidth: 1,
+    borderColor: "rgba(186,26,26,0.22)",
+  },
   actionIconGridBadge: {
     width: 42,
     height: 42,
@@ -604,6 +609,9 @@ export const screenStyles = StyleSheet.create({
     backgroundColor: PALETTE.brandOverlayStrong,
     alignItems: "center",
     justifyContent: "center",
+  },
+  actionIconGridBadgeDanger: {
+    backgroundColor: "rgba(186,26,26,0.14)",
   },
   actionIconGridLabelWrap: {
     minHeight: 20,

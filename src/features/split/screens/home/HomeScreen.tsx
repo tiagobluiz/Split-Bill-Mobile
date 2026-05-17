@@ -20,6 +20,7 @@ import {
   Filter,
   Plus,
   Settings,
+  Trash2,
 } from "lucide-react-native";
 import {
   Paragraph as TamaguiParagraph,
@@ -72,6 +73,7 @@ import {
 } from "../shared/settlementUtils";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
+  ActionIconGridModal,
   ActionSheetModal,
   ConfirmChoiceModal,
   SplitNoticeModal,
@@ -132,6 +134,8 @@ export function HomeScreenView() {
     id: string;
     title: string;
   }>(null);
+  const [selectedRecordActionTarget, setSelectedRecordActionTarget] =
+    useState<null | { id: string; title: string }>(null);
   const [activityStateFilter, setActivityStateFilter] =
     useState<ActivityStateFilter>("all");
   const [activityDateFilter, setActivityDateFilter] =
@@ -744,7 +748,9 @@ export function HomeScreenView() {
                     record={record}
                     ownerName={settings.ownerName}
                     settings={settings}
-                    onDelete={queueDelete}
+                    onOpenActions={(target) =>
+                      setSelectedRecordActionTarget(target)
+                    }
                   />
                 ))}
               </YStack>
@@ -921,7 +927,9 @@ export function HomeScreenView() {
                   record={item}
                   ownerName={settings.ownerName}
                   settings={settings}
-                  onDelete={queueDelete}
+                  onOpenActions={(target) =>
+                    setSelectedRecordActionTarget(target)
+                  }
                 />
               ))}
             </YStack>
@@ -1348,6 +1356,27 @@ export function HomeScreenView() {
               setSettingsNoticeMessages([]);
             }}
           />
+          {selectedRecordActionTarget ? (
+            <ActionIconGridModal
+              title={t("home.rowActions.title")}
+              options={[
+                {
+                  label: t("home.rowActions.delete"),
+                  accessibilityLabel: t("home.rowActions.deleteA11y", {
+                    title: selectedRecordActionTarget.title,
+                  }),
+                  icon: <Trash2 color={PALETTE.danger} size={18} />,
+                  tone: "danger",
+                  onPress: () => {
+                    const target = selectedRecordActionTarget;
+                    setSelectedRecordActionTarget(null);
+                    queueDelete(target.id, target.title);
+                  },
+                },
+              ]}
+              onDismiss={() => setSelectedRecordActionTarget(null)}
+            />
+          ) : null}
           {profileActionMenuOpen ? (
             <ActionSheetModal
               title={t("settings.profilePicture")}

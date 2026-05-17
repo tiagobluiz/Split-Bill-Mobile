@@ -15,7 +15,6 @@ import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable } from "react-native-gesture-handler";
 import { useShallow } from "zustand/react/shallow";
 import {
   ArrowLeft,
@@ -133,6 +132,7 @@ import {
 } from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
+  ActionIconGridModal,
   ActionSheetModal,
   ConfirmChoiceModal,
   SplitNoticeModal,
@@ -181,6 +181,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     id: string;
     title: string;
   }>(null);
+  const [selectedItemActionTarget, setSelectedItemActionTarget] = useState<
+    null | { id: string; title: string }
+  >(null);
+  const longPressItemIdRef = useRef<string | null>(null);
   const itemDeleteTimeoutRef = useRef<any>(null);
   const itemsScrollRef = useRef<ScrollView | null>(null);
   const pendingItemDeleteRef = useRef<null | { id: string; title: string }>(
@@ -296,10 +300,36 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     <AppScreen
       scroll={false}
       overlay={(
-        <SplitNoticeModal
-          messages={itemsNoticeMessages}
-          onDismiss={() => setItemsNoticeMessages([])}
-        />
+        <>
+          <SplitNoticeModal
+            messages={itemsNoticeMessages}
+            onDismiss={() => setItemsNoticeMessages([])}
+          />
+          {selectedItemActionTarget ? (
+            <ActionIconGridModal
+              title={t("flow.items.rowActions.title")}
+              options={[
+                {
+                  label: t("flow.items.rowActions.delete"),
+                  accessibilityLabel: t("flow.items.rowActions.deleteA11y", {
+                    title: selectedItemActionTarget.title,
+                  }),
+                  icon: <Trash2 color={PALETTE.danger} size={18} />,
+                  tone: "danger",
+                  onPress: () => {
+                    const target = selectedItemActionTarget;
+                    setSelectedItemActionTarget(null);
+                    queueItemDelete(target.id, target.title);
+                  },
+                },
+              ]}
+              onDismiss={() => {
+                setSelectedItemActionTarget(null);
+                longPressItemIdRef.current = null;
+              }}
+            />
+          ) : null}
+        </>
       )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
@@ -333,49 +363,49 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                 </Pressable>
               </View>
             ) : null}
+            {pendingItemDelete ? (
+              <View style={screenStyles.undoBanner}>
+                <YStack flex={1} gap="$1">
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={14}
+                    color={PALETTE.onPrimary}
+                  >
+                    {t("flow.items.itemDeleted")}
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={12}
+                    color="rgba(255,255,255,0.82)"
+                  >
+                    {pendingItemDelete.title}
+                  </Text>
+                </YStack>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("flow.items.undoDelete")}
+                  style={screenStyles.undoButton}
+                  onPress={() => {
+                    clearTimeout(itemDeleteTimeoutRef.current);
+                    itemDeleteTimeoutRef.current = null;
+                    pendingItemDeleteRef.current = null;
+                    setPendingItemDelete(null);
+                  }}
+                >
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={12}
+                    color={PALETTE.onPrimary}
+                    textTransform="uppercase"
+                    letterSpacing={1.6}
+                  >
+                    {t("common.undo")}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
             <FooterBubble>
               <YStack gap="$3.5">
-                {pendingItemDelete ? (
-                  <View style={screenStyles.undoBanner}>
-                    <YStack flex={1} gap="$1">
-                      <Text
-                        fontFamily={FONTS.bodyBold}
-                        fontSize={14}
-                        color={PALETTE.onPrimary}
-                      >
-                        {t("flow.items.itemDeleted")}
-                      </Text>
-                      <Text
-                        fontFamily={FONTS.bodyMedium}
-                        fontSize={12}
-                        color="rgba(255,255,255,0.82)"
-                      >
-                        {pendingItemDelete.title}
-                      </Text>
-                    </YStack>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("flow.items.undoDelete")}
-                      style={screenStyles.undoButton}
-                      onPress={() => {
-                        clearTimeout(itemDeleteTimeoutRef.current);
-                        itemDeleteTimeoutRef.current = null;
-                        pendingItemDeleteRef.current = null;
-                        setPendingItemDelete(null);
-                      }}
-                    >
-                      <Text
-                        fontFamily={FONTS.bodyBold}
-                        fontSize={12}
-                        color={PALETTE.onPrimary}
-                        textTransform="uppercase"
-                        letterSpacing={1.6}
-                      >
-                        {t("common.undo")}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : null}
                 <YStack style={screenStyles.itemsFooterInlineSummary}>
                   <Text
                     fontFamily={FONTS.bodyBold}
@@ -535,31 +565,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
               {visibleItems.map((item) => {
                 const itemTitle = item.name.trim() || t("flow.items.unnamed");
                 return (
-                  <Swipeable
-                    key={item.id}
-                    overshootRight={false}
-                    containerStyle={screenStyles.swipeableVisibleContainer}
-                    childrenContainerStyle={screenStyles.swipeableVisibleContainer}
-                    renderRightActions={() => (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Delete item ${itemTitle}`}
-                        style={screenStyles.recentSwipeDeleteAction}
-                        onPress={() => queueItemDelete(item.id, itemTitle)}
-                      >
-                        <Trash2 color={PALETTE.onPrimary} size={18} />
-                        <Text
-                          fontFamily={FONTS.bodyBold}
-                          fontSize={12}
-                          color={PALETTE.onPrimary}
-                          textTransform="uppercase"
-                          letterSpacing={1.6}
-                        >
-                          {t("flow.items.delete")}
-                        </Text>
-                      </Pressable>
-                    )}
-                  >
+                  <View key={item.id} style={screenStyles.swipeableVisibleContainer}>
                     <View style={screenStyles.recentShadowWrap}>
                       <Pressable
                         accessibilityRole="button"
@@ -572,10 +578,21 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                             queueItemDelete(item.id, itemTitle);
                           }
                         }}
+                        onLongPress={() => {
+                          longPressItemIdRef.current = item.id;
+                          setSelectedItemActionTarget({
+                            id: item.id,
+                            title: itemTitle,
+                          });
+                        }}
                         style={screenStyles.itemsListCard}
-                        onPress={() =>
-                          router.push(`/split/${draftId}/assign/${item.id}`)
-                        }
+                        onPress={() => {
+                          if (longPressItemIdRef.current === item.id) {
+                            longPressItemIdRef.current = null;
+                            return;
+                          }
+                          router.push(`/split/${draftId}/assign/${item.id}`);
+                        }}
                       >
                       <XStack
                         alignItems="center"
@@ -614,7 +631,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       </XStack>
                       </Pressable>
                     </View>
-                  </Swipeable>
+                  </View>
                 );
               })}
               <Pressable
