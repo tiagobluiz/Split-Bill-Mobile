@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+  Animated,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -79,6 +86,9 @@ const ITEM_CATEGORY_OPTIONS = [
   "Museum",
   "Tickets",
 ] as const;
+const SPLIT_COMPACT_HEADER_SHOW_OFFSET = 6;
+const SPLIT_COMPACT_HEADER_HIDE_OFFSET = 18;
+const SPLIT_COMPACT_HEADER_ANIMATION_MS = 160;
 export function AssignItemScreen({
   draftId,
   itemId,
@@ -496,6 +506,10 @@ export function SplitItemScreen({
   >(null);
   const [splitNoticeMessages, setSplitNoticeMessages] = useState<string[]>([]);
   const [percentSliderResetKey, setPercentSliderResetKey] = useState(0);
+  const [summaryBottomY, setSummaryBottomY] = useState(0);
+  const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const compactHeaderAnimatedValue = useRef(new Animated.Value(0)).current;
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
     shares: DraftRecord["values"]["items"][number]["allocations"];
@@ -536,6 +550,18 @@ export function SplitItemScreen({
     setSplitNoticeMessages([]);
   }, [itemId, record]);
 
+  useEffect(() => {
+    Animated.timing(compactHeaderAnimatedValue, {
+      toValue: isCompactHeaderVisible ? 1 : 0,
+      duration: SPLIT_COMPACT_HEADER_ANIMATION_MS,
+      useNativeDriver: true,
+    }).start();
+  }, [compactHeaderAnimatedValue, isCompactHeaderVisible]);
+
+  useEffect(() => {
+    setIsCompactHeaderVisible(false);
+  }, [itemId]);
+
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -560,6 +586,13 @@ export function SplitItemScreen({
   }
 
   const locale = getDeviceLocale();
+  const itemNameLabel = item.name || t("flow.splitItem.untitled");
+  const itemPriceLabel = formatMoney(
+    parseMoneyToCents(item.price) ?? 0,
+    record.values.currency,
+    locale,
+  );
+  const itemCategoryLabel = getItemCategoryLabel(item);
   const splitErrors = validateStepThree({
     ...record.values,
     items: [item],
@@ -1004,15 +1037,110 @@ export function SplitItemScreen({
           screenStyles.stickyFlowHeader,
           { paddingTop: Math.max(insets.top + 10, 28) },
         ]}
+        onLayout={({ nativeEvent }) => {
+          const nextHeaderHeight = nativeEvent.layout.height;
+          setHeaderHeight((current) =>
+            Math.abs(current - nextHeaderHeight) < 1 ? current : nextHeaderHeight,
+          );
+        }}
       >
         <FlowScreenHeader
           title={t("flow.splitItem.title")}
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
+      <Animated.View
+        testID="split-item-compact-header"
+        pointerEvents={isCompactHeaderVisible ? "auto" : "none"}
+        accessibilityElementsHidden={!isCompactHeaderVisible}
+        importantForAccessibility={
+          isCompactHeaderVisible ? "auto" : "no-hide-descendants"
+        }
+        style={[
+          screenStyles.splitCompactHeaderOverlay,
+          {
+            top: headerHeight,
+            opacity: compactHeaderAnimatedValue,
+            transform: [
+              {
+                translateY: compactHeaderAnimatedValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-6, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <View style={screenStyles.splitCompactHeaderCard}>
+          <View style={screenStyles.splitCompactHeaderRow} testID="split-item-compact-header-row-1">
+            <Text
+              testID="split-item-compact-header-name"
+              fontFamily={FONTS.headlineBold}
+              fontSize={16}
+              color={PALETTE.onSurface}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              flex={1}
+            >
+              {itemNameLabel}
+            </Text>
+            <Text
+              testID="split-item-compact-header-price"
+              fontFamily={FONTS.headlineBold}
+              fontSize={16}
+              color={PALETTE.primary}
+            >
+              {itemPriceLabel}
+            </Text>
+          </View>
+          <View
+            style={screenStyles.splitCompactHeaderRow}
+            testID="split-item-compact-header-row-2"
+          >
+            <Text
+              testID="split-item-compact-header-category"
+              fontFamily={FONTS.bodyBold}
+              fontSize={11}
+              color={PALETTE.onSurfaceVariant}
+              textTransform="uppercase"
+              letterSpacing={1.6}
+              numberOfLines={1}
+            >
+              {itemCategoryLabel}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
       <View style={screenStyles.splitScrollViewport}>
         <ScrollView
+          testID="split-item-scroll"
           style={screenStyles.flex}
+          onScroll={({ nativeEvent }) => {
+            if (summaryBottomY <= 0) {
+              if (isCompactHeaderVisible) {
+                setIsCompactHeaderVisible(false);
+              }
+              return;
+            }
+
+            const scrollY = nativeEvent.contentOffset.y;
+            const showThreshold =
+              summaryBottomY + SPLIT_COMPACT_HEADER_SHOW_OFFSET;
+            const hideThreshold = Math.max(
+              0,
+              summaryBottomY - SPLIT_COMPACT_HEADER_HIDE_OFFSET,
+            );
+
+            setIsCompactHeaderVisible((current) => {
+              if (current) {
+                return scrollY > hideThreshold;
+              }
+
+              return scrollY >= showThreshold;
+            });
+          }}
+          scrollEventThrottle={16}
           contentContainerStyle={[
             screenStyles.participantsScrollContent,
             {
@@ -1023,37 +1151,50 @@ export function SplitItemScreen({
           showsVerticalScrollIndicator={false}
         >
           <YStack gap="$5">
-          <YStack gap="$2" alignItems="center">
+          <YStack
+            testID="split-item-summary"
+            gap="$2"
+            alignItems="center"
+            onLayout={(event: any) => {
+              const { nativeEvent } = event;
+              const nextSummaryBottom =
+                nativeEvent.layout.y + nativeEvent.layout.height;
+              setSummaryBottomY((current) =>
+                Math.abs(current - nextSummaryBottom) < 1
+                  ? current
+                  : nextSummaryBottom,
+              );
+            }}
+          >
             <View style={screenStyles.splitCategoryPill}>
               <Text
+                testID="split-item-summary-category"
                 fontFamily={FONTS.bodyBold}
                 fontSize={11}
                 color={PALETTE.primary}
                 textTransform="uppercase"
                 letterSpacing={1.8}
               >
-                {getItemCategoryLabel(item)}
+                {itemCategoryLabel}
               </Text>
             </View>
             <Text
+              testID="split-item-summary-name"
               fontFamily={FONTS.headlineBlack}
               fontSize={34}
               color={PALETTE.onSurface}
               textAlign="center"
               letterSpacing={-1.4}
             >
-              {item.name || t("flow.splitItem.untitled")}
+              {itemNameLabel}
             </Text>
             <Text
+              testID="split-item-summary-price"
               fontFamily={FONTS.headlineBold}
               fontSize={24}
               color={PALETTE.primary}
             >
-              {formatMoney(
-                parseMoneyToCents(item.price) ?? 0,
-                record.values.currency,
-                locale,
-              )}
+              {itemPriceLabel}
             </Text>
           </YStack>
 
