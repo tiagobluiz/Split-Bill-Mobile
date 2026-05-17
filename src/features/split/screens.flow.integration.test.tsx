@@ -1313,6 +1313,7 @@ describe("split screens", () => {
     expect(screen.queryByTestId("items-scroll-cue-button")).toBeNull();
     expect(screen.queryByLabelText("Scroll to bottom")).toBeNull();
   });
+  test.todo("Re-enable long-press delete integration scenario once the upstream pretty-format RangeError is fixed.");
   it.skip("renders items loading, invalid review, valid review, and long-press delete actions", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<ItemsScreen draftId="draft-1" />);

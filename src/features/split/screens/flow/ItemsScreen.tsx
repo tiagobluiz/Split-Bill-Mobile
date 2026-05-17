@@ -319,6 +319,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   onPress: () => {
                     const target = selectedItemActionTarget;
                     setSelectedItemActionTarget(null);
+                    longPressItemIdRef.current = null;
                     queueItemDelete(target.id, target.title);
                   },
                 },

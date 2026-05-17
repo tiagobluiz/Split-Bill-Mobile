@@ -114,7 +114,7 @@ export function RecordRow({
     <View style={screenStyles.recentShadowWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Open split ${title}`}
+        accessibilityLabel={t("home.openSplitA11y", { title })}
         onLongPress={() => {
           didLongPressRef.current = true;
           onOpenActions({ id: record.id, title });
