@@ -1,6 +1,5 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import { Asset } from "expo-asset";
 import { Directory, File, Paths } from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 
@@ -8,8 +7,8 @@ import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
 import { formatMoney, type SplitFormValues } from "../domain/splitter";
 import { t } from "../i18n";
+import { PDF_HEADER_IMAGE_DATA_URI } from "./pdfHeaderImageDataUri.generated";
 
-const PDF_HEADER_ASSET = require("../../assets/split-bill-pdf-header.png");
 const DOWNLOAD_DUPLICATE_MAX_INDEX = 999;
 const INTERNAL_FILE_NAME_MAX_INDEX = 999;
 
@@ -87,104 +86,6 @@ function getPdfDocumentLanguage(locale: string) {
   return locale.split(/[-_]/)[0] || "en";
 }
 
-function normalizeUriForExpoFileSystem(uri: string) {
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(uri)) {
-    return uri;
-  }
-  if (uri.startsWith("//")) {
-    return `file:${uri}`;
-  }
-  if (uri.startsWith("/")) {
-    return `file://${uri}`;
-  }
-  return uri;
-}
-
-function buildHeaderAssetUriCandidates(localUri: string, assetUri: string) {
-  const candidates = [
-    localUri,
-    normalizeUriForExpoFileSystem(localUri),
-    assetUri,
-    normalizeUriForExpoFileSystem(assetUri),
-  ].filter((uri) => uri && uri.trim()) as string[];
-
-  return [...new Set(candidates)];
-}
-
-function normalizeBase64Payload(value: string) {
-  const trimmed = value.trim();
-  const marker = "base64,";
-  const markerIndex = trimmed.indexOf(marker);
-  if (markerIndex >= 0) {
-    return trimmed.slice(markerIndex + marker.length);
-  }
-  return trimmed;
-}
-
-async function readBase64FromUri(uri: string) {
-  try {
-    const imageFile = new File(uri);
-    const value = imageFile.base64Sync();
-    return normalizeBase64Payload(value);
-  } catch {
-    const value = await LegacyFileSystem.readAsStringAsync(uri, {
-      encoding: LegacyFileSystem.EncodingType.Base64,
-    });
-    return normalizeBase64Payload(value);
-  }
-}
-
-function createErrorWithCause(message: string, cause: unknown) {
-  const error = new Error(message);
-  (error as Error & { cause?: unknown }).cause = cause;
-  return error;
-}
-
-async function getPdfHeaderImageSource(): Promise<string> {
-  let localUriForLog = "";
-  let assetUriForLog = "";
-  let attemptedUrisForLog: string[] = [];
-  try {
-    const asset = Asset.fromModule(PDF_HEADER_ASSET);
-    await asset.downloadAsync();
-    localUriForLog = asset.localUri ?? "";
-    assetUriForLog = asset.uri ?? "";
-    const candidateUris = buildHeaderAssetUriCandidates(
-      localUriForLog,
-      assetUriForLog,
-    );
-    attemptedUrisForLog = candidateUris;
-    if (!candidateUris.length) {
-      throw new Error("PDF header image asset URI is unavailable.");
-    }
-
-    for (const uri of candidateUris) {
-      let base64 = "";
-      try {
-        base64 = await readBase64FromUri(uri);
-      } catch (error) {
-        console.warn("PDF header base64 read failed for URI", {
-          uri,
-          error,
-        });
-      }
-      if (base64) {
-        return `data:image/png;base64,${base64}`;
-      }
-    }
-
-    throw new Error("PDF header image asset base64 payload is empty.");
-  } catch (error) {
-    console.warn("Failed to load PDF header image asset", {
-      localUri: localUriForLog,
-      assetUri: assetUriForLog,
-      attemptedUris: attemptedUrisForLog,
-      error,
-    });
-    throw createErrorWithCause("Failed to load PDF header image asset.", error);
-  }
-}
-
 function renderHeaderImage(imageSource: string, altText: string) {
   return `<img src="${escapeHtml(imageSource)}" alt="${escapeHtml(altText)}" />`;
 }
@@ -192,7 +93,7 @@ function renderHeaderImage(imageSource: string, altText: string) {
 export function renderSettlementPdfHtml(
   data: PdfExportData,
   locale = "en-US",
-  headerImageSource?: string,
+  headerImageDataUri: string | null | undefined = PDF_HEADER_IMAGE_DATA_URI,
 ) {
   const totalCurrency = data.exchangeRate?.targetCurrency ?? data.currency;
   const totalRate = data.exchangeRate?.rate ?? 1;
@@ -296,12 +197,20 @@ export function renderSettlementPdfHtml(
     })
     .join("");
 
-  const brandedHeader = headerImageSource
+  const normalizedHeaderImageDataUri = headerImageDataUri?.trim() ?? "";
+  const fallbackBrandName = data.appName.trim();
+  const brandedHeader = normalizedHeaderImageDataUri
     ? `
       <div class="brand-banner">
-        ${renderHeaderImage(headerImageSource, data.appName)}
+        ${renderHeaderImage(normalizedHeaderImageDataUri, data.appName)}
       </div>
     `
+    : fallbackBrandName
+      ? `
+        <div class="brand-banner brand-banner-text" role="img" aria-label="${escapeHtml(fallbackBrandName)}">
+          ${escapeHtml(fallbackBrandName)}
+        </div>
+      `
     : "";
   const fxMetaRow =
     data.exchangeRate &&
@@ -362,6 +271,19 @@ export function renderSettlementPdfHtml(
         .brand-banner {
           width: 100%;
           background: #a54206;
+        }
+
+        .brand-banner-text {
+          min-height: 84px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff7ed;
+          font-size: 32px;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 1.8px;
+          text-transform: uppercase;
         }
 
         .brand-banner img {
@@ -600,31 +522,12 @@ export function renderSettlementPdfHtml(
   </html>`;
 }
 
-export type BuildSettlementPdfFileOptions = {
-  allowHeaderlessWhenAssetUnavailable?: boolean;
-};
-
 export async function buildSettlementPdfFile(
   values: SplitFormValues,
   locale = "en-US",
-  options: BuildSettlementPdfFileOptions = {},
 ): Promise<{ uri: string; fileName: string }> {
   const data = buildPdfExportData(values, new Date(), locale);
-  const allowHeaderlessFallback =
-    options.allowHeaderlessWhenAssetUnavailable ?? true;
-  let headerImageSource: string | undefined;
-  try {
-    headerImageSource = await getPdfHeaderImageSource();
-  } catch (error) {
-    if (!allowHeaderlessFallback) {
-      throw error;
-    }
-    console.warn(
-      "Proceeding with headerless PDF export because fallback was explicitly enabled",
-      error,
-    );
-  }
-  const html = renderSettlementPdfHtml(data, locale, headerImageSource);
+  const html = renderSettlementPdfHtml(data, locale);
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
@@ -856,7 +759,6 @@ function cleanupInternalCopy(uri: string) {
 
 export type DownloadSettlementPdfToDeviceOptions = {
   preferredDirectoryUri?: string;
-  allowHeaderlessWhenAssetUnavailable?: boolean;
   pickDirectory?: (
     initialUri?: string,
   ) => Promise<{ uri?: string } | Directory | null | undefined>;
@@ -907,10 +809,7 @@ export async function downloadSettlementPdfToDevice(
   locale = "en-US",
   options: DownloadSettlementPdfToDeviceOptions = {},
 ): Promise<{ uri: string; fileName: string; directoryUri: string }> {
-  const generatedPdf = await buildSettlementPdfFile(values, locale, {
-    allowHeaderlessWhenAssetUnavailable:
-      options.allowHeaderlessWhenAssetUnavailable,
-  });
+  const generatedPdf = await buildSettlementPdfFile(values, locale);
   const sourceFile = new File(generatedPdf.uri);
   const pickDirectory = options.pickDirectory ?? Directory.pickDirectoryAsync;
 
@@ -986,14 +885,13 @@ export function isDirectoryPickerCancelledError(error: unknown) {
 export async function exportSettlementPdf(
   values: SplitFormValues,
   locale = "en-US",
-  options: BuildSettlementPdfFileOptions = {},
 ): Promise<void> {
   const sharingAvailable = await Sharing.isAvailableAsync();
   if (!sharingAvailable) {
     throw new Error(t("pdf.sharingUnavailable"));
   }
 
-  const pdfFile = await buildSettlementPdfFile(values, locale, options);
+  const pdfFile = await buildSettlementPdfFile(values, locale);
   await Sharing.shareAsync(pdfFile.uri, {
     mimeType: "application/pdf",
     UTI: "com.adobe.pdf",
