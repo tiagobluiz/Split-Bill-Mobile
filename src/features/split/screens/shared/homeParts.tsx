@@ -1,7 +1,7 @@
+import { useRef } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { Swipeable } from "react-native-gesture-handler";
-import { Home, ReceiptText, Settings, Trash2 } from "lucide-react-native";
+import { Home, ReceiptText, Settings } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -83,7 +83,7 @@ export function RecordRow({
   record,
   ownerName,
   settings,
-  onDelete,
+  onOpenActions,
 }: {
   record: DraftRecord;
   ownerName: string;
@@ -92,10 +92,11 @@ export function RecordRow({
     splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   };
-  onDelete: (recordId: string, title: string) => void;
+  onOpenActions: (target: { id: string; title: string }) => void;
 }) {
   const meta = getRecentRowMeta(record, ownerName, settings, getSettlementPreview);
   const title = getRecordTitle(record);
+  const didLongPressRef = useRef(false);
   const showAmountBlock = record.status === "completed";
   const showSingleZeroState =
     showAmountBlock &&
@@ -110,31 +111,23 @@ export function RecordRow({
     meta.amountDisplay.secondaryKind === "nothingDue";
 
   return (
-    <Swipeable
-      overshootRight={false}
-      containerStyle={screenStyles.swipeableVisibleContainer}
-      childrenContainerStyle={screenStyles.swipeableVisibleContainer}
-      renderRightActions={() => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Delete split ${title}`}
-          style={screenStyles.recentSwipeDeleteAction}
-          onPress={() => onDelete(record.id, title)}
-        >
-          <Trash2 color={PALETTE.onPrimary} size={18} />
-          <Text fontFamily={FONTS.bodyBold} fontSize={12} color={PALETTE.onPrimary} textTransform="uppercase" letterSpacing={1.6}>
-            {t("flow.items.delete")}
-          </Text>
-        </Pressable>
-      )}
-    >
-      <View style={screenStyles.recentShadowWrap}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open split ${title}`}
-          onPress={() => router.push(buildRecordRoute(record))}
-          style={[screenStyles.recentRow, screenStyles.itemsListCard]}
-        >
+    <View style={screenStyles.recentShadowWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("home.openSplitA11y", { title })}
+        onLongPress={() => {
+          didLongPressRef.current = true;
+          onOpenActions({ id: record.id, title });
+        }}
+        onPress={() => {
+          if (didLongPressRef.current) {
+            didLongPressRef.current = false;
+            return;
+          }
+          router.push(buildRecordRoute(record));
+        }}
+        style={[screenStyles.recentRow, screenStyles.itemsListCard]}
+      >
           <XStack alignItems="center" justifyContent="space-between" gap="$3">
             <YStack flex={1} gap="$1">
               <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
@@ -272,8 +265,7 @@ export function RecordRow({
               </YStack>
             ) : null}
           </XStack>
-        </Pressable>
-      </View>
-    </Swipeable>
+      </Pressable>
+    </View>
   );
 }

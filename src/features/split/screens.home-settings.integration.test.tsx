@@ -837,6 +837,7 @@ describe("split screens", () => {
     ];
 
     const view = render(<HomeScreen />);
+    fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
     expect(screen.getByText("Split deleted")).toBeTruthy();
     expect(screen.queryByLabelText("Delete split Delete Me")).toBeNull();
@@ -845,10 +846,12 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Undo delete"));
     expect(screen.queryByText("Split deleted")).toBeNull();
-    expect(screen.getByLabelText("Delete split Delete Me")).toBeTruthy();
+    expect(screen.getByLabelText("Open split Delete Me")).toBeTruthy();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
 
+    fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
+    fireEvent(screen.getByLabelText("Open split Delete Next"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Next"));
     expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-delete-me");
     expect(screen.queryByLabelText("Delete split Delete Next")).toBeNull();
@@ -875,6 +878,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    fireEvent(screen.getByLabelText("Open split Expire Delete"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Expire Delete"));
     expect(screen.getByText("Split deleted")).toBeTruthy();
 
