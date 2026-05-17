@@ -378,6 +378,28 @@ export const screenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  splitCompactHeaderOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 6,
+    elevation: 6,
+    paddingHorizontal: 22,
+    backgroundColor: PALETTE.surface,
+  },
+  splitCompactHeaderCard: {
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.divider,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 2,
+  },
+  splitCompactHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   splitModeShell: {
     borderRadius: 999,
     backgroundColor: PALETTE.surfaceContainerLow,

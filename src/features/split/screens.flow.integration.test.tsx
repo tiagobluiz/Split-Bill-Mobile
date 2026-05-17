@@ -2253,6 +2253,93 @@ describe("split screens", () => {
     expect(screen.getByText("Item missing")).toBeTruthy();
   });
 
+  it("toggles the compact split-item header based on summary scroll and keeps two-row content mapped", () => {
+    const longItemName =
+      "Weekend groceries and extras for breakfast and dinner with friends";
+    const nextRecord = buildRecord({
+      values: {
+        ...buildRecord().values,
+        items: [
+          {
+            ...buildRecord().values.items[0],
+            name: longItemName,
+            category: "Dessert",
+          },
+        ],
+      },
+    });
+    mockStoreState.records = [nextRecord];
+
+    render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
+
+    const compactHeader = screen.getByTestId("split-item-compact-header", {
+      includeHiddenElements: true,
+    });
+    const splitSummary = screen.getByTestId("split-item-summary");
+    const splitScroll = screen.getByTestId("split-item-scroll");
+
+    expect(compactHeader.props.accessibilityElementsHidden).toBe(true);
+    expect(compactHeader.props.importantForAccessibility).toBe(
+      "no-hide-descendants",
+    );
+
+    act(() => {
+      splitSummary.props.onLayout({
+        nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 140 } },
+      });
+    });
+    act(() => {
+      splitScroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 170 },
+          layoutMeasurement: { height: 640 },
+          contentSize: { height: 1600 },
+        },
+      });
+    });
+
+    expect(screen.getByTestId("split-item-compact-header-row-1")).toBeTruthy();
+    expect(screen.getByTestId("split-item-compact-header-row-2")).toBeTruthy();
+    expect(screen.getByTestId("split-item-compact-header-name").props.children).toBe(
+      longItemName,
+    );
+    expect(screen.getByTestId("split-item-compact-header-name").props.numberOfLines).toBe(1);
+    expect(
+      screen.getByTestId("split-item-compact-header-price").props.children,
+    ).toBe(screen.getByTestId("split-item-summary-price").props.children);
+    expect(
+      screen.getByTestId("split-item-compact-header-category").props.children,
+    ).toBe(screen.getByTestId("split-item-summary-category").props.children);
+    expect(
+      screen.getByTestId("split-item-compact-header", {
+        includeHiddenElements: true,
+      }).props
+        .accessibilityElementsHidden,
+    ).toBe(false);
+
+    act(() => {
+      splitScroll.props.onScroll({
+        nativeEvent: {
+          contentOffset: { y: 112 },
+          layoutMeasurement: { height: 640 },
+          contentSize: { height: 1600 },
+        },
+      });
+    });
+
+    expect(
+      screen.getByTestId("split-item-compact-header", {
+        includeHiddenElements: true,
+      }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
+    expect(
+      screen.getByTestId("split-item-compact-header", {
+        includeHiddenElements: true,
+      }).props
+        .importantForAccessibility,
+    ).toBe("no-hide-descendants");
+  });
   it("keeps split changes local until confirm, supports even mode controls, and advances to the next item", async () => {
     mockStoreState.records = [
       buildRecord({
