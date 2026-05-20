@@ -114,5 +114,9 @@ jest.mock("@react-native-community/datetimepicker", () => {
   return {
     __esModule: true,
     default: DateTimePicker,
+    DateTimePickerAndroid: {
+      open: jest.fn(),
+      dismiss: jest.fn(),
+    },
   };
 });

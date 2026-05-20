@@ -101,12 +101,13 @@ export function normalizeReminderState(value: unknown): ReminderState {
   ) {
     Object.entries(payload.participantDebtReminders).forEach(
       ([participantId, entry]) => {
-        if (!participantId.trim()) {
+        const normalizedParticipantId = participantId.trim();
+        if (!normalizedParticipantId) {
           return;
         }
         const normalized = normalizeReminderEntry(entry);
         if (normalized) {
-          participantDebtReminders[participantId] = normalized;
+          participantDebtReminders[normalizedParticipantId] = normalized;
         }
       },
     );

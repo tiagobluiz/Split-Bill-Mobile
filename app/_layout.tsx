@@ -38,6 +38,12 @@ function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) 
 
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       redirectToReminder(response?.notification.request.content.data?.url);
+      if (
+        response &&
+        typeof Notifications.clearLastNotificationResponseAsync === "function"
+      ) {
+        void Notifications.clearLastNotificationResponseAsync();
+      }
     });
 
     const responseSubscription =
