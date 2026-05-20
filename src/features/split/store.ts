@@ -32,6 +32,18 @@ import {
   type AppSettings,
 } from "../../storage/settings";
 import { getDefaultTranslationSettings } from "../../i18n";
+import {
+  cancelReminder,
+  cancelReminderState,
+  createEmptyReminderState,
+  ensureReminderPermission,
+  normalizeReminderState,
+  reconcileScheduledReminders,
+  scheduleReminder,
+  type ReminderEntry,
+  type ReminderState,
+} from "./reminders";
+import { buildRecordRoute } from "./screens/shared/recordUtils";
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
@@ -96,6 +108,18 @@ type SplitStore = {
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
+  setSplitReminder: (recordId: string, scheduledForIso: string) => Promise<void>;
+  clearSplitReminder: (recordId: string) => Promise<void>;
+  setParticipantDebtReminder: (
+    recordId: string,
+    participantId: string,
+    scheduledForIso: string,
+  ) => Promise<void>;
+  clearParticipantDebtReminder: (
+    recordId: string,
+    participantId: string,
+  ) => Promise<void>;
+  reconcileReminders: () => Promise<void>;
   markCompleted: () => Promise<void>;
   getActiveRecord: () => DraftRecord | null;
 };
@@ -117,6 +141,7 @@ function createDraftRecord(defaultCurrency: string): DraftRecord {
     settlementState: {
       settledParticipantIds: [],
     },
+    reminderState: createEmptyReminderState(),
     createdAt: timestamp,
     updatedAt: timestamp,
     completedAt: null,
@@ -154,6 +179,66 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
     .map((person) => person.participantId);
 }
 
+function createReminderEntry(notificationId: string, scheduledForIso: string): ReminderEntry {
+  const timestamp = nowIso();
+  return {
+    notificationId,
+    scheduledForIso,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+function listReminderNotificationIds(reminderState?: ReminderState) {
+  const ids = new Set<string>();
+  const normalized = normalizeReminderState(reminderState);
+  if (normalized.splitReminder?.notificationId) {
+    ids.add(normalized.splitReminder.notificationId);
+  }
+  Object.values(normalized.participantDebtReminders).forEach((entry) => {
+    if (entry.notificationId) {
+      ids.add(entry.notificationId);
+    }
+  });
+  return ids;
+}
+
+function getCurrentDebtorIdSet(record: DraftRecord) {
+  return new Set(getSettledDebtorIds(record.values));
+}
+
+function pruneReminderState(record: DraftRecord) {
+  const normalized = normalizeReminderState(record.reminderState);
+  const debtorIds = getCurrentDebtorIdSet(record);
+  const settledIds = new Set(record.settlementState?.settledParticipantIds ?? []);
+  const participantDebtReminders: ReminderState["participantDebtReminders"] = {};
+
+  Object.entries(normalized.participantDebtReminders).forEach(
+    ([participantId, reminder]) => {
+      if (!debtorIds.has(participantId) || settledIds.has(participantId)) {
+        return;
+      }
+      participantDebtReminders[participantId] = reminder;
+    },
+  );
+
+  return normalized.splitReminder
+    ? {
+        splitReminder: normalized.splitReminder,
+        participantDebtReminders,
+      }
+    : {
+        participantDebtReminders,
+      };
+}
+
+function recordForReminderRoute(record: DraftRecord) {
+  return {
+    ...record,
+    reminderState: pruneReminderState(record),
+  };
+}
+
 function normalizeActiveRecordMutation(
   record: DraftRecord,
   mutator: (draft: DraftRecord) => void,
@@ -168,6 +253,7 @@ function normalizeActiveRecordMutation(
       settledParticipantIds: [],
     };
   }
+  nextRecord.reminderState = normalizeReminderState(nextRecord.reminderState);
   mutator(nextRecord);
   const hasValuesChanged =
     previousValuesSnapshot !== JSON.stringify(nextRecord.values);
@@ -185,6 +271,7 @@ function normalizeActiveRecordMutation(
       nextRecord.settlementState?.settledParticipantIds ?? []
     ).filter((participantId) => validSettledIds.has(participantId)),
   };
+  nextRecord.reminderState = pruneReminderState(nextRecord);
   nextRecord.step = resolveDraftStep(nextRecord);
   nextRecord.updatedAt = nowIso();
   return nextRecord;
@@ -254,9 +341,45 @@ async function withActiveRecord(
   }
 
   const nextRecord = mutator(active);
+  const currentIds = listReminderNotificationIds(active.reminderState);
+  const nextIds = listReminderNotificationIds(nextRecord.reminderState);
+  const removedNotificationIds = [...currentIds]
+    .filter((id) => !nextIds.has(id));
+  await Promise.allSettled(
+    removedNotificationIds.map((notificationId) =>
+      cancelReminder(notificationId),
+    ),
+  );
   set({
     activeRecordId: nextRecord.id,
     records: nextRecords(get().records, nextRecord),
+  });
+  await persistRecord(nextRecord);
+  return nextRecord;
+}
+
+async function withRecordById(
+  set: (partial: Partial<SplitStore>) => void,
+  get: () => SplitStore,
+  recordId: string,
+  mutator: (record: DraftRecord) => DraftRecord,
+) {
+  const existing = get().records.find((record) => record.id === recordId);
+  if (!existing) {
+    return null;
+  }
+
+  const nextRecord = mutator(existing);
+  const currentIds = listReminderNotificationIds(existing.reminderState);
+  const nextIds = listReminderNotificationIds(nextRecord.reminderState);
+  const removedIds = [...currentIds].filter((id) => !nextIds.has(id));
+  await Promise.allSettled(removedIds.map((notificationId) => cancelReminder(notificationId)));
+
+  const updatedRecords = nextRecords(get().records, nextRecord);
+  set({
+    records: updatedRecords,
+    activeRecordId:
+      get().activeRecordId === recordId ? recordId : get().activeRecordId,
   });
   await persistRecord(nextRecord);
   return nextRecord;
@@ -279,10 +402,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async bootstrap() {
     await initializeSettingsStorage();
     await initializeRecordsStorage();
-    const [records, settings] = await Promise.all([
+    const [rawRecords, settings] = await Promise.all([
       listRecords(),
       getAppSettings(),
     ]);
+    const { records, changed } = await reconcileScheduledReminders(rawRecords);
+    if (changed) {
+      await Promise.all(records.map((record) => saveRecord(record)));
+    }
     set({
       ready: true,
       records,
@@ -340,6 +467,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return record;
   },
   async removeRecord(id) {
+    const existing = get().records.find((record) => record.id === id);
+    if (existing?.reminderState) {
+      await cancelReminderState(existing.reminderState);
+    }
     await deleteRecord(id);
     const next = get().records.filter((record) => record.id !== id);
     set({
@@ -706,6 +837,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.settlementState.settledParticipantIds = getSettledDebtorIds(
           draft.values,
         );
+        draft.reminderState = createEmptyReminderState();
       }),
     );
   },
@@ -732,6 +864,143 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         draft.settlementState.settledParticipantIds = [...settledIds];
       }),
     );
+  },
+  async setSplitReminder(recordId, scheduledForIso) {
+    const record = get().records.find((entry) => entry.id === recordId);
+    if (!record) {
+      return;
+    }
+
+    const hasPermission = await ensureReminderPermission();
+    if (!hasPermission) {
+      throw new Error("notification-permission-denied");
+    }
+
+    const reminderUrl = buildRecordRoute(recordForReminderRoute(record));
+    const { notificationId } = await scheduleReminder({
+      target: "split",
+      draftId: record.id,
+      splitName: record.values.splitName?.trim(),
+      translation: {
+        language: get().settings.language,
+        humour: get().settings.humour,
+      },
+      url: reminderUrl,
+      scheduledForIso,
+    });
+
+    try {
+      await withRecordById(set, get, recordId, (currentRecord) =>
+        normalizeActiveRecordMutation(currentRecord, (draft) => {
+          const nextReminderState = normalizeReminderState(draft.reminderState);
+          draft.reminderState = {
+            ...nextReminderState,
+            splitReminder: createReminderEntry(notificationId, scheduledForIso),
+          };
+        }),
+      );
+    } catch (error) {
+      await cancelReminder(notificationId);
+      throw error;
+    }
+  },
+  async clearSplitReminder(recordId) {
+    await withRecordById(set, get, recordId, (record) =>
+      normalizeActiveRecordMutation(record, (draft) => {
+        const nextReminderState = normalizeReminderState(draft.reminderState);
+        draft.reminderState = {
+          participantDebtReminders: nextReminderState.participantDebtReminders,
+        };
+      }),
+    );
+  },
+  async setParticipantDebtReminder(recordId, participantId, scheduledForIso) {
+    const record = get().records.find((entry) => entry.id === recordId);
+    if (!record) {
+      return;
+    }
+
+    const debtorIds = getCurrentDebtorIdSet(record);
+    const settledIds = new Set(record.settlementState?.settledParticipantIds ?? []);
+    if (!debtorIds.has(participantId) || settledIds.has(participantId)) {
+      throw new Error("participant-debt-not-actionable");
+    }
+
+    const participantName = record.values.participants.find(
+      (participant) => participant.id === participantId,
+    )?.name;
+    const hasPermission = await ensureReminderPermission();
+    if (!hasPermission) {
+      throw new Error("notification-permission-denied");
+    }
+
+    const { notificationId } = await scheduleReminder({
+      target: "participantDebt",
+      draftId: record.id,
+      participantId,
+      splitName: record.values.splitName?.trim(),
+      participantName,
+      translation: {
+        language: get().settings.language,
+        humour: get().settings.humour,
+      },
+      url: `/split/${record.id}/results`,
+      scheduledForIso,
+    });
+
+    try {
+      await withRecordById(set, get, recordId, (currentRecord) =>
+        normalizeActiveRecordMutation(currentRecord, (draft) => {
+          const nextReminderState = normalizeReminderState(draft.reminderState);
+          draft.reminderState = {
+            ...nextReminderState,
+            participantDebtReminders: {
+              ...nextReminderState.participantDebtReminders,
+              [participantId]: createReminderEntry(notificationId, scheduledForIso),
+            },
+          };
+        }),
+      );
+    } catch (error) {
+      await cancelReminder(notificationId);
+      throw error;
+    }
+  },
+  async clearParticipantDebtReminder(recordId, participantId) {
+    await withRecordById(set, get, recordId, (record) =>
+      normalizeActiveRecordMutation(record, (draft) => {
+        const nextReminderState = normalizeReminderState(draft.reminderState);
+        const participantDebtReminders = {
+          ...nextReminderState.participantDebtReminders,
+        };
+        delete participantDebtReminders[participantId];
+        draft.reminderState = nextReminderState.splitReminder
+          ? {
+              splitReminder: nextReminderState.splitReminder,
+              participantDebtReminders,
+            }
+          : {
+              participantDebtReminders,
+            };
+      }),
+    );
+  },
+  async reconcileReminders() {
+    const currentRecords = get().records;
+    const { records: reconciledRecords, changed } =
+      await reconcileScheduledReminders(currentRecords);
+    if (!changed) {
+      return;
+    }
+    set({
+      records: reconciledRecords,
+      activeRecordId: reconciledRecords.some(
+        (record) => record.id === get().activeRecordId,
+      )
+        ? get().activeRecordId
+        : (reconciledRecords[0]?.id ?? null),
+    });
+    await Promise.all(reconciledRecords.map((record) => saveRecord(record)));
   },
   async markCompleted() {
     await withActiveRecord(set, get, (record) =>

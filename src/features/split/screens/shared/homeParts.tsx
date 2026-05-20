@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { Home, ReceiptText, Settings } from "lucide-react-native";
+import { Bell, Home, ReceiptText, Settings } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -84,6 +84,7 @@ export function RecordRow({
   ownerName,
   settings,
   onOpenActions,
+  reminderLabel,
 }: {
   record: DraftRecord;
   ownerName: string;
@@ -93,6 +94,7 @@ export function RecordRow({
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
   };
   onOpenActions: (target: { id: string; title: string }) => void;
+  reminderLabel?: string;
 }) {
   const meta = getRecentRowMeta(record, ownerName, settings, getSettlementPreview);
   const title = getRecordTitle(record);
@@ -107,7 +109,8 @@ export function RecordRow({
     showAmountBlock &&
     meta.amountDisplay.variant === "totalAndRemaining" &&
     Boolean(meta.amountDisplay.secondaryValue);
-  const showCombinedZeroState = showCombinedAmount &&
+  const showCombinedZeroState =
+    showCombinedAmount &&
     meta.amountDisplay.secondaryKind === "nothingDue";
 
   return (
@@ -128,24 +131,38 @@ export function RecordRow({
         }}
         style={[screenStyles.recentRow, screenStyles.itemsListCard]}
       >
-          <XStack alignItems="center" justifyContent="space-between" gap="$3">
-            <YStack flex={1} gap="$1">
-              <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
-                {title}
-              </Text>
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={12}
-                color={meta.statusColor}
-                textTransform="uppercase"
-                letterSpacing={1.8}
-              >
-                {meta.statusLabel}
-              </Text>
-            </YStack>
-            {showAmountBlock ? (
-              <YStack alignItems="flex-end" justifyContent="center" minWidth={72}>
-                {showCombinedAmount ? (
+        <XStack alignItems="center" justifyContent="space-between" gap="$3">
+          <YStack flex={1} gap="$1">
+            <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+              {title}
+            </Text>
+            <Text
+              fontFamily={FONTS.bodyBold}
+              fontSize={12}
+              color={meta.statusColor}
+              textTransform="uppercase"
+              letterSpacing={1.8}
+            >
+              {meta.statusLabel}
+            </Text>
+            {reminderLabel ? (
+              <XStack alignItems="center" gap="$1.5">
+                <Bell color={PALETTE.primary} size={12} />
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={11}
+                  color={PALETTE.primary}
+                  textTransform="uppercase"
+                  letterSpacing={1.6}
+                >
+                  {reminderLabel}
+                </Text>
+              </XStack>
+            ) : null}
+          </YStack>
+          {showAmountBlock ? (
+            <YStack alignItems="flex-end" justifyContent="center" minWidth={72}>
+              {showCombinedAmount ? (
                 <XStack alignItems="flex-end" gap="$4">
                   <YStack alignItems="flex-end" gap="$0.5">
                     <Text
@@ -160,25 +177,14 @@ export function RecordRow({
                         ? t("record.amount.nothingDue")
                         : meta.amountDisplay.secondaryLabel}
                     </Text>
-                    {showCombinedZeroState ? (
-                      <Text
-                        fontFamily={FONTS.headlineBlack}
-                        fontSize={18}
-                        color={PALETTE.onSurfaceVariant}
-                        textAlign="right"
-                      >
-                        {meta.amountDisplay.secondaryValue}
-                      </Text>
-                    ) : (
-                      <Text
-                        fontFamily={FONTS.headlineBlack}
-                        fontSize={18}
-                        color={PALETTE.onSurfaceVariant}
-                        textAlign="right"
-                      >
-                        {meta.amountDisplay.secondaryValue}
-                      </Text>
-                    )}
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={18}
+                      color={PALETTE.onSurfaceVariant}
+                      textAlign="right"
+                    >
+                      {meta.amountDisplay.secondaryValue}
+                    </Text>
                   </YStack>
                   <YStack alignItems="flex-end" gap="$0.5">
                     <Text
@@ -201,21 +207,21 @@ export function RecordRow({
                     </Text>
                   </YStack>
                 </XStack>
-                ) : showSingleZeroState ? (
-                  <YStack alignItems="flex-end" gap="$0.5">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={10}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.3}
-                      textAlign="right"
-                    >
-                      {t("record.amount.nothingDue")}
-                    </Text>
-                  </YStack>
-                ) : (
-                  <>
+              ) : showSingleZeroState ? (
+                <YStack alignItems="flex-end" gap="$0.5">
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={10}
+                    color={PALETTE.onSurfaceVariant}
+                    textTransform="uppercase"
+                    letterSpacing={1.3}
+                    textAlign="right"
+                  >
+                    {t("record.amount.nothingDue")}
+                  </Text>
+                </YStack>
+              ) : (
+                <>
                   <Text
                     fontFamily={FONTS.bodyBold}
                     fontSize={11}
@@ -260,11 +266,11 @@ export function RecordRow({
                       </Text>
                     </YStack>
                   ) : null}
-                  </>
-                )}
-              </YStack>
-            ) : null}
-          </XStack>
+                </>
+              )}
+            </YStack>
+          ) : null}
+        </XStack>
       </Pressable>
     </View>
   );

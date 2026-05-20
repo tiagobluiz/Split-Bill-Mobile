@@ -100,6 +100,9 @@ describe("records storage", () => {
         settlementState: {
           settledParticipantIds: [],
         },
+        reminderState: {
+          participantDebtReminders: {},
+        },
         createdAt: "2026-04-04T09:00:00.000Z",
         updatedAt: "2026-04-04T10:00:00.000Z",
         completedAt: "2026-04-04T10:00:00.000Z",
@@ -123,6 +126,9 @@ describe("records storage", () => {
           },
           settlementState: {
             settledParticipantIds: [],
+          },
+          reminderState: {
+            participantDebtReminders: {},
           },
         }),
         "2026-04-04T11:00:00.000Z",
@@ -179,6 +185,9 @@ describe("records storage", () => {
           },
           settlementState: {
             settledParticipantIds: [],
+          },
+          reminderState: {
+            participantDebtReminders: {},
           },
         }),
       ])
@@ -379,6 +388,122 @@ describe("records storage", () => {
           settledParticipantIds: ["bruno"],
         },
       })
+    );
+  });
+
+  it("loads reminder state from the wrapped payload shape", async () => {
+    const row = {
+      id: "draft-reminders",
+      status: "draft",
+      step: 4,
+      payload: JSON.stringify({
+        values: {
+          splitName: "",
+          currency: "EUR",
+          payerParticipantId: "ana",
+          participants: [{ id: "ana", name: "Ana" }, { id: "bruno", name: "Bruno" }],
+          items: [],
+        },
+        settlementState: {
+          settledParticipantIds: [],
+        },
+        reminderState: {
+          splitReminder: {
+            scheduledForIso: "2099-01-01T10:00:00.000Z",
+            notificationId: "split-reminder-id",
+            createdAt: "2026-04-04T09:00:00.000Z",
+            updatedAt: "2026-04-04T09:00:00.000Z",
+          },
+          participantDebtReminders: {
+            bruno: {
+              scheduledForIso: "2099-01-02T10:00:00.000Z",
+              notificationId: "debt-reminder-id",
+              createdAt: "2026-04-04T09:00:00.000Z",
+              updatedAt: "2026-04-04T09:00:00.000Z",
+            },
+          },
+        },
+      }),
+      created_at: "2026-04-04T09:00:00.000Z",
+      updated_at: "2026-04-04T10:00:00.000Z",
+      completed_at: null,
+    };
+
+    const { recordsModule } = await loadModule({
+      rows: [row],
+      row,
+    });
+
+    await recordsModule.initializeRecordsStorage();
+    await expect(recordsModule.getRecordById("draft-reminders")).resolves.toEqual(
+      expect.objectContaining({
+        reminderState: {
+          splitReminder: expect.objectContaining({
+            notificationId: "split-reminder-id",
+          }),
+          participantDebtReminders: {
+            bruno: expect.objectContaining({
+              notificationId: "debt-reminder-id",
+            }),
+          },
+        },
+      }),
+    );
+  });
+
+  it("drops malformed reminder entries while keeping valid ones", async () => {
+    const row = {
+      id: "draft-reminders-malformed",
+      status: "draft",
+      step: 4,
+      payload: JSON.stringify({
+        values: {
+          splitName: "",
+          currency: "EUR",
+          payerParticipantId: "ana",
+          participants: [{ id: "ana", name: "Ana" }, { id: "bruno", name: "Bruno" }],
+          items: [],
+        },
+        reminderState: {
+          splitReminder: {
+            scheduledForIso: "not-a-date",
+            notificationId: "bad-id",
+          },
+          participantDebtReminders: {
+            bruno: {
+              scheduledForIso: "2099-01-02T10:00:00.000Z",
+              notificationId: "good-debt-reminder",
+              createdAt: "2026-04-04T09:00:00.000Z",
+              updatedAt: "2026-04-04T09:00:00.000Z",
+            },
+            ana: {
+              scheduledForIso: "2099-01-03T10:00:00.000Z",
+              notificationId: "",
+            },
+          },
+        },
+      }),
+      created_at: "2026-04-04T09:00:00.000Z",
+      updated_at: "2026-04-04T10:00:00.000Z",
+      completed_at: null,
+    };
+
+    const { recordsModule } = await loadModule({
+      rows: [row],
+      row,
+    });
+
+    await recordsModule.initializeRecordsStorage();
+    await expect(recordsModule.getRecordById("draft-reminders-malformed")).resolves.toEqual(
+      expect.objectContaining({
+        reminderState: {
+          participantDebtReminders: {
+            bruno: expect.objectContaining({
+              notificationId: "good-debt-reminder",
+            }),
+          },
+        },
+      }),
     );
   });
 

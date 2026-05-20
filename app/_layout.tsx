@@ -1,8 +1,9 @@
 import "react-native-gesture-handler";
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { Stack } from "expo-router";
+import { AppState, Pressable, Text, View } from "react-native";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { PublicSans_700Bold, PublicSans_900Black } from "@expo-google-fonts/public-sans";
 
@@ -14,8 +15,67 @@ import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
 
 void SplashScreen.preventAutoHideAsync();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) {
+  useEffect(() => {
+    const reconcileReminders = () => {
+      void onReminderSignal?.();
+    };
+    const redirectToReminder = (urlCandidate: unknown) => {
+      if (typeof urlCandidate === "string" && urlCandidate.trim()) {
+        router.push(urlCandidate.trim());
+      }
+      reconcileReminders();
+    };
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      redirectToReminder(response?.notification.request.content.data?.url);
+      if (
+        response &&
+        typeof Notifications.clearLastNotificationResponseAsync === "function"
+      ) {
+        void Notifications.clearLastNotificationResponseAsync();
+      }
+    });
+
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        redirectToReminder(response.notification.request.content.data?.url);
+      });
+    const receivedSubscription =
+      typeof Notifications.addNotificationReceivedListener === "function"
+        ? Notifications.addNotificationReceivedListener(() => {
+            reconcileReminders();
+          })
+        : null;
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (state) => {
+        if (state === "active") {
+          reconcileReminders();
+        }
+      },
+    );
+
+    return () => {
+      responseSubscription.remove();
+      receivedSubscription?.remove();
+      appStateSubscription.remove();
+    };
+  }, [onReminderSignal]);
+}
 
 export default function RootLayout() {
+  const reconcileReminders = useSplitStore((state) => state.reconcileReminders);
+  useNotificationObserver(reconcileReminders);
   const bootstrap = useSplitStore((state) => state.bootstrap);
   const ready = useSplitStore((state) => state.ready);
   const settings = useSplitStore((state) => state.settings);

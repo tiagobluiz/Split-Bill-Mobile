@@ -1,5 +1,10 @@
 import type { SplitFormValues } from "../domain";
 import { withAppDatabaseRetry } from "./database";
+import {
+  createEmptyReminderState,
+  normalizeReminderState,
+  type ReminderState,
+} from "../features/split/reminders";
 
 export type RecordStatus = "draft" | "completed";
 
@@ -11,6 +16,7 @@ export type DraftRecord = {
   settlementState: {
     settledParticipantIds: string[];
   };
+  reminderState?: ReminderState;
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;
@@ -60,8 +66,18 @@ function getDefaultSettlementState() {
   };
 }
 
+function getDefaultReminderState() {
+  return createEmptyReminderState();
+}
+
 function mapRow(row: DatabaseRow): DraftRecord | null {
-  let parsedPayload: SplitFormValues | { values?: SplitFormValues; settlementState?: { settledParticipantIds?: string[] } };
+  let parsedPayload:
+    | SplitFormValues
+    | {
+        values?: SplitFormValues;
+        settlementState?: { settledParticipantIds?: string[] };
+        reminderState?: ReminderState;
+      };
   try {
     parsedPayload = JSON.parse(row.payload) as SplitFormValues | { values?: SplitFormValues; settlementState?: { settledParticipantIds?: string[] } };
   } catch {
@@ -81,6 +97,12 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
     Array.isArray(parsedPayload.settlementState.settledParticipantIds)
       ? { settledParticipantIds: parsedPayload.settlementState.settledParticipantIds.filter((value) => typeof value === "string") }
       : getDefaultSettlementState();
+  const reminderState =
+    parsedPayload &&
+    typeof parsedPayload === "object" &&
+    "reminderState" in parsedPayload
+      ? normalizeReminderState(parsedPayload.reminderState)
+      : getDefaultReminderState();
 
   return {
     id: row.id,
@@ -92,6 +114,7 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
       items,
     },
     settlementState,
+    reminderState,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
@@ -129,6 +152,7 @@ export async function saveRecord(record: DraftRecord) {
         JSON.stringify({
           values: record.values,
           settlementState: record.settlementState ?? getDefaultSettlementState(),
+          reminderState: record.reminderState ?? getDefaultReminderState(),
         }),
         record.createdAt,
         record.updatedAt,
