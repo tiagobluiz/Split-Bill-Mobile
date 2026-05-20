@@ -2,6 +2,16 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 
 const mockUseFonts = jest.fn();
 const mockListeners = new Set<() => void>();
+const mockRouterPush = jest.fn();
+const mockRemoveNotificationSubscription = jest.fn();
+const mockGetLastNotificationResponseAsync = jest.fn<Promise<any>, []>(
+  async () => null,
+);
+const mockAddNotificationResponseReceivedListener = jest.fn(
+  (_listener?: any) => ({
+    remove: mockRemoveNotificationSubscription,
+  }),
+);
 
 const mockStoreState = {
   ready: false,
@@ -35,10 +45,20 @@ jest.mock("@expo-google-fonts/public-sans", () => ({
 }));
 
 jest.mock("expo-router", () => ({
+  router: {
+    push: (value: string) => mockRouterPush(value),
+  },
   Stack: () => {
     const { Text } = require("react-native");
     return <Text>stack</Text>;
   },
+}));
+
+jest.mock("expo-notifications", () => ({
+  setNotificationHandler: jest.fn(),
+  getLastNotificationResponseAsync: () => mockGetLastNotificationResponseAsync(),
+  addNotificationResponseReceivedListener: (listener: (value: any) => void) =>
+    mockAddNotificationResponseReceivedListener(listener),
 }));
 
 jest.mock("../../theme/provider", () => ({
@@ -73,6 +93,14 @@ describe("root layout", () => {
     const splashScreen = require("expo-splash-screen");
     splashScreen.hideAsync.mockReset();
     mockUseFonts.mockReset();
+    mockRouterPush.mockReset();
+    mockRemoveNotificationSubscription.mockReset();
+    mockGetLastNotificationResponseAsync.mockReset();
+    mockAddNotificationResponseReceivedListener.mockReset();
+    mockGetLastNotificationResponseAsync.mockResolvedValue(null);
+    mockAddNotificationResponseReceivedListener.mockReturnValue({
+      remove: mockRemoveNotificationSubscription,
+    });
     mockListeners.clear();
     mockStoreState.ready = false;
     mockStoreState.bootstrap.mockReset();
@@ -100,6 +128,26 @@ describe("root layout", () => {
     expect(screen.getByText("stack")).toBeTruthy();
     await waitFor(() => {
       expect(splashScreen.hideAsync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("routes from the latest notification deep link when present", async () => {
+    mockStoreState.ready = true;
+    mockUseFonts.mockReturnValue([true]);
+    mockGetLastNotificationResponseAsync.mockResolvedValue({
+      notification: {
+        request: {
+          content: {
+            data: { url: "/split/draft-1/results" },
+          },
+        },
+      },
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/split/draft-1/results");
     });
   });
 

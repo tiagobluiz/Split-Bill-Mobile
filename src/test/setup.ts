@@ -104,3 +104,15 @@ jest.mock("@react-native-community/slider", () => {
 
   return ({ children, ...props }: any) => React.createElement(View, props, children);
 });
+
+jest.mock("@react-native-community/datetimepicker", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const DateTimePicker = ({ children, ...props }: any) =>
+    React.createElement(View, props, children);
+
+  return {
+    __esModule: true,
+    default: DateTimePicker,
+  };
+});

@@ -142,6 +142,34 @@ const enPlain = {
   "home.tab.home": "Home",
   "home.tab.splits": "Splits",
   "home.tab.settings": "Settings",
+  "reminders.actionsTitle": "Reminder",
+  "reminders.set": "Set",
+  "reminders.edit": "Edit",
+  "reminders.update": "Update",
+  "reminders.remove": "Remove",
+  "reminders.removed": "Reminder removed.",
+  "reminders.save": "Save reminder",
+  "reminders.saved": "Reminder saved.",
+  "reminders.saveFailed": "Could not save this reminder.",
+  "reminders.removeFailed": "Could not remove this reminder.",
+  "reminders.permissionDenied":
+    "Notification permission is required to save reminders.",
+  "reminders.rowSet": "Reminder set",
+  "reminders.rowSetAt": "{date}",
+  "reminders.picker.title": "Reminder",
+  "reminders.picker.date": "Date",
+  "reminders.picker.time": "Time",
+  "reminders.picker.editDate": "Edit reminder date",
+  "reminders.picker.editTime": "Edit reminder time",
+  "reminders.picker.nextTime": "Next: choose time",
+  "reminders.picker.backDate": "Back to date",
+  "reminders.errors.futureOnly": "Choose a future date and time.",
+  "reminders.notification.splitFallbackTitle": "Split reminder",
+  "reminders.notification.splitBody": "You asked to be reminded about this split.",
+  "reminders.notification.debtFallbackTitle": "Debt reminder",
+  "reminders.notification.debtBodyNamed": "{name} still has an open amount.",
+  "reminders.notification.debtBodyUnnamed":
+    "A participant still has an open amount.",
   "flow.setup.title": "New Split",
   "flow.setup.splitName": "Split name",
   "flow.setup.splitNamePlaceholder": "e.g. Weekend groceries",
@@ -539,6 +567,11 @@ const enSassy: Partial<Record<keyof typeof enPlain, string>> = {
   "clipboard.payer.stillOwes": "{name}: paid {amount}, still owes {net}.",
   "clipboard.person.owes": "{name}: owes {amount}",
   "clipboard.person.getsBack": "{name}: gets back {amount}",
+  "reminders.notification.splitBody": "Nudge: this split still needs attention.",
+  "reminders.notification.debtBodyNamed":
+    "{name} still has an open amount. Time to poke them.",
+  "reminders.notification.debtBodyUnnamed":
+    "Someone still has an open amount. Go poke them.",
 
   "pdf.invalid": "No PDF. Fix your split first."
 };
@@ -606,6 +639,12 @@ const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
   "clipboard.payer.stillOwes": "{name}: paid {amount}, still in debt {net}.",
   "clipboard.person.owes": "{name}: owes {amount}. Pay them.",
   "clipboard.person.getsBack": "{name}: gets back {amount}. Eventually.",
+  "reminders.notification.splitBody":
+    "This split is still open. Handle it before it haunts you.",
+  "reminders.notification.debtBodyNamed":
+    "{name} still owes money. Summon the payment.",
+  "reminders.notification.debtBodyUnnamed":
+    "A participant still owes money. Summon the payment.",
   "pdf.invalid": "No PDF for this mess. Fix it first.",
 };
 
@@ -744,6 +783,35 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "home.tab.home": "Início",
   "home.tab.splits": "Divisões",
   "home.tab.settings": "Definições",
+  "reminders.actionsTitle": "Lembrete",
+  "reminders.set": "Criar",
+  "reminders.edit": "Editar",
+  "reminders.update": "Atualizar",
+  "reminders.remove": "Remover",
+  "reminders.removed": "Lembrete removido.",
+  "reminders.save": "Guardar lembrete",
+  "reminders.saved": "Lembrete guardado.",
+  "reminders.saveFailed": "Nao foi possivel guardar o lembrete.",
+  "reminders.removeFailed": "Nao foi possivel remover o lembrete.",
+  "reminders.permissionDenied":
+    "Precisas de permitir notificacoes para guardar lembretes.",
+  "reminders.rowSet": "Lembrete ativo",
+  "reminders.rowSetAt": "{date}",
+  "reminders.picker.title": "Lembrete",
+  "reminders.picker.date": "Data",
+  "reminders.picker.time": "Hora",
+  "reminders.picker.editDate": "Editar data do lembrete",
+  "reminders.picker.editTime": "Editar hora do lembrete",
+  "reminders.picker.nextTime": "Seguinte: escolher hora",
+  "reminders.picker.backDate": "Voltar a data",
+  "reminders.errors.futureOnly": "Escolhe uma data e hora no futuro.",
+  "reminders.notification.splitFallbackTitle": "Lembrete da conta",
+  "reminders.notification.splitBody": "Pediste para te lembrar desta conta.",
+  "reminders.notification.debtFallbackTitle": "Lembrete de dívida",
+  "reminders.notification.debtBodyNamed":
+    "{name} ainda tem um valor em aberto.",
+  "reminders.notification.debtBodyUnnamed":
+    "Ainda há um participante com valor em aberto.",
   "flow.setup.title": "Nova divisão",
   "flow.setup.splitName": "Nome da divisão",
   "flow.setup.splitNamePlaceholder": "ex.: Compras do fim de semana",
@@ -1169,6 +1237,12 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "clipboard.person.owes": "{name}: deve {amount}",
   "clipboard.person.getsBack": "{name}: recebe {amount}",
 
+  "reminders.notification.splitBody":
+    "Esta conta ainda está em aberto...",
+  "reminders.notification.debtBodyNamed":
+    "{name} ainda tem valor em aberto. Vai lembrando.",
+  "reminders.notification.debtBodyUnnamed":
+    "Alguém ainda tem valor em aberto. Vai lembrando.",
   "pdf.invalid": "Assim não dá para exportar"
 };
 
@@ -1374,6 +1448,12 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "clipboard.payer.stillOwes": "{name}: pagou {amount} e ainda deve {net}. Triste.",
   "clipboard.person.owes": "{name}: deve {amount}. Paga.",
   "clipboard.person.getsBack": "{name}: recebe {amount}. Sortudo.",
+  "reminders.notification.splitBody":
+    "Esta conta continua em aberto. Resolve isso antes que vire novela.",
+  "reminders.notification.debtBodyNamed":
+    "{name} ainda deve. Hora da cobrança amigável (ou não).",
+  "reminders.notification.debtBodyUnnamed":
+    "Ainda há alguém a dever. Hora da cobrança.",
 
   "pdf.title.default": "Resumo da facada",
   "pdf.title.named": "Resumo do assalto {splitName}",
@@ -1415,3 +1495,4 @@ export const translationCatalog = {
 } as const;
 
 export type TranslationKey = keyof typeof enPlain;
+

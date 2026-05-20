@@ -106,6 +106,9 @@ function buildRecord(overrides: Partial<any> = {}) {
     settlementState: {
       settledParticipantIds: [],
     },
+    reminderState: {
+      participantDebtReminders: {},
+    },
     values: {
       splitName: "",
       currency: "EUR",
@@ -181,6 +184,10 @@ function buildStore(overrides: Partial<any> = {}) {
     markBillPaid: jest.fn(async () => undefined),
     revertBillPaid: jest.fn(async () => undefined),
     toggleParticipantPaid: jest.fn(async () => undefined),
+    setSplitReminder: jest.fn(async () => undefined),
+    clearSplitReminder: jest.fn(async () => undefined),
+    setParticipantDebtReminder: jest.fn(async () => undefined),
+    clearParticipantDebtReminder: jest.fn(async () => undefined),
     markCompleted: jest.fn(async () => undefined),
     getActiveRecord: jest.fn(() => buildRecord()),
     ...overrides,
@@ -688,7 +695,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    expect(screen.getAllByText(/15,00|15.00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3,00|3.00/).length).toBeGreaterThan(0);
     expect(screen.queryByText("$12.00")).toBeNull();
   });
 
@@ -763,7 +770,7 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-unknown/overview");
 
     fireEvent.press(screen.getByText("Untitled split"));
-    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
 
     await act(async () => {
       fireEvent.press(screen.getByText("Start New Split"));
@@ -1628,6 +1635,42 @@ describe("split screens", () => {
     } finally {
       Intl.NumberFormat = originalNumberFormat;
     }
+  });
+
+  it("opens split reminder actions on long press and saves a reminder", async () => {
+    render(<HomeScreen />);
+
+    fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
+    expect(screen.getByText("Reminder")).toBeTruthy();
+    fireEvent.press(screen.getByText("Reminder"));
+    expect(screen.queryByLabelText("Next: choose time")).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Set"));
+    });
+
+    expect(mockStoreState.setSplitReminder).toHaveBeenCalledWith(
+      "draft-1",
+      expect.any(String),
+    );
+  });
+
+  it("does not render expired split reminder labels on rows", () => {
+    mockStoreState.records = [
+      buildRecord({
+        reminderState: {
+          splitReminder: {
+            scheduledForIso: "2020-01-01T09:00:00.000Z",
+            notificationId: "old-reminder",
+            createdAt: "2020-01-01T08:00:00.000Z",
+            updatedAt: "2020-01-01T08:00:00.000Z",
+          },
+          participantDebtReminders: {},
+        },
+      }),
+    ];
+
+    render(<HomeScreen />);
+    expect(screen.queryByText(/Reminder:/i)).toBeNull();
   });
 
 });

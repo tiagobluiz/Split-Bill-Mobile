@@ -110,6 +110,9 @@ function buildRecord(overrides: Partial<any> = {}) {
     settlementState: {
       settledParticipantIds: [],
     },
+    reminderState: {
+      participantDebtReminders: {},
+    },
     values: {
       splitName: "",
       currency: "EUR",
@@ -185,6 +188,10 @@ function buildStore(overrides: Partial<any> = {}) {
     markBillPaid: jest.fn(async () => undefined),
     revertBillPaid: jest.fn(async () => undefined),
     toggleParticipantPaid: jest.fn(async () => undefined),
+    setSplitReminder: jest.fn(async () => undefined),
+    clearSplitReminder: jest.fn(async () => undefined),
+    setParticipantDebtReminder: jest.fn(async () => undefined),
+    clearParticipantDebtReminder: jest.fn(async () => undefined),
     markCompleted: jest.fn(async () => undefined),
     getActiveRecord: jest.fn(() => buildRecord()),
     ...overrides,
@@ -359,7 +366,7 @@ describe("split screens", () => {
     const flattened = Array.isArray(contentStyle)
       ? Object.assign({}, ...contentStyle)
       : contentStyle;
-    expect(flattened.paddingBottom).toBe(180);
+    expect(flattened.paddingBottom).toBe(212);
   });
 
   it("only enables review scrolling when the content overflows the screen", () => {
@@ -781,6 +788,70 @@ describe("split screens", () => {
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByText("Bruno"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
+  });
+
+  it("opens debt reminder actions on long press and saves a reminder", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        status: "draft",
+        step: 5,
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+
+    fireEvent(screen.getByText("Bruno"), "onLongPress");
+    expect(screen.queryByLabelText("Next: choose time")).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Set"));
+    });
+    expect(mockStoreState.setParticipantDebtReminder).toHaveBeenCalledWith(
+      "draft-1",
+      "bruno",
+      expect.any(String),
+    );
+  });
+
+  it("shows feedback when reminder permission is denied", async () => {
+    mockStoreState.setParticipantDebtReminder = jest.fn(async () => {
+      throw new Error("notification-permission-denied");
+    });
+
+    render(<ResultsScreen draftId="draft-1" />);
+
+    fireEvent(screen.getByText("Bruno"), "onLongPress");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Set"));
+    });
+
+    expect(
+      screen.getByText(
+        "Notification permission is required to save reminders.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("does not render expired debt reminder labels on results rows", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        reminderState: {
+          participantDebtReminders: {
+            bruno: {
+              scheduledForIso: "2020-01-01T09:00:00.000Z",
+              notificationId: "expired-debt-reminder",
+              createdAt: "2020-01-01T08:00:00.000Z",
+              updatedAt: "2020-01-01T08:00:00.000Z",
+            },
+          },
+        },
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/Reminder:/i)).toBeNull();
   });
 
   it("renders results breakdown rows without per-row footer spacer styles", async () => {

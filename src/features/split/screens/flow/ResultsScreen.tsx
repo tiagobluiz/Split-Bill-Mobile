@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import {
+  Bell,
   Check,
   FileJson,
   FileText,
@@ -30,7 +31,7 @@ import {
   exportSettlementPdf,
   isDirectoryPickerCancelledError,
 } from "../../../../pdf/exportSettlementPdf";
-import { getDeviceLocale } from "../../../../lib/device";
+import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
   getClipboardSummaryPreview,
@@ -49,7 +50,11 @@ import {
   formatAppMoney,
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
-import { ActionIconGridModal } from "../shared/modals";
+import {
+  ActionIconGridModal,
+  ReminderDateTimeModal,
+  ToastNotice,
+} from "../shared/modals";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -70,6 +75,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     revertBillPaid,
     toggleParticipantPaid,
     updateSettings,
+    setParticipantDebtReminder,
+    clearParticipantDebtReminder,
   } = useSplitStore(
     useShallow((state) => ({
       markCompleted: state.markCompleted,
@@ -78,6 +85,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       revertBillPaid: state.revertBillPaid,
       toggleParticipantPaid: state.toggleParticipantPaid,
       updateSettings: state.updateSettings,
+      setParticipantDebtReminder: state.setParticipantDebtReminder,
+      clearParticipantDebtReminder: state.clearParticipantDebtReminder,
     })),
   );
   const hasAutoCompletedRef = useRef<string | null>(null);
@@ -89,9 +98,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
+  const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
+  const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
+  const [debtReminderErrorMessage, setDebtReminderErrorMessage] = useState("");
+  const [reminderToastMessage, setReminderToastMessage] = useState("");
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
+  const use24HourClock = prefers24HourTime();
 
   useEffect(() => {
     if (
@@ -115,6 +129,15 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       }
     })();
   }, [markCompleted, record, settlement, summary]);
+  useEffect(() => {
+    if (!reminderToastMessage) {
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setReminderToastMessage("");
+    }, 2200);
+    return () => clearTimeout(timeout);
+  }, [reminderToastMessage]);
 
   if (!record) {
     return (
@@ -215,6 +238,9 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const money = (amountCents: number) =>
     formatAppMoney(convertCents(amountCents, exchangeRate), displayCurrency, locale, settings);
   const owingPeople = getOwingPeople(settlement.data.people);
+  const debtReminderPickerPerson = owingPeople.find(
+    (person) => person.participantId === debtReminderPickerParticipantId,
+  );
   const settledParticipantIds = getSettledParticipantIds(record);
   const pdfData = getPdfExportPreview(record);
   const payerConsumedCents = Math.max(0, payer.paidCents - payer.netCents);
@@ -239,6 +265,30 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       ? Math.round((settledOwedCents / totalOwedCents) * 100)
       : 0;
   const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
+  const getDebtReminderLabel = (participantId: string) => {
+    const reminder =
+      record.reminderState?.participantDebtReminders?.[participantId];
+    if (!reminder?.scheduledForIso) {
+      return undefined;
+    }
+    const reminderDate = new Date(reminder.scheduledForIso);
+    if (!Number.isFinite(reminderDate.getTime())) {
+      return t("reminders.rowSet");
+    }
+    if (reminderDate.getTime() <= Date.now()) {
+      return undefined;
+    }
+    return t("reminders.rowSetAt", {
+      date: new Intl.DateTimeFormat(locale, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: !use24HourClock,
+        hourCycle: use24HourClock ? "h23" : "h12",
+      }).format(reminderDate),
+    });
+  };
   const runPaymentAction = async (
     action: () => Promise<void>,
     failureMessage: string,
@@ -259,6 +309,26 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         t("flow.results.shareFailedTitle"),
         t("flow.results.shareFailedBody"),
       );
+    }
+  };
+  const handleSaveDebtReminder = async (
+    participantId: string,
+    scheduledForIso: string,
+  ) => {
+    try {
+      await setParticipantDebtReminder(record.id, participantId, scheduledForIso);
+      setDebtReminderPickerHasExisting(false);
+      setDebtReminderPickerParticipantId("");
+      setDebtReminderErrorMessage("");
+      setReminderToastMessage(t("reminders.saved"));
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === "notification-permission-denied"
+          ? t("reminders.permissionDenied")
+          : error instanceof Error && error.message === "past-reminder-date"
+            ? t("reminders.errors.futureOnly")
+            : t("reminders.saveFailed");
+      setDebtReminderErrorMessage(message);
     }
   };
   const savePdfAction = {
@@ -362,6 +432,57 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             onDismiss={() => {
               setPdfNotice({ messages: [] });
             }}
+          />
+          {debtReminderPickerPerson ? (
+            <ReminderDateTimeModal
+              title={t("reminders.picker.title")}
+              initialIso={
+                record.reminderState?.participantDebtReminders?.[
+                  debtReminderPickerPerson.participantId
+                ]?.scheduledForIso
+              }
+              saveLabel={
+                debtReminderPickerHasExisting
+                  ? t("reminders.update")
+                  : t("reminders.set")
+              }
+              errorMessage={debtReminderErrorMessage}
+              onClearError={() => setDebtReminderErrorMessage("")}
+              onCancel={() => {
+                setDebtReminderErrorMessage("");
+                setDebtReminderPickerHasExisting(false);
+                setDebtReminderPickerParticipantId("");
+              }}
+              onRemove={
+                debtReminderPickerHasExisting
+                  ? () => {
+                      void clearParticipantDebtReminder(
+                        record.id,
+                        debtReminderPickerPerson.participantId,
+                      )
+                        .then(() => {
+                          setDebtReminderErrorMessage("");
+                          setDebtReminderPickerHasExisting(false);
+                          setDebtReminderPickerParticipantId("");
+                          setReminderToastMessage(t("reminders.removed"));
+                        })
+                        .catch(() => {
+                          setDebtReminderErrorMessage(t("reminders.removeFailed"));
+                        });
+                    }
+                  : undefined
+              }
+              onSave={(scheduledForIso) => {
+                void handleSaveDebtReminder(
+                  debtReminderPickerPerson.participantId,
+                  scheduledForIso,
+                );
+              }}
+            />
+          ) : null}
+          <ToastNotice
+            message={reminderToastMessage}
+            bottomOffset={footerInsetBottom + 12}
           />
           {showResultsActions ? (
             <ActionIconGridModal
@@ -579,6 +700,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 const togglePaidA11yLabel = isSettled
                   ? t("flow.results.togglePaidAddBackA11y", { name: person.name })
                   : t("flow.results.togglePaidSettleA11y", { name: person.name });
+                const reminderLabel = getDebtReminderLabel(person.participantId);
                 const rowContent = (
                   <XStack
                     alignItems="center"
@@ -604,6 +726,18 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                             settings.ownerName,
                           )}
                         </Text>
+                        {reminderLabel ? (
+                          <XStack alignItems="center" gap="$1.5" marginTop="$1">
+                            <Bell color={PALETTE.primary} size={11} />
+                            <Text
+                              fontFamily={FONTS.bodyBold}
+                              fontSize={11}
+                              color={PALETTE.primary}
+                            >
+                              {reminderLabel}
+                            </Text>
+                          </XStack>
+                        ) : null}
                       </YStack>
                     </XStack>
                     <XStack alignItems="center" gap="$2.5">
@@ -664,17 +798,30 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
 
                 if (!trackPaymentsEnabled) {
                   return (
-                    <View
+                    <Pressable
                       key={person.participantId}
+                      accessibilityRole="button"
+                      accessibilityHint={t("reminders.actionsTitle")}
                       style={[
                         screenStyles.resultsBreakdownCard,
                         isSettled
                           ? screenStyles.resultsBreakdownCardSettled
                           : null,
                       ]}
+                      onLongPress={() => {
+                        setDebtReminderErrorMessage("");
+                        setDebtReminderPickerHasExisting(
+                          Boolean(
+                            record.reminderState?.participantDebtReminders?.[
+                              person.participantId
+                            ],
+                          ),
+                        );
+                        setDebtReminderPickerParticipantId(person.participantId);
+                      }}
                     >
                       {rowContent}
-                    </View>
+                    </Pressable>
                   );
                 }
 
@@ -695,6 +842,17 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                         t("flow.results.togglePaidFailed", { name: person.name }),
                       )
                     }
+                    onLongPress={() => {
+                      setDebtReminderErrorMessage("");
+                      setDebtReminderPickerHasExisting(
+                        Boolean(
+                          record.reminderState?.participantDebtReminders?.[
+                            person.participantId
+                          ],
+                        ),
+                      );
+                      setDebtReminderPickerParticipantId(person.participantId);
+                    }}
                   >
                     {rowContent}
                   </Pressable>

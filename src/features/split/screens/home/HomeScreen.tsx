@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import {
+  Bell,
   AlertTriangle,
   Camera,
   ChevronDown,
@@ -47,7 +48,7 @@ import {
   useFloatingFooterInset,
 } from "../../../../components/ui";
 import { createId, formatMoney, normalizeMoneyInput } from "../../../../domain";
-import { getDeviceLocale } from "../../../../lib/device";
+import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
@@ -76,7 +77,9 @@ import {
   ActionIconGridModal,
   ActionSheetModal,
   ConfirmChoiceModal,
+  ReminderDateTimeModal,
   SplitNoticeModal,
+  ToastNotice,
 } from "../shared/modals";
 import { ModePills } from "../shared/components";
 import { ParticipantAvatar } from "../shared/participantComponents";
@@ -115,7 +118,15 @@ function normalizeSplitListAmountDisplaySetting(
 
 export function HomeScreenView() {
   const { t } = useTranslation();
-  const { records, createDraft, removeRecord, settings, updateSettings } =
+  const {
+    records,
+    createDraft,
+    removeRecord,
+    settings,
+    updateSettings,
+    setSplitReminder,
+    clearSplitReminder,
+  } =
     useSplitStore(
       useShallow((state) => ({
         records: state.records,
@@ -123,12 +134,15 @@ export function HomeScreenView() {
         removeRecord: state.removeRecord,
         settings: state.settings,
         updateSettings: state.updateSettings,
+        setSplitReminder: state.setSplitReminder,
+        clearSplitReminder: state.clearSplitReminder,
       })),
     );
   const insets = useSafeAreaInsets();
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 260 });
   const locale = getDeviceLocale();
+  const use24HourClock = prefers24HourTime();
   const [activeTab, setActiveTab] = useState<HomeTabKey>("home");
   const [pendingDelete, setPendingDelete] = useState<null | {
     id: string;
@@ -233,6 +247,10 @@ export function HomeScreenView() {
     useState(false);
   const [profileActionMenuOpen, setProfileActionMenuOpen] = useState(false);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+  const [splitReminderPickerRecordId, setSplitReminderPickerRecordId] = useState("");
+  const [splitReminderPickerHasExisting, setSplitReminderPickerHasExisting] = useState(false);
+  const [splitReminderErrorMessage, setSplitReminderErrorMessage] = useState("");
+  const [reminderToastMessage, setReminderToastMessage] = useState("");
   const [customCurrencyName, setCustomCurrencyName] = useState("");
   const [customCurrencySymbol, setCustomCurrencySymbol] = useState("");
   const [customCurrencyErrors, setCustomCurrencyErrors] = useState<{
@@ -305,6 +323,9 @@ export function HomeScreenView() {
     visibleRecords,
   ]);
   const pagedSplitRecords = filteredSplitRecords.slice(0, visibleSplitCount);
+  const splitReminderPickerRecord = records.find(
+    (record) => record.id === splitReminderPickerRecordId,
+  );
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
   });
@@ -402,6 +423,15 @@ export function HomeScreenView() {
   useEffect(() => {
     setVisibleSplitCount(20);
   }, [activityBalanceFilter, activityDateFilter, activityStateFilter]);
+  useEffect(() => {
+    if (!reminderToastMessage) {
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setReminderToastMessage("");
+    }, 2200);
+    return () => clearTimeout(timeout);
+  }, [reminderToastMessage]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     const persistedSplitListAmountDisplay =
@@ -473,6 +503,8 @@ export function HomeScreenView() {
     setSplitListAmountDisplayMenuOpen(false);
     setCurrencyModalOpen(false);
     setProfileActionMenuOpen(false);
+    setSelectedRecordActionTarget(null);
+    setSplitReminderPickerRecordId("");
     setCustomCurrencyErrors({ name: false, symbol: false });
     setPendingTabChange(null);
     setSettingsNoticeTitle(t("common.almostThere"));
@@ -484,6 +516,45 @@ export function HomeScreenView() {
       return;
     }
     setActiveTab(nextTab);
+  };
+  const getSplitReminderLabel = (record: (typeof records)[number]) => {
+    const reminder = record.reminderState?.splitReminder;
+    if (!reminder?.scheduledForIso) {
+      return undefined;
+    }
+    const reminderDate = new Date(reminder.scheduledForIso);
+    if (!Number.isFinite(reminderDate.getTime())) {
+      return t("reminders.rowSet");
+    }
+    if (reminderDate.getTime() <= Date.now()) {
+      return undefined;
+    }
+    const formattedDate = new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: !use24HourClock,
+      hourCycle: use24HourClock ? "h23" : "h12",
+    }).format(reminderDate);
+    return t("reminders.rowSetAt", { date: formattedDate });
+  };
+  const handleSaveSplitReminder = async (recordId: string, scheduledForIso: string) => {
+    try {
+      await setSplitReminder(recordId, scheduledForIso);
+      setSplitReminderPickerHasExisting(false);
+      setSplitReminderPickerRecordId("");
+      setSplitReminderErrorMessage("");
+      setReminderToastMessage(t("reminders.saved"));
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === "notification-permission-denied"
+          ? t("reminders.permissionDenied")
+          : error instanceof Error && error.message === "past-reminder-date"
+            ? t("reminders.errors.futureOnly")
+            : t("reminders.saveFailed");
+      setSplitReminderErrorMessage(message);
+    }
   };
   const pickProfileImage = async (mode: "camera" | "library") => {
     setProfileActionMenuOpen(false);
@@ -748,6 +819,7 @@ export function HomeScreenView() {
                     record={record}
                     ownerName={settings.ownerName}
                     settings={settings}
+                    reminderLabel={getSplitReminderLabel(record)}
                     onOpenActions={(target) =>
                       setSelectedRecordActionTarget(target)
                     }
@@ -927,6 +999,7 @@ export function HomeScreenView() {
                   record={item}
                   ownerName={settings.ownerName}
                   settings={settings}
+                  reminderLabel={getSplitReminderLabel(item)}
                   onOpenActions={(target) =>
                     setSelectedRecordActionTarget(target)
                   }
@@ -1361,6 +1434,25 @@ export function HomeScreenView() {
               title={t("home.rowActions.title")}
               options={[
                 {
+                  label: t("reminders.actionsTitle"),
+                  icon: <Bell color={PALETTE.primary} size={18} />,
+                  onPress: () => {
+                    const target = selectedRecordActionTarget;
+                    if (!target) {
+                      return;
+                    }
+                    const selectedRecord = records.find(
+                      (record) => record.id === target.id,
+                    );
+                    setSelectedRecordActionTarget(null);
+                    setSplitReminderErrorMessage("");
+                    setSplitReminderPickerHasExisting(
+                      Boolean(selectedRecord?.reminderState?.splitReminder),
+                    );
+                    setSplitReminderPickerRecordId(target.id);
+                  },
+                },
+                {
                   label: t("home.rowActions.delete"),
                   accessibilityLabel: t("home.rowActions.deleteA11y", {
                     title: selectedRecordActionTarget.title,
@@ -1377,6 +1469,50 @@ export function HomeScreenView() {
               onDismiss={() => setSelectedRecordActionTarget(null)}
             />
           ) : null}
+          {splitReminderPickerRecord ? (
+            <ReminderDateTimeModal
+              title={t("reminders.picker.title")}
+              initialIso={splitReminderPickerRecord.reminderState?.splitReminder?.scheduledForIso}
+              saveLabel={
+                splitReminderPickerHasExisting
+                  ? t("reminders.update")
+                  : t("reminders.set")
+              }
+              errorMessage={splitReminderErrorMessage}
+              onClearError={() => setSplitReminderErrorMessage("")}
+              onCancel={() => {
+                setSplitReminderErrorMessage("");
+                setSplitReminderPickerHasExisting(false);
+                setSplitReminderPickerRecordId("");
+              }}
+              onRemove={
+                splitReminderPickerHasExisting
+                  ? () => {
+                      void clearSplitReminder(splitReminderPickerRecord.id)
+                        .then(() => {
+                          setSplitReminderErrorMessage("");
+                          setSplitReminderPickerHasExisting(false);
+                          setSplitReminderPickerRecordId("");
+                          setReminderToastMessage(t("reminders.removed"));
+                        })
+                        .catch(() => {
+                          setSplitReminderErrorMessage(t("reminders.removeFailed"));
+                        });
+                    }
+                  : undefined
+              }
+              onSave={(scheduledForIso) => {
+                void handleSaveSplitReminder(
+                  splitReminderPickerRecord.id,
+                  scheduledForIso,
+                );
+              }}
+            />
+          ) : null}
+          <ToastNotice
+            message={reminderToastMessage}
+            bottomOffset={footerInsetBottom + 12}
+          />
           {profileActionMenuOpen ? (
             <ActionSheetModal
               title={t("settings.profilePicture")}

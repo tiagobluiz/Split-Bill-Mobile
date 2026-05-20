@@ -18,6 +18,13 @@ type LoadedStore = {
     parsePastedItems: jest.Mock;
     rebalancePercentAllocations: jest.Mock;
   };
+  reminderMocks: {
+    ensureReminderPermission: jest.Mock;
+    scheduleReminder: jest.Mock;
+    cancelReminder: jest.Mock;
+    cancelReminderState: jest.Mock;
+    reconcileScheduledReminders: jest.Mock;
+  };
 };
 
 function createValues() {
@@ -72,6 +79,9 @@ function createRecord(overrides: Partial<any> = {}) {
     values: createValues(),
     settlementState: {
       settledParticipantIds: [],
+    },
+    reminderState: {
+      participantDebtReminders: {},
     },
     createdAt: "2026-04-04T10:00:00.000Z",
     updatedAt: "2026-04-04T10:00:00.000Z",
@@ -146,6 +156,16 @@ async function loadStore(options?: {
       return actualDomain.rebalancePercentAllocations(allocations, participantId, nextValue);
     }),
   };
+  const reminderMocks = {
+    ensureReminderPermission: jest.fn(async () => true),
+    scheduleReminder: jest.fn(async () => ({ notificationId: "reminder-notification" })),
+    cancelReminder: jest.fn(async () => undefined),
+    cancelReminderState: jest.fn(async () => undefined),
+    reconcileScheduledReminders: jest.fn(async (records: any[]) => ({
+      records,
+      changed: false,
+    })),
+  };
 
   jest.doMock("../../storage/records", () => storageMocks);
   jest.doMock("../../storage/settings", () => ({
@@ -164,6 +184,10 @@ async function loadStore(options?: {
     ...actualDomain,
     ...domainMocks,
   }));
+  jest.doMock("./reminders", () => ({
+    ...jest.requireActual("./reminders"),
+    ...reminderMocks,
+  }));
 
   let storeModule: typeof import("./store");
   jest.isolateModules(() => {
@@ -174,6 +198,7 @@ async function loadStore(options?: {
     storeModule: storeModule!,
     storageMocks,
     domainMocks,
+    reminderMocks,
   };
 }
 
@@ -820,6 +845,74 @@ describe("split store", () => {
 
     await storeModule.useSplitStore.getState().revertBillPaid();
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+  });
+
+  it("sets and clears split reminders for a specific record", async () => {
+    const record = createRecord();
+    const { storeModule, reminderMocks } = await loadReadyStore({ record });
+    const scheduledForIso = "2099-01-01T10:00:00.000Z";
+
+    await storeModule.useSplitStore.getState().setSplitReminder(record.id, scheduledForIso);
+
+    expect(reminderMocks.ensureReminderPermission).toHaveBeenCalled();
+    expect(reminderMocks.scheduleReminder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: "split",
+        draftId: record.id,
+        scheduledForIso,
+      }),
+    );
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.splitReminder).toEqual(
+      expect.objectContaining({
+        notificationId: "reminder-notification",
+        scheduledForIso,
+      }),
+    );
+
+    await storeModule.useSplitStore.getState().clearSplitReminder(record.id);
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.splitReminder).toBeUndefined();
+  });
+
+  it("sets a participant debt reminder and auto-cancels it when that debt is settled", async () => {
+    const record = createRecord();
+    const { storeModule, reminderMocks } = await loadReadyStore({ record });
+    const scheduledForIso = "2099-01-01T10:00:00.000Z";
+
+    await storeModule.useSplitStore
+      .getState()
+      .setParticipantDebtReminder(record.id, "bruno", scheduledForIso);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toEqual(
+      expect.objectContaining({
+        notificationId: "reminder-notification",
+        scheduledForIso,
+      }),
+    );
+
+    await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toBeUndefined();
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
+  });
+
+  it("clears split and participant reminders when the bill is marked as paid", async () => {
+    const record = createRecord();
+    const { storeModule, reminderMocks } = await loadReadyStore({ record });
+    const scheduledForIso = "2099-01-01T10:00:00.000Z";
+
+    await storeModule.useSplitStore.getState().setSplitReminder(record.id, scheduledForIso);
+    reminderMocks.scheduleReminder.mockResolvedValueOnce({
+      notificationId: "participant-reminder",
+    });
+    await storeModule.useSplitStore
+      .getState()
+      .setParticipantDebtReminder(record.id, "bruno", scheduledForIso);
+
+    await storeModule.useSplitStore.getState().markBillPaid();
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState).toEqual({
+      participantDebtReminders: {},
+    });
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("participant-reminder");
   });
 
   it("tracks paid settlement state for reverse settlements where the payer owes others", async () => {
