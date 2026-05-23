@@ -548,6 +548,13 @@ export const screenStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     elevation: 8,
   },
+  actionSheetOptionsScroll: {
+    maxHeight: 320,
+  },
+  actionSheetOptionsContent: {
+    gap: 10,
+    paddingRight: 2,
+  },
   splitNoticeButton: {
     minHeight: 48,
     borderRadius: 999,
@@ -555,6 +562,32 @@ export const screenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
+  },
+  splitNoticeButtonCompact: {
+    flex: 1,
+    marginTop: 0,
+  },
+  splitNoticeButtonSecondary: {
+    backgroundColor: PALETTE.secondaryContainer,
+    borderWidth: 1,
+    borderColor: PALETTE.outlineVariant,
+  },
+  reminderActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+  reminderRemoveButton: {
+    minHeight: 48,
+    width: 48,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "rgba(186,26,26,0.24)",
+    backgroundColor: PALETTE.dangerSurface,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   actionSheetButton: {
     minHeight: 48,

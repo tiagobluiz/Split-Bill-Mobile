@@ -112,6 +112,35 @@ export function RecordRow({
   const showCombinedZeroState =
     showCombinedAmount &&
     meta.amountDisplay.secondaryKind === "nothingDue";
+  const nothingDueWords = t("record.amount.nothingDue").split(" ");
+  const nothingDueLineOne = nothingDueWords[0] ?? t("record.amount.nothingDue");
+  const nothingDueLineTwo = nothingDueWords.slice(1).join(" ");
+  const renderNothingDueRows = () => (
+    <YStack alignItems="flex-end" gap="$0">
+      <Text
+        fontFamily={FONTS.bodyBold}
+        fontSize={10}
+        color={PALETTE.onSurfaceVariant}
+        textTransform="uppercase"
+        letterSpacing={1.3}
+        textAlign="right"
+      >
+        {nothingDueLineOne}
+      </Text>
+      {nothingDueLineTwo ? (
+        <Text
+          fontFamily={FONTS.bodyBold}
+          fontSize={10}
+          color={PALETTE.onSurfaceVariant}
+          textTransform="uppercase"
+          letterSpacing={1.3}
+          textAlign="right"
+        >
+          {nothingDueLineTwo}
+        </Text>
+      ) : null}
+    </YStack>
+  );
 
   return (
     <View style={screenStyles.recentShadowWrap}>
@@ -165,26 +194,30 @@ export function RecordRow({
               {showCombinedAmount ? (
                 <XStack alignItems="flex-end" gap="$4">
                   <YStack alignItems="flex-end" gap="$0.5">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={10}
-                      color={PALETTE.onSurfaceVariant}
-                      textTransform="uppercase"
-                      letterSpacing={1.3}
-                      textAlign="right"
-                    >
-                      {showCombinedZeroState
-                        ? t("record.amount.nothingDue")
-                        : meta.amountDisplay.secondaryLabel}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.headlineBlack}
-                      fontSize={18}
-                      color={PALETTE.onSurfaceVariant}
-                      textAlign="right"
-                    >
-                      {meta.amountDisplay.secondaryValue}
-                    </Text>
+                    {showCombinedZeroState ? (
+                      renderNothingDueRows()
+                    ) : (
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={10}
+                        color={PALETTE.onSurfaceVariant}
+                        textTransform="uppercase"
+                        letterSpacing={1.3}
+                        textAlign="right"
+                      >
+                        {meta.amountDisplay.secondaryLabel}
+                      </Text>
+                    )}
+                    {showCombinedZeroState ? null : (
+                      <Text
+                        fontFamily={FONTS.headlineBlack}
+                        fontSize={18}
+                        color={PALETTE.onSurfaceVariant}
+                        textAlign="right"
+                      >
+                        {meta.amountDisplay.secondaryValue}
+                      </Text>
+                    )}
                   </YStack>
                   <YStack alignItems="flex-end" gap="$0.5">
                     <Text
@@ -209,16 +242,7 @@ export function RecordRow({
                 </XStack>
               ) : showSingleZeroState ? (
                 <YStack alignItems="flex-end" gap="$0.5">
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={1.3}
-                    textAlign="right"
-                  >
-                    {t("record.amount.nothingDue")}
-                  </Text>
+                  {renderNothingDueRows()}
                 </YStack>
               ) : (
                 <>
