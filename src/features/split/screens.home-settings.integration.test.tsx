@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Alert, BackHandler, Keyboard, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
 
 import {
@@ -541,7 +541,7 @@ describe("split screens", () => {
     const { rerender } = render(<HomeScreen />);
     expect(screen.getByText("Total")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
-    expect(screen.getByText(/9,00|€9.00|EUR 9.00/)).toBeTruthy();
+    expect(screen.getByText(/9,00|EUR 9.00|9.00/)).toBeTruthy();
     expect(screen.getAllByText(/6,00|€6.00|EUR 6.00|6.00/).length).toBeGreaterThan(0);
 
     mockStoreState.settings = {
@@ -555,6 +555,43 @@ describe("split screens", () => {
 
     expect(screen.getByText("You consumed")).toBeTruthy();
     expect(screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length).toBeGreaterThan(0);
+  });
+
+  it("shows only nothing due on the outstanding side in total + outstanding mode", () => {
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "totalAndRemaining",
+    };
+    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+
+    expect(screen.getByText("Total")).toBeTruthy();
+    expect(screen.getByText(/9,00|\u20AC9.00|EUR 9.00/)).toBeTruthy();
+    const splitRow = screen.getByLabelText("Open split Groceries");
+    expect(within(splitRow).getByText("Nothing")).toBeTruthy();
+    expect(within(splitRow).getByText("due")).toBeTruthy();
+    expect(within(splitRow).queryByText(/0,00|EUR 0.00/)).toBeNull();
+  });
+
+  it("shows outstanding-only nothing due using two rows", () => {
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      balanceFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      splitListAmountDisplay: "remaining",
+    };
+    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+
+    const splitRow = screen.getByLabelText("Open split Groceries");
+    expect(within(splitRow).getByText("Nothing")).toBeTruthy();
+    expect(within(splitRow).getByText("due")).toBeTruthy();
   });
 
   it("shows consumed share instead of paid amount in you consumed mode", () => {
@@ -743,7 +780,7 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Cur");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "#");
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
     createIdSpy.mockRestore();
@@ -1294,7 +1331,7 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Points");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "P");
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     await act(async () => {
       fireEvent.press(screen.getByText("Save Settings"));
@@ -1378,7 +1415,7 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "123");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "#");
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
@@ -1401,7 +1438,7 @@ describe("split screens", () => {
     });
   });
 
-  it("lets settings choose preset currencies, cancel profile actions, and cancel custom currency creation", async () => {
+  it("lets settings choose preset currencies, cancel profile actions, and Cancel creation", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
@@ -1437,7 +1474,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByLabelText("Choose other currency"));
-    fireEvent.press(screen.getByLabelText("Cancel custom currency"));
+    fireEvent.press(screen.getByLabelText("Cancel"));
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
   });
 
@@ -1449,7 +1486,7 @@ describe("split screens", () => {
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     expect(screen.getByText("Please add a currency name first.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
@@ -1476,7 +1513,7 @@ describe("split screens", () => {
     fireEvent(nameInput, "submitEditing");
     fireEvent.changeText(nameInput, "");
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     expect(screen.getByText("Please add a currency name first.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
@@ -1484,7 +1521,7 @@ describe("split screens", () => {
     fireEvent.changeText(nameInput, "Tokens");
     fireEvent(symbolInput, "submitEditing");
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
     expect(screen.getByText("Please add a currency symbol too.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
@@ -1508,7 +1545,7 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "ABCD");
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save custom currency"));
+      fireEvent.press(screen.getByLabelText("Save"));
     });
 
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
@@ -1538,6 +1575,88 @@ describe("split screens", () => {
     expect(screen.getByText("Profile picture")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
     expect(screen.queryByText("Profile picture")).toBeNull();
+  });
+
+  it("keeps the custom currency modal open when tapping outside", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Choose default currency"));
+    });
+    fireEvent.press(screen.getByLabelText("Choose other currency"));
+
+    expect(screen.getByPlaceholderText("Currency name")).toBeTruthy();
+    expect(screen.queryByLabelText("Dismiss action sheet")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
+  });
+
+  it("dismisses the custom currency modal with hardware back", async () => {
+    const hardwareBackHandlers: Array<() => boolean> = [];
+    const removeSubscription = jest.fn();
+    jest
+      .spyOn(BackHandler, "addEventListener")
+      .mockImplementation((eventName: any, handler: any) => {
+        if (eventName === "hardwareBackPress") {
+          hardwareBackHandlers.push(handler);
+        }
+        return { remove: removeSubscription } as any;
+      });
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Choose default currency"));
+    });
+    fireEvent.press(screen.getByLabelText("Choose other currency"));
+
+    expect(screen.getByPlaceholderText("Currency name")).toBeTruthy();
+    expect(hardwareBackHandlers.length).toBeGreaterThan(0);
+
+    act(() => {
+      const consumed = hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
+      expect(consumed).toBe(true);
+    });
+
+    expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
+    await waitFor(() => {
+      expect(removeSubscription).toHaveBeenCalled();
+    });
+  });
+
+  it("dismisses the currency action sheet with hardware back", async () => {
+    const hardwareBackHandlers: Array<() => boolean> = [];
+    const removeSubscription = jest.fn();
+    jest
+      .spyOn(BackHandler, "addEventListener")
+      .mockImplementation((eventName: any, handler: any) => {
+        if (eventName === "hardwareBackPress") {
+          hardwareBackHandlers.push(handler);
+        }
+        return { remove: removeSubscription } as any;
+      });
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Choose default currency"));
+    });
+
+    expect(screen.getByLabelText("Dismiss action sheet")).toBeTruthy();
+    expect(hardwareBackHandlers.length).toBeGreaterThan(0);
+
+    act(() => {
+      const consumed = hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
+      expect(consumed).toBe(true);
+    });
+
+    expect(screen.queryByLabelText("Dismiss action sheet")).toBeNull();
+    await waitFor(() => {
+      expect(removeSubscription).toHaveBeenCalled();
+    });
   });
 
   it("falls back to blank-safe settings defaults and keeps the leave modal open when save fails", async () => {

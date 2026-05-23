@@ -812,6 +812,39 @@ describe("split screens", () => {
     );
   });
 
+  it("asks for confirmation before removing a debt reminder", async () => {
+    const futureIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    mockStoreState.records = [
+      buildRecord({
+        status: "draft",
+        step: 5,
+        reminderState: {
+          participantDebtReminders: {
+            bruno: {
+              scheduledForIso: futureIso,
+              notificationId: "notif-bruno",
+              createdAt: "2026-04-04T10:00:00.000Z",
+              updatedAt: "2026-04-04T10:00:00.000Z",
+            },
+          },
+        },
+      }),
+    ];
+
+    render(<ResultsScreen draftId="draft-1" />);
+
+    fireEvent(screen.getByText("Bruno"), "onLongPress");
+    fireEvent.press(screen.getByLabelText("Remove"));
+    expect(screen.getByText("Remove reminder?")).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Remove reminder"));
+    });
+    expect(mockStoreState.clearParticipantDebtReminder).toHaveBeenCalledWith(
+      "draft-1",
+      "bruno",
+    );
+  });
+
   it("shows feedback when reminder permission is denied", async () => {
     mockStoreState.setParticipantDebtReminder = jest.fn(async () => {
       throw new Error("notification-permission-denied");
@@ -1079,10 +1112,10 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose other currency"));
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "");
-    fireEvent.press(screen.getByLabelText("Save custom currency"));
+    fireEvent.press(screen.getByLabelText("Save"));
     expect(screen.getByText("Almost there")).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText("Cancel custom currency"));
+    fireEvent.press(screen.getByLabelText("Cancel"));
 
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
 

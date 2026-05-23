@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BackHandler, Platform, Pressable, View } from "react-native";
+import { BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
+import { Trash2 } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -23,10 +24,12 @@ export function ActionSheetModal({
   title,
   options,
   onDismiss,
+  scrollableOptions = false,
 }: {
   title: string;
   options: Array<{
     label: string;
+    accessibilityLabel?: string;
     description?: string;
     onPress: () => void;
     tone?: "default" | "danger";
@@ -34,7 +37,55 @@ export function ActionSheetModal({
     disabled?: boolean;
   }>;
   onDismiss: () => void;
+  scrollableOptions?: boolean;
 }) {
+  const optionNodes = options.map((option, index) => (
+    <Pressable
+      key={`${option.label}-${index}`}
+      accessibilityRole="button"
+      accessibilityLabel={option.accessibilityLabel ?? option.label}
+      accessibilityHint={option.description}
+      accessibilityState={{
+        selected: Boolean(option.selected),
+        disabled: Boolean(option.disabled),
+      }}
+      disabled={option.disabled}
+      style={[
+        screenStyles.actionSheetButton,
+        option.selected ? screenStyles.actionSheetButtonSelected : null,
+        option.tone === "danger" ? screenStyles.actionSheetButtonDanger : null,
+        option.disabled ? { opacity: 0.55 } : null,
+      ]}
+      onPress={option.disabled ? undefined : option.onPress}
+    >
+      <YStack gap="$1.5">
+        <Text
+          fontFamily={FONTS.bodyBold}
+          fontSize={15}
+          color={
+            option.disabled
+              ? PALETTE.onSurfaceVariant
+              : option.tone === "danger"
+                ? "#b43d29"
+                : PALETTE.primary
+          }
+        >
+          {option.label}
+        </Text>
+        {option.description ? (
+          <Text
+            fontFamily={FONTS.bodyMedium}
+            fontSize={13}
+            lineHeight={19}
+            color={PALETTE.onSurfaceVariant}
+          >
+            {option.description}
+          </Text>
+        ) : null}
+      </YStack>
+    </Pressable>
+  ));
+
   return (
     <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
       <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.splitNoticeBackdrop} onPress={onDismiss} />
@@ -43,52 +94,17 @@ export function ActionSheetModal({
           <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
             {title}
           </Text>
-          {options.map((option) => (
-            <Pressable
-              key={option.label}
-              accessibilityRole="button"
-              accessibilityLabel={option.label}
-              accessibilityHint={option.description}
-              accessibilityState={{
-                selected: Boolean(option.selected),
-                disabled: Boolean(option.disabled),
-              }}
-              disabled={option.disabled}
-              style={[
-                screenStyles.actionSheetButton,
-                option.selected ? screenStyles.actionSheetButtonSelected : null,
-                option.tone === "danger" ? screenStyles.actionSheetButtonDanger : null,
-                option.disabled ? { opacity: 0.55 } : null,
-              ]}
-              onPress={option.disabled ? undefined : option.onPress}
+          {scrollableOptions ? (
+            <ScrollView
+              style={screenStyles.actionSheetOptionsScroll}
+              contentContainerStyle={screenStyles.actionSheetOptionsContent}
+              showsVerticalScrollIndicator
             >
-              <YStack gap="$1.5">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={15}
-                  color={
-                    option.disabled
-                      ? PALETTE.onSurfaceVariant
-                      : option.tone === "danger"
-                        ? "#b43d29"
-                        : PALETTE.primary
-                  }
-                >
-                  {option.label}
-                </Text>
-                {option.description ? (
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={13}
-                    lineHeight={19}
-                    color={PALETTE.onSurfaceVariant}
-                  >
-                    {option.description}
-                  </Text>
-                ) : null}
-              </YStack>
-            </Pressable>
-          ))}
+              {optionNodes}
+            </ScrollView>
+          ) : (
+            optionNodes
+          )}
         </YStack>
       </View>
     </View>
@@ -180,6 +196,7 @@ export function ConfirmChoiceModal({
   body,
   confirmLabel,
   discardLabel,
+  discardButtonVariant = "default",
   onConfirm,
   onDiscard,
 }: {
@@ -187,6 +204,7 @@ export function ConfirmChoiceModal({
   body: string;
   confirmLabel: string;
   discardLabel: string;
+  discardButtonVariant?: "default" | "secondaryPill";
   onConfirm: () => void;
   onDiscard: () => void;
 }) {
@@ -210,13 +228,21 @@ export function ConfirmChoiceModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={discardLabel}
-              style={screenStyles.confirmChoiceSecondaryButton}
+              style={
+                discardButtonVariant === "secondaryPill"
+                  ? [screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonSecondary]
+                  : screenStyles.confirmChoiceSecondaryButton
+              }
               onPress={onDiscard}
             >
               <Text
                 fontFamily={FONTS.bodyBold}
                 fontSize={14}
-                color={PALETTE.primary}
+                color={
+                  discardButtonVariant === "secondaryPill"
+                    ? PALETTE.onSecondaryContainer
+                    : PALETTE.primary
+                }
                 textAlign="center"
               >
                 {discardLabel}
@@ -251,6 +277,7 @@ export function ReminderDateTimeModal({
   onSave: (scheduledForIso: string) => void;
 }) {
   const [activePickerMode, setActivePickerMode] = useState<"date" | "time" | null>(null);
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
   const use24HourClock = prefers24HourTime();
   const getDefaultReminderDate = () => new Date(Date.now() + 60 * 60 * 1000);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -271,18 +298,23 @@ export function ReminderDateTimeModal({
       setSelectedDate(parsed);
     }
     setActivePickerMode(null);
+    setShowRemoveConfirmModal(false);
     setLocalErrorMessage("");
   }, [initialIso]);
   useEffect(() => {
     const backSubscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        if (showRemoveConfirmModal) {
+          setShowRemoveConfirmModal(false);
+          return true;
+        }
         onCancel();
         return true;
       },
     );
     return () => backSubscription.remove();
-  }, [onCancel]);
+  }, [onCancel, showRemoveConfirmModal]);
 
   const clearErrors = () => {
     if (localErrorMessage) {
@@ -354,6 +386,23 @@ export function ReminderDateTimeModal({
         minute: "2-digit",
         hour12: true,
       }).format(selectedDate);
+  const handleSavePress = () => {
+    if (selectedDate.getTime() <= Date.now()) {
+      setLocalErrorMessage(t("reminders.errors.futureOnly"));
+      return;
+    }
+    onSave(selectedDate.toISOString());
+  };
+  const handleRemovePress = () => {
+    setShowRemoveConfirmModal(true);
+  };
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmModal(false);
+  };
+  const handleConfirmRemove = () => {
+    setShowRemoveConfirmModal(false);
+    onRemove?.();
+  };
 
   return (
     <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
@@ -427,42 +476,68 @@ export function ReminderDateTimeModal({
             </Text>
           ) : null}
           <YStack gap="$2">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={saveLabel}
-              style={screenStyles.splitNoticeButton}
-              onPress={() => {
-                if (selectedDate.getTime() <= Date.now()) {
-                  setLocalErrorMessage(t("reminders.errors.futureOnly"));
-                  return;
-                }
-                onSave(selectedDate.toISOString());
-              }}
-            >
-              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
-                {saveLabel}
-              </Text>
-            </Pressable>
             {onRemove ? (
+              <XStack style={screenStyles.reminderActionRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={removeLabel ?? t("reminders.remove")}
+                  style={screenStyles.reminderRemoveButton}
+                  onPress={handleRemovePress}
+                >
+                  <Trash2 color="#b43d29" size={18} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={saveLabel}
+                  style={[screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonCompact]}
+                  onPress={handleSavePress}
+                >
+                  <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
+                    {saveLabel}
+                  </Text>
+                </Pressable>
+              </XStack>
+            ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={removeLabel ?? t("reminders.remove")}
-                style={screenStyles.confirmChoiceSecondaryButton}
-                onPress={onRemove}
+                accessibilityLabel={saveLabel}
+                style={screenStyles.splitNoticeButton}
+                onPress={handleSavePress}
               >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color="#b43d29"
-                  textAlign="center"
-                >
-                  {removeLabel ?? t("reminders.remove")}
+                <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
+                  {saveLabel}
                 </Text>
               </Pressable>
-            ) : null}
+            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("common.cancel")}
+              style={[screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonSecondary]}
+              onPress={onCancel}
+            >
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={14}
+                color={PALETTE.onSecondaryContainer}
+                textAlign="center"
+              >
+                {t("common.cancel")}
+              </Text>
+            </Pressable>
           </YStack>
         </YStack>
       </View>
+      {showRemoveConfirmModal && onRemove ? (
+        <ConfirmChoiceModal
+          title={t("reminders.confirmRemove.title")}
+          body={t("reminders.confirmRemove.body")}
+          confirmLabel={t("reminders.confirmRemove.confirm")}
+          discardLabel={t("reminders.confirmRemove.discard")}
+          discardButtonVariant="secondaryPill"
+          onConfirm={handleConfirmRemove}
+          onDiscard={handleCancelRemove}
+        />
+      ) : null}
     </View>
   );
 }

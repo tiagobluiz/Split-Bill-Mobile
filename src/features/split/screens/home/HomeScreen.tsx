@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
@@ -265,6 +266,10 @@ export function HomeScreenView() {
   const deleteTimeoutRef = useRef<any>(null);
   const pendingDeleteRef = useRef<null | { id: string; title: string }>(null);
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
+  const closeCustomCurrencyModal = useCallback(() => {
+    setCurrencyModalOpen(false);
+    setCustomCurrencyErrors({ name: false, symbol: false });
+  }, []);
   useFocusEffect(
     useCallback(() => {
       creatingSplitRef.current = false;
@@ -432,6 +437,26 @@ export function HomeScreenView() {
     }, 2200);
     return () => clearTimeout(timeout);
   }, [reminderToastMessage]);
+  useEffect(() => {
+    if (!currencyModalOpen && !currencyMenuOpen) {
+      return;
+    }
+    const backSubscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (currencyModalOpen) {
+          closeCustomCurrencyModal();
+          return true;
+        }
+        if (currencyMenuOpen) {
+          setCurrencyMenuOpen(false);
+          return true;
+        }
+        return false;
+      },
+    );
+    return () => backSubscription.remove();
+  }, [closeCustomCurrencyModal, currencyMenuOpen, currencyModalOpen]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     const persistedSplitListAmountDisplay =
@@ -642,7 +667,7 @@ export function HomeScreenView() {
     setCustomCurrencyName("");
     setCustomCurrencySymbol("");
     setCustomCurrencyErrors({ name: false, symbol: false });
-    setCurrencyModalOpen(false);
+    closeCustomCurrencyModal();
     setSettingsNoticeTitle(t("common.almostThere"));
     setSettingsNoticeMessages([]);
   };
@@ -1090,7 +1115,7 @@ export function HomeScreenView() {
               accessibilityRole="button"
               accessibilityLabel={t("settings.currencyPicker")}
               style={screenStyles.selectRow}
-              onPress={() => setCurrencyMenuOpen((value) => !value)}
+              onPress={() => setCurrencyMenuOpen(true)}
             >
               <XStack
                 alignItems="center"
@@ -1109,51 +1134,6 @@ export function HomeScreenView() {
                 <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
               </XStack>
             </Pressable>
-            {currencyMenuOpen ? (
-              <YStack gap="$2">
-                {draftCurrencyOptions.map((option) => {
-                  const active = defaultCurrencyDraft === option.code;
-                  return (
-                    <Pressable
-                      key={option.code}
-                      style={[
-                        screenStyles.selectRow,
-                        active ? screenStyles.selectRowActive : null,
-                      ]}
-                      onPress={() => {
-                        setDefaultCurrencyDraft(option.code);
-                        setCurrencyMenuOpen(false);
-                      }}
-                    >
-                      <Text
-                        fontFamily={FONTS.bodyMedium}
-                        fontSize={16}
-                        color={active ? PALETTE.primary : PALETTE.onSurface}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("settings.currencyPickerOther")}
-                  style={screenStyles.selectRow}
-                  onPress={() => {
-                    setCurrencyMenuOpen(false);
-                    setCurrencyModalOpen(true);
-                  }}
-                >
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={16}
-                    color={PALETTE.primary}
-                  >
-                    {t("common.other")}
-                  </Text>
-                </Pressable>
-              </YStack>
-            ) : null}
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
@@ -1545,6 +1525,31 @@ export function HomeScreenView() {
               ]}
             />
           ) : null}
+          {currencyMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.defaultCurrency")}
+              scrollableOptions
+              options={[
+                ...draftCurrencyOptions.map((option) => ({
+                  label: option.label,
+                  selected: defaultCurrencyDraft === option.code,
+                  onPress: () => {
+                    setDefaultCurrencyDraft(option.code);
+                    setCurrencyMenuOpen(false);
+                  },
+                })),
+                {
+                  label: t("common.other"),
+                  accessibilityLabel: t("settings.currencyPickerOther"),
+                  onPress: () => {
+                    setCurrencyMenuOpen(false);
+                    setCurrencyModalOpen(true);
+                  },
+                },
+              ]}
+              onDismiss={() => setCurrencyMenuOpen(false)}
+            />
+          ) : null}
           {languageMenuOpen ? (
             <ActionSheetModal
               title={t("settings.pickLanguage")}
@@ -1688,7 +1693,7 @@ export function HomeScreenView() {
                   </View>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Save custom currency"
+                    accessibilityLabel={t("settings.currencySave")}
                     style={screenStyles.splitNoticeButton}
                     onPress={() => void addCustomCurrency()}
                   >
@@ -1702,12 +1707,9 @@ export function HomeScreenView() {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Cancel custom currency"
-                    style={screenStyles.actionSheetButton}
-                    onPress={() => {
-                      setCurrencyModalOpen(false);
-                      setCustomCurrencyErrors({ name: false, symbol: false });
-                    }}
+                    accessibilityLabel={t("common.cancel")}
+                    style={screenStyles.confirmChoiceSecondaryButton}
+                    onPress={closeCustomCurrencyModal}
                   >
                     <Text
                       fontFamily={FONTS.bodyBold}
