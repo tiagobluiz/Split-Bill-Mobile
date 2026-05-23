@@ -795,7 +795,7 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "reminders.remove": "Remover",
   "reminders.confirmRemove.title": "Remover lembrete?",
   "reminders.confirmRemove.body":
-    "Isto vai remover o lembrete atual desta divisao.",
+    "Isto vai remover o lembrete atual desta divisão.",
   "reminders.confirmRemove.confirm": "Remover lembrete",
   "reminders.confirmRemove.discard": "Manter lembrete",
   "reminders.removed": "Lembrete removido.",
