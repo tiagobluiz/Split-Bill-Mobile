@@ -1626,6 +1626,39 @@ describe("split screens", () => {
     });
   });
 
+  it("dismisses the currency action sheet with hardware back", async () => {
+    const hardwareBackHandlers: Array<() => boolean> = [];
+    const removeSubscription = jest.fn();
+    jest
+      .spyOn(BackHandler, "addEventListener")
+      .mockImplementation((eventName: any, handler: any) => {
+        if (eventName === "hardwareBackPress") {
+          hardwareBackHandlers.push(handler);
+        }
+        return { remove: removeSubscription } as any;
+      });
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Choose default currency"));
+    });
+
+    expect(screen.getByLabelText("Dismiss action sheet")).toBeTruthy();
+    expect(hardwareBackHandlers.length).toBeGreaterThan(0);
+
+    act(() => {
+      const consumed = hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
+      expect(consumed).toBe(true);
+    });
+
+    expect(screen.queryByLabelText("Dismiss action sheet")).toBeNull();
+    await waitFor(() => {
+      expect(removeSubscription).toHaveBeenCalled();
+    });
+  });
+
   it("falls back to blank-safe settings defaults and keeps the leave modal open when save fails", async () => {
     mockStoreState.settings = {
       ownerName: undefined,

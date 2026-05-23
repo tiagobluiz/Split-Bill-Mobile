@@ -438,18 +438,25 @@ export function HomeScreenView() {
     return () => clearTimeout(timeout);
   }, [reminderToastMessage]);
   useEffect(() => {
-    if (!currencyModalOpen) {
+    if (!currencyModalOpen && !currencyMenuOpen) {
       return;
     }
     const backSubscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        closeCustomCurrencyModal();
-        return true;
+        if (currencyModalOpen) {
+          closeCustomCurrencyModal();
+          return true;
+        }
+        if (currencyMenuOpen) {
+          setCurrencyMenuOpen(false);
+          return true;
+        }
+        return false;
       },
     );
     return () => backSubscription.remove();
-  }, [closeCustomCurrencyModal, currencyModalOpen]);
+  }, [closeCustomCurrencyModal, currencyMenuOpen, currencyModalOpen]);
   const saveSettings = async () => {
     const trimmedName = ownerNameDraft.trim();
     const persistedSplitListAmountDisplay =
