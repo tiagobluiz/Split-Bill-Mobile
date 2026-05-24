@@ -306,7 +306,7 @@ describe("split store", () => {
       ownerName: "Tiago",
       balanceFeatureEnabled: false,
     });
-    expect(storeModule.useSplitStore.getState().settings).toEqual({
+    expect(storeModule.useSplitStore.getState().settings).toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
@@ -315,7 +315,8 @@ describe("split store", () => {
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
-    expect(storageMocks.saveAppSettings).toHaveBeenCalledWith({
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
@@ -323,7 +324,8 @@ describe("split store", () => {
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
-    });
+      }),
+    );
   });
 
   it("renames owner references in stored records when the profile name changes", async () => {

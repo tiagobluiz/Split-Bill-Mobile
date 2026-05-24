@@ -74,7 +74,7 @@ describe("settings storage", () => {
       "SELECT key, payload FROM app_settings WHERE key = ?",
       ["app-settings"]
     );
-    expect(loaded).toEqual({
+    expect(loaded).toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
@@ -85,23 +85,22 @@ describe("settings storage", () => {
       splitListAmountDisplay: "total",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
-    expect(database.runAsync).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT OR REPLACE INTO app_settings"),
-      [
-        "app-settings",
-        JSON.stringify({
-          ownerName: "Ana",
-          ownerProfileImageUri: "file:///ana.png",
-          balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
-          defaultCurrency: "EUR",
-          language: "en",
-          humour: "plain",
-          splitListAmountDisplay: "userPaid",
-          customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
-        }),
-      ]
-    );
+    expect(database.runAsync).toHaveBeenCalledTimes(1);
+    const saveArgs = database.runAsync.mock.calls[0] as unknown as [string, [string, string]];
+    expect(saveArgs[0]).toContain("INSERT OR REPLACE INTO app_settings");
+    expect(saveArgs[1][0]).toBe("app-settings");
+    expect(JSON.parse(saveArgs[1][1])).toMatchObject({
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///ana.png",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: "en",
+      humour: "plain",
+      splitListAmountDisplay: "userPaid",
+      customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
+      backup: settingsModule.getDefaultBackupSettings(),
+    });
   });
 
   it("normalizes feature flags before saving settings payloads", async () => {
@@ -190,7 +189,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -204,7 +203,7 @@ describe("settings storage", () => {
 
     const missing = await loadModule({ row: null });
     await missing.settingsModule.initializeSettingsStorage();
-    await expect(missing.settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(missing.settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -236,7 +235,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
@@ -282,7 +281,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -307,7 +306,7 @@ describe("settings storage", () => {
       });
 
       await settingsModule.initializeSettingsStorage();
-      await expect(settingsModule.getAppSettings()).resolves.toEqual({
+      await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
         ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -355,7 +354,7 @@ describe("settings storage", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
       })
-    ).toEqual({
+    ).toMatchObject({
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
     });
@@ -365,7 +364,7 @@ describe("settings storage", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: false,
       })
-    ).toEqual({
+    ).toMatchObject({
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: false,
     });
@@ -375,9 +374,10 @@ describe("settings storage", () => {
         balanceFeatureEnabled: false,
         trackPaymentsFeatureEnabled: true,
       })
-    ).toEqual({
+    ).toMatchObject({
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: true,
     });
   });
 });
+

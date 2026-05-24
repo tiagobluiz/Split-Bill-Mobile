@@ -100,6 +100,66 @@ const enPlain = {
   "settings.backup.title": "Backup data",
   "settings.backup.description":
     "Keep your splits safe in the cloud so you can recover them if you lose this phone.",
+  "settings.backup.inactiveSummary":
+    "Backup is currently off. Turn it on to back up and restore your app data.",
+  "settings.backup.noticeTitle": "Backup",
+  "settings.backup.saveSettingsFirst":
+    "Save your settings first so backup uses the latest configuration.",
+  "settings.backup.manual": "Back up now",
+  "settings.backup.manualSuccess": "Backup completed.",
+  "settings.backup.manualUsage": "{used}/{limit} used today",
+  "settings.backup.frequencyPicker": "Backup frequency",
+  "settings.backup.frequencyPickerTitle": "Choose backup frequency",
+  "settings.backup.frequency.daily": "Daily",
+  "settings.backup.frequency.daily.description":
+    "Runs once per day when eligible.",
+  "settings.backup.frequency.weekly": "Weekly",
+  "settings.backup.frequency.weekly.description":
+    "Runs once every seven days when eligible.",
+  "settings.backup.frequency.monthly": "Monthly",
+  "settings.backup.frequency.monthly.description":
+    "Runs roughly once every thirty days when eligible.",
+  "settings.backup.encryption": "Encrypt backup",
+  "settings.backup.passwordAction": "Set or change password",
+  "settings.backup.passwordTitle": "Backup password",
+  "settings.backup.passwordPlaceholder": "Password",
+  "settings.backup.passwordConfirmPlaceholder": "Confirm password",
+  "settings.backup.passwordSave": "Save password",
+  "settings.backup.passwordSaved": "Password saved for this session.",
+  "settings.backup.passwordSet": "Password set for this session",
+  "settings.backup.passwordNotSet": "Password not set",
+  "settings.backup.import": "Import backup",
+  "settings.backup.importConfirmTitle": "Replace app data?",
+  "settings.backup.importConfirmBody":
+    "Importing will replace your current data with the backup file.",
+  "settings.backup.importConfirmAction": "Replace and import",
+  "settings.backup.importSuccess": "Backup imported.",
+  "settings.backup.googleDriveAction": "Google Drive",
+  "settings.backup.googleDriveConnect": "Connect Google Drive",
+  "settings.backup.googleDriveDisconnect": "Disconnect Google Drive",
+  "settings.backup.googleDriveConnectedStatus": "Connected",
+  "settings.backup.googleDriveConnectedAs": "Connected as {email}",
+  "settings.backup.googleDriveNotConnected": "Not connected",
+  "settings.backup.googleDriveConnectedMessage": "Google Drive connected.",
+  "settings.backup.googleDriveDisconnectedMessage":
+    "Google Drive disconnected.",
+  "settings.backup.error.generic":
+    "Backup action failed. Please try again.",
+  "settings.backup.error.limitReached":
+    "You already used all 3 manual backups for today.",
+  "settings.backup.error.passphraseRequired":
+    "Set a backup password before running encrypted backups.",
+  "settings.backup.error.passphraseTooShort":
+    "Choose a password with at least 6 characters.",
+  "settings.backup.error.passphraseMismatch":
+    "Passwords do not match.",
+  "settings.backup.error.invalidPassphrase":
+    "Wrong backup password for this file.",
+  "settings.backup.error.importCancelled": "Backup import cancelled.",
+  "settings.backup.error.invalidFile":
+    "This file is not a valid Split Bill backup.",
+  "settings.backup.error.googleClientIdMissing":
+    "Google Drive is not configured yet for this build.",
   "settings.backup.why": "Why do I need this?",
   "settings.backup.underDevelopment": "Under development",
   "settings.backup.notice":
@@ -746,6 +806,68 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "settings.backup.title": "Cópia de segurança",
   "settings.backup.description":
     "Mantém as tuas divisões seguras na cloud para as recuperares se perderes este telefone.",
+  "settings.backup.inactiveSummary":
+    "A copia de seguranca esta desligada. Liga para ativares copia e restauro.",
+  "settings.backup.noticeTitle": "Copia de seguranca",
+  "settings.backup.saveSettingsFirst":
+    "Guarda primeiro as definicoes para usar a configuracao mais recente.",
+  "settings.backup.manual": "Fazer copia agora",
+  "settings.backup.manualSuccess": "Copia concluida.",
+  "settings.backup.manualUsage": "{used}/{limit} usadas hoje",
+  "settings.backup.frequencyPicker": "Frequencia da copia",
+  "settings.backup.frequencyPickerTitle": "Escolher frequencia da copia",
+  "settings.backup.frequency.daily": "Diaria",
+  "settings.backup.frequency.daily.description":
+    "Executa uma vez por dia quando elegivel.",
+  "settings.backup.frequency.weekly": "Semanal",
+  "settings.backup.frequency.weekly.description":
+    "Executa uma vez a cada sete dias quando elegivel.",
+  "settings.backup.frequency.monthly": "Mensal",
+  "settings.backup.frequency.monthly.description":
+    "Executa aproximadamente a cada trinta dias quando elegivel.",
+  "settings.backup.encryption": "Encriptar copia",
+  "settings.backup.passwordAction": "Definir ou alterar palavra-passe",
+  "settings.backup.passwordTitle": "Palavra-passe da copia",
+  "settings.backup.passwordPlaceholder": "Palavra-passe",
+  "settings.backup.passwordConfirmPlaceholder": "Confirmar palavra-passe",
+  "settings.backup.passwordSave": "Guardar palavra-passe",
+  "settings.backup.passwordSaved":
+    "Palavra-passe guardada para esta sessao.",
+  "settings.backup.passwordSet": "Palavra-passe definida para esta sessao",
+  "settings.backup.passwordNotSet": "Palavra-passe nao definida",
+  "settings.backup.import": "Importar copia",
+  "settings.backup.importConfirmTitle": "Substituir dados da app?",
+  "settings.backup.importConfirmBody":
+    "Importar vai substituir os dados atuais pelo ficheiro de copia.",
+  "settings.backup.importConfirmAction": "Substituir e importar",
+  "settings.backup.importSuccess": "Copia importada.",
+  "settings.backup.googleDriveAction": "Google Drive",
+  "settings.backup.googleDriveConnect": "Ligar Google Drive",
+  "settings.backup.googleDriveDisconnect": "Desligar Google Drive",
+  "settings.backup.googleDriveConnectedStatus": "Ligado",
+  "settings.backup.googleDriveConnectedAs": "Ligado como {email}",
+  "settings.backup.googleDriveNotConnected": "Nao ligado",
+  "settings.backup.googleDriveConnectedMessage": "Google Drive ligado.",
+  "settings.backup.googleDriveDisconnectedMessage":
+    "Google Drive desligado.",
+  "settings.backup.error.generic":
+    "Falha na acao de copia. Tenta novamente.",
+  "settings.backup.error.limitReached":
+    "Ja usaste as 3 copias manuais de hoje.",
+  "settings.backup.error.passphraseRequired":
+    "Define uma palavra-passe antes de usares copias encriptadas.",
+  "settings.backup.error.passphraseTooShort":
+    "Escolhe uma palavra-passe com pelo menos 6 caracteres.",
+  "settings.backup.error.passphraseMismatch":
+    "As palavras-passe nao coincidem.",
+  "settings.backup.error.invalidPassphrase":
+    "Palavra-passe errada para este ficheiro.",
+  "settings.backup.error.importCancelled":
+    "Importacao da copia cancelada.",
+  "settings.backup.error.invalidFile":
+    "Este ficheiro nao e uma copia valida do Split Bill.",
+  "settings.backup.error.googleClientIdMissing":
+    "Google Drive ainda nao esta configurado nesta build.",
   "settings.backup.why": "Porque preciso disto?",
   "settings.backup.underDevelopment": "Em desenvolvimento",
   "settings.backup.notice":
@@ -1505,4 +1627,7 @@ export const translationCatalog = {
 } as const;
 
 export type TranslationKey = keyof typeof enPlain;
+
+
+
 

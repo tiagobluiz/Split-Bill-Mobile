@@ -414,7 +414,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       nextRateByPair[pairKey] = {
         rate: effectiveRate,
         rateSource,
-        rateUpdatedAt,
+        rateUpdatedAt: rateUpdatedAt ?? undefined,
       };
     }
 
@@ -427,7 +427,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             targetCurrency: normalizedTargetCurrency,
             rate: effectiveRate,
             rateSource,
-            rateUpdatedAt,
+            rateUpdatedAt: rateUpdatedAt ?? undefined,
           }
         : undefined,
       Object.fromEntries(
@@ -438,7 +438,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             targetCurrency: key.split("->")[1] ?? normalizedTargetCurrency,
             rate: value.rate,
             rateSource: value.rateSource,
-            rateUpdatedAt: value.rateUpdatedAt,
+            rateUpdatedAt: value.rateUpdatedAt ?? undefined,
           },
         ]),
       ),

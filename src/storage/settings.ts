@@ -18,11 +18,38 @@ export type AppSettings = {
   language: AppLanguage;
   humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
+  backup?: BackupSettings;
   customCurrencies: Array<{
     code: string;
     name: string;
     symbol: string;
   }>;
+};
+
+export type BackupFrequency = "daily" | "weekly" | "monthly";
+
+export type BackupLastResult = {
+  ok: boolean;
+  at: string;
+  reason?: string;
+};
+
+export type BackupSettings = {
+  enabled: boolean;
+  frequency: BackupFrequency;
+  encryptionEnabled: boolean;
+  localDirectoryUri?: string;
+  manualQuota: {
+    dayKey: string;
+    used: number;
+  };
+  lastManualBackupAt?: string;
+  lastAutoBackupAt?: string;
+  lastBackupResult?: BackupLastResult;
+  googleDrive: {
+    connected: boolean;
+    accountEmail?: string;
+  };
 };
 
 export type SplitListAmountDisplay =
@@ -57,6 +84,104 @@ export function normalizeFeatureFlags(flags: FeatureFlags): FeatureFlags {
 const SETTINGS_KEY = "app-settings";
 
 const DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY: SplitListAmountDisplay = "remaining";
+const DEFAULT_BACKUP_FREQUENCY: BackupFrequency = "daily";
+
+function normalizeBackupFrequency(value: unknown): BackupFrequency {
+  return value === "weekly" || value === "monthly"
+    ? value
+    : DEFAULT_BACKUP_FREQUENCY;
+}
+
+function normalizeIsoTimestamp(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const date = new Date(trimmed);
+  if (!Number.isFinite(date.getTime())) {
+    return undefined;
+  }
+  return date.toISOString();
+}
+
+export function getDefaultBackupSettings(): BackupSettings {
+  return {
+    enabled: false,
+    frequency: DEFAULT_BACKUP_FREQUENCY,
+    encryptionEnabled: false,
+    manualQuota: {
+      dayKey: "",
+      used: 0,
+    },
+    googleDrive: {
+      connected: false,
+    },
+  };
+}
+
+function normalizeBackupSettings(value: unknown): BackupSettings {
+  const defaults = getDefaultBackupSettings();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return defaults;
+  }
+
+  const payload = value as Partial<BackupSettings>;
+  const dayKey =
+    typeof payload.manualQuota?.dayKey === "string"
+      ? payload.manualQuota.dayKey.trim()
+      : "";
+  const used = Number.isFinite(payload.manualQuota?.used)
+    ? Math.max(0, Math.floor(payload.manualQuota!.used))
+    : 0;
+  const accountEmail =
+    typeof payload.googleDrive?.accountEmail === "string" &&
+    payload.googleDrive.accountEmail.trim()
+      ? payload.googleDrive.accountEmail.trim()
+      : undefined;
+  const localDirectoryUri =
+    typeof payload.localDirectoryUri === "string" &&
+    payload.localDirectoryUri.trim()
+      ? payload.localDirectoryUri.trim()
+      : undefined;
+  const connected = Boolean(payload.googleDrive?.connected);
+  const lastResultAt = normalizeIsoTimestamp(payload.lastBackupResult?.at);
+  const lastResult =
+    typeof payload.lastBackupResult?.ok === "boolean" && lastResultAt
+      ? {
+          ok: payload.lastBackupResult.ok,
+          at: lastResultAt,
+          ...(typeof payload.lastBackupResult.reason === "string" &&
+          payload.lastBackupResult.reason.trim()
+            ? { reason: payload.lastBackupResult.reason.trim() }
+            : {}),
+        }
+      : undefined;
+
+  return {
+    enabled: Boolean(payload.enabled),
+    frequency: normalizeBackupFrequency(payload.frequency),
+    encryptionEnabled: Boolean(payload.encryptionEnabled),
+    ...(localDirectoryUri ? { localDirectoryUri } : {}),
+    manualQuota: {
+      dayKey,
+      used,
+    },
+    ...(normalizeIsoTimestamp(payload.lastManualBackupAt)
+      ? { lastManualBackupAt: normalizeIsoTimestamp(payload.lastManualBackupAt) }
+      : {}),
+    ...(normalizeIsoTimestamp(payload.lastAutoBackupAt)
+      ? { lastAutoBackupAt: normalizeIsoTimestamp(payload.lastAutoBackupAt) }
+      : {}),
+    ...(lastResult ? { lastBackupResult: lastResult } : {}),
+    googleDrive: {
+      connected,
+      ...(connected && accountEmail ? { accountEmail } : {}),
+    },
+  };
+}
 
 function normalizeSplitListAmountDisplay(
   value: unknown,
@@ -79,6 +204,7 @@ function getDefaultSettings(): AppSettings {
     language: translationDefaults.language,
     humour: translationDefaults.humour,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
+    backup: getDefaultBackupSettings(),
     customCurrencies: [],
   };
 }
@@ -158,6 +284,7 @@ export async function getAppSettings() {
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       parsed.splitListAmountDisplay,
     ),
+    backup: normalizeBackupSettings(parsed.backup),
     customCurrencies: Array.isArray(parsed.customCurrencies)
       ? parsed.customCurrencies
           .filter(
@@ -189,6 +316,7 @@ export async function saveAppSettings(settings: AppSettings) {
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       settings.splitListAmountDisplay,
     ),
+    backup: normalizeBackupSettings(settings.backup),
   };
   await withAppDatabaseRetry((db) =>
     db.runAsync(
@@ -196,5 +324,11 @@ export async function saveAppSettings(settings: AppSettings) {
        VALUES (?, ?)`,
       [SETTINGS_KEY, JSON.stringify(payload)]
     )
+  );
+}
+
+export async function clearAppSettings() {
+  await withAppDatabaseRetry((db) =>
+    db.runAsync("DELETE FROM app_settings WHERE key = ?", [SETTINGS_KEY]),
   );
 }

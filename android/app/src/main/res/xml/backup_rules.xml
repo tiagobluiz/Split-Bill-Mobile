@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+  <include domain="database" path="split-bill-mobile.db" />
+  <include domain="database" path="split-bill-mobile.db-shm" />
+  <include domain="database" path="split-bill-mobile.db-wal" />
+  <include domain="sharedpref" path="." />
+  <exclude domain="sharedpref" path="SecureStore" />
+  <exclude domain="sharedpref" path="SecureStore.xml" />
+</full-backup-content>

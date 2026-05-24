@@ -17,15 +17,19 @@ import {
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
 import {
+  clearRecords,
   deleteRecord,
   getRecordById,
   initializeRecordsStorage,
   listRecords,
+  replaceAllRecords,
   saveRecord,
   type DraftRecord,
 } from "../../storage/records";
 import {
+  clearAppSettings,
   getAppSettings,
+  getDefaultBackupSettings,
   initializeSettingsStorage,
   normalizeFeatureFlags,
   saveAppSettings,
@@ -45,6 +49,13 @@ import {
 } from "./reminders";
 import { buildRecordRoute } from "./screens/shared/recordUtils";
 import { resolveDraftStep } from "./splitFlow";
+import {
+  getNextManualQuota,
+  pickAndParseBackupFile,
+  runBackupNow,
+  shouldRunScheduledBackup,
+} from "../backup/service";
+import { connectGoogleDrive, clearGoogleDriveSession } from "../backup/googleDrive";
 
 type ImportMode = "append" | "replace";
 type ParticipantsValue = DraftRecord["values"]["participants"];
@@ -57,11 +68,19 @@ type SplitStore = {
   records: DraftRecord[];
   activeRecordId: string | null;
   settings: AppSettings;
+  backupPassphrase: string;
   bootstrap: () => Promise<void>;
   createDraft: () => Promise<DraftRecord>;
   openRecord: (id: string) => Promise<DraftRecord | null>;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  setBackupPassphrase: (passphrase: string) => void;
+  clearBackupPassphrase: () => void;
+  runManualBackup: () => Promise<void>;
+  runScheduledBackupIfDue: (trigger: "background" | "foreground") => Promise<void>;
+  importBackupFromFile: () => Promise<void>;
+  connectGoogleDrive: () => Promise<void>;
+  disconnectGoogleDrive: () => Promise<void>;
   updateDraftMeta: (
     splitName: string,
     currency: string,
@@ -189,6 +208,87 @@ function createReminderEntry(notificationId: string, scheduledForIso: string): R
   };
 }
 
+async function restoreReminderStateWithFreshNotificationIds(
+  record: DraftRecord,
+  settings: AppSettings,
+) {
+  const normalized = normalizeReminderState(record.reminderState);
+  const participantIds = new Set(
+    record.values.participants.map((participant) => participant.id),
+  );
+  const nowMs = Date.now();
+  const nextReminderState: ReminderState = {
+    participantDebtReminders: {},
+  };
+  const translation = {
+    language: settings.language,
+    humour: settings.humour,
+  } as const;
+
+  if (normalized.splitReminder) {
+    const scheduledDate = new Date(normalized.splitReminder.scheduledForIso);
+    if (Number.isFinite(scheduledDate.getTime()) && scheduledDate.getTime() > nowMs) {
+      try {
+        const reminderUrl = buildRecordRoute(recordForReminderRoute(record));
+        const { notificationId } = await scheduleReminder({
+          target: "split",
+          draftId: record.id,
+          splitName: record.values.splitName?.trim(),
+          translation,
+          url: reminderUrl,
+          scheduledForIso: normalized.splitReminder.scheduledForIso,
+        });
+        nextReminderState.splitReminder = createReminderEntry(
+          notificationId,
+          normalized.splitReminder.scheduledForIso,
+        );
+      } catch (error) {
+        console.warn(
+          `Failed to restore split reminder for backup record ${record.id}`,
+          error,
+        );
+      }
+    }
+  }
+
+  const entries = Object.entries(normalized.participantDebtReminders);
+  for (const [participantId, reminder] of entries) {
+    if (!participantIds.has(participantId)) {
+      continue;
+    }
+    const scheduledDate = new Date(reminder.scheduledForIso);
+    if (!Number.isFinite(scheduledDate.getTime()) || scheduledDate.getTime() <= nowMs) {
+      continue;
+    }
+    const participantName = record.values.participants.find(
+      (participant) => participant.id === participantId,
+    )?.name;
+    try {
+      const { notificationId } = await scheduleReminder({
+        target: "participantDebt",
+        draftId: record.id,
+        participantId,
+        splitName: record.values.splitName?.trim(),
+        participantName,
+        translation,
+        url: `/split/${record.id}/results`,
+        scheduledForIso: reminder.scheduledForIso,
+      });
+      nextReminderState.participantDebtReminders[participantId] = createReminderEntry(
+        notificationId,
+        reminder.scheduledForIso,
+      );
+    } catch (error) {
+      console.warn(
+        `Failed to restore participant reminder for backup record ${record.id}`,
+        error,
+      );
+    }
+  }
+
+  return nextReminderState;
+}
+
 function listReminderNotificationIds(reminderState?: ReminderState) {
   const ids = new Set<string>();
   const normalized = normalizeReminderState(reminderState);
@@ -286,6 +386,10 @@ function ensureItemsAligned(values: DraftRecord["values"]) {
 
 function normalizeOwnerName(value: string) {
   return value.trim().toLowerCase();
+}
+
+function resolveBackupSettings(settings: AppSettings) {
+  return settings.backup ?? getDefaultBackupSettings();
 }
 
 function isOwnerAlias(name: string, ownerName: string) {
@@ -397,8 +501,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     splitListAmountDisplay: "remaining",
+    backup: getDefaultBackupSettings(),
     customCurrencies: [],
   },
+  backupPassphrase: "",
   async bootstrap() {
     await initializeSettingsStorage();
     await initializeRecordsStorage();
@@ -416,6 +522,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       settings,
       activeRecordId: records[0]?.id ?? null,
     });
+    await get().runScheduledBackupIfDue("foreground");
   },
   async createDraft() {
     const draft = createDraftRecord(get().settings.defaultCurrency);
@@ -483,9 +590,30 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateSettings(partial) {
     const previousOwnerName = get().settings.ownerName || "";
+    const currentSettings = get().settings;
+    const currentBackup = resolveBackupSettings(currentSettings);
+    const mergedBackup = partial.backup
+      ? {
+          ...currentBackup,
+          ...partial.backup,
+          manualQuota: partial.backup.manualQuota
+            ? {
+                ...currentBackup.manualQuota,
+                ...partial.backup.manualQuota,
+              }
+            : currentBackup.manualQuota,
+          googleDrive: partial.backup.googleDrive
+            ? {
+                ...currentBackup.googleDrive,
+                ...partial.backup.googleDrive,
+              }
+            : currentBackup.googleDrive,
+        }
+      : currentBackup;
     const mergedSettings = {
-      ...get().settings,
+      ...currentSettings,
       ...partial,
+      backup: mergedBackup,
     };
     const normalizedFlags = normalizeFeatureFlags({
       balanceFeatureEnabled: mergedSettings.balanceFeatureEnabled,
@@ -510,6 +638,220 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     });
     await Promise.all(nextRecords.map((record) => saveRecord(record)));
     await saveAppSettings(nextSettings);
+  },
+  setBackupPassphrase(passphrase) {
+    set({
+      backupPassphrase: passphrase,
+    });
+  },
+  clearBackupPassphrase() {
+    set({
+      backupPassphrase: "",
+    });
+  },
+  async runManualBackup() {
+    const state = get();
+    const settings = state.settings;
+    const backupSettings = resolveBackupSettings(settings);
+    if (!backupSettings.enabled) {
+      throw new Error("backup-disabled");
+    }
+
+    const quota = getNextManualQuota(settings, new Date());
+    if (!quota.allowed) {
+      throw new Error("manual-backup-limit-reached");
+    }
+
+    const passphrase = state.backupPassphrase.trim();
+    if (backupSettings.encryptionEnabled && !passphrase) {
+      throw new Error("missing-backup-passphrase");
+    }
+
+    try {
+      const backupResult = await runBackupNow(
+        {
+          settings: state.settings,
+          records: state.records,
+        },
+        {
+          passphrase: backupSettings.encryptionEnabled ? passphrase : undefined,
+          preferredDirectoryUri: backupSettings.localDirectoryUri,
+          includeGoogleDriveUpload: backupSettings.googleDrive.connected,
+        },
+      );
+
+      await get().updateSettings({
+        backup: {
+          ...backupSettings,
+          localDirectoryUri: backupResult.directoryUri,
+          manualQuota: {
+            dayKey: quota.dayKey,
+            used: quota.nextUsed,
+          },
+          lastManualBackupAt: new Date().toISOString(),
+          lastBackupResult: {
+            ok: true,
+            at: new Date().toISOString(),
+            reason: "ok",
+          },
+        },
+      });
+    } catch (error) {
+      await get().updateSettings({
+        backup: {
+          ...backupSettings,
+          lastBackupResult: {
+            ok: false,
+            at: new Date().toISOString(),
+            reason:
+              error instanceof Error && error.message
+                ? error.message
+                : "unknown-error",
+          },
+        },
+      });
+      throw error;
+    }
+  },
+  async runScheduledBackupIfDue(_trigger) {
+    const state = get();
+    const settings = state.settings;
+    const backupSettings = resolveBackupSettings(settings);
+    if (!shouldRunScheduledBackup(settings, new Date())) {
+      return;
+    }
+
+    const passphrase = state.backupPassphrase.trim();
+    if (backupSettings.encryptionEnabled && !passphrase) {
+      await get().updateSettings({
+        backup: {
+          ...backupSettings,
+          lastBackupResult: {
+            ok: false,
+            at: new Date().toISOString(),
+            reason: "missing-backup-passphrase",
+          },
+        },
+      });
+      return;
+    }
+
+    try {
+      const backupResult = await runBackupNow(
+        {
+          settings: state.settings,
+          records: state.records,
+        },
+        {
+          passphrase: backupSettings.encryptionEnabled ? passphrase : undefined,
+          preferredDirectoryUri: backupSettings.localDirectoryUri,
+          includeGoogleDriveUpload: backupSettings.googleDrive.connected,
+          allowDirectoryPrompt: false,
+        },
+      );
+      await get().updateSettings({
+        backup: {
+          ...backupSettings,
+          localDirectoryUri: backupResult.directoryUri,
+          lastAutoBackupAt: new Date().toISOString(),
+          lastBackupResult: {
+            ok: true,
+            at: new Date().toISOString(),
+            reason: "ok",
+          },
+        },
+      });
+    } catch (error) {
+      await get().updateSettings({
+        backup: {
+          ...backupSettings,
+          lastBackupResult: {
+            ok: false,
+            at: new Date().toISOString(),
+            reason:
+              error instanceof Error && error.message
+                ? error.message
+                : "unknown-error",
+          },
+        },
+      });
+    }
+  },
+  async importBackupFromFile() {
+    const state = get();
+    const backupSettings = resolveBackupSettings(state.settings);
+    const passphrase =
+      backupSettings.encryptionEnabled && state.backupPassphrase.trim()
+        ? state.backupPassphrase.trim()
+        : undefined;
+
+    const parsed = await pickAndParseBackupFile(passphrase);
+
+    await Promise.all(
+      state.records.map((record) => cancelReminderState(record.reminderState)),
+    );
+    await clearRecords();
+    await clearAppSettings();
+    await replaceAllRecords(parsed.data.records);
+    await saveAppSettings(parsed.data.settings);
+
+    const { records, settings } = await (async () => {
+      const [nextRecords, nextSettings] = await Promise.all([
+        listRecords(),
+        getAppSettings(),
+      ]);
+      const restoredRecords = await Promise.all(
+        nextRecords.map(async (record) => ({
+          ...record,
+          reminderState: await restoreReminderStateWithFreshNotificationIds(
+            record,
+            nextSettings,
+          ),
+        })),
+      );
+      await Promise.all(restoredRecords.map((record) => saveRecord(record)));
+      const reconciled = await reconcileScheduledReminders(restoredRecords);
+      if (reconciled.changed) {
+        await Promise.all(reconciled.records.map((record) => saveRecord(record)));
+      }
+      return {
+        records: reconciled.records,
+        settings: nextSettings,
+      };
+    })();
+
+    set({
+      records,
+      settings,
+      activeRecordId: records[0]?.id ?? null,
+    });
+  },
+  async connectGoogleDrive() {
+    const connection = await connectGoogleDrive();
+    const backupSettings = resolveBackupSettings(get().settings);
+    await get().updateSettings({
+      backup: {
+        ...backupSettings,
+        googleDrive: {
+          connected: connection.connected,
+          ...(connection.accountEmail
+            ? { accountEmail: connection.accountEmail }
+            : {}),
+        },
+      },
+    });
+  },
+  async disconnectGoogleDrive() {
+    await clearGoogleDriveSession();
+    const backupSettings = resolveBackupSettings(get().settings);
+    await get().updateSettings({
+      backup: {
+        ...backupSettings,
+        googleDrive: {
+          connected: false,
+        },
+      },
+    });
   },
   async updateDraftMeta(splitName, currency, exchangeRate, exchangeRatesByPair) {
     await withActiveRecord(set, get, (record) =>

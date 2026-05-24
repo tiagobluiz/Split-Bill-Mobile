@@ -165,3 +165,32 @@ export async function saveRecord(record: DraftRecord) {
 export async function deleteRecord(id: string) {
   await withAppDatabaseRetry((db) => db.runAsync("DELETE FROM split_records WHERE id = ?", [id]));
 }
+
+export async function clearRecords() {
+  await withAppDatabaseRetry((db) => db.runAsync("DELETE FROM split_records"));
+}
+
+export async function replaceAllRecords(records: DraftRecord[]) {
+  await withAppDatabaseRetry(async (db) => {
+    await db.runAsync("DELETE FROM split_records");
+    for (const record of records) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO split_records (id, status, step, payload, created_at, updated_at, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.id,
+          record.status,
+          record.step,
+          JSON.stringify({
+            values: record.values,
+            settlementState: record.settlementState ?? getDefaultSettlementState(),
+            reminderState: record.reminderState ?? getDefaultReminderState(),
+          }),
+          record.createdAt,
+          record.updatedAt,
+          record.completedAt ?? null,
+        ],
+      );
+    }
+  });
+}

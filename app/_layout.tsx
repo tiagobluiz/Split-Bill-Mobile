@@ -1,5 +1,5 @@
 import "react-native-gesture-handler";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -13,6 +13,7 @@ import { PALETTE } from "../src/theme/palette";
 import { getDefaultTranslationSettings, t, translateWithSettings } from "../src/i18n";
 import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
+import { registerBackupBackgroundTask } from "../src/features/backup/background";
 
 void SplashScreen.preventAutoHideAsync();
 Notifications.setNotificationHandler({
@@ -75,7 +76,14 @@ function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) 
 
 export default function RootLayout() {
   const reconcileReminders = useSplitStore((state) => state.reconcileReminders);
-  useNotificationObserver(reconcileReminders);
+  const runScheduledBackupIfDue = useSplitStore(
+    (state) => state.runScheduledBackupIfDue,
+  );
+  const handleReminderSignal = useCallback(async () => {
+    await reconcileReminders();
+    await runScheduledBackupIfDue("foreground");
+  }, [reconcileReminders, runScheduledBackupIfDue]);
+  useNotificationObserver(handleReminderSignal);
   const bootstrap = useSplitStore((state) => state.bootstrap);
   const ready = useSplitStore((state) => state.ready);
   const settings = useSplitStore((state) => state.settings);
@@ -94,6 +102,12 @@ export default function RootLayout() {
       setBootstrapFailed(true);
     });
   }, [bootstrap]);
+
+  useEffect(() => {
+    void registerBackupBackgroundTask().catch((error) => {
+      console.warn("Failed to register backup background task", error);
+    });
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded && (ready || bootstrapFailed)) {

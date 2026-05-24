@@ -73,6 +73,132 @@ jest.mock("expo-sqlite", () => ({
   })),
 }));
 
+jest.mock("expo-file-system/legacy", () => ({
+  documentDirectory: "file:///documents/",
+  EncodingType: {
+    Base64: "base64",
+  },
+  writeAsStringAsync: jest.fn(async () => undefined),
+  readAsStringAsync: jest.fn(async () => ""),
+  StorageAccessFramework: {
+    requestDirectoryPermissionsAsync: jest.fn(async () => ({
+      granted: false,
+      directoryUri: null,
+    })),
+    createFileAsync: jest.fn(async () => "content://backup-file"),
+  },
+}));
+
+jest.mock("expo-document-picker", () => ({
+  getDocumentAsync: jest.fn(async () => ({
+    canceled: true,
+    assets: null,
+  })),
+}));
+
+jest.mock("expo-secure-store", () => ({
+  setItemAsync: jest.fn(async () => undefined),
+  getItemAsync: jest.fn(async () => null),
+  deleteItemAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock("expo-auth-session", () => {
+  class AuthRequest {
+    codeVerifier = "mock-code-verifier";
+
+    async makeAuthUrlAsync() {
+      return "https://accounts.google.com/mock";
+    }
+
+    async promptAsync() {
+      return {
+        type: "dismiss",
+      };
+    }
+  }
+
+  return {
+    makeRedirectUri: jest.fn(() => "split-bill-mobile://oauthredirect"),
+    AuthRequest,
+    ResponseType: {
+      Code: "code",
+    },
+    exchangeCodeAsync: jest.fn(async () => ({
+      accessToken: "token",
+      refreshToken: "refresh-token",
+      issuedAt: 1,
+      expiresIn: 3600,
+      tokenType: "Bearer",
+    })),
+    refreshAsync: jest.fn(async () => ({
+      accessToken: "token",
+      refreshToken: "refresh-token",
+      issuedAt: 1,
+      expiresIn: 3600,
+      tokenType: "Bearer",
+    })),
+  };
+});
+
+jest.mock("expo-background-task", () => ({
+  registerTaskAsync: jest.fn(async () => undefined),
+  unregisterTaskAsync: jest.fn(async () => undefined),
+  BackgroundTaskResult: {
+    Success: 1,
+    Failed: 2,
+  },
+}));
+
+jest.mock("expo-task-manager", () => ({
+  defineTask: jest.fn(),
+  isTaskDefined: jest.fn(() => false),
+  isAvailableAsync: jest.fn(async () => true),
+  isTaskRegisteredAsync: jest.fn(async () => false),
+}));
+
+jest.mock("@noble/hashes/sha2.js", () => ({
+  sha256: {},
+}));
+
+jest.mock("@noble/hashes/pbkdf2.js", () => ({
+  pbkdf2: (_hash: unknown, passphrase: string, salt: Uint8Array, options: { dkLen: number }) => {
+    const source = `${passphrase}:${Array.from(salt).join(",")}`;
+    const output = new Uint8Array(options.dkLen);
+    for (let i = 0; i < options.dkLen; i += 1) {
+      const code = source.charCodeAt(i % source.length) || 0;
+      output[i] = (code + i) % 256;
+    }
+    return output;
+  },
+}));
+
+jest.mock("expo-notifications", () => ({
+  PermissionStatus: {
+    GRANTED: "granted",
+  },
+  AndroidImportance: {
+    DEFAULT: 3,
+  },
+  SchedulableTriggerInputTypes: {
+    DATE: "date",
+  },
+  getPermissionsAsync: jest.fn(async () => ({ status: "granted", granted: true })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted", granted: true })),
+  scheduleNotificationAsync: jest.fn(async () => "notification-id"),
+  cancelScheduledNotificationAsync: jest.fn(async () => undefined),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      version: "1.0.0-test",
+    },
+    nativeAppVersion: "1.0.0-test",
+  },
+}));
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({
     top: 24,

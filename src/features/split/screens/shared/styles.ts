@@ -1015,6 +1015,10 @@ export const screenStyles = StyleSheet.create({
   settingsInlineActionActive: {
     backgroundColor: PALETTE.brandOverlayStrong,
   },
+  iconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   recentSwipeDeleteAction: {
     minWidth: 92,
     marginLeft: 12,

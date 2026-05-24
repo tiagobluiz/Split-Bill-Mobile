@@ -53,7 +53,9 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-localization"
+      "expo-localization",
+      "expo-secure-store",
+      "expo-background-task"
     ],
     "extra": {
       "router": {},

@@ -50,7 +50,10 @@ import {
 } from "../../../../components/ui";
 import { createId, formatMoney, normalizeMoneyInput } from "../../../../domain";
 import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
-import type { SplitListAmountDisplay } from "../../../../storage/settings";
+import type {
+  BackupFrequency,
+  SplitListAmountDisplay,
+} from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
   type AppHumour,
@@ -124,7 +127,15 @@ export function HomeScreenView() {
     createDraft,
     removeRecord,
     settings,
+    backupPassphrase,
     updateSettings,
+    setBackupPassphrase,
+    clearBackupPassphrase,
+    runManualBackup,
+    runScheduledBackupIfDue,
+    importBackupFromFile,
+    connectGoogleDrive,
+    disconnectGoogleDrive,
     setSplitReminder,
     clearSplitReminder,
   } =
@@ -134,7 +145,15 @@ export function HomeScreenView() {
         createDraft: state.createDraft,
         removeRecord: state.removeRecord,
         settings: state.settings,
+        backupPassphrase: state.backupPassphrase,
         updateSettings: state.updateSettings,
+        setBackupPassphrase: state.setBackupPassphrase,
+        clearBackupPassphrase: state.clearBackupPassphrase,
+        runManualBackup: state.runManualBackup,
+        runScheduledBackupIfDue: state.runScheduledBackupIfDue,
+        importBackupFromFile: state.importBackupFromFile,
+        connectGoogleDrive: state.connectGoogleDrive,
+        disconnectGoogleDrive: state.disconnectGoogleDrive,
         setSplitReminder: state.setSplitReminder,
         clearSplitReminder: state.clearSplitReminder,
       })),
@@ -193,9 +212,28 @@ export function HomeScreenView() {
         settings.balanceFeatureEnabled,
       ),
     );
+  const [backupEnabledDraft, setBackupEnabledDraft] = useState(
+    settings.backup?.enabled ?? false,
+  );
+  const [backupFrequencyDraft, setBackupFrequencyDraft] =
+    useState<BackupFrequency>(settings.backup?.frequency ?? "daily");
+  const [backupEncryptionEnabledDraft, setBackupEncryptionEnabledDraft] =
+    useState(settings.backup?.encryptionEnabled ?? false);
   const [customCurrenciesDraft, setCustomCurrenciesDraft] = useState(
     settings.customCurrencies ?? [],
   );
+  const persistedBackupSettings = settings.backup ?? {
+    enabled: false,
+    frequency: "daily" as BackupFrequency,
+    encryptionEnabled: false,
+    manualQuota: {
+      dayKey: "",
+      used: 0,
+    },
+    googleDrive: {
+      connected: false,
+    },
+  };
   const splitListAmountDisplayOptions: Array<{
     key: SplitListAmountDisplay;
     label: string;
@@ -241,13 +279,38 @@ export function HomeScreenView() {
           : option.description,
       };
     });
+  const backupFrequencyOptions: Array<{
+    key: BackupFrequency;
+    label: string;
+    description: string;
+  }> = [
+    {
+      key: "daily",
+      label: t("settings.backup.frequency.daily"),
+      description: t("settings.backup.frequency.daily.description"),
+    },
+    {
+      key: "weekly",
+      label: t("settings.backup.frequency.weekly"),
+      description: t("settings.backup.frequency.weekly.description"),
+    },
+    {
+      key: "monthly",
+      label: t("settings.backup.frequency.monthly"),
+      description: t("settings.backup.frequency.monthly.description"),
+    },
+  ];
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [humourMenuOpen, setHumourMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
   const [profileActionMenuOpen, setProfileActionMenuOpen] = useState(false);
+  const [backupFrequencyMenuOpen, setBackupFrequencyMenuOpen] = useState(false);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+  const [backupPasswordModalOpen, setBackupPasswordModalOpen] = useState(false);
+  const [backupPasswordDraft, setBackupPasswordDraft] = useState("");
+  const [backupPasswordConfirmDraft, setBackupPasswordConfirmDraft] = useState("");
   const [splitReminderPickerRecordId, setSplitReminderPickerRecordId] = useState("");
   const [splitReminderPickerHasExisting, setSplitReminderPickerHasExisting] = useState(false);
   const [splitReminderErrorMessage, setSplitReminderErrorMessage] = useState("");
@@ -334,6 +397,12 @@ export function HomeScreenView() {
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
   });
+  const nowForBackupUi = new Date();
+  const backupDayKey = `${nowForBackupUi.getFullYear()}-${`${nowForBackupUi.getMonth() + 1}`.padStart(2, "0")}-${`${nowForBackupUi.getDate()}`.padStart(2, "0")}`;
+  const backupUsedToday =
+    persistedBackupSettings.manualQuota.dayKey === backupDayKey
+      ? Math.max(0, persistedBackupSettings.manualQuota.used)
+      : 0;
   const normalizedStoredSplitListAmountDisplay =
     normalizeSplitListAmountDisplaySetting(
       settings.splitListAmountDisplay,
@@ -343,6 +412,11 @@ export function HomeScreenView() {
     (settings.balanceFeatureEnabled ?? true) === false &&
     (settings.splitListAmountDisplay ?? "remaining") !==
       normalizedStoredSplitListAmountDisplay;
+  const backupSettingsDirty =
+    backupEnabledDraft !== (settings.backup?.enabled ?? false) ||
+    backupFrequencyDraft !== (settings.backup?.frequency ?? "daily") ||
+    backupEncryptionEnabledDraft !==
+      (settings.backup?.encryptionEnabled ?? false);
   const settingsDirty =
     ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
     ownerProfileImageUriDraft.trim() !==
@@ -354,6 +428,7 @@ export function HomeScreenView() {
       (settings.defaultCurrency ?? "") ||
     languageDraft !== (settings.language ?? "en") ||
     humourDraft !== (settings.humour ?? "plain") ||
+    backupSettingsDirty ||
     hasLegacySplitListAmountDisplayMismatch ||
     splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
     JSON.stringify(customCurrenciesDraft) !==
@@ -407,6 +482,9 @@ export function HomeScreenView() {
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setLanguageDraft(settings.language ?? "en");
     setHumourDraft(settings.humour ?? "plain");
+    setBackupEnabledDraft(settings.backup?.enabled ?? false);
+    setBackupFrequencyDraft(settings.backup?.frequency ?? "daily");
+    setBackupEncryptionEnabledDraft(settings.backup?.encryptionEnabled ?? false);
     setSplitListAmountDisplayDraft(
       normalizeSplitListAmountDisplaySetting(
         settings.splitListAmountDisplay,
@@ -421,6 +499,9 @@ export function HomeScreenView() {
     settings.defaultCurrency,
     settings.humour,
     settings.language,
+    settings.backup?.enabled,
+    settings.backup?.frequency,
+    settings.backup?.encryptionEnabled,
     settings.splitListAmountDisplay,
     settings.ownerName,
     settings.ownerProfileImageUri,
@@ -484,12 +565,19 @@ export function HomeScreenView() {
         language: languageDraft,
         humour: humourDraft,
         splitListAmountDisplay: persistedSplitListAmountDisplay,
+        backup: {
+          ...persistedBackupSettings,
+          enabled: backupEnabledDraft,
+          frequency: backupFrequencyDraft,
+          encryptionEnabled: backupEncryptionEnabledDraft,
+        },
         customCurrencies: customCurrenciesDraft,
       });
       setCurrencyMenuOpen(false);
       setLanguageMenuOpen(false);
       setHumourMenuOpen(false);
       setSplitListAmountDisplayMenuOpen(false);
+      setBackupFrequencyMenuOpen(false);
       setSettingsNoticeTitle(t("common.almostThere"));
       setSettingsNoticeMessages([]);
       return true;
@@ -513,6 +601,9 @@ export function HomeScreenView() {
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     setLanguageDraft(settings.language ?? "en");
     setHumourDraft(settings.humour ?? "plain");
+    setBackupEnabledDraft(settings.backup?.enabled ?? false);
+    setBackupFrequencyDraft(settings.backup?.frequency ?? "daily");
+    setBackupEncryptionEnabledDraft(settings.backup?.encryptionEnabled ?? false);
     setSplitListAmountDisplayDraft(
       normalizeSplitListAmountDisplaySetting(
         settings.splitListAmountDisplay,
@@ -526,7 +617,11 @@ export function HomeScreenView() {
     setLanguageMenuOpen(false);
     setHumourMenuOpen(false);
     setSplitListAmountDisplayMenuOpen(false);
+    setBackupFrequencyMenuOpen(false);
     setCurrencyModalOpen(false);
+    setBackupPasswordModalOpen(false);
+    setBackupPasswordDraft("");
+    setBackupPasswordConfirmDraft("");
     setProfileActionMenuOpen(false);
     setSelectedRecordActionTarget(null);
     setSplitReminderPickerRecordId("");
@@ -541,6 +636,122 @@ export function HomeScreenView() {
       return;
     }
     setActiveTab(nextTab);
+  };
+  const getBackupErrorMessage = (error: unknown) => {
+    if (!(error instanceof Error)) {
+      return t("settings.backup.error.generic");
+    }
+    if (error.message === "manual-backup-limit-reached") {
+      return t("settings.backup.error.limitReached");
+    }
+    if (error.message === "missing-backup-passphrase") {
+      return t("settings.backup.error.passphraseRequired");
+    }
+    if (error.message === "import-cancelled") {
+      return t("settings.backup.error.importCancelled");
+    }
+    if (error.message === "invalid-backup-file") {
+      return t("settings.backup.error.invalidFile");
+    }
+    if (error.message === "invalid-backup-passphrase") {
+      return t("settings.backup.error.invalidPassphrase");
+    }
+    if (error.message === "google-drive-client-id-missing") {
+      return t("settings.backup.error.googleClientIdMissing");
+    }
+    return t("settings.backup.error.generic");
+  };
+  const showBackupNotice = (title: string, message: string) => {
+    setSettingsNoticeTitle(title);
+    setSettingsNoticeMessages([message]);
+  };
+  const handleRunManualBackup = async () => {
+    if (backupSettingsDirty) {
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.saveSettingsFirst"),
+      );
+      return;
+    }
+    try {
+      await runManualBackup();
+      await runScheduledBackupIfDue("foreground");
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.manualSuccess"),
+      );
+    } catch (error) {
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        getBackupErrorMessage(error),
+      );
+    }
+  };
+  const handleImportBackup = async () => {
+    if (backupSettingsDirty) {
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.saveSettingsFirst"),
+      );
+      return;
+    }
+    Alert.alert(
+      t("settings.backup.importConfirmTitle"),
+      t("settings.backup.importConfirmBody"),
+      [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+        },
+        {
+          text: t("settings.backup.importConfirmAction"),
+          style: "destructive",
+          onPress: () => {
+            void importBackupFromFile()
+              .then(() => {
+                showBackupNotice(
+                  t("settings.backup.noticeTitle"),
+                  t("settings.backup.importSuccess"),
+                );
+              })
+              .catch((error) => {
+                showBackupNotice(
+                  t("settings.backup.noticeTitle"),
+                  getBackupErrorMessage(error),
+                );
+              });
+          },
+        },
+      ],
+    );
+  };
+  const handleConnectGoogleDrive = async () => {
+    try {
+      await connectGoogleDrive();
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.googleDriveConnectedMessage"),
+      );
+    } catch (error) {
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        getBackupErrorMessage(error),
+      );
+    }
+  };
+  const handleDisconnectGoogleDrive = async () => {
+    try {
+      await disconnectGoogleDrive();
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.googleDriveDisconnectedMessage"),
+      );
+    } catch (error) {
+      showBackupNotice(
+        t("settings.backup.noticeTitle"),
+        t("settings.backup.error.generic"),
+      );
+    }
   };
   const getSplitReminderLabel = (record: (typeof records)[number]) => {
     const reminder = record.reminderState?.splitReminder;
@@ -1360,36 +1571,230 @@ export function HomeScreenView() {
                 >
                   {t("settings.backup.description")}
                 </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("settings.backup.why")}
-                  onPress={() => {
-                    setSettingsNoticeTitle(t("settings.backup.underDevelopment"));
-                    setSettingsNoticeMessages([
-                      t("settings.backup.notice"),
-                    ]);
-                  }}
-                >
+                {!backupEnabledDraft ? (
                   <Text
-                    fontFamily={FONTS.bodyBold}
+                    fontFamily={FONTS.bodyMedium}
                     fontSize={13}
-                    color={PALETTE.primary}
+                    lineHeight={18}
+                    color={PALETTE.onSurfaceVariant}
                   >
-                    {t("settings.backup.why")}
+                    {t("settings.backup.inactiveSummary")}
                   </Text>
-                </Pressable>
+                ) : (
+                  <YStack gap="$2.5">
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("settings.backup.manual")}
+                      style={screenStyles.selectRow}
+                      onPress={() => void handleRunManualBackup()}
+                    >
+                      <YStack gap="$1">
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={15}
+                          color={PALETTE.onSurface}
+                        >
+                          {t("settings.backup.manual")}
+                        </Text>
+                        <Text
+                          fontFamily={FONTS.bodyMedium}
+                          fontSize={12}
+                          color={PALETTE.onSurfaceVariant}
+                        >
+                          {t("settings.backup.manualUsage", {
+                            used: Math.min(backupUsedToday, 3),
+                            limit: 3,
+                          })}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("settings.backup.frequencyPicker")}
+                      style={screenStyles.selectRow}
+                      onPress={() => setBackupFrequencyMenuOpen(true)}
+                    >
+                      <XStack
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap="$3"
+                      >
+                        <YStack flex={1} gap="$1">
+                          <Text
+                            fontFamily={FONTS.bodyBold}
+                            fontSize={15}
+                            color={PALETTE.onSurface}
+                          >
+                            {
+                              backupFrequencyOptions.find(
+                                (option) => option.key === backupFrequencyDraft,
+                              )?.label
+                            }
+                          </Text>
+                          <Text
+                            fontFamily={FONTS.bodyMedium}
+                            fontSize={12}
+                            color={PALETTE.onSurfaceVariant}
+                          >
+                            {
+                              backupFrequencyOptions.find(
+                                (option) => option.key === backupFrequencyDraft,
+                              )?.description
+                            }
+                          </Text>
+                        </YStack>
+                        <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
+                      </XStack>
+                    </Pressable>
+                    <View style={screenStyles.settingsFeatureRow}>
+                      <YStack gap="$1.5" flex={1}>
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={15}
+                          color={PALETTE.onSurface}
+                        >
+                          {t("settings.backup.encryption")}
+                        </Text>
+                        <Text
+                          fontFamily={FONTS.bodyMedium}
+                          fontSize={12}
+                          color={PALETTE.onSurfaceVariant}
+                        >
+                          {backupPassphrase.trim()
+                            ? t("settings.backup.passwordSet")
+                            : t("settings.backup.passwordNotSet")}
+                        </Text>
+                      </YStack>
+                      <Pressable
+                        accessibilityRole="switch"
+                        accessibilityLabel={t("settings.backup.encryption")}
+                        accessibilityState={{
+                          checked: backupEncryptionEnabledDraft,
+                        }}
+                        style={[
+                          screenStyles.settingsFeatureToggle,
+                          backupEncryptionEnabledDraft
+                            ? screenStyles.settingsFeatureToggleActive
+                            : null,
+                        ]}
+                        onPress={() => {
+                          const nextEnabled = !backupEncryptionEnabledDraft;
+                          setBackupEncryptionEnabledDraft(nextEnabled);
+                          if (!nextEnabled) {
+                            clearBackupPassphrase();
+                          }
+                        }}
+                      >
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={12}
+                          color={
+                            backupEncryptionEnabledDraft
+                              ? PALETTE.onPrimary
+                              : PALETTE.primary
+                          }
+                          textTransform="uppercase"
+                          letterSpacing={1.6}
+                        >
+                          {backupEncryptionEnabledDraft
+                            ? t("common.on")
+                            : t("common.off")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    {backupEncryptionEnabledDraft ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("settings.backup.passwordAction")}
+                        style={screenStyles.selectRow}
+                        onPress={() => setBackupPasswordModalOpen(true)}
+                      >
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={14}
+                          color={PALETTE.primary}
+                        >
+                          {t("settings.backup.passwordAction")}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("settings.backup.import")}
+                      style={screenStyles.selectRow}
+                      onPress={() => void handleImportBackup()}
+                    >
+                      <Text
+                        fontFamily={FONTS.bodyBold}
+                        fontSize={14}
+                        color={PALETTE.onSurface}
+                      >
+                        {t("settings.backup.import")}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("settings.backup.googleDriveAction")}
+                      style={screenStyles.selectRow}
+                      onPress={() =>
+                        persistedBackupSettings.googleDrive.connected
+                          ? void handleDisconnectGoogleDrive()
+                          : void handleConnectGoogleDrive()
+                      }
+                    >
+                      <YStack gap="$1">
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={14}
+                          color={PALETTE.onSurface}
+                        >
+                          {persistedBackupSettings.googleDrive.connected
+                            ? t("settings.backup.googleDriveDisconnect")
+                            : t("settings.backup.googleDriveConnect")}
+                        </Text>
+                        <Text
+                          fontFamily={FONTS.bodyMedium}
+                          fontSize={12}
+                          color={PALETTE.onSurfaceVariant}
+                        >
+                          {persistedBackupSettings.googleDrive.connected
+                            ? t("settings.backup.googleDriveConnectedAs", {
+                                email:
+                                  persistedBackupSettings.googleDrive
+                                    .accountEmail ??
+                                  t("settings.backup.googleDriveConnectedStatus"),
+                              })
+                            : t("settings.backup.googleDriveNotConnected")}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+                )}
               </YStack>
-              <View style={screenStyles.settingsFeatureToggle}>
+              <Pressable
+                accessibilityRole="switch"
+                accessibilityLabel={t("settings.backup.title")}
+                accessibilityState={{ checked: backupEnabledDraft }}
+                style={[
+                  screenStyles.settingsFeatureToggle,
+                  backupEnabledDraft
+                    ? screenStyles.settingsFeatureToggleActive
+                    : null,
+                ]}
+                onPress={() => setBackupEnabledDraft((value) => !value)}
+              >
                 <Text
                   fontFamily={FONTS.bodyBold}
                   fontSize={12}
-                  color={PALETTE.primary}
+                  color={
+                    backupEnabledDraft ? PALETTE.onPrimary : PALETTE.primary
+                  }
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  {t("common.soon")}
+                  {backupEnabledDraft ? t("common.on") : t("common.off")}
                 </Text>
-              </View>
+              </Pressable>
             </View>
           </YStack>
         </YStack>
@@ -1622,6 +2027,21 @@ export function HomeScreenView() {
               onDismiss={() => setSplitListAmountDisplayMenuOpen(false)}
             />
           ) : null}
+          {backupFrequencyMenuOpen ? (
+            <ActionSheetModal
+              title={t("settings.backup.frequencyPickerTitle")}
+              options={backupFrequencyOptions.map((option) => ({
+                label: option.label,
+                description: option.description,
+                selected: option.key === backupFrequencyDraft,
+                onPress: () => {
+                  setBackupFrequencyDraft(option.key);
+                  setBackupFrequencyMenuOpen(false);
+                },
+              }))}
+              onDismiss={() => setBackupFrequencyMenuOpen(false)}
+            />
+          ) : null}
           {currencyModalOpen ? (
             <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
               <View style={screenStyles.splitNoticeBackdrop} />
@@ -1710,6 +2130,112 @@ export function HomeScreenView() {
                     accessibilityLabel={t("common.cancel")}
                     style={screenStyles.confirmChoiceSecondaryButton}
                     onPress={closeCustomCurrencyModal}
+                  >
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                    >
+                      {t("common.cancel")}
+                    </Text>
+                  </Pressable>
+                </YStack>
+              </View>
+            </View>
+          ) : null}
+          {backupPasswordModalOpen ? (
+            <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
+              <View style={screenStyles.splitNoticeBackdrop} />
+              <View style={screenStyles.splitNoticeCard}>
+                <YStack gap="$3">
+                  <Text
+                    fontFamily={FONTS.headlineBold}
+                    fontSize={22}
+                    color={PALETTE.onSurface}
+                  >
+                    {t("settings.backup.passwordTitle")}
+                  </Text>
+                  <View style={screenStyles.assignInputShell}>
+                    <TextInput
+                      value={backupPasswordDraft}
+                      onChangeText={setBackupPasswordDraft}
+                      placeholder={t("settings.backup.passwordPlaceholder")}
+                      placeholderTextColor={PALETTE.inputPlaceholder}
+                      style={screenStyles.assignInput}
+                      secureTextEntry
+                      returnKeyType="next"
+                      onSubmitEditing={() => undefined}
+                    />
+                  </View>
+                  <View style={screenStyles.assignInputShell}>
+                    <TextInput
+                      value={backupPasswordConfirmDraft}
+                      onChangeText={setBackupPasswordConfirmDraft}
+                      placeholder={t("settings.backup.passwordConfirmPlaceholder")}
+                      placeholderTextColor={PALETTE.inputPlaceholder}
+                      style={screenStyles.assignInput}
+                      secureTextEntry
+                      returnKeyType="done"
+                      onSubmitEditing={() => {
+                        if (
+                          backupPasswordDraft.trim().length < 6 ||
+                          backupPasswordDraft !== backupPasswordConfirmDraft
+                        ) {
+                          return;
+                        }
+                        setBackupPassphrase(backupPasswordDraft);
+                        setBackupPasswordDraft("");
+                        setBackupPasswordConfirmDraft("");
+                        setBackupPasswordModalOpen(false);
+                      }}
+                    />
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("settings.backup.passwordSave")}
+                    style={screenStyles.splitNoticeButton}
+                    onPress={() => {
+                      if (backupPasswordDraft.trim().length < 6) {
+                        showBackupNotice(
+                          t("settings.backup.noticeTitle"),
+                          t("settings.backup.error.passphraseTooShort"),
+                        );
+                        return;
+                      }
+                      if (backupPasswordDraft !== backupPasswordConfirmDraft) {
+                        showBackupNotice(
+                          t("settings.backup.noticeTitle"),
+                          t("settings.backup.error.passphraseMismatch"),
+                        );
+                        return;
+                      }
+                      setBackupPassphrase(backupPasswordDraft);
+                      setBackupPasswordDraft("");
+                      setBackupPasswordConfirmDraft("");
+                      setBackupPasswordModalOpen(false);
+                      showBackupNotice(
+                        t("settings.backup.noticeTitle"),
+                        t("settings.backup.passwordSaved"),
+                      );
+                    }}
+                  >
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={14}
+                      color={PALETTE.onPrimary}
+                    >
+                      {t("settings.backup.passwordSave")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.cancel")}
+                    style={screenStyles.confirmChoiceSecondaryButton}
+                    onPress={() => {
+                      setBackupPasswordModalOpen(false);
+                      setBackupPasswordDraft("");
+                      setBackupPasswordConfirmDraft("");
+                    }}
                   >
                     <Text
                       fontFamily={FONTS.bodyBold}
