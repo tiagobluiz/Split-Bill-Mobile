@@ -151,6 +151,26 @@ describe("root layout", () => {
     });
   });
 
+  it("normalizes absolute notification urls into internal routes", async () => {
+    mockStoreState.ready = true;
+    mockUseFonts.mockReturnValue([true]);
+    mockGetLastNotificationResponseAsync.mockResolvedValue({
+      notification: {
+        request: {
+          content: {
+            data: { url: "split-bill-mobile:///split/draft-1/results" },
+          },
+        },
+      },
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/split/draft-1/results");
+    });
+  });
+
   it("keeps the app in loading state while bootstrap is still in progress", () => {
     mockUseFonts.mockReturnValue([true]);
 

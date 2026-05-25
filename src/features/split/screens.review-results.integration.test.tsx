@@ -997,11 +997,11 @@ describe("split screens", () => {
     fireEvent.press(screen.getByText("Settings"));
     fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     fireEvent.press(screen.getByLabelText("Toggle track payments"));
-    fireEvent.press(screen.getByText("Why do I need this?"));
-    expect(screen.getByText("Under development")).toBeTruthy();
+    expect(screen.queryByText("Backup data")).toBeNull();
+    expect(screen.getByText("Disclaimer")).toBeTruthy();
     expect(
       screen.getByText(
-        "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too."
+        "We do not store your data in the cloud. Deleting this app data will permanently delete everything."
       )
     ).toBeTruthy();
 

@@ -25,13 +25,40 @@ Notifications.setNotificationHandler({
 });
 
 function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) {
+  const toInternalRoute = (urlCandidate: unknown) => {
+    if (typeof urlCandidate !== "string") {
+      return "";
+    }
+
+    const trimmed = urlCandidate.trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    if (trimmed.startsWith("/")) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      const normalizedPath = parsed.pathname?.trim() || "/";
+      if (normalizedPath === "/" && parsed.hostname === "expo-development-client") {
+        return "/";
+      }
+      return `${normalizedPath}${parsed.search}${parsed.hash}`;
+    } catch {
+      return `/${trimmed.replace(/^\/+/, "")}`;
+    }
+  };
+
   useEffect(() => {
     const reconcileReminders = () => {
       void onReminderSignal?.();
     };
     const redirectToReminder = (urlCandidate: unknown) => {
-      if (typeof urlCandidate === "string" && urlCandidate.trim()) {
-        router.push(urlCandidate.trim());
+      const targetRoute = toInternalRoute(urlCandidate);
+      if (targetRoute) {
+        router.push(targetRoute);
       }
       reconcileReminders();
     };

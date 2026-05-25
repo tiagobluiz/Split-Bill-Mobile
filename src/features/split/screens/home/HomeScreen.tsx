@@ -1343,54 +1343,18 @@ export function HomeScreenView() {
                 </Text>
               </Pressable>
             </View>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={18}
-                  color={PALETTE.onSurface}
-                >
-                  {t("settings.backup.title")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={14}
-                  lineHeight={21}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("settings.backup.description")}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("settings.backup.why")}
-                  onPress={() => {
-                    setSettingsNoticeTitle(t("settings.backup.underDevelopment"));
-                    setSettingsNoticeMessages([
-                      t("settings.backup.notice"),
-                    ]);
-                  }}
-                >
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={13}
-                    color={PALETTE.primary}
-                  >
-                    {t("settings.backup.why")}
-                  </Text>
-                </Pressable>
-              </YStack>
-              <View style={screenStyles.settingsFeatureToggle}>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {t("common.soon")}
-                </Text>
-              </View>
-            </View>
+          </YStack>
+          <View style={screenStyles.itemsSectionSeparator} />
+          <YStack gap="$4">
+            <SectionEyebrow>{t("settings.disclaimer.title")}</SectionEyebrow>
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={14}
+              lineHeight={21}
+              color={PALETTE.onSurfaceVariant}
+            >
+              {t("settings.disclaimer.body")}
+            </Text>
           </YStack>
         </YStack>
       </ScrollView>
