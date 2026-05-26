@@ -26,7 +26,7 @@ export async function fetchExchangeRate(
     }
     const payload = (await response.json()) as { rates?: Record<string, number> };
     const result = payload?.rates?.[target];
-    if (!Number.isFinite(result) || result <= 0) {
+    if (typeof result !== "number" || !Number.isFinite(result) || result <= 0) {
       return { rate: 1, source: "fallback" };
     }
     return { rate: result, source: "auto" };

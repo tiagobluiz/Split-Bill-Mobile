@@ -1,34 +1,4 @@
-function normalizePath(pathname: string) {
-  const trimmed = pathname.trim();
-  if (!trimmed || trimmed === "/") {
-    return "/";
-  }
-
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-}
-
-function buildPathFromParsedUrl(parsed: URL) {
-  if (parsed.hostname === "expo-development-client") {
-    return "/";
-  }
-
-  const normalizedPath = normalizePath(parsed.pathname || "/");
-  const includeHostnameInPath =
-    parsed.hostname &&
-    parsed.protocol !== "http:" &&
-    parsed.protocol !== "https:";
-
-  if (!includeHostnameInPath) {
-    return `${normalizedPath}${parsed.search}${parsed.hash}`;
-  }
-
-  const hostPath = normalizePath(parsed.hostname);
-  const combinedPath =
-    normalizedPath === "/"
-      ? hostPath
-      : normalizePath(`${hostPath}/${normalizedPath.replace(/^\/+/, "")}`);
-  return `${combinedPath}${parsed.search}${parsed.hash}`;
-}
+import { normalizeInternalRoute } from "../src/lib/internalRoute";
 
 export function redirectSystemPath({
   path,
@@ -36,19 +6,5 @@ export function redirectSystemPath({
   path: string;
   initial: boolean;
 }) {
-  const trimmed = path?.trim();
-  if (!trimmed) {
-    return "/";
-  }
-
-  if (trimmed.startsWith("/")) {
-    return normalizePath(trimmed);
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    return buildPathFromParsedUrl(parsed);
-  } catch {
-    return normalizePath(trimmed);
-  }
+  return normalizeInternalRoute(path, { emptyFallback: "/" });
 }
