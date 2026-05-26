@@ -151,6 +151,70 @@ describe("root layout", () => {
     });
   });
 
+  it("normalizes absolute notification urls into internal routes", async () => {
+    mockStoreState.ready = true;
+    mockUseFonts.mockReturnValue([true]);
+    mockGetLastNotificationResponseAsync.mockResolvedValue({
+      notification: {
+        request: {
+          content: {
+            data: { url: "split-bill-mobile:///split/draft-1/results" },
+          },
+        },
+      },
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/split/draft-1/results");
+    });
+  });
+
+  it("keeps first segment for host-based notification deep links", async () => {
+    mockStoreState.ready = true;
+    mockUseFonts.mockReturnValue([true]);
+    mockGetLastNotificationResponseAsync.mockResolvedValue({
+      notification: {
+        request: {
+          content: {
+            data: {
+              url: "split-bill-mobile://split/draft-1/results?from=notif#summary",
+            },
+          },
+        },
+      },
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        "/split/draft-1/results?from=notif#summary",
+      );
+    });
+  });
+
+  it("handles expo-development-client notification urls", async () => {
+    mockStoreState.ready = true;
+    mockUseFonts.mockReturnValue([true]);
+    mockGetLastNotificationResponseAsync.mockResolvedValue({
+      notification: {
+        request: {
+          content: {
+            data: { url: "expo-development-client:///" },
+          },
+        },
+      },
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/");
+    });
+  });
+
   it("keeps the app in loading state while bootstrap is still in progress", () => {
     mockUseFonts.mockReturnValue([true]);
 

@@ -97,6 +97,9 @@ const enPlain = {
   "settings.balanceHelper.title": "Balance helper",
   "settings.balanceHelper.description":
     "Turn this on if you want to track how much you owe and are owed.",
+  "settings.disclaimer.title": "Disclaimer about your data",
+  "settings.disclaimer.body":
+    "We do not store your data in the cloud. Deleting this app data will permanently delete everything.",
   "settings.backup.title": "Backup data",
   "settings.backup.description":
     "Keep your splits safe in the cloud so you can recover them if you lose this phone.",
@@ -743,6 +746,9 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "settings.balanceHelper.title": "Auxiliar de saldo",
   "settings.balanceHelper.description":
     "Ativa isto se quiseres ver quanto deves e quanto te devem.",
+  "settings.disclaimer.title": "Aviso sobre os teus dados",
+  "settings.disclaimer.body":
+    "Não guardamos os teus dados na cloud. Se apagares os dados desta app, tudo será eliminado de forma permanente.",
   "settings.backup.title": "Cópia de segurança",
   "settings.backup.description":
     "Mantém as tuas divisões seguras na cloud para as recuperares se perderes este telefone.",

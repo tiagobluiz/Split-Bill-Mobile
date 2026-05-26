@@ -25,13 +25,60 @@ Notifications.setNotificationHandler({
 });
 
 function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) {
+  const buildPathFromParsedUrl = (parsed: URL) => {
+    if (parsed.hostname === "expo-development-client") {
+      return "/";
+    }
+
+    const normalizedPath = parsed.pathname?.trim() || "/";
+    const includeHostnameInPath =
+      parsed.hostname &&
+      parsed.protocol !== "http:" &&
+      parsed.protocol !== "https:";
+
+    if (!includeHostnameInPath) {
+      return `${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}${parsed.search}${parsed.hash}`;
+    }
+
+    const hostPath = `/${parsed.hostname.replace(/^\/+/, "")}`;
+    const pathWithoutLeadingSlash = normalizedPath.replace(/^\/+/, "");
+    const combinedPath =
+      pathWithoutLeadingSlash.length > 0
+        ? `${hostPath}/${pathWithoutLeadingSlash}`
+        : hostPath;
+    return `${combinedPath}${parsed.search}${parsed.hash}`;
+  };
+
+  const toInternalRoute = (urlCandidate: unknown) => {
+    if (typeof urlCandidate !== "string") {
+      return "";
+    }
+
+    const trimmed = urlCandidate.trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    if (trimmed.startsWith("/")) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      return buildPathFromParsedUrl(parsed);
+    } catch {
+      return `/${trimmed.replace(/^\/+/, "")}`;
+    }
+  };
+
   useEffect(() => {
     const reconcileReminders = () => {
       void onReminderSignal?.();
     };
     const redirectToReminder = (urlCandidate: unknown) => {
-      if (typeof urlCandidate === "string" && urlCandidate.trim()) {
-        router.push(urlCandidate.trim());
+      const targetRoute = toInternalRoute(urlCandidate);
+      if (targetRoute) {
+        router.push(targetRoute);
       }
       reconcileReminders();
     };
