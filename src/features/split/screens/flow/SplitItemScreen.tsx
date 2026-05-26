@@ -487,36 +487,40 @@ export function SplitItemScreen({
       return;
     }
 
-    const committedItem =
-      item.splitMode === "percent"
-        ? {
-            ...item,
-            allocations: item.allocations.map((allocation) => ({
-              ...allocation,
-              percent: normalizeCommittedPercentValue(allocation.percent),
-            })),
-          }
-        : item;
+    try {
+      const committedItem =
+        item.splitMode === "percent"
+          ? {
+              ...item,
+              allocations: item.allocations.map((allocation) => ({
+                ...allocation,
+                percent: normalizeCommittedPercentValue(allocation.percent),
+              })),
+            }
+          : item;
 
-    await saveItemSplit(item.id, committedItem);
-    const nextPendingItemId = getNextPendingSplitItemId(
-      {
-        ...record,
-        values: {
-          ...record.values,
-          items: record.values.items.map((candidate) =>
-            candidate.id === item.id ? committedItem : candidate,
-          ),
+      await saveItemSplit(item.id, committedItem);
+      const nextPendingItemId = getNextPendingSplitItemId(
+        {
+          ...record,
+          values: {
+            ...record.values,
+            items: record.values.items.map((candidate) =>
+              candidate.id === item.id ? committedItem : candidate,
+            ),
+          },
         },
-      },
-      item.id,
-    );
-    if (nextPendingItemId) {
-      router.push(`/split/${draftId}/split/${nextPendingItemId}`);
-      return;
-    }
+        item.id,
+      );
+      if (nextPendingItemId) {
+        router.push(`/split/${draftId}/split/${nextPendingItemId}`);
+        return;
+      }
 
-    router.push(`/split/${draftId}/overview`);
+      router.push(`/split/${draftId}/overview`);
+    } catch {
+      setSplitNoticeMessages([t("flow.splitItem.saveFailed")]);
+    }
   };
 
   return (

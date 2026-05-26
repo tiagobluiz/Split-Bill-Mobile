@@ -49,6 +49,14 @@ function getLayer(projectPath) {
   return null;
 }
 
+function isUiModule(projectPath) {
+  return (
+    projectPath.includes("/screens/") ||
+    projectPath.endsWith("/screens.ts") ||
+    projectPath.endsWith("/screens.tsx")
+  );
+}
+
 function extractImportSpecifiers(sourceCode) {
   const results = [];
   const importRegex =
@@ -114,7 +122,7 @@ for (const file of files) {
       }
       continue;
     }
-    if (layer === "application" && resolved.includes("/screens/")) {
+    if (layer === "application" && isUiModule(resolved)) {
       violations.push({
         file: relativeFilePath,
         importSpecifier,

@@ -228,48 +228,50 @@ export function AssignItemScreen({
   };
 
   const saveEditor = async () => {
-    if (!hasValidName) {
-      setAssignNoticeMessages([t("flow.itemDetail.nameRequired")]);
-      return;
-    }
+    try {
+      if (!hasValidName) {
+        setAssignNoticeMessages([t("flow.itemDetail.nameRequired")]);
+        return;
+      }
 
-    if (!hasValidPrice) {
-      setAssignNoticeMessages([t("flow.itemDetail.priceRequired")]);
-      return;
-    }
+      if (!hasValidPrice) {
+        setAssignNoticeMessages([t("flow.itemDetail.priceRequired")]);
+        return;
+      }
 
-    if (duplicateItemExists) {
-      setAssignNoticeMessages([
-        "This item already exists. Change the name, price, or category.",
-      ]);
-      return;
-    }
+      if (duplicateItemExists) {
+        setAssignNoticeMessages([t("flow.itemDetail.duplicateItem")]);
+        return;
+      }
 
-    if (isNewItem) {
-      await createItem({
-        ...item,
-        name: trimmedItemName,
-        price: normalizedItemPrice,
-        category: effectiveCategory,
-      });
+      if (isNewItem) {
+        await createItem({
+          ...item,
+          name: trimmedItemName,
+          price: normalizedItemPrice,
+          category: effectiveCategory,
+        });
+        router.back();
+        return;
+      }
+
+      const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
+      if (persistedSourceItem.name !== trimmedItemName) {
+        await updateItemField(item.id, "name", trimmedItemName);
+      }
+      if (
+        normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice
+      ) {
+        await updateItemField(item.id, "price", normalizedItemPrice);
+      }
+      if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
+        await updateItemField(item.id, "category", effectiveCategory);
+      }
+
       router.back();
-      return;
+    } catch {
+      setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);
     }
-
-    const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
-    if (persistedSourceItem.name !== trimmedItemName) {
-      await updateItemField(item.id, "name", trimmedItemName);
-    }
-    if (
-      normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice
-    ) {
-      await updateItemField(item.id, "price", normalizedItemPrice);
-    }
-    if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
-      await updateItemField(item.id, "category", effectiveCategory);
-    }
-
-    router.back();
   };
 
   const deleteEditorItem = async () => {
@@ -309,9 +311,14 @@ export function AssignItemScreen({
               body={t("flow.itemDetail.confirmDelete.body")}
               confirmLabel={t("flow.itemDetail.confirmDelete.confirm")}
               discardLabel={t("flow.itemDetail.confirmDelete.discard")}
-              onConfirm={() => {
+              onConfirm={async () => {
                 setShowDeleteItemModal(false);
-                void removeItem(item.id).then(() => router.back());
+                try {
+                  await removeItem(item.id);
+                  router.back();
+                } catch {
+                  setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);
+                }
               }}
               onDiscard={() => setShowDeleteItemModal(false)}
             />

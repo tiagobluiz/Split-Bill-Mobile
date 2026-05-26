@@ -251,6 +251,10 @@ const enPlain = {
     "Add an item name before saving this item.",
   "flow.itemDetail.priceRequired":
     "Add a valid price before saving this item.",
+  "flow.itemDetail.saveFailed":
+    "We could not save this item right now. Please try again.",
+  "flow.itemDetail.duplicateItem":
+    "This item already exists. Change the name, price, or category.",
   "flow.itemDetail.confirmDiscard.title": "Discard changes?",
   "flow.itemDetail.confirmDiscard.body":
     "You started this item but have not saved it yet.",
@@ -264,6 +268,8 @@ const enPlain = {
   "flow.splitItem.title": "Split Item",
   "flow.splitItem.confirmNext": "Confirm & Split Next",
   "flow.splitItem.confirmReview": "Confirm & Review",
+  "flow.splitItem.saveFailed":
+    "We could not save this split right now. Please try again.",
   "flow.splitItem.totalShares": "Total shares",
   "flow.splitItem.eachShare": "Each share is valued at {amount}",
   "flow.splitItem.shareRate": "{amount}/share",
@@ -902,6 +908,10 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
     "Adiciona um nome ao item antes de o guardares.",
   "flow.itemDetail.priceRequired":
     "Adiciona um preço válido antes de guardares este item.",
+  "flow.itemDetail.saveFailed":
+    "Nao foi possivel guardar este item agora. Tenta novamente.",
+  "flow.itemDetail.duplicateItem":
+    "Este item ja existe. Altera o nome, preco ou categoria.",
   "flow.itemDetail.confirmDiscard.title": "Descartar alterações?",
   "flow.itemDetail.confirmDiscard.body":
     "Começaste este item mas ainda não o guardaste.",
@@ -914,6 +924,8 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.splitItem.title": "Dividir item",
   "flow.splitItem.confirmNext": "Confirmar e dividir o próximo",
   "flow.splitItem.confirmReview": "Confirmar e rever",
+  "flow.splitItem.saveFailed":
+    "Nao foi possivel guardar esta divisao agora. Tenta novamente.",
   "flow.splitItem.totalShares": "Total de partes",
   "flow.splitItem.eachShare": "Cada parte vale {amount}",
   "flow.splitItem.shareRate": "{amount}/parte",

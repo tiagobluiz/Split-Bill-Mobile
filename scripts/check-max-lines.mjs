@@ -10,6 +10,13 @@ const policy = JSON.parse(fs.readFileSync(policyPath, "utf8"));
 const maxLines = Number(policy.maxLines ?? 1000);
 const exceptions = policy.exceptions ?? {};
 
+if (!Number.isInteger(maxLines) || maxLines <= 0) {
+  console.error(
+    "Invalid max-lines policy: `maxLines` must be a positive integer.",
+  );
+  process.exit(1);
+}
+
 function toPosix(relativePath) {
   return relativePath.split(path.sep).join("/");
 }
