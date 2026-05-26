@@ -7,6 +7,29 @@ function normalizePath(pathname: string) {
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
+function buildPathFromParsedUrl(parsed: URL) {
+  if (parsed.hostname === "expo-development-client") {
+    return "/";
+  }
+
+  const normalizedPath = normalizePath(parsed.pathname || "/");
+  const includeHostnameInPath =
+    parsed.hostname &&
+    parsed.protocol !== "http:" &&
+    parsed.protocol !== "https:";
+
+  if (!includeHostnameInPath) {
+    return `${normalizedPath}${parsed.search}${parsed.hash}`;
+  }
+
+  const hostPath = normalizePath(parsed.hostname);
+  const combinedPath =
+    normalizedPath === "/"
+      ? hostPath
+      : normalizePath(`${hostPath}/${normalizedPath.replace(/^\/+/, "")}`);
+  return `${combinedPath}${parsed.search}${parsed.hash}`;
+}
+
 export function redirectSystemPath({
   path,
 }: {
@@ -24,11 +47,7 @@ export function redirectSystemPath({
 
   try {
     const parsed = new URL(trimmed);
-    if (parsed.hostname === "expo-development-client") {
-      return "/";
-    }
-
-    return `${normalizePath(parsed.pathname || "/")}${parsed.search}${parsed.hash}`;
+    return buildPathFromParsedUrl(parsed);
   } catch {
     return normalizePath(trimmed);
   }

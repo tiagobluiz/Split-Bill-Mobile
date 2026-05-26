@@ -998,7 +998,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     fireEvent.press(screen.getByLabelText("Toggle track payments"));
     expect(screen.queryByText("Backup data")).toBeNull();
-    expect(screen.getByText("Disclaimer")).toBeTruthy();
+    expect(screen.getByText("Disclaimer about your data")).toBeTruthy();
     expect(
       screen.getByText(
         "We do not store your data in the cloud. Deleting this app data will permanently delete everything."

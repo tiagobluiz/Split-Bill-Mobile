@@ -25,6 +25,30 @@ Notifications.setNotificationHandler({
 });
 
 function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) {
+  const buildPathFromParsedUrl = (parsed: URL) => {
+    if (parsed.hostname === "expo-development-client") {
+      return "/";
+    }
+
+    const normalizedPath = parsed.pathname?.trim() || "/";
+    const includeHostnameInPath =
+      parsed.hostname &&
+      parsed.protocol !== "http:" &&
+      parsed.protocol !== "https:";
+
+    if (!includeHostnameInPath) {
+      return `${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}${parsed.search}${parsed.hash}`;
+    }
+
+    const hostPath = `/${parsed.hostname.replace(/^\/+/, "")}`;
+    const pathWithoutLeadingSlash = normalizedPath.replace(/^\/+/, "");
+    const combinedPath =
+      pathWithoutLeadingSlash.length > 0
+        ? `${hostPath}/${pathWithoutLeadingSlash}`
+        : hostPath;
+    return `${combinedPath}${parsed.search}${parsed.hash}`;
+  };
+
   const toInternalRoute = (urlCandidate: unknown) => {
     if (typeof urlCandidate !== "string") {
       return "";
@@ -41,11 +65,7 @@ function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) 
 
     try {
       const parsed = new URL(trimmed);
-      const normalizedPath = parsed.pathname?.trim() || "/";
-      if (normalizedPath === "/" && parsed.hostname === "expo-development-client") {
-        return "/";
-      }
-      return `${normalizedPath}${parsed.search}${parsed.hash}`;
+      return buildPathFromParsedUrl(parsed);
     } catch {
       return `/${trimmed.replace(/^\/+/, "")}`;
     }
