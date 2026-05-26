@@ -75,8 +75,10 @@ function resolveImportPath(filePath, importSpecifier) {
   }
   const directory = path.dirname(filePath);
   const rawTarget = path.resolve(directory, importSpecifier);
+  if (fs.existsSync(rawTarget) && fs.statSync(rawTarget).isFile()) {
+    return toPosix(path.relative(ROOT, rawTarget));
+  }
   const candidates = [
-    rawTarget,
     `${rawTarget}.ts`,
     `${rawTarget}.tsx`,
     path.join(rawTarget, "index.ts"),
