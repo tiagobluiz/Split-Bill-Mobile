@@ -1,10 +1,6 @@
 {
   "maxLines": 1000,
   "exceptions": {
-    "src/features/split/screens/home/HomeScreen.tsx": {
-      "rationale": "Large interactive screen with tightly-coupled UI state and modal orchestration; split performed incrementally to reduce regression risk.",
-      "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/48"
-    },
     "src/features/split/screens/flow/SplitItemScreen.tsx": {
       "rationale": "Recently split from ItemDetailScreens; still above threshold while preserving existing behavior and tests.",
       "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/49"
