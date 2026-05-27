@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert, Keyboard, Linking, Platform, Share, StyleSheet, TextInput } from "react-native";
 import * as domain from "../../domain";
+import { applyDefaultStorePreviews, buildRecordFixture, buildStoreFixture, createRouterMocks } from "./integrationTestUtils";
 import { screenStyles } from "./screens/shared/styles";
 
 import {
@@ -17,9 +18,7 @@ import {
   SplitItemScreen,
 } from "./screens";
 
-const mockPush = jest.fn();
-const mockBack = jest.fn();
-const mockReplace = jest.fn();
+const { mockPush, mockBack, mockReplace } = createRouterMocks();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenApplication = jest.fn(async (..._args: any[]) => undefined);
@@ -103,97 +102,8 @@ jest.mock("./store", () => ({
   getPdfExportPreview: jest.fn((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null)),
 }));
 
-function buildRecord(overrides: Partial<any> = {}) {
-  return {
-    id: "draft-1",
-    status: "draft" as const,
-    step: 1,
-    createdAt: "2026-04-04T10:00:00.000Z",
-    updatedAt: "2026-04-04T10:00:00.000Z",
-    completedAt: null,
-    settlementState: {
-      settledParticipantIds: [],
-    },
-    values: {
-      splitName: "",
-      currency: "EUR",
-      payerParticipantId: "ana",
-      participants: [
-        { id: "ana", name: "Ana" },
-        { id: "bruno", name: "Bruno" },
-        { id: "zoe", name: "Zoe" },
-      ],
-      items: [
-        {
-          id: "item-1",
-          name: "Groceries",
-          price: "9.00",
-          splitMode: "even",
-          allocations: [
-            { participantId: "ana", evenIncluded: true, shares: "1", percent: "33.34", percentLocked: false },
-            { participantId: "bruno", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
-            { participantId: "zoe", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
-          ],
-        },
-      ],
-    },
-    ...overrides,
-  };
-}
-
-function buildStore(overrides: Partial<any> = {}) {
-  return {
-    ready: true,
-    records: [buildRecord()],
-    activeRecordId: "draft-1",
-    settings: {
-      ownerName: "Ana",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "EUR",
-      splitListAmountDisplay: "remaining",
-      customCurrencies: [],
-    },
-    bootstrap: jest.fn(),
-    createDraft: jest.fn(async () => buildRecord({ id: "draft-2" })),
-    openRecord: jest.fn(async () => buildRecord()),
-    removeRecord: jest.fn(async () => undefined),
-    setStep: jest.fn(async () => undefined),
-    updateParticipants: jest.fn(async () => undefined),
-    setPayer: jest.fn(async () => undefined),
-    addItem: jest.fn(async () => ({
-      id: "item-new",
-      name: "",
-      price: "",
-      category: "",
-      splitMode: "even",
-      allocations: [
-        { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-        { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-      ],
-    })),
-    createItem: jest.fn(async () => undefined),
-    saveItemSplit: jest.fn(async () => undefined),
-    updateItemField: jest.fn(async () => undefined),
-    removeItem: jest.fn(async () => undefined),
-    setItemSplitMode: jest.fn(async () => undefined),
-    toggleEvenIncluded: jest.fn(async () => undefined),
-    setItemSharesValue: jest.fn(async () => undefined),
-    setItemPercentValue: jest.fn(async () => true),
-    resetItemAllocations: jest.fn(async () => undefined),
-    focusOnlyParticipant: jest.fn(async () => undefined),
-    importPastedList: jest.fn(async () => ({ warningMessages: [] })),
-    updateSettings: jest.fn(async () => undefined),
-    updateDraftMeta: jest.fn(async () => undefined),
-    markBillPaid: jest.fn(async () => undefined),
-    revertBillPaid: jest.fn(async () => undefined),
-    toggleParticipantPaid: jest.fn(async () => undefined),
-    markCompleted: jest.fn(async () => undefined),
-    getActiveRecord: jest.fn(() => buildRecord()),
-    ...overrides,
-  };
-}
+const buildRecord = buildRecordFixture;
+const buildStore = buildStoreFixture;
 
 describe("split screens", () => {
   beforeEach(() => {
@@ -224,40 +134,7 @@ describe("split screens", () => {
     });
     mockStoreState = buildStore();
     const store = require("./store");
-    store.getSettlementPreview.mockImplementation((record: any) =>
-      record
-        ? {
-            ok: true,
-            data: {
-              currency: "EUR",
-              totalCents: 900,
-              itemBreakdown: [
-                {
-                  id: "item-1",
-                  name: "Groceries",
-                  splitMode: "even",
-                  amountCents: 900,
-                  shares: [
-                    { participantId: "ana", amountCents: 300 },
-                    { participantId: "bruno", amountCents: 300 },
-                    { participantId: "zoe", amountCents: 300 },
-                  ],
-                },
-              ],
-              people: [
-                { participantId: "ana", name: "Ana", isPayer: true, paidCents: 900, consumedCents: 300, netCents: 600 },
-                { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
-                { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
-              ],
-              transfers: [],
-            },
-          }
-        : null
-    );
-    store.getClipboardSummaryPreview.mockImplementation((record: any) =>
-      record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
-    );
-    store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
+    applyDefaultStorePreviews(store);
     Object.defineProperty(Platform, "OS", {
       configurable: true,
       value: "android",
@@ -283,7 +160,12 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Continue"));
     });
-    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("April groceries", "USD", expect.anything());
+    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith(
+      "April groceries",
+      "USD",
+      expect.anything(),
+      expect.anything(),
+    );
     expect(mockStoreState.setStep).toHaveBeenCalledWith(2);
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/participants");
   });
@@ -294,7 +176,12 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Add Participants"));
     });
-    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith("12345678901234567890", "EUR", undefined);
+    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledWith(
+      "12345678901234567890",
+      "EUR",
+      undefined,
+      {},
+    );
   });
 
   it("renders the setup loading state and opens the currency dropdown", async () => {
@@ -375,7 +262,7 @@ describe("split screens", () => {
     };
     render(<SetupScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Currency"));
-    fireEvent.press(screen.getByLabelText("British Pound (�)"));
+    fireEvent.press(screen.getByLabelText(/British Pound/));
     expect(screen.getByText("British Pound (£)")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Back"));
     fireEvent.press(screen.getByLabelText("Close"));
@@ -544,10 +431,9 @@ describe("split screens", () => {
     ];
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
-    expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.queryByText("Add at least two participants, including the payer.")).toBeNull();
+    expect(screen.getByText("Almost there")).toBeTruthy();
+    expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
     expect(mockStoreState.setStep).not.toHaveBeenCalled();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add frequent friend Elena"));
@@ -640,10 +526,9 @@ describe("split screens", () => {
 
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.getByLabelText("Next: Select Payer")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Select Payer"));
-    expect(screen.queryByText("Almost there")).toBeNull();
-    expect(screen.queryByText("Add at least two participants, including the payer.")).toBeNull();
+    expect(screen.getByText("Almost there")).toBeTruthy();
+    expect(screen.getByText("Add at least two participants, including the payer.")).toBeTruthy();
   });
 
   it("supports the custom participants back header action", () => {
@@ -1207,9 +1092,8 @@ describe("split screens", () => {
     render(<PayerScreen draftId="draft-1" />);
     expect(screen.queryByText("Almost there")).toBeNull();
     expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
-    expect(screen.getByLabelText("Next: Add Items")).toBeDisabled();
     fireEvent.press(screen.getByText("Next: Add Items"));
-    expect(screen.queryByText("Choose who paid the bill.")).toBeNull();
+    expect(screen.getByText("Choose who paid the bill.")).toBeTruthy();
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockStoreState.setStep).not.toHaveBeenCalled();
   });
@@ -2492,7 +2376,7 @@ describe("split screens", () => {
     fireEvent(screen.getByLabelText("Percent slider for Ana"), "valueChange", 75);
     fireEvent.changeText(screen.getByLabelText("Percent for Ana"), "75");
     await waitFor(() => {
-      expect(screen.getByText("Total: 100%")).toBeTruthy();
+      expect(screen.getByText("100%")).toBeTruthy();
     });
     fireEvent.changeText(screen.getByLabelText("Percent for Ana"), "101");
     await waitFor(() => {
@@ -2509,10 +2393,10 @@ describe("split screens", () => {
     fireEvent.changeText(screen.getByLabelText("Percent for Ana"), " ");
     expect(screen.getByLabelText("Percent for Ana").props.value).toBe(" ");
     fireEvent.press(screen.getByLabelText("Exclude all split participants"));
-    expect(screen.getByText("Total: 0%")).toBeTruthy();
+    expect(screen.getByText("0%")).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText("Percent for Ana"), "40");
     await waitFor(() => {
-      expect(screen.getByText("Total: 40%")).toBeTruthy();
+      expect(screen.getByText("40%")).toBeTruthy();
       expect(screen.getByLabelText("Percent for Ana").props.value).toBe("40");
     });
     expect(screen.getAllByDisplayValue("0").length).toBeGreaterThan(0);
@@ -2520,7 +2404,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Use remaining percent for Ana"));
     await waitFor(() => {
       expect(screen.getByLabelText("Percent for Ana").props.value).toBe("100");
-      expect(screen.getByText("Total: 100%")).toBeTruthy();
+      expect(screen.getByText("100%")).toBeTruthy();
     });
   });
 
@@ -2550,7 +2434,7 @@ describe("split screens", () => {
       expect(screen.getByLabelText("Percent for Ana").props.value).toBe("50");
       expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("25");
       expect(screen.getByLabelText("Percent for Zoe").props.value).toBe("25");
-      expect(screen.getByText("Total: 100%")).toBeTruthy();
+      expect(screen.getByText("100%")).toBeTruthy();
     });
   });
 
@@ -2580,7 +2464,7 @@ describe("split screens", () => {
       expect(screen.getByLabelText("Percent for Ana").props.value).toBe("50");
       expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("50");
       expect(screen.getByLabelText("Percent for Zoe").props.value).toBe("0");
-      expect(screen.getByText("Total: 100%")).toBeTruthy();
+      expect(screen.getByText("100%")).toBeTruthy();
     });
   });
 
@@ -2609,7 +2493,7 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("33.34");
       expect(screen.getByLabelText("Percent for Zoe").props.value).toBe("33.33");
-      expect(screen.getByText("Total: 100%")).toBeTruthy();
+      expect(screen.getByText("100%")).toBeTruthy();
     });
   });
 
@@ -3097,7 +2981,7 @@ describe("split screens", () => {
     ];
 
     render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Total: 100%")).toBeTruthy();
+    expect(screen.getByText("100%")).toBeTruthy();
     expect(screen.getAllByText(/Allocated:\s*(0,00|€0.00|\$0.00|EUR 0.00)/).length).toBeGreaterThan(0);
   });
 
@@ -3122,7 +3006,7 @@ describe("split screens", () => {
     ];
 
     render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
-    expect(screen.getByText("Total: 99.5%")).toBeTruthy();
+    expect(screen.getByText("99.5%")).toBeTruthy();
   });
 
   it("handles split items that are hidden from the visible list and participants without an allocation", async () => {

@@ -13,7 +13,7 @@ import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { t } from "../../../../i18n";
 import { getSettlementPreview } from "../../store";
-import { buildRecordRoute, getRecordTitle } from "./recordUtils";
+import { buildRecordRoute, getRecordTitle } from "../../routes";
 import { getRecentRowMeta } from "./settlementUtils";
 import { screenStyles } from "./styles";
 

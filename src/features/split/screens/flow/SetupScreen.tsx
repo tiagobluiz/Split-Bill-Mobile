@@ -98,7 +98,6 @@ import {
   isOwnerReference,
 } from "../shared/participantUtils";
 import {
-  buildRecordRoute,
   cloneAllocations,
   cloneItem,
   formatPercentValue,
@@ -117,6 +116,7 @@ import {
   normalizePercentInput,
   rebalanceEditablePercentAllocations,
 } from "../shared/recordUtils";
+import { buildRecordRoute } from "../../routes";
 import {
   formatAppMoney,
   getHomeBalanceCards,
@@ -414,7 +414,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       nextRateByPair[pairKey] = {
         rate: effectiveRate,
         rateSource,
-        rateUpdatedAt,
+        rateUpdatedAt: rateUpdatedAt ?? undefined,
       };
     }
 
@@ -427,7 +427,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             targetCurrency: normalizedTargetCurrency,
             rate: effectiveRate,
             rateSource,
-            rateUpdatedAt,
+            rateUpdatedAt: rateUpdatedAt ?? undefined,
           }
         : undefined,
       Object.fromEntries(
@@ -438,7 +438,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             targetCurrency: key.split("->")[1] ?? normalizedTargetCurrency,
             rate: value.rate,
             rateSource: value.rateSource,
-            rateUpdatedAt: value.rateUpdatedAt,
+            rateUpdatedAt: value.rateUpdatedAt ?? undefined,
           },
         ]),
       ),
@@ -636,7 +636,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                         void fetchLiveRate();
                       }}
                       style={[
-                        screenStyles.iconButton,
+                        screenStyles.settingsInlineAction,
                         {
                           width: 46,
                           height: 46,

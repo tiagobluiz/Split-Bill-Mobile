@@ -43,7 +43,7 @@ import {
   type ReminderEntry,
   type ReminderState,
 } from "./reminders";
-import { buildRecordRoute } from "./screens/shared/recordUtils";
+import { buildRecordRoute } from "./routes";
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";

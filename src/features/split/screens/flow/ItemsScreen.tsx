@@ -97,7 +97,6 @@ import {
   isOwnerReference,
 } from "../shared/participantUtils";
 import {
-  buildRecordRoute,
   cloneAllocations,
   cloneItem,
   formatPercentValue,
@@ -116,6 +115,7 @@ import {
   normalizePercentInput,
   rebalanceEditablePercentAllocations,
 } from "../shared/recordUtils";
+import { buildRecordRoute } from "../../routes";
 import {
   formatAppMoney,
   getHomeBalanceCards,
