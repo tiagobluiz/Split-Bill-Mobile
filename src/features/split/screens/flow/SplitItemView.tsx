@@ -324,6 +324,7 @@ export function SplitItemView({
         <ScrollView
           testID="split-item-scroll"
           style={screenStyles.flex}
+          keyboardShouldPersistTaps="handled"
           onScroll={({ nativeEvent }) => {
             if (summaryBottomY <= 0) {
               if (isCompactHeaderVisible) {
@@ -651,7 +652,7 @@ export function SplitItemView({
                               }
                               placeholder="0"
                               placeholderTextColor={PALETTE.primary}
-                              keyboardType="number-pad"
+                              keyboardType="decimal-pad"
                               style={screenStyles.percentValueInput}
                             />
                             <Text
