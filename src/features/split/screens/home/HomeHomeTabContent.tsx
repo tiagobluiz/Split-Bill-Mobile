@@ -68,7 +68,7 @@ export function HomeHomeTabContent({
                 void onStartSplit().catch((error) => {
                   console.warn("Failed to create split", error);
                   Alert.alert(
-                    t("common.couldNotSaveSettings"),
+                    t("home.couldNotCreateSplit"),
                     error instanceof Error && error.message
                       ? error.message
                       : t("common.tryAgain"),

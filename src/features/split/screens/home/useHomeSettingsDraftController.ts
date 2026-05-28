@@ -395,12 +395,31 @@ export function useHomeSettingsDraftController({
       suffix += 1;
     }
 
-    if (existingCodes.has(nextCode)) {
-      nextCode =
+    while (existingCodes.has(nextCode)) {
+      const fallbackCode =
         createId()
           .replace(/[^A-Za-z0-9]/g, "")
           .toUpperCase()
           .slice(0, 3) || "CUR";
+      if (!existingCodes.has(fallbackCode)) {
+        nextCode = fallbackCode;
+        break;
+      }
+
+      let fallbackSuffix = 2;
+      while (fallbackSuffix <= 999) {
+        const token = String(fallbackSuffix);
+        const fallbackWithSuffix = `${fallbackCode.slice(0, Math.max(0, 3 - token.length))}${token}`;
+        if (!existingCodes.has(fallbackWithSuffix)) {
+          nextCode = fallbackWithSuffix;
+          break;
+        }
+        fallbackSuffix += 1;
+      }
+
+      if (!existingCodes.has(nextCode)) {
+        break;
+      }
     }
 
     const nextCustomCurrencies = [

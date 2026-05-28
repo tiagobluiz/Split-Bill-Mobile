@@ -126,7 +126,7 @@ export function HomeSettingsTabContent({
                 )}
               </Pressable>
               <YStack flex={1} gap="$2">
-                <FieldLabel>Your name</FieldLabel>
+                <FieldLabel>{t("settings.ownerNameLabel")}</FieldLabel>
                 <View style={screenStyles.assignInputShell}>
                   <TextInput
                     value={ownerNameDraft}
@@ -145,8 +145,7 @@ export function HomeSettingsTabContent({
                   lineHeight={21}
                   color={PALETTE.onSurfaceVariant}
                 >
-                  This is the name the app uses for your own spot in a split,
-                  like `Tiago (You)`.
+                  {t("settings.ownerNameHint")}
                 </Text>
               </YStack>
             </XStack>
@@ -302,7 +301,7 @@ export function HomeSettingsTabContent({
               </YStack>
               <Pressable
                 accessibilityRole="switch"
-                accessibilityLabel="Toggle track payments"
+                accessibilityLabel={t("settings.trackPayments.toggleA11y")}
                 accessibilityState={{
                   checked: trackPaymentsFeatureEnabledDraft,
                 }}
@@ -318,6 +317,14 @@ export function HomeSettingsTabContent({
                   setBalanceFeatureEnabledDraft((value) =>
                     nextTrackPayments ? value : false,
                   );
+                  if (
+                    !nextTrackPayments &&
+                    isBalanceDependentSplitListAmountDisplay(
+                      splitListAmountDisplayDraft,
+                    )
+                  ) {
+                    setSplitListAmountDisplayDraft("total");
+                  }
                 }}
               >
                 <Text
@@ -355,7 +362,7 @@ export function HomeSettingsTabContent({
               </YStack>
               <Pressable
                 accessibilityRole="switch"
-                accessibilityLabel="Toggle balance helper"
+                accessibilityLabel={t("settings.balanceHelper.toggleA11y")}
                 accessibilityState={{ checked: balanceFeatureEnabledDraft }}
                 style={[
                   screenStyles.settingsFeatureToggle,
