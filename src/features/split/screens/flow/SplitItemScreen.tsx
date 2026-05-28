@@ -1,38 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Keyboard,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from "react-native";
+import { Animated, Keyboard } from "react-native";
 import { router } from "expo-router";
-import Slider from "@react-native-community/slider";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, Check, Minus, Trash2 } from "lucide-react-native";
-import {
-  Text as TamaguiText,
-  XStack as TamaguiXStack,
-  YStack as TamaguiYStack,
-} from "tamagui";
 
-import {
-  AppScreen,
-  EmptyState,
-  FooterBubble,
-  FieldLabel,
-  MeasuredFloatingFooter,
-  SectionCard,
-  useFloatingFooterInset,
-} from "../../../../components/ui";
+import { AppScreen, EmptyState, useFloatingFooterInset } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
-  createEmptyItem,
   formatMoney,
-  itemHasDuplicate,
-  normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
   resetShareAllocations,
@@ -40,16 +14,12 @@ import {
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import type { DraftRecord } from "../../../../storage/records";
-import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
-import { getParticipantDisplayName } from "../shared/participantUtils";
 import {
   cloneAllocations,
   cloneItem,
   formatPercentValue,
   getAssignedParticipantCount,
-  getCategoryAccessibilityLabel,
-  getCategoryLabel,
   getFriendlySplitMessage,
   getItemCategoryLabel,
   getNextPendingSplitItemId,
@@ -59,36 +29,11 @@ import {
   normalizePercentInput,
   rebalanceEditablePercentAllocations,
 } from "../shared/recordUtils";
-import { ConfirmChoiceModal, SplitNoticeModal } from "../shared/modals";
-import { ParticipantAvatar } from "../shared/participantComponents";
-import { FlowScreenHeader } from "../shared/flowComponents";
-import { FlowContinueButton, ModeToggle } from "../shared/components";
 import { useRecord } from "../shared/hooks";
-import { screenStyles } from "../shared/styles";
+import { SplitItemView } from "./SplitItemView";
 
-const Text = TamaguiText as any;
-const XStack = TamaguiXStack as any;
-const YStack = TamaguiYStack as any;
-
-const MAX_ITEM_NAME_LENGTH = 25;
-const ITEM_CATEGORY_OPTIONS = [
-  "General",
-  "Produce",
-  "Bakery",
-  "Dairy",
-  "Pantry",
-  "Drinks",
-  "Main",
-  "Entree",
-  "Side",
-  "Dessert",
-  "Service",
-  "Museum",
-  "Tickets",
-] as const;
-const SPLIT_COMPACT_HEADER_SHOW_OFFSET = 6;
-const SPLIT_COMPACT_HEADER_HIDE_OFFSET = 18;
 const SPLIT_COMPACT_HEADER_ANIMATION_MS = 160;
+
 export function SplitItemScreen({
   draftId,
   itemId,
@@ -118,7 +63,6 @@ export function SplitItemScreen({
     shares: DraftRecord["values"]["items"][number]["allocations"];
     percent: DraftRecord["values"]["items"][number]["allocations"];
   } | null>(null);
-  const insets = useSafeAreaInsets();
   const { insetBottom: splitFooterInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 196 });
 
@@ -524,639 +468,57 @@ export function SplitItemScreen({
   };
 
   return (
-    <AppScreen
-      scroll={false}
-      overlay={(
-        <SplitNoticeModal
-          messages={splitNoticeMessages}
-          onDismiss={() => setSplitNoticeMessages([])}
-        />
-      )}
-      footer={
-        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
-          <FooterBubble>
-            <YStack gap="$3">
-              {item.splitMode === "even" ? (
-                <YStack style={screenStyles.splitFooterInlineSummary}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={2.1}
-                  >
-                    {t("flow.splitItem.splitBy")}
-                  </Text>
-                  <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
-                    <Text
-                      fontFamily={FONTS.headlineBlack}
-                      fontSize={30}
-                      color={PALETTE.onSurface}
-                      letterSpacing={-1.1}
-                    >
-                      {assignedCount}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={14}
-                      color={PALETTE.onSurfaceVariant}
-                    >
-                      {t("flow.splitItem.shareRate", {
-                        amount: formatMoney(
-                          evenShareDisplayCents,
-                          record.values.currency,
-                          locale,
-                        ),
-                      })}
-                    </Text>
-                  </XStack>
-                </YStack>
-              ) : null}
-              {item.splitMode === "shares" ? (
-                <YStack style={screenStyles.splitFooterInlineSummary}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={2.1}
-                  >
-                    {t("flow.splitItem.totalShares")}
-                  </Text>
-                  <XStack alignItems="flex-end" justifyContent="space-between" gap="$3">
-                    <Text
-                      fontFamily={FONTS.headlineBlack}
-                      fontSize={30}
-                      color={PALETTE.onSurface}
-                      letterSpacing={-1.1}
-                    >
-                      {totalShares}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={14}
-                      color={PALETTE.onSurfaceVariant}
-                    >
-                      {t("flow.splitItem.shareRate", {
-                        amount: formatMoney(
-                          Math.round(shareValue),
-                          record.values.currency,
-                          locale,
-                        ),
-                      })}
-                    </Text>
-                  </XStack>
-                </YStack>
-              ) : null}
-              {item.splitMode === "percent" ? (
-                <YStack style={screenStyles.splitFooterInlineSummary}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={2.1}
-                  >
-                    {t("flow.splitItem.mode.percent")}
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.headlineBlack}
-                    fontSize={30}
-                    color={PALETTE.onSurface}
-                    letterSpacing={-1.1}
-                  >
-                    {t("flow.splitItem.totalPercent", { percent: displayTotalPercent })}
-                  </Text>
-                </YStack>
-              ) : null}
-              <FlowContinueButton
-                label={ctaLabel}
-                disabled={!isSplitReady}
-                onPress={() => void confirmSplit()}
-              />
-            </YStack>
-          </FooterBubble>
-        </MeasuredFloatingFooter>
-      }
-    >
-      <View
-        style={[
-          screenStyles.stickyFlowHeader,
-          { paddingTop: Math.max(insets.top + 10, 28) },
-        ]}
-        onLayout={({ nativeEvent }) => {
-          const nextHeaderHeight = nativeEvent.layout.height;
-          setHeaderHeight((current) =>
-            Math.abs(current - nextHeaderHeight) < 1 ? current : nextHeaderHeight,
-          );
-        }}
-      >
-        <FlowScreenHeader
-          title={t("flow.splitItem.title")}
-          onBack={() => router.replace(`/split/${draftId}/overview`)}
-        />
-      </View>
-      <Animated.View
-        testID="split-item-compact-header"
-        pointerEvents={isCompactHeaderVisible ? "auto" : "none"}
-        accessibilityElementsHidden={!isCompactHeaderVisible}
-        importantForAccessibility={
-          isCompactHeaderVisible ? "auto" : "no-hide-descendants"
-        }
-        style={[
-          screenStyles.splitCompactHeaderOverlay,
-          {
-            top: headerHeight,
-            opacity: compactHeaderAnimatedValue,
-            transform: [
-              {
-                translateY: compactHeaderAnimatedValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-6, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={screenStyles.splitCompactHeaderCard}>
-          <View style={screenStyles.splitCompactHeaderRow} testID="split-item-compact-header-row-1">
-            <Text
-              testID="split-item-compact-header-name"
-              fontFamily={FONTS.headlineBold}
-              fontSize={16}
-              color={PALETTE.onSurface}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              flex={1}
-            >
-              {itemNameLabel}
-            </Text>
-            <Text
-              testID="split-item-compact-header-price"
-              fontFamily={FONTS.headlineBold}
-              fontSize={16}
-              color={PALETTE.primary}
-            >
-              {itemPriceLabel}
-            </Text>
-          </View>
-          <View
-            style={screenStyles.splitCompactHeaderRow}
-            testID="split-item-compact-header-row-2"
-          >
-            <Text
-              testID="split-item-compact-header-category"
-              fontFamily={FONTS.bodyBold}
-              fontSize={11}
-              color={PALETTE.onSurfaceVariant}
-              textTransform="uppercase"
-              letterSpacing={1.6}
-              numberOfLines={1}
-            >
-              {itemCategoryLabel}
-            </Text>
-          </View>
-        </View>
-      </Animated.View>
-      <View style={screenStyles.splitScrollViewport}>
-        <ScrollView
-          testID="split-item-scroll"
-          style={screenStyles.flex}
-          onScroll={({ nativeEvent }) => {
-            if (summaryBottomY <= 0) {
-              if (isCompactHeaderVisible) {
-                setIsCompactHeaderVisible(false);
-              }
-              return;
-            }
-
-            const scrollY = nativeEvent.contentOffset.y;
-            const showThreshold =
-              summaryBottomY + SPLIT_COMPACT_HEADER_SHOW_OFFSET;
-            const hideThreshold = Math.max(
-              0,
-              summaryBottomY - SPLIT_COMPACT_HEADER_HIDE_OFFSET,
-            );
-
-            setIsCompactHeaderVisible((current) => {
-              if (current) {
-                return scrollY > hideThreshold;
-              }
-
-              return scrollY >= showThreshold;
-            });
-          }}
-          scrollEventThrottle={16}
-          contentContainerStyle={[
-            screenStyles.participantsScrollContent,
-            {
-              paddingBottom: splitFooterInsetBottom,
-              gap: 22,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <YStack gap="$5">
-          <YStack
-            testID="split-item-summary"
-            gap="$2"
-            alignItems="center"
-            onLayout={(event: any) => {
-              const { nativeEvent } = event;
-              const nextSummaryBottom =
-                nativeEvent.layout.y + nativeEvent.layout.height;
-              setSummaryBottomY((current) =>
-                Math.abs(current - nextSummaryBottom) < 1
-                  ? current
-                  : nextSummaryBottom,
-              );
-            }}
-          >
-            <View style={screenStyles.splitCategoryPill}>
-              <Text
-                testID="split-item-summary-category"
-                fontFamily={FONTS.bodyBold}
-                fontSize={11}
-                color={PALETTE.primary}
-                textTransform="uppercase"
-                letterSpacing={1.8}
-              >
-                {itemCategoryLabel}
-              </Text>
-            </View>
-            <Text
-              testID="split-item-summary-name"
-              fontFamily={FONTS.headlineBlack}
-              fontSize={34}
-              color={PALETTE.onSurface}
-              textAlign="center"
-              letterSpacing={-1.4}
-            >
-              {itemNameLabel}
-            </Text>
-            <Text
-              testID="split-item-summary-price"
-              fontFamily={FONTS.headlineBold}
-              fontSize={24}
-              color={PALETTE.primary}
-            >
-              {itemPriceLabel}
-            </Text>
-          </YStack>
-
-          <View style={screenStyles.splitModeShell}>
-            <ModeToggle active={item.splitMode} onChange={setSplitMode} />
-          </View>
-
-          <YStack gap="$4">
-            <XStack justifyContent="flex-end" alignItems="center">
-              <View style={screenStyles.splitHeaderSegmentedControl}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flow.splitItem.includeAllA11y")}
-                  onPress={includeAllWorkingSplit}
-                  style={[
-                    screenStyles.splitHeaderSegment,
-                    screenStyles.splitHeaderSegmentLeft,
-                  ]}
-                >
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={13}
-                    color={PALETTE.primary}
-                    textTransform="uppercase"
-                  >
-                    {t("flow.splitItem.all")}
-                  </Text>
-                </Pressable>
-                <View style={screenStyles.splitHeaderSegmentDivider} />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flow.splitItem.excludeAllA11y")}
-                  onPress={excludeAllWorkingSplit}
-                  style={[
-                    screenStyles.splitHeaderSegment,
-                    screenStyles.splitHeaderSegmentRight,
-                  ]}
-                >
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={13}
-                    color={PALETTE.onSurface}
-                    textTransform="uppercase"
-                  >
-                    {t("flow.splitItem.none")}
-                  </Text>
-                </Pressable>
-              </View>
-            </XStack>
-
-            <YStack gap="$4">
-              {record.values.participants.map((participant) => {
-                const allocation = item.allocations.find(
-                  (entry) => entry.participantId === participant.id,
-                );
-                if (!allocation) {
-                  return null;
-                }
-
-                const portionCents =
-                  item.splitMode === "even" &&
-                  assignedCount > 0 &&
-                  allocation.evenIncluded
-                    ? Math.floor(
-                        (parseMoneyToCents(item.price) ?? 0) /
-                          Math.max(assignedCount, 1),
-                      )
-                    : 0;
-                const shareCount = parseFloat(allocation.shares) || 0;
-                const percentValue = parseFloat(allocation.percent) || 0;
-                const remainingPercentForParticipant =
-                  getRemainingPercentForParticipant(participant.id);
-                const canAssignRemaining =
-                  item.splitMode === "percent" &&
-                  remainingPercentForParticipant > percentValue + 0.001 &&
-                  totalPercent < 99.99;
-
-                const participantControls = (
-                  <>
-                    <XStack
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap="$3"
-                    >
-                      <XStack alignItems="center" gap="$3" flex={1}>
-                        <ParticipantAvatar
-                          name={participant.name}
-                          ownerName={settings.ownerName}
-                          ownerProfileImageUri={settings.ownerProfileImageUri}
-                          style={screenStyles.splitAvatar}
-                          label={`Split avatar ${participant.name}`}
-                        />
-                        <YStack flex={1} gap="$1">
-                          <Text
-                            fontFamily={FONTS.headlineBold}
-                            fontSize={18}
-                            color={PALETTE.onSurface}
-                          >
-                            {getParticipantDisplayName(
-                              participant.name,
-                              settings.ownerName,
-                            )}
-                          </Text>
-                          {item.splitMode === "even" ? (
-                            <Text
-                              fontFamily={FONTS.bodyMedium}
-                              fontSize={13}
-                              color={PALETTE.onSurfaceVariant}
-                            >
-                              {allocation.evenIncluded
-                                ? t("flow.splitItem.portion", {
-                                    amount: formatMoney(
-                                      portionCents,
-                                      record.values.currency,
-                                      locale,
-                                    ),
-                                  })
-                                : t("flow.splitItem.tapToInclude")}
-                            </Text>
-                          ) : item.splitMode === "shares" ? (
-                            <Text
-                              fontFamily={FONTS.bodyMedium}
-                              fontSize={13}
-                              color={PALETTE.onSurfaceVariant}
-                            >
-                              {t("flow.splitItem.portion", {
-                                amount: formatMoney(
-                                  Math.round(
-                                    totalShares > 0
-                                      ? ((parseMoneyToCents(item.price) ?? 0) *
-                                          shareCount) /
-                                          totalShares
-                                      : 0,
-                                  ),
-                                  record.values.currency,
-                                  locale,
-                                ),
-                              })}
-                            </Text>
-                          ) : null}
-                        </YStack>
-                      </XStack>
-
-                      {item.splitMode === "even" ? (
-                        <View
-                          style={[
-                            allocation.evenIncluded
-                              ? screenStyles.payerSelectedIndicator
-                              : screenStyles.payerUnselectedIndicator,
-                            { pointerEvents: "none" },
-                          ]}
-                        >
-                          {allocation.evenIncluded ? (
-                            <Check color={PALETTE.onPrimary} size={16} />
-                          ) : null}
-                        </View>
-                      ) : null}
-
-                      {item.splitMode === "shares" ? (
-                        <XStack alignItems="center" gap="$2.5">
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t(
-                              "flow.splitItem.decreaseSharesA11y",
-                              { name: participant.name },
-                            )}
-                            onPress={() => incrementShares(participant.id, -1)}
-                            style={screenStyles.splitStepperButton}
-                          >
-                            <Text
-                              fontFamily={FONTS.headlineBold}
-                              fontSize={18}
-                              color={PALETTE.primary}
-                            >
-                              -
-                            </Text>
-                          </Pressable>
-                          <View style={screenStyles.splitStepperValue}>
-                            <Text
-                              fontFamily={FONTS.headlineBold}
-                              fontSize={20}
-                              color={PALETTE.onSurface}
-                            >
-                              {shareCount}
-                            </Text>
-                          </View>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t(
-                              "flow.splitItem.increaseSharesA11y",
-                              { name: participant.name },
-                            )}
-                            onPress={() => incrementShares(participant.id, 1)}
-                            style={[
-                              screenStyles.splitStepperButton,
-                              screenStyles.splitStepperButtonActive,
-                            ]}
-                          >
-                            <Text
-                              fontFamily={FONTS.headlineBold}
-                              fontSize={18}
-                              color={PALETTE.onPrimary}
-                            >
-                              +
-                            </Text>
-                          </Pressable>
-                        </XStack>
-                      ) : null}
-
-                      {item.splitMode === "percent" ? (
-                        <View style={screenStyles.percentValueShell}>
-                          {canAssignRemaining ? (
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={t(
-                                "flow.splitItem.useRemainingPercentA11y",
-                                { name: participant.name },
-                              )}
-                              onPress={() =>
-                                void setWorkingPercentValue(
-                                  participant.id,
-                                  String(remainingPercentForParticipant),
-                                )
-                              }
-                              style={screenStyles.percentRemainderIcon}
-                            >
-                              <Text
-                                fontFamily={FONTS.headlineBold}
-                                fontSize={15}
-                                color={PALETTE.primary}
-                              >
-                                &gt;&gt;
-                              </Text>
-                            </Pressable>
-                          ) : null}
-                          <TextInput
-                            accessibilityLabel={t(
-                              "flow.splitItem.percentA11y",
-                              { name: participant.name },
-                            )}
-                            value={allocation.percent}
-                            onChangeText={(value) =>
-                              void setWorkingPercentValue(participant.id, value)
-                            }
-                            onBlur={() =>
-                              finalizeWorkingPercentValue(participant.id)
-                            }
-                            onSubmitEditing={() =>
-                              finalizeWorkingPercentValue(participant.id)
-                            }
-                            placeholder="0"
-                            placeholderTextColor={PALETTE.primary}
-                            keyboardType="number-pad"
-                            style={screenStyles.percentValueInput}
-                          />
-                          <Text
-                            fontFamily={FONTS.headlineBold}
-                            fontSize={18}
-                            color={PALETTE.primary}
-                          >
-                            %
-                          </Text>
-                        </View>
-                      ) : null}
-                    </XStack>
-
-                    {item.splitMode === "percent" ? (
-                      <YStack gap="$2.5" paddingTop="$2">
-                        <Slider
-                          key={`percent-slider-${participant.id}-${percentSliderResetKey}`}
-                          accessibilityLabel={t(
-                            "flow.splitItem.percentSliderA11y",
-                            { name: participant.name },
-                          )}
-                          minimumValue={0}
-                          maximumValue={100}
-                          step={1}
-                          value={Math.max(0, Math.min(percentValue, 100))}
-                          minimumTrackTintColor={PALETTE.primary}
-                          maximumTrackTintColor={PALETTE.track}
-                          thumbTintColor={PALETTE.primary}
-                          onValueChange={(value) =>
-                            void setWorkingPercentValue(
-                              participant.id,
-                              String(value),
-                              { clampToRemaining: true },
-                            )
-                          }
-                        />
-                        <XStack justifyContent="space-between">
-                          <Text
-                            fontFamily={FONTS.bodyMedium}
-                            fontSize={11}
-                            color={PALETTE.onSurfaceVariant}
-                          >
-                            {formatMoney(0, record.values.currency, locale)}
-                          </Text>
-                          <Text
-                            fontFamily={FONTS.bodyBold}
-                            fontSize={11}
-                            color={PALETTE.onSurfaceVariant}
-                          >
-                            {t("flow.splitItem.allocated", {
-                              amount: formatMoney(
-                                Math.round(
-                                  ((parseMoneyToCents(item.price) ?? 0) *
-                                    percentValue) /
-                                    100,
-                                ),
-                                record.values.currency,
-                                locale,
-                              ),
-                            })}
-                          </Text>
-                          <Text
-                            fontFamily={FONTS.bodyMedium}
-                            fontSize={11}
-                            color={PALETTE.onSurfaceVariant}
-                          >
-                            {formatMoney(
-                              parseMoneyToCents(item.price) ?? 0,
-                              record.values.currency,
-                              locale,
-                            )}
-                          </Text>
-                        </XStack>
-                      </YStack>
-                    ) : null}
-                  </>
-                );
-
-                return (
-                  <View
-                    key={participant.id}
-                    style={screenStyles.splitParticipantCard}
-                  >
-                    {participantControls}
-                    {item.splitMode === "even" ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={t("flow.splitItem.toggleEvenA11y", {
-                          name: participant.name,
-                        })}
-                        onPress={() => toggleEvenIncluded(participant.id)}
-                        style={screenStyles.splitParticipantOverlayPressable}
-                      />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </YStack>
-          </YStack>
-          </YStack>
-        </ScrollView>
-      </View>
-    </AppScreen>
+    <SplitItemView
+      record={record}
+      item={item}
+      settings={settings}
+      splitNoticeMessages={splitNoticeMessages}
+      onDismissSplitNotice={() => setSplitNoticeMessages([])}
+      onMeasuredHeight={onMeasuredHeight}
+      splitFooterInsetBottom={splitFooterInsetBottom}
+      headerHeight={headerHeight}
+      onHeaderHeightMeasured={(nextHeaderHeight) => {
+        setHeaderHeight((current) =>
+          Math.abs(current - nextHeaderHeight) < 1 ? current : nextHeaderHeight,
+        );
+      }}
+      summaryBottomY={summaryBottomY}
+      onSummaryBottomMeasured={(nextSummaryBottom) => {
+        setSummaryBottomY((current) =>
+          Math.abs(current - nextSummaryBottom) < 1
+            ? current
+            : nextSummaryBottom,
+        );
+      }}
+      compactHeaderAnimatedValue={compactHeaderAnimatedValue}
+      isCompactHeaderVisible={isCompactHeaderVisible}
+      onCompactHeaderVisibilityChange={(updater) => {
+        setIsCompactHeaderVisible(updater);
+      }}
+      onCompactHeaderHidden={() => setIsCompactHeaderVisible(false)}
+      itemNameLabel={itemNameLabel}
+      itemPriceLabel={itemPriceLabel}
+      itemCategoryLabel={itemCategoryLabel}
+      ctaLabel={ctaLabel}
+      isSplitReady={isSplitReady}
+      onConfirmSplit={() => void confirmSplit()}
+      onBack={() => router.replace(`/split/${draftId}/overview`)}
+      locale={locale}
+      assignedCount={assignedCount}
+      evenShareDisplayCents={evenShareDisplayCents}
+      totalShares={totalShares}
+      shareValue={shareValue}
+      totalPercent={totalPercent}
+      displayTotalPercent={displayTotalPercent}
+      percentSliderResetKey={percentSliderResetKey}
+      setSplitMode={setSplitMode}
+      includeAllWorkingSplit={includeAllWorkingSplit}
+      excludeAllWorkingSplit={excludeAllWorkingSplit}
+      incrementShares={incrementShares}
+      toggleEvenIncluded={toggleEvenIncluded}
+      setWorkingPercentValue={setWorkingPercentValue}
+      finalizeWorkingPercentValue={finalizeWorkingPercentValue}
+      getRemainingPercentForParticipant={getRemainingPercentForParticipant}
+    />
   );
 }

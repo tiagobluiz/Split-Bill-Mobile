@@ -1,10 +1,6 @@
 {
   "maxLines": 1000,
   "exceptions": {
-    "src/features/split/screens/flow/SplitItemScreen.tsx": {
-      "rationale": "Recently split from ItemDetailScreens; still above threshold while preserving existing behavior and tests.",
-      "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/49"
-    },
     "src/features/split/screens/shared/styles.ts": {
       "rationale": "Centralized design-token-driven style registry shared by many screens; planned decomposition by screen domain.",
       "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/50"
