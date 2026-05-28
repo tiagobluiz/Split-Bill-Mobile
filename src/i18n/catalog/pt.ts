@@ -1,6 +1,6 @@
 import type { TranslationKey } from "./en";
 
-const ptPlain: Partial<Record<TranslationKey, string>> = {
+const ptPlain: Record<TranslationKey, string> = {
   "app.name": "Split Bill",
   "app.error.openTitle": "Não foi possível abrir o Split Bill",
   "app.error.openDescription": "Tenta carregar a app novamente.",
