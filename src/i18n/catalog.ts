@@ -41,6 +41,9 @@ const enPlain = {
     "Choose which amount each split card shows in Home and Splits.",
   "settings.features": "Features",
   "settings.save": "Save Settings",
+  "settings.ownerNameLabel": "Your name",
+  "settings.ownerNameHint":
+    "This is the name the app uses for your own spot in a split, like `Tiago (You)`.",
   "settings.ownerNamePlaceholder": "e.g. Tiago",
   "settings.ownerNameRequired": "Please choose a short name for yourself.",
   "settings.defaultCurrencyRequired": "Please choose a default currency first.",
@@ -94,9 +97,11 @@ const enPlain = {
   "settings.trackPayments.title": "Track payments",
   "settings.trackPayments.description":
     "Turn this on if you want to mark people as paid inside one split after money has been settled.",
+  "settings.trackPayments.toggleA11y": "Toggle track payments",
   "settings.balanceHelper.title": "Balance helper",
   "settings.balanceHelper.description":
     "Turn this on if you want to track how much you owe and are owed.",
+  "settings.balanceHelper.toggleA11y": "Toggle balance helper",
   "settings.disclaimer.title": "Disclaimer about your data",
   "settings.disclaimer.body":
     "We do not store your data in the cloud. Deleting this app data will permanently delete everything.",
@@ -118,6 +123,7 @@ const enPlain = {
   "home.openSplitA11y": "Open split {title}",
   "home.viewAllSplits": "View all splits",
   "home.startSplit": "Start New Split",
+  "home.couldNotCreateSplit": "Could not create split",
   "home.noSplitsTitle": "No splits yet",
   "home.noSplitsDescription": "Your most recent splits will be shown here.",
   "home.noSplitsFilteredTitle": "No splits here",
@@ -696,6 +702,9 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
     "Escolhe que valor cada cartão mostra no Início e em Divisões.",
   "settings.features": "Funcionalidades",
   "settings.save": "Guardar definições",
+  "settings.ownerNameLabel": "O teu nome",
+  "settings.ownerNameHint":
+    "Este é o nome que a app usa para te identificar na divisão, por exemplo `Tiago (Tu)`.",
   "settings.ownerNamePlaceholder": "ex.: Tiago",
   "settings.ownerNameRequired": "Escolhe um nome curto para ti.",
   "settings.defaultCurrencyRequired": "Escolhe primeiro uma moeda predefinida.",
@@ -749,9 +758,11 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "settings.trackPayments.title": "Registar pagamentos",
   "settings.trackPayments.description":
     "Ativa isto se quiseres marcar pessoas como pagas depois de o dinheiro ficar acertado.",
+  "settings.trackPayments.toggleA11y": "Ativar ou desativar registar pagamentos",
   "settings.balanceHelper.title": "Auxiliar de saldo",
   "settings.balanceHelper.description":
     "Ativa isto se quiseres ver quanto deves e quanto te devem.",
+  "settings.balanceHelper.toggleA11y": "Ativar ou desativar auxiliar de saldo",
   "settings.disclaimer.title": "Aviso sobre os teus dados",
   "settings.disclaimer.body":
     "Não guardamos os teus dados na cloud. Se apagares os dados desta app, tudo será eliminado de forma permanente.",
@@ -773,6 +784,7 @@ const ptPlain: Partial<Record<keyof typeof enPlain, string>> = {
   "home.openSplitA11y": "Abrir divisão {title}",
   "home.viewAllSplits": "Ver todas as divisões",
   "home.startSplit": "Nova divisão",
+  "home.couldNotCreateSplit": "Não foi possível criar a divisão",
   "home.noSplitsTitle": "Ainda não há divisões",
   "home.noSplitsDescription": "As tuas divisões mais recentes vão aparecer aqui.",
   "home.noSplitsFilteredTitle": "Não há divisões aqui",
