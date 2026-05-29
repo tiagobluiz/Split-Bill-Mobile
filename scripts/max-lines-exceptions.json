@@ -1,9 +1,4 @@
 {
   "maxLines": 1000,
-  "exceptions": {
-    "src/features/split/store.ts": {
-      "rationale": "Store currently concentrates persistence, reminder reconciliation, and state transitions; decomposition planned with stable API boundaries.",
-      "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/52"
-    }
-  }
+  "exceptions": {}
 }
