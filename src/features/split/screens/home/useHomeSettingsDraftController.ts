@@ -57,7 +57,7 @@ function findAlphabeticCurrencyCodeFallback(existingCodes: Set<string>) {
     }
   }
 
-  return "ZZZ";
+  return null;
 }
 
 export function isBalanceDependentSplitListAmountDisplay(
@@ -433,6 +433,14 @@ export function useHomeSettingsDraftController({
         existingCodes,
       ) ??
       findAlphabeticCurrencyCodeFallback(existingCodes);
+
+    if (!nextCode) {
+      setSettingsNoticeTitle(t("common.almostThere"));
+      setSettingsNoticeMessages([
+        "Couldn't create a unique currency code. Try a different currency name.",
+      ]);
+      return;
+    }
 
     const nextCustomCurrencies = [
       ...customCurrenciesDraft,
