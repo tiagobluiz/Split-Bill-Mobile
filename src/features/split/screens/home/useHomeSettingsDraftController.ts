@@ -16,6 +16,49 @@ import type {
 } from "./homeTypes";
 
 export const MAX_OWNER_NAME_LENGTH = 12;
+const MAX_CUSTOM_CURRENCY_SUFFIX = 999;
+
+function normalizeCustomCurrencyCodeCandidate(value: string) {
+  return (
+    value
+      .replace(/[^A-Za-z]/g, "")
+      .toUpperCase()
+      .slice(0, 3) || "CUR"
+  );
+}
+
+function findAvailableCurrencyCodeFromBase(
+  baseCode: string,
+  existingCodes: Set<string>,
+) {
+  if (!existingCodes.has(baseCode)) {
+    return baseCode;
+  }
+
+  for (let suffix = 2; suffix <= MAX_CUSTOM_CURRENCY_SUFFIX; suffix += 1) {
+    const suffixToken = String(suffix);
+    const candidate = `${baseCode.slice(0, Math.max(0, 3 - suffixToken.length))}${suffixToken}`;
+    if (!existingCodes.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function findAlphabeticCurrencyCodeFallback(existingCodes: Set<string>) {
+  for (let index = 0; index < 26 ** 3; index += 1) {
+    const first = String.fromCharCode(65 + Math.floor(index / (26 * 26)));
+    const second = String.fromCharCode(65 + Math.floor(index / 26) % 26);
+    const third = String.fromCharCode(65 + (index % 26));
+    const candidate = `${first}${second}${third}`;
+    if (!existingCodes.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return "ZZZ";
+}
 
 export function isBalanceDependentSplitListAmountDisplay(
   value: SplitListAmountDisplay,
@@ -376,51 +419,20 @@ export function useHomeSettingsDraftController({
       return;
     }
 
-    const normalizedCode =
-      trimmedName
-        .replace(/[^A-Za-z]/g, "")
-        .toUpperCase()
-        .slice(0, 3) || "CUR";
+    const normalizedCode = normalizeCustomCurrencyCodeCandidate(trimmedName);
     const existingCodes = new Set(
       getCurrencyOptions({ customCurrencies: customCurrenciesDraft }).map(
         (entry) => entry.code,
       ),
     );
 
-    let nextCode = normalizedCode;
-    let suffix = 2;
-    while (existingCodes.has(nextCode) && suffix <= 999) {
-      const suffixToken = String(suffix);
-      nextCode = `${normalizedCode.slice(0, Math.max(0, 3 - suffixToken.length))}${suffixToken}`;
-      suffix += 1;
-    }
-
-    while (existingCodes.has(nextCode)) {
-      const fallbackCode =
-        createId()
-          .replace(/[^A-Za-z0-9]/g, "")
-          .toUpperCase()
-          .slice(0, 3) || "CUR";
-      if (!existingCodes.has(fallbackCode)) {
-        nextCode = fallbackCode;
-        break;
-      }
-
-      let fallbackSuffix = 2;
-      while (fallbackSuffix <= 999) {
-        const token = String(fallbackSuffix);
-        const fallbackWithSuffix = `${fallbackCode.slice(0, Math.max(0, 3 - token.length))}${token}`;
-        if (!existingCodes.has(fallbackWithSuffix)) {
-          nextCode = fallbackWithSuffix;
-          break;
-        }
-        fallbackSuffix += 1;
-      }
-
-      if (!existingCodes.has(nextCode)) {
-        break;
-      }
-    }
+    const nextCode =
+      findAvailableCurrencyCodeFromBase(normalizedCode, existingCodes) ??
+      findAvailableCurrencyCodeFromBase(
+        normalizeCustomCurrencyCodeCandidate(createId()),
+        existingCodes,
+      ) ??
+      findAlphabeticCurrencyCodeFallback(existingCodes);
 
     const nextCustomCurrencies = [
       ...customCurrenciesDraft,

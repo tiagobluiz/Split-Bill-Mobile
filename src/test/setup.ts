@@ -1,4 +1,43 @@
 import "@testing-library/jest-native/extend-expect";
+import { cleanup } from "@testing-library/react-native";
+
+jest.mock("expo-notifications", () => {
+  const createSubscription = () => ({
+    remove: jest.fn(),
+  });
+
+  return {
+    PermissionStatus: {
+      UNDETERMINED: "undetermined",
+      DENIED: "denied",
+      GRANTED: "granted",
+    },
+    AndroidImportance: {
+      DEFAULT: 3,
+    },
+    SchedulableTriggerInputTypes: {
+      DATE: "date",
+    },
+    setNotificationHandler: jest.fn(),
+    getLastNotificationResponseAsync: jest.fn(async () => null),
+    clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+    addNotificationResponseReceivedListener: jest.fn(() =>
+      createSubscription(),
+    ),
+    addNotificationReceivedListener: jest.fn(() => createSubscription()),
+    getPermissionsAsync: jest.fn(async () => ({
+      status: "granted",
+      granted: true,
+    })),
+    requestPermissionsAsync: jest.fn(async () => ({
+      status: "granted",
+      granted: true,
+    })),
+    setNotificationChannelAsync: jest.fn(async () => undefined),
+    scheduleNotificationAsync: jest.fn(async () => "test-notification-id"),
+    cancelScheduledNotificationAsync: jest.fn(async () => undefined),
+  };
+});
 
 jest.mock("expo-linear-gradient", () => {
   const React = require("react");
@@ -119,4 +158,10 @@ jest.mock("@react-native-community/datetimepicker", () => {
       dismiss: jest.fn(),
     },
   };
+});
+
+afterEach(() => {
+  cleanup();
+  jest.clearAllTimers();
+  jest.useRealTimers();
 });
