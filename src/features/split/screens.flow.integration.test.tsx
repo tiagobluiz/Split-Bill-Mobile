@@ -402,7 +402,7 @@ describe("split screens", () => {
     expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Truffle Pasta"), "Milk");
-    fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "2.50");
+    fireEvent.changeText(screen.getByPlaceholderText(/0[,.]00/), "2.50");
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
@@ -1422,7 +1422,7 @@ describe("split screens", () => {
     expect(screen.getByText("Add Item")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Truffle Pasta"), "Soup");
     expect(screen.getByText("Add Item")).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "12.50");
+    fireEvent.changeText(screen.getByPlaceholderText(/0[,.]00/), "12.50");
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
@@ -1464,7 +1464,7 @@ describe("split screens", () => {
   it("limits item names to 25 characters before saving", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     fireEvent.changeText(screen.getByLabelText("Item name"), "123456789012345678901234567890");
-    fireEvent.changeText(screen.getByPlaceholderText(/0,00/), "4.50");
+    fireEvent.changeText(screen.getByPlaceholderText(/0[,.]00/), "4.50");
 
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));

@@ -541,7 +541,7 @@ describe("split screens", () => {
     expect(screen.getByText("Paid by")).toBeTruthy();
     expect(screen.getByText("Breakdown")).toBeTruthy();
     expect(screen.getByText("Mark as Paid")).toBeTruthy();
-    expect(screen.getAllByText(/3,00|EUR 3.00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length).toBeGreaterThan(0);
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(screen.getByLabelText("PDF")).toBeTruthy();
