@@ -1,10 +1,6 @@
 {
   "maxLines": 1000,
   "exceptions": {
-    "src/features/split/screens/shared/styles.ts": {
-      "rationale": "Centralized design-token-driven style registry shared by many screens; planned decomposition by screen domain.",
-      "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/51"
-    },
     "src/features/split/store.ts": {
       "rationale": "Store currently concentrates persistence, reminder reconciliation, and state transitions; decomposition planned with stable API boundaries.",
       "followUpIssue": "https://github.com/tiagobluiz/Split-Bill-Mobile/issues/52"
