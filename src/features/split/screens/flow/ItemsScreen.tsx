@@ -77,6 +77,7 @@ import {
 } from "../../../../domain";
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -474,6 +475,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       }
                     }
                     await setStep(5);
+                    await trackSplitStepCompleted({
+                      step: "items",
+                      draftStatus: record.status,
+                    });
                     const nextItem = getNextPendingSplitItem(
                       effectiveRecordForStep,
                     );

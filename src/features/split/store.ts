@@ -17,6 +17,10 @@ import {
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
 import {
+  rememberItemOrigins,
+  trackSplitFlowCompleted,
+} from "../../lib/telemetry";
+import {
   deleteRecord,
   getRecordById,
   initializeRecordsStorage,
@@ -104,7 +108,13 @@ type SplitStore = {
   importPastedList: (
     rawInput: string,
     mode: ImportMode,
-  ) => Promise<{ warningMessages: string[]; warningCodes: string[] }>;
+  ) => Promise<{
+    warningMessages: string[];
+    warningCodes: string[];
+    importedCount: number;
+    skippedDuplicateCount: number;
+    importedItemIds: string[];
+  }>;
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
@@ -778,6 +788,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async importPastedList(rawInput, mode) {
     const parsed = parsePastedItems(rawInput);
     let skippedDuplicateCount = 0;
+    let importedCount = 0;
+    let importedItemIds: string[] = [];
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
@@ -802,6 +814,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
 
           importedItems.push(importedItem);
         });
+        importedCount = importedItems.length;
+        importedItemIds = importedItems.map((entry) => entry.id);
 
         draft.values.items =
           mode === "replace"
@@ -814,6 +828,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               ];
       }, { recomputeStatusOnValueChange: true }),
     );
+    const activeDraftId = get().activeRecordId;
+    if (activeDraftId && importedItemIds.length > 0) {
+      rememberItemOrigins(activeDraftId, importedItemIds, "ai_handover");
+    }
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
@@ -829,6 +847,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ]
           : []),
       ],
+      importedCount,
+      skippedDuplicateCount,
+      importedItemIds,
     };
   },
   async markBillPaid() {
@@ -1003,13 +1024,24 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await Promise.all(reconciledRecords.map((record) => saveRecord(record)));
   },
   async markCompleted() {
-    await withActiveRecord(set, get, (record) =>
+    const completedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.status = "completed";
         draft.completedAt = draft.completedAt ?? nowIso();
         draft.step = 6;
       }),
     );
+    if (!completedRecord) {
+      return;
+    }
+    void trackSplitFlowCompleted({
+      draftId: completedRecord.id,
+      participantCount: completedRecord.values.participants.length,
+      itemCount: completedRecord.values.items.filter(
+        (item) => item.name.trim() || item.price.trim(),
+      ).length,
+      currency: completedRecord.values.currency,
+    });
   },
   getActiveRecord() {
     return (

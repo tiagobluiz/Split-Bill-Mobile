@@ -24,6 +24,12 @@ const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenApplication = jest.fn(async (..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
+const mockTrackEvent = jest.fn(async (..._args: any[]) => undefined);
+const mockRecordError = jest.fn();
+const mockRememberItemOrigins = jest.fn();
+const mockTrackSplitFlowStarted = jest.fn(async (..._args: any[]) => undefined);
+const mockTrackSplitStepCompleted = jest.fn(async (..._args: any[]) => undefined);
+const mockTrackItemSplitModeUsedOnce = jest.fn(async (..._args: any[]) => undefined);
 const mockRequestCameraPermissionsAsync = jest.fn(async () => ({ granted: true }));
 const mockRequestMediaLibraryPermissionsAsync = jest.fn(async () => ({ granted: true }));
 const mockLaunchCameraAsync = jest.fn(async () => ({ canceled: true, assets: [] }));
@@ -54,6 +60,17 @@ jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: () => mockRequestMediaLibraryPermissionsAsync(),
   launchCameraAsync: () => mockLaunchCameraAsync(),
   launchImageLibraryAsync: () => mockLaunchImageLibraryAsync(),
+}));
+
+jest.mock("../../lib/telemetry", () => ({
+  trackEvent: (...args: any[]) => mockTrackEvent(...args),
+  recordError: (...args: any[]) => mockRecordError(...args),
+  rememberItemOrigins: (...args: any[]) => mockRememberItemOrigins(...args),
+  trackSplitFlowStarted: (...args: any[]) => mockTrackSplitFlowStarted(...args),
+  trackSplitStepCompleted: (...args: any[]) => mockTrackSplitStepCompleted(...args),
+  trackItemSplitModeUsedOnce: (...args: any[]) =>
+    mockTrackItemSplitModeUsedOnce(...args),
+  initializeTelemetry: jest.fn(),
 }));
 
 jest.mock("./store", () => ({
@@ -115,6 +132,12 @@ describe("split screens", () => {
     mockOpenApplication.mockReset();
     mockShare.mockReset();
     mockAlert.mockReset();
+    mockTrackEvent.mockReset();
+    mockRecordError.mockReset();
+    mockRememberItemOrigins.mockReset();
+    mockTrackSplitFlowStarted.mockReset();
+    mockTrackSplitStepCompleted.mockReset();
+    mockTrackItemSplitModeUsedOnce.mockReset();
     mockRequestCameraPermissionsAsync.mockReset();
     mockRequestMediaLibraryPermissionsAsync.mockReset();
     mockLaunchCameraAsync.mockReset();
@@ -1433,6 +1456,12 @@ describe("split screens", () => {
         category: "General",
       })
     );
+    expect(mockTrackEvent).toHaveBeenCalledWith("item_insertion_success", {
+      method: "manual",
+      item_count: 1,
+      provider: "none",
+      import_mode: "none",
+    });
   });
 
   it("normalizes a new integer item price before saving", async () => {
@@ -1543,6 +1572,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    expect(mockTrackEvent).not.toHaveBeenCalled();
     expect(screen.getByText("Add an item name before saving this item.")).toBeTruthy();
   });
 
@@ -1712,6 +1742,9 @@ describe("split screens", () => {
     mockStoreState.importPastedList = jest.fn(async () => ({
       warningMessages: ["Ignored 1 pasted line."],
       warningCodes: ["ignored-paste-lines"],
+      importedCount: 1,
+      skippedDuplicateCount: 0,
+      importedItemIds: ["item-imported-1"],
     }));
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("I already have the item list"));
@@ -1726,6 +1759,17 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Add & Review Items"));
     });
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith("Milk - 3.40", "replace");
+    expect(mockTrackEvent).toHaveBeenCalledWith("item_insertion_success", {
+      method: "ai_handover",
+      item_count: 1,
+      provider: "chatgpt",
+      import_mode: "replace",
+    });
+    expect(mockRememberItemOrigins).toHaveBeenCalledWith(
+      "draft-1",
+      ["item-imported-1"],
+      "ai_handover",
+    );
     expect(mockAlert).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
   });
@@ -1849,7 +1893,13 @@ describe("split screens", () => {
     const { rerender } = render(<PasteImportScreen draftId="draft-1" />);
     expect(screen.getByText("Loading split")).toBeTruthy();
 
-    mockStoreState.importPastedList = jest.fn(async () => ({ warningMessages: [] }));
+    mockStoreState.importPastedList = jest.fn(async () => ({
+      warningMessages: [],
+      warningCodes: [],
+      importedCount: 1,
+      skippedDuplicateCount: 0,
+      importedItemIds: ["item-imported-2"],
+    }));
     mockStoreState.records = [buildRecord()];
     rerender(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("I already have the item list"));
@@ -1884,6 +1934,14 @@ describe("split screens", () => {
       "Could not import items",
       "We could not import the pasted list. Please try again.",
       undefined
+    );
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+    expect(mockRecordError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        screen: "PasteImportScreen",
+        action: "applyImport",
+      }),
     );
     expect(mockBack).not.toHaveBeenCalled();
   });

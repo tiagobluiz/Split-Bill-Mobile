@@ -15,6 +15,7 @@ import {
   useFloatingFooterInset,
 } from "../../../../components/ui";
 import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
+import { trackSplitFlowStarted } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { getSettlementPreview, useSplitStore } from "../../store";
@@ -243,6 +244,10 @@ export function HomeScreenView() {
     setIsCreatingSplit(true);
     try {
       const draft = await createDraft();
+      await trackSplitFlowStarted({
+        source: "home",
+        hasDefaultCurrency: Boolean(settings.defaultCurrency.trim()),
+      });
       router.push(`/split/${draft.id}/setup`);
     } catch (error) {
       creatingSplitRef.current = false;

@@ -28,6 +28,7 @@ import {
   validateStepTwo,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
 import { ErrorList, FlowContinueButton } from "../shared/components";
@@ -99,6 +100,10 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
                 ]);
                 return;
               }
+              void trackSplitStepCompleted({
+                step: "overview",
+                draftStatus: record.status,
+              });
               router.push(`/split/${draftId}/results`);
             }}
           />

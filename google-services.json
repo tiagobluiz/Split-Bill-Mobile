@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "448856817468",
+    "project_id": "split-bill-miagology",
+    "storage_bucket": "split-bill-miagology.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:448856817468:android:f77786914d20352661e839",
+        "android_client_info": {
+          "package_name": "com.miagology.splitbill"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXEugnKmuXRomqu6AHPs0az6mXsD7sZBE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

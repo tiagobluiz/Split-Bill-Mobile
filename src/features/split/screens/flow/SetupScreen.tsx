@@ -78,6 +78,7 @@ import {
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import { fetchExchangeRate } from "../../../../lib/exchangeRates";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -444,6 +445,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       ),
     );
     await setStep(2);
+    await trackSplitStepCompleted({
+      step: "setup",
+      draftStatus: record.status,
+    });
     router.push(`/split/${draftId}/participants`);
   };
 
