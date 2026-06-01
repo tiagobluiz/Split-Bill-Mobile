@@ -199,6 +199,26 @@ describe("telemetry", () => {
     });
   });
 
+  it("drops removed AI item origins before completion metrics", async () => {
+    const telemetry = loadTelemetryModule();
+    telemetry.rememberItemOrigins("draft-1", ["item-ai"], "ai_handover");
+    telemetry.syncDraftItemOrigins("draft-1", []);
+
+    await telemetry.trackSplitFlowCompleted({
+      draftId: "draft-1",
+      participantCount: 2,
+      itemCount: 0,
+      currency: "eur",
+    });
+
+    expect(mockLogEvent).toHaveBeenCalledWith("split_flow_completed", {
+      participant_count: 2,
+      item_count: 0,
+      currency: "EUR",
+      had_ai_items: "no",
+    });
+  });
+
   it("records crash errors with context safely", () => {
     const telemetry = loadTelemetryModule();
 

@@ -18,6 +18,7 @@ import {
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
 import {
   rememberItemOrigins,
+  syncDraftItemOrigins,
   trackSplitFlowCompleted,
 } from "../../lib/telemetry";
 import {
@@ -607,13 +608,19 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async removeItem(itemId) {
-    await withActiveRecord(set, get, (record) =>
+    const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.items = draft.values.items.filter(
           (item) => item.id !== itemId,
         );
       }, { recomputeStatusOnValueChange: true }),
     );
+    if (updatedRecord) {
+      syncDraftItemOrigins(
+        updatedRecord.id,
+        updatedRecord.values.items.map((item) => item.id),
+      );
+    }
   },
   async setItemSplitMode(itemId, splitMode) {
     await withActiveRecord(set, get, (record) =>
@@ -828,8 +835,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               ];
       }, { recomputeStatusOnValueChange: true }),
     );
-    if (updatedRecord && importedItemIds.length > 0) {
-      rememberItemOrigins(updatedRecord.id, importedItemIds, "ai_handover");
+    if (updatedRecord) {
+      syncDraftItemOrigins(
+        updatedRecord.id,
+        updatedRecord.values.items.map((item) => item.id),
+      );
+      if (importedItemIds.length > 0) {
+        rememberItemOrigins(updatedRecord.id, importedItemIds, "ai_handover");
+      }
     }
     return {
       warningCodes: [

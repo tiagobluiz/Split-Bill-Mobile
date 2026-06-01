@@ -218,6 +218,33 @@ export function rememberItemOrigins(
   });
 }
 
+export function syncDraftItemOrigins(draftId: string, itemIds: string[]) {
+  if (!draftId.trim()) {
+    return;
+  }
+
+  const originMap = itemOriginByDraftId.get(draftId);
+  if (!originMap) {
+    return;
+  }
+
+  const retainedIds = new Set(
+    itemIds
+      .map((itemId) => itemId.trim())
+      .filter(Boolean),
+  );
+
+  for (const itemId of originMap.keys()) {
+    if (!retainedIds.has(itemId)) {
+      originMap.delete(itemId);
+    }
+  }
+
+  if (originMap.size === 0) {
+    itemOriginByDraftId.delete(draftId);
+  }
+}
+
 export async function trackSplitFlowStarted(params: {
   source: "home";
   hasDefaultCurrency: boolean;
