@@ -77,6 +77,7 @@ import {
 } from "../../../../domain";
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -282,6 +283,10 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                 return;
               }
               await setStep(3);
+              await trackSplitStepCompleted({
+                step: "participants",
+                draftStatus: record.status,
+              });
               router.push(`/split/${draftId}/payer`);
             }}
           />

@@ -39,6 +39,7 @@ import {
   validateStepThree,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import { rememberItemOrigins, recordError, trackEvent } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
@@ -251,6 +252,13 @@ export function AssignItemScreen({
           price: normalizedItemPrice,
           category: effectiveCategory,
         });
+        rememberItemOrigins(draftId, [item.id], "manual");
+        await trackEvent("item_insertion_success", {
+          method: "manual",
+          item_count: 1,
+          provider: "none",
+          import_mode: "none",
+        });
         router.back();
         return;
       }
@@ -269,7 +277,12 @@ export function AssignItemScreen({
       }
 
       router.back();
-    } catch {
+    } catch (error) {
+      recordError(error, {
+        screen: "AssignItemScreen",
+        action: "saveEditor",
+        isNewItem,
+      });
       setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);
     }
   };

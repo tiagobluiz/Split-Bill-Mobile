@@ -16,6 +16,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#A54206"
@@ -42,6 +43,7 @@
         }
       ],
       "expo-router",
+      "@react-native-firebase/crashlytics",
       "expo-font",
       "expo-sqlite",
       "expo-asset",

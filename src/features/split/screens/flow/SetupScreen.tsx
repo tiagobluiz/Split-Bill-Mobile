@@ -78,6 +78,7 @@ import {
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import { fetchExchangeRate } from "../../../../lib/exchangeRates";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -170,11 +171,12 @@ const ITEM_CATEGORY_OPTIONS = [
 export function SetupScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { updateDraftMeta, setStep, settings } = useSplitStore(
+  const { updateDraftMeta, setStep, settings, getActiveRecord } = useSplitStore(
     useShallow((state) => ({
       updateDraftMeta: state.updateDraftMeta,
       setStep: state.setStep,
       settings: state.settings,
+      getActiveRecord: state.getActiveRecord,
     })),
   );
   const insets = useSafeAreaInsets();
@@ -444,6 +446,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       ),
     );
     await setStep(2);
+    const currentStatus = getActiveRecord()?.status ?? record.status;
+    await trackSplitStepCompleted({
+      step: "setup",
+      draftStatus: currentStatus,
+    });
     router.push(`/split/${draftId}/participants`);
   };
 

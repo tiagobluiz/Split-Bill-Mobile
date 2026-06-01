@@ -17,6 +17,7 @@ import {
   useFloatingFooterInset,
 } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import { useTranslation } from "../../../../i18n/provider";
 import { useSplitStore } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
@@ -83,6 +84,10 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
               }
 
               await setStep(4);
+              await trackSplitStepCompleted({
+                step: "payer",
+                draftStatus: record.status,
+              });
               router.push(`/split/${draftId}/items`);
             }}
           />

@@ -14,6 +14,7 @@ import { getDefaultTranslationSettings, t, translateWithSettings } from "../src/
 import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
 import { normalizeInternalRoute } from "../src/lib/internalRoute";
+import { initializeTelemetry } from "../src/lib/telemetry";
 
 void SplashScreen.preventAutoHideAsync();
 Notifications.setNotificationHandler({
@@ -92,6 +93,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    void initializeTelemetry();
     void Promise.resolve(bootstrap()).catch(() => {
       setBootstrapFailed(true);
     });

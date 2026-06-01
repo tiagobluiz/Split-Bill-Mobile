@@ -13,6 +13,7 @@ import {
   validateStepThree,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import { trackItemSplitModeUsedOnce } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { useSplitStore } from "../../store";
 import {
@@ -444,6 +445,11 @@ export function SplitItemScreen({
           : item;
 
       await saveItemSplit(item.id, committedItem);
+      void trackItemSplitModeUsedOnce({
+        draftId,
+        itemId: item.id,
+        mode: committedItem.splitMode,
+      });
       const nextPendingItemId = getNextPendingSplitItemId(
         {
           ...record,

@@ -27,6 +27,7 @@ import {
   validateStepTwo,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { FlowContinueButton } from "../shared/components";
 import {
@@ -119,6 +120,10 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                 ]);
                 return;
               }
+              void trackSplitStepCompleted({
+                step: "review",
+                draftStatus: record.status,
+              });
               router.push(`/split/${draftId}/results`);
             }}
           />

@@ -704,13 +704,21 @@ describe("split store", () => {
 
   it("imports pasted items into the active record", async () => {
     const { storeModule, domainMocks } = await loadReadyStore();
-    await storeModule.useSplitStore.getState().importPastedList("ignored text", "append");
+    const appendResult = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("ignored text", "append");
     expect(domainMocks.parsePastedItems).toHaveBeenCalledWith("ignored text");
+    expect(appendResult.importedCount).toBe(2);
+    expect(appendResult.skippedDuplicateCount).toBe(0);
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values.items.some((item) => item.name === "Imported apples")
     ).toBe(true);
 
-    await storeModule.useSplitStore.getState().importPastedList("replace text", "replace");
+    const replaceResult = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("replace text", "replace");
+    expect(replaceResult.importedCount).toBe(2);
+    expect(replaceResult.skippedDuplicateCount).toBe(0);
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values.items.map((item) => item.name)
     ).toEqual(["Imported apples", "Imported pears"]);
@@ -739,6 +747,8 @@ describe("split store", () => {
     expect(itemNames.filter((name) => name.trim().toLowerCase() === "milk")).toHaveLength(1);
     expect(itemNames.filter((name) => name === "Imported pears")).toHaveLength(1);
     expect(result.warningMessages).toContain("Ignored 2 duplicate imported items.");
+    expect(result.importedCount).toBe(1);
+    expect(result.skippedDuplicateCount).toBe(2);
   });
 
   it("marks the active record as completed", async () => {
@@ -1318,7 +1328,11 @@ describe("split store", () => {
       activeRecordId: record.id,
     });
 
-    await storeModule.useSplitStore.getState().importPastedList("totals only", "replace");
+    const result = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("totals only", "replace");
+    expect(result.importedCount).toBe(0);
+    expect(result.skippedDuplicateCount).toBe(0);
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual(record.values.items);
   });
 });

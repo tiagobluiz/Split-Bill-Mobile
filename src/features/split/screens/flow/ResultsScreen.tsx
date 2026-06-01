@@ -32,6 +32,7 @@ import {
   isDirectoryPickerCancelledError,
 } from "../../../../pdf/exportSettlementPdf";
 import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
+import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
   getClipboardSummaryPreview,
@@ -120,6 +121,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     void (async () => {
       try {
         await markCompleted();
+        await trackSplitStepCompleted({
+          step: "results",
+          draftStatus: "completed",
+        });
         hasAutoCompletedRef.current = record.id;
       } catch (error) {
         console.warn(

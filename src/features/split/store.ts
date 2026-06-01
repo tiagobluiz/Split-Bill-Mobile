@@ -17,6 +17,11 @@ import {
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
 import {
+  rememberItemOrigins,
+  syncDraftItemOrigins,
+  trackSplitFlowCompleted,
+} from "../../lib/telemetry";
+import {
   deleteRecord,
   getRecordById,
   initializeRecordsStorage,
@@ -104,7 +109,13 @@ type SplitStore = {
   importPastedList: (
     rawInput: string,
     mode: ImportMode,
-  ) => Promise<{ warningMessages: string[]; warningCodes: string[] }>;
+  ) => Promise<{
+    warningMessages: string[];
+    warningCodes: string[];
+    importedCount: number;
+    skippedDuplicateCount: number;
+    importedItemIds: string[];
+  }>;
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
@@ -597,13 +608,19 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async removeItem(itemId) {
-    await withActiveRecord(set, get, (record) =>
+    const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.items = draft.values.items.filter(
           (item) => item.id !== itemId,
         );
       }, { recomputeStatusOnValueChange: true }),
     );
+    if (updatedRecord) {
+      syncDraftItemOrigins(
+        updatedRecord.id,
+        updatedRecord.values.items.map((item) => item.id),
+      );
+    }
   },
   async setItemSplitMode(itemId, splitMode) {
     await withActiveRecord(set, get, (record) =>
@@ -778,7 +795,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async importPastedList(rawInput, mode) {
     const parsed = parsePastedItems(rawInput);
     let skippedDuplicateCount = 0;
-    await withActiveRecord(set, get, (record) =>
+    let importedCount = 0;
+    let importedItemIds: string[] = [];
+    const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
           (item) => item.name.trim() || item.price.trim(),
@@ -802,6 +821,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
 
           importedItems.push(importedItem);
         });
+        importedCount = importedItems.length;
+        importedItemIds = importedItems.map((entry) => entry.id);
 
         draft.values.items =
           mode === "replace"
@@ -814,6 +835,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               ];
       }, { recomputeStatusOnValueChange: true }),
     );
+    if (updatedRecord) {
+      syncDraftItemOrigins(
+        updatedRecord.id,
+        updatedRecord.values.items.map((item) => item.id),
+      );
+      if (importedItemIds.length > 0) {
+        rememberItemOrigins(updatedRecord.id, importedItemIds, "ai_handover");
+      }
+    }
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
@@ -829,6 +859,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ]
           : []),
       ],
+      importedCount,
+      skippedDuplicateCount,
+      importedItemIds,
     };
   },
   async markBillPaid() {
@@ -1003,13 +1036,24 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await Promise.all(reconciledRecords.map((record) => saveRecord(record)));
   },
   async markCompleted() {
-    await withActiveRecord(set, get, (record) =>
+    const completedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.status = "completed";
         draft.completedAt = draft.completedAt ?? nowIso();
         draft.step = 6;
       }),
     );
+    if (!completedRecord) {
+      return;
+    }
+    void trackSplitFlowCompleted({
+      draftId: completedRecord.id,
+      participantCount: completedRecord.values.participants.length,
+      itemCount: completedRecord.values.items.filter(
+        (item) => item.name.trim() || item.price.trim(),
+      ).length,
+      currency: completedRecord.values.currency,
+    });
   },
   getActiveRecord() {
     return (
