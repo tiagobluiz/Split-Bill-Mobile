@@ -210,17 +210,19 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       if (actionableWarnings.length > 0) {
         Alert.alert(t("flow.import.notesTitle"), actionableWarnings.join("\n"));
       }
-      rememberItemOrigins(
-        draftId,
-        result.importedItemIds ?? [],
-        "ai_handover",
-      );
-      await trackEvent("item_insertion_success", {
-        method: "ai_handover",
-        item_count: result.importedCount,
-        provider,
-        import_mode: mode,
-      });
+      if (result.importedCount > 0) {
+        rememberItemOrigins(
+          draftId,
+          result.importedItemIds ?? [],
+          "ai_handover",
+        );
+        await trackEvent("item_insertion_success", {
+          method: "ai_handover",
+          item_count: result.importedCount,
+          provider,
+          import_mode: mode,
+        });
+      }
       router.back();
     } catch (error) {
       console.warn("Failed to import pasted list", error);

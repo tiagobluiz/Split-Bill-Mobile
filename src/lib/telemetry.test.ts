@@ -123,7 +123,7 @@ describe("telemetry", () => {
     });
   });
 
-  it("tracks split mode usage once per draft/mode and respects item origin", async () => {
+  it("tracks split mode usage per draft/mode/origin and defaults unknown origins to manual", async () => {
     const telemetry = loadTelemetryModule();
     telemetry.rememberItemOrigins("draft-1", ["item-ai"], "ai_handover");
 
@@ -137,15 +137,66 @@ describe("telemetry", () => {
       itemId: "item-ai",
       mode: "shares",
     });
+    await telemetry.trackItemSplitModeUsedOnce({
+      draftId: "draft-1",
+      itemId: "item-manual",
+      mode: "shares",
+    });
+    await telemetry.trackItemSplitModeUsedOnce({
+      draftId: "draft-1",
+      itemId: "item-manual",
+      mode: "shares",
+    });
 
     expect(mockLogEvent).toHaveBeenCalledWith("item_split_mode_used", {
       mode: "shares",
       method_origin: "ai_handover",
     });
+    expect(mockLogEvent).toHaveBeenCalledWith("item_split_mode_used", {
+      mode: "shares",
+      method_origin: "manual",
+    });
     const splitModeCalls = mockLogEvent.mock.calls.filter(
       (call: any[]) => call[0] === "item_split_mode_used",
-    );
-    expect(splitModeCalls).toHaveLength(1);
+    ) as any[][];
+    expect(splitModeCalls).toHaveLength(2);
+  });
+
+  it("clears per-draft telemetry memory after split completion", async () => {
+    const telemetry = loadTelemetryModule();
+    telemetry.rememberItemOrigins("draft-1", ["item-ai"], "ai_handover");
+
+    await telemetry.trackItemSplitModeUsedOnce({
+      draftId: "draft-1",
+      itemId: "item-ai",
+      mode: "shares",
+    });
+    await telemetry.trackSplitFlowCompleted({
+      draftId: "draft-1",
+      participantCount: 2,
+      itemCount: 1,
+      currency: "eur",
+    });
+    await telemetry.trackItemSplitModeUsedOnce({
+      draftId: "draft-1",
+      itemId: "item-after-reset",
+      mode: "shares",
+    });
+
+    expect(mockLogEvent).toHaveBeenCalledWith("split_flow_completed", {
+      participant_count: 2,
+      item_count: 1,
+      currency: "EUR",
+      had_ai_items: "yes",
+    });
+    const splitModeCalls = mockLogEvent.mock.calls.filter(
+      (call: any[]) => call[0] === "item_split_mode_used",
+    ) as any[][];
+    expect(splitModeCalls).toHaveLength(2);
+    expect(splitModeCalls[1]?.[1]).toEqual({
+      mode: "shares",
+      method_origin: "manual",
+    });
   });
 
   it("records crash errors with context safely", () => {
@@ -216,7 +267,7 @@ describe("telemetry", () => {
   it("supports disabling telemetry at runtime", async () => {
     const telemetry = loadTelemetryModule();
 
-    telemetry.setTelemetryEnabled(false);
+    await telemetry.setTelemetryEnabled(false);
     await telemetry.trackEvent("item_insertion_success", {
       method: "manual",
       item_count: 1,
@@ -227,5 +278,20 @@ describe("telemetry", () => {
 
     expect(mockLogEvent).not.toHaveBeenCalled();
     expect(mockRecordCrashError).not.toHaveBeenCalled();
+    expect(mockSetAnalyticsCollectionEnabled).toHaveBeenCalledWith(false);
+    expect(mockSetCrashlyticsCollectionEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("can re-enable telemetry after runtime disable", async () => {
+    const telemetry = loadTelemetryModule();
+
+    await telemetry.setTelemetryEnabled(false);
+    await telemetry.setTelemetryEnabled(true);
+    await telemetry.initializeTelemetry();
+
+    expect(mockSetAnalyticsCollectionEnabled).toHaveBeenCalledWith(false);
+    expect(mockSetAnalyticsCollectionEnabled).toHaveBeenCalledWith(true);
+    expect(mockSetCrashlyticsCollectionEnabled).toHaveBeenCalledWith(false);
+    expect(mockSetCrashlyticsCollectionEnabled).toHaveBeenCalledWith(true);
   });
 });

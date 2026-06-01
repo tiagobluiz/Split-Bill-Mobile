@@ -790,7 +790,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     let skippedDuplicateCount = 0;
     let importedCount = 0;
     let importedItemIds: string[] = [];
-    await withActiveRecord(set, get, (record) =>
+    const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
           (item) => item.name.trim() || item.price.trim(),
@@ -828,9 +828,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               ];
       }, { recomputeStatusOnValueChange: true }),
     );
-    const activeDraftId = get().activeRecordId;
-    if (activeDraftId && importedItemIds.length > 0) {
-      rememberItemOrigins(activeDraftId, importedItemIds, "ai_handover");
+    if (updatedRecord && importedItemIds.length > 0) {
+      rememberItemOrigins(updatedRecord.id, importedItemIds, "ai_handover");
     }
     return {
       warningCodes: [

@@ -121,7 +121,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                 return;
               }
               void trackSplitStepCompleted({
-                step: "overview",
+                step: "review",
                 draftStatus: record.status,
               });
               router.push(`/split/${draftId}/results`);

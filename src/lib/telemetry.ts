@@ -8,6 +8,7 @@ type SplitStepName =
   | "participants"
   | "payer"
   | "items"
+  | "review"
   | "overview"
   | "results";
 type SplitStatus = "draft" | "completed";
@@ -87,8 +88,30 @@ function normalizeCrashContext(context?: unknown) {
   }
 }
 
-export function setTelemetryEnabled(enabled: boolean) {
+export async function setTelemetryEnabled(enabled: boolean) {
   telemetryEnabled = enabled;
+
+  const analyticsInstance = getAnalyticsInstance();
+  const crashlyticsInstance = getCrashlyticsInstance();
+  if (!analyticsInstance || !crashlyticsInstance) {
+    if (!enabled) {
+      telemetryInitialized = false;
+    }
+    return;
+  }
+
+  try {
+    await Promise.all([
+      analyticsInstance.setAnalyticsCollectionEnabled(enabled),
+      crashlyticsInstance.setCrashlyticsCollectionEnabled(enabled),
+    ]);
+    telemetryInitialized = enabled;
+  } catch {
+    if (!enabled) {
+      telemetryInitialized = false;
+    }
+    // no-op: telemetry must never break app flow
+  }
 }
 
 export async function initializeTelemetry() {
@@ -221,12 +244,21 @@ export async function trackSplitFlowCompleted(params: {
   itemCount: number;
   currency: string;
 }) {
+  const hadAiItems = draftHasAiItems(params.draftId) ? "yes" : "no";
   await trackEvent("split_flow_completed", {
     participant_count: params.participantCount,
     item_count: params.itemCount,
     currency: params.currency.trim().toUpperCase(),
-    had_ai_items: draftHasAiItems(params.draftId) ? "yes" : "no",
+    had_ai_items: hadAiItems,
   });
+
+  itemOriginByDraftId.delete(params.draftId);
+  const draftPrefix = `${params.draftId}:`;
+  for (const key of trackedSplitModesByDraftId) {
+    if (key.startsWith(draftPrefix)) {
+      trackedSplitModesByDraftId.delete(key);
+    }
+  }
 }
 
 export async function trackItemSplitModeUsedOnce(params: {
@@ -234,15 +266,12 @@ export async function trackItemSplitModeUsedOnce(params: {
   itemId: string;
   mode: SplitModeName;
 }) {
-  const dedupeKey = `${params.draftId}:${params.mode}`;
+  const originMap = itemOriginByDraftId.get(params.draftId);
+  const methodOrigin = originMap?.get(params.itemId) ?? "manual";
+  const dedupeKey = `${params.draftId}:${params.mode}:${methodOrigin}`;
   if (trackedSplitModesByDraftId.has(dedupeKey)) {
     return;
   }
-
-  const originMap = itemOriginByDraftId.get(params.draftId);
-  const methodOrigin =
-    originMap?.get(params.itemId) ??
-    (draftHasAiItems(params.draftId) ? "ai_handover" : "manual");
 
   await trackEvent("item_split_mode_used", {
     mode: params.mode,

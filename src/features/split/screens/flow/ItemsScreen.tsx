@@ -171,10 +171,11 @@ const ITEM_CATEGORY_OPTIONS = [
 export function ItemsScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { removeItem, setStep } = useSplitStore(
+  const { removeItem, setStep, getActiveRecord } = useSplitStore(
     useShallow((state) => ({
       removeItem: state.removeItem,
       setStep: state.setStep,
+      getActiveRecord: state.getActiveRecord,
     })),
   );
   const [itemsNoticeMessages, setItemsNoticeMessages] = useState<string[]>([]);
@@ -475,9 +476,11 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       }
                     }
                     await setStep(5);
+                    const currentStatus =
+                      getActiveRecord()?.status ?? record.status;
                     await trackSplitStepCompleted({
                       step: "items",
-                      draftStatus: record.status,
+                      draftStatus: currentStatus,
                     });
                     const nextItem = getNextPendingSplitItem(
                       effectiveRecordForStep,
