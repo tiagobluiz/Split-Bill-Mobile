@@ -219,6 +219,48 @@ describe("telemetry", () => {
     });
   });
 
+  it("handles invalid origin inputs and keeps manual-only drafts out of AI attribution", async () => {
+    const telemetry = loadTelemetryModule();
+
+    telemetry.rememberItemOrigins("", ["ignored"], "manual");
+    telemetry.rememberItemOrigins("draft-manual", ["   "], "manual");
+    telemetry.rememberItemOrigins("draft-manual", ["item-1"], "manual");
+    telemetry.rememberItemOrigins("draft-manual", ["item-2"], "manual");
+    telemetry.syncDraftItemOrigins("   ", ["item-1"]);
+
+    await telemetry.trackSplitFlowCompleted({
+      draftId: "draft-manual",
+      participantCount: 2,
+      itemCount: 2,
+      currency: "eur",
+    });
+
+    expect(mockLogEvent).toHaveBeenCalledWith("split_flow_completed", {
+      participant_count: 2,
+      item_count: 2,
+      currency: "EUR",
+      had_ai_items: "no",
+    });
+  });
+
+  it("normalizes non-Error values and non-serializable crash context safely", () => {
+    const telemetry = loadTelemetryModule();
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    telemetry.recordError("string-failure", "string context");
+    telemetry.recordError({ any: "value" }, circular);
+
+    expect(mockCrashlyticsLog).toHaveBeenCalledWith("string context");
+    expect(mockCrashlyticsLog).toHaveBeenCalledWith("[object Object]");
+    expect(mockRecordCrashError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "string-failure" }),
+    );
+    expect(mockRecordCrashError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Unknown telemetry error" }),
+    );
+  });
+
   it("records crash errors with context safely", () => {
     const telemetry = loadTelemetryModule();
 
@@ -300,6 +342,23 @@ describe("telemetry", () => {
     expect(mockRecordCrashError).not.toHaveBeenCalled();
     expect(mockSetAnalyticsCollectionEnabled).toHaveBeenCalledWith(false);
     expect(mockSetCrashlyticsCollectionEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps runtime disable safe even if native toggle rejects", async () => {
+    const telemetry = loadTelemetryModule();
+    mockSetAnalyticsCollectionEnabled.mockRejectedValueOnce(
+      new Error("disable failed"),
+    );
+
+    await expect(telemetry.setTelemetryEnabled(false)).resolves.toBeUndefined();
+    await telemetry.trackEvent("item_insertion_success", {
+      method: "manual",
+      item_count: 1,
+      provider: "none",
+      import_mode: "none",
+    });
+
+    expect(mockLogEvent).not.toHaveBeenCalled();
   });
 
   it("can re-enable telemetry after runtime disable", async () => {
