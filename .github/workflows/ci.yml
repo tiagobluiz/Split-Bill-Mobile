@@ -78,7 +78,7 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm ci
-      - run: ./android/gradlew assembleRelease
+      - run: bash ./android/gradlew assembleRelease
 
   dependency-audit:
     runs-on: ubuntu-latest
