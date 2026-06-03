@@ -2,6 +2,7 @@ import "react-native-gesture-handler";
 import { useEffect, useState } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
@@ -123,6 +124,11 @@ export default function RootLayout() {
           language={fallbackSettings.language}
           humour={fallbackSettings.humour}
         >
+          <StatusBar
+            style="dark"
+            backgroundColor={PALETTE.surface}
+            translucent={false}
+          />
           <View style={{ flex: 1, backgroundColor: PALETTE.surface, paddingHorizontal: 24, justifyContent: "center" }}>
             <View style={{ gap: 20 }}>
               <View style={{ gap: 8 }}>
@@ -173,6 +179,11 @@ export default function RootLayout() {
         language={resolvedTranslationSettings.language}
         humour={resolvedTranslationSettings.humour}
       >
+        <StatusBar
+          style="dark"
+          backgroundColor={PALETTE.surface}
+          translucent={false}
+        />
         <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }} />
       </LocalizationProvider>
     </AppThemeProvider>
