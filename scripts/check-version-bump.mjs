@@ -145,6 +145,52 @@ function readJsonAtRef(ref, file) {
   return source ? JSON.parse(source) : null;
 }
 
+function normalizeVersionFile(file, source) {
+  if (file === "app.json") {
+    const parsed = JSON.parse(source);
+    if (parsed.expo) {
+      delete parsed.expo.version;
+      if (parsed.expo.android) {
+        delete parsed.expo.android.versionCode;
+      }
+    }
+    return JSON.stringify(parsed);
+  }
+
+  if (file === "package.json") {
+    const parsed = JSON.parse(source);
+    delete parsed.version;
+    return JSON.stringify(parsed);
+  }
+
+  if (file === "package-lock.json") {
+    const parsed = JSON.parse(source);
+    delete parsed.version;
+    if (parsed.packages?.[""]) {
+      delete parsed.packages[""].version;
+    }
+    return JSON.stringify(parsed);
+  }
+
+  if (file === "android/app/build.gradle") {
+    return source
+      .replace(/\bversionCode\s+\d+/g, "versionCode <version>")
+      .replace(/\bversionName\s+["'][^"']+["']/g, "versionName <version>");
+  }
+
+  return source;
+}
+
+function isOnlyReleaseMetadataChanged(base, file) {
+  const baseSource = readFileAtRef(base, file);
+  if (baseSource === null) {
+    return false;
+  }
+
+  const currentSource = fs.readFileSync(path.join(ROOT, file), "utf8");
+  return normalizeVersionFile(file, baseSource) === normalizeVersionFile(file, currentSource);
+}
+
 function compareSemver(left, right) {
   const leftParts = String(left).split(".").map((part) => Number(part));
   const rightParts = String(right).split(".").map((part) => Number(part));
@@ -209,7 +255,9 @@ if (consistencyErrors.length > 0) {
 
 const base = getComparisonBase();
 const changedFiles = getChangedFiles(base);
-const deploymentChanges = changedFiles.filter(isDeploymentImpacting);
+const deploymentChanges = changedFiles.filter(
+  (file) => isDeploymentImpacting(file) || (base && VERSION_FILES.has(file) && !isOnlyReleaseMetadataChanged(base, file)),
+);
 const versionChanges = changedFiles.filter((file) => VERSION_FILES.has(file));
 
 if (base && deploymentChanges.length > 0 && versionChanges.length === 0) {
