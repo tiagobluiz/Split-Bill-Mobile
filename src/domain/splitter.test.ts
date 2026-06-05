@@ -130,7 +130,8 @@ describe("splitter domain", () => {
     expect(formatMoney(1234, "PTS", "en-US")).toMatch(/PTS\s?12\.34/);
     expect(formatMoneyTrailingSymbol(1234, "PTS", "en-US")).toBe("12.34PTS");
     expect(createDefaultPercentValues(0)).toEqual([]);
-    expect(createDefaultPercentValues(3)).toEqual(["33.34", "33.33", "33.33"]);
+    expect(createDefaultPercentValues(2)).toEqual(["50", "50"]);
+    expect(createDefaultPercentValues(3)).toEqual(["0", "0", "0"]);
     expect(createAllocation("ana")).toEqual({
       participantId: "ana",
       evenIncluded: false,
@@ -193,7 +194,7 @@ describe("splitter domain", () => {
         { id: "zoe", name: "Zoe" },
       ]
     );
-    expect(percentSynced[0].allocations.map((allocation) => allocation.percent)).toEqual(["33.34", "33.33", "33.33"]);
+    expect(percentSynced[0].allocations.map((allocation) => allocation.percent)).toEqual(["0", "0", "0"]);
     expect(percentSynced[0].allocations.every((allocation) => allocation.percentLocked === false)).toBe(true);
   });
 
@@ -351,7 +352,10 @@ describe("splitter domain", () => {
         "ana",
         "60"
       )
-    ).toBeNull();
+    ).toEqual([
+      { participantId: "ana", evenIncluded: true, shares: "1", percent: "60", percentLocked: true },
+      { participantId: "bruno", evenIncluded: true, shares: "1", percent: "40", percentLocked: false },
+    ]);
     expect(rebalancePercentAllocations(percentFixture.initialAllocations, "ana", "-1")).toBeNull();
     expect(
       rebalancePercentAllocations(
@@ -361,6 +365,19 @@ describe("splitter domain", () => {
         ],
         "ana",
         "60"
+      )
+    ).toEqual([
+      { participantId: "ana", evenIncluded: true, shares: "1", percent: "60", percentLocked: true },
+      { participantId: "bruno", evenIncluded: true, shares: "1", percent: "40", percentLocked: false },
+    ]);
+    expect(
+      rebalancePercentAllocations(
+        [
+          { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+        ],
+        "ana",
+        "101"
       )
     ).toBeNull();
     expect(

@@ -263,6 +263,10 @@ export function createDefaultPercentValues(participantCount: number) {
     return [];
   }
 
+  if (participantCount > 2) {
+    return Array.from({ length: participantCount }, () => "0");
+  }
+
   const totalBasisPoints = 10_000;
   const base = Math.floor(totalBasisPoints / participantCount);
   const remainder = totalBasisPoints - base * participantCount;
@@ -324,6 +328,29 @@ export function rebalancePercentAllocations(
       }
       return sum + Math.round(currentPercent * 100);
     }, 0);
+
+  if (changedBasisPoints > 10_000) {
+    return null;
+  }
+
+  if (allocations.length === 2) {
+    const remainingBasisPoints = 10_000 - changedBasisPoints;
+    return allocations.map((allocation) => {
+      if (allocation.participantId === changedParticipantId) {
+        return {
+          ...allocation,
+          percent: formatPercentFromBasisPoints(changedBasisPoints),
+          percentLocked: true,
+        };
+      }
+
+      return {
+        ...allocation,
+        percent: formatPercentFromBasisPoints(remainingBasisPoints),
+        percentLocked: false,
+      };
+    });
+  }
 
   if (fixedBasisPoints + changedBasisPoints > 10_000) {
     return null;
