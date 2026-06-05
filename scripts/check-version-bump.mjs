@@ -27,6 +27,23 @@ function canResolve(ref) {
   }
 }
 
+function getPushBeforeSha() {
+  if (process.env.GITHUB_EVENT_BEFORE && canResolve(process.env.GITHUB_EVENT_BEFORE)) {
+    return process.env.GITHUB_EVENT_BEFORE;
+  }
+
+  if (!process.env.GITHUB_EVENT_PATH || !fs.existsSync(process.env.GITHUB_EVENT_PATH)) {
+    return null;
+  }
+
+  try {
+    const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+    return event.before && canResolve(event.before) ? event.before : null;
+  } catch {
+    return null;
+  }
+}
+
 function getComparisonBase() {
   if (process.env.VERSION_POLICY_BASE) {
     return process.env.VERSION_POLICY_BASE;
@@ -34,6 +51,11 @@ function getComparisonBase() {
 
   if (process.env.GITHUB_BASE_REF) {
     return `origin/${process.env.GITHUB_BASE_REF}`;
+  }
+
+  const pushBeforeSha = getPushBeforeSha();
+  if (pushBeforeSha) {
+    return pushBeforeSha;
   }
 
   if (canResolve("origin/main")) {

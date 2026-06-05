@@ -182,7 +182,7 @@ export function rebalanceEditablePercentAllocations(
         return {
           ...allocation,
           percent: formatPercentValue(changedBasisPoints / 100),
-          percentLocked: false,
+          percentLocked: true,
         };
       }
 
