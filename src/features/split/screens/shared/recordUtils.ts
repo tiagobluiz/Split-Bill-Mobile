@@ -171,6 +171,29 @@ export function rebalanceEditablePercentAllocations(
       : Math.min(requestedBasisPoints, maxAssignableBasisPoints)
     : requestedBasisPoints;
 
+  if (changedBasisPoints > 10_000) {
+    return null;
+  }
+
+  if (allocations.length === 2) {
+    const remainingBasisPoints = 10_000 - changedBasisPoints;
+    return allocations.map((allocation) => {
+      if (allocation.participantId === changedParticipantId) {
+        return {
+          ...allocation,
+          percent: formatPercentValue(changedBasisPoints / 100),
+          percentLocked: true,
+        };
+      }
+
+      return {
+        ...allocation,
+        percent: formatPercentValue(remainingBasisPoints / 100),
+        percentLocked: false,
+      };
+    });
+  }
+
   if (changedBasisPoints > maxAssignableBasisPoints) {
     return null;
   }

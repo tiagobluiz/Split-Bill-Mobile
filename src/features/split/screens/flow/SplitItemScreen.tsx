@@ -401,23 +401,37 @@ export function SplitItemScreen({
 
   const finalizeWorkingPercentValue = (participantId: string) => {
     let didNormalizeTrailingSeparator = false;
-    updateWorkingAllocations((allocations) =>
-      allocations.map((allocation) => {
-        if (allocation.participantId !== participantId) {
-          return allocation;
-        }
+    updateWorkingAllocations((allocations) => {
+      const currentAllocation = allocations.find(
+        (allocation) => allocation.participantId === participantId,
+      );
+      if (
+        !currentAllocation ||
+        !hasTrailingPercentSeparator(currentAllocation.percent)
+      ) {
+        return allocations;
+      }
 
-        if (!hasTrailingPercentSeparator(allocation.percent)) {
-          return allocation;
-        }
+      didNormalizeTrailingSeparator = true;
+      const normalizedValue = normalizeCommittedPercentValue(
+        currentAllocation.percent,
+      );
+      const nextAllocations = rebalanceEditablePercentAllocations(
+        allocations,
+        participantId,
+        normalizedValue,
+      );
 
-        didNormalizeTrailingSeparator = true;
-        return {
-          ...allocation,
-          percent: normalizeCommittedPercentValue(allocation.percent),
-        };
-      }),
-    );
+      if (nextAllocations) {
+        return nextAllocations;
+      }
+
+      return allocations.map((allocation) =>
+        allocation.participantId === participantId
+          ? { ...allocation, percent: normalizedValue }
+          : allocation,
+      );
+    });
 
     if (didNormalizeTrailingSeparator) {
       setSplitNoticeMessages([]);

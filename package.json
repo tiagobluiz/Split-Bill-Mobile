@@ -1,6 +1,6 @@
 {
   "name": "split-bill-mobile",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -10,6 +10,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
+    "check:version": "node scripts/check-version-bump.mjs",
     "check:max-lines": "node scripts/check-max-lines.mjs",
     "check:architecture": "node scripts/check-architecture-boundaries.mjs",
     "lint": "eslint app src scripts --max-warnings=0 && npm run check:max-lines",
