@@ -108,6 +108,7 @@ function isDeploymentImpacting(file) {
   return [
     "babel.config.js",
     "eas.json",
+    "google-services.json",
     "metro.config.js",
     "react-native.config.js",
     "tamagui.config.ts",
