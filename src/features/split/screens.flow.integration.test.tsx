@@ -2498,6 +2498,42 @@ describe("split screens", () => {
     });
   });
 
+  it("rebalances the other person when a two-person trailing decimal percent is committed", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          participants: [
+            { id: "ana", name: "Ana" },
+            { id: "bruno", name: "Bruno" },
+          ],
+          items: [
+            {
+              ...buildRecord().values.items[0],
+              splitMode: "percent",
+              allocations: [
+                { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+                { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+              ],
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
+    fireEvent.changeText(screen.getByLabelText("Percent for Ana"), "70.");
+    expect(screen.getByLabelText("Percent for Ana").props.value).toBe("70.");
+    expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("50");
+    fireEvent(screen.getByLabelText("Percent for Ana"), "blur");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Percent for Ana").props.value).toBe("70");
+      expect(screen.getByLabelText("Percent for Bruno").props.value).toBe("30");
+      expect(screen.getByText("100%")).toBeTruthy();
+    });
+  });
+
   it("uses ALL to fill only the missing percent across currently excluded people", async () => {
     mockStoreState.records = [
       buildRecord({
