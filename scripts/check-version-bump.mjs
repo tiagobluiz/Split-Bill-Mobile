@@ -81,7 +81,11 @@ function getChangedFiles(base) {
 }
 
 function isTestFile(file) {
-  return /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) || file.includes("/__tests__/");
+  return (
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) ||
+    file.includes("/__tests__/") ||
+    file.startsWith("src/test/")
+  );
 }
 
 function isDeploymentImpacting(file) {
