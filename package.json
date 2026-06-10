@@ -80,5 +80,8 @@
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.60.0"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "shell-quote": "1.8.4"
+  }
 }
