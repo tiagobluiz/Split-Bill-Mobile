@@ -63,7 +63,6 @@ export const homeStyles = {
       flex: 1,
     },
   homeBalanceCardContent: {
-      minHeight: 74,
       justifyContent: "flex-start",
       gap: 18,
     },
