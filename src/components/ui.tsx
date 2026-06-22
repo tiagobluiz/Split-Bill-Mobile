@@ -126,8 +126,24 @@ export function HeroCard({
   );
 }
 
-export function SectionCard({ children, soft = false }: PropsWithChildren<{ soft?: boolean }>) {
-  return <YStack backgroundColor={soft ? PALETTE.surfaceContainerLow : PALETTE.surfaceContainerLowest} padding="$5" borderRadius={24} gap="$4" style={soft ? undefined : styles.cardShadow}>{children}</YStack>;
+export function SectionCard({
+  children,
+  soft = false,
+  fill = false,
+  testID,
+}: PropsWithChildren<{ soft?: boolean; fill?: boolean; testID?: string }>) {
+  return (
+    <YStack
+      testID={testID}
+      backgroundColor={soft ? PALETTE.surfaceContainerLow : PALETTE.surfaceContainerLowest}
+      padding="$5"
+      borderRadius={24}
+      gap="$4"
+      style={[soft ? undefined : styles.cardShadow, fill ? styles.fill : undefined]}
+    >
+      {children}
+    </YStack>
+  );
 }
 
 export function SectionEyebrow({ children }: PropsWithChildren) {
@@ -414,6 +430,9 @@ export function EmptyState({
 }
 
 export const styles = StyleSheet.create({
+  fill: {
+    flexGrow: 1,
+  },
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: PALETTE.surface },
   scrollContent: {
