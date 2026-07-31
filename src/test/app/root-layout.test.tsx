@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 const mockUseFonts = jest.fn();
 const mockListeners = new Set<() => void>();
 const mockRouterPush = jest.fn();
+const mockStack = jest.fn((_props: any) => {
+  const { Text } = require("react-native");
+  return <Text>stack</Text>;
+});
 const mockRemoveNotificationSubscription = jest.fn();
 const mockGetLastNotificationResponseAsync = jest.fn<Promise<any>, []>(
   async () => null,
@@ -48,10 +52,7 @@ jest.mock("expo-router", () => ({
   router: {
     push: (value: string) => mockRouterPush(value),
   },
-  Stack: () => {
-    const { Text } = require("react-native");
-    return <Text>stack</Text>;
-  },
+  Stack: (props: any) => mockStack(props),
 }));
 
 jest.mock("expo-notifications", () => ({
@@ -94,6 +95,7 @@ describe("root layout", () => {
     splashScreen.hideAsync.mockReset();
     mockUseFonts.mockReset();
     mockRouterPush.mockReset();
+    mockStack.mockClear();
     mockRemoveNotificationSubscription.mockReset();
     mockGetLastNotificationResponseAsync.mockReset();
     mockAddNotificationResponseReceivedListener.mockReset();
@@ -126,6 +128,9 @@ describe("root layout", () => {
     render(<RootLayout />);
 
     expect(screen.getByText("stack")).toBeTruthy();
+    expect(mockStack).toHaveBeenCalledWith({
+      screenOptions: { headerShown: false },
+    });
     await waitFor(() => {
       expect(splashScreen.hideAsync).toHaveBeenCalledTimes(1);
     });

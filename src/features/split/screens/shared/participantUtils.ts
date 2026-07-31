@@ -16,6 +16,8 @@ const CURRENCY_OPTIONS = [
   { code: "BRL", label: "Brazilian Real (R$)" },
 ] as const;
 
+const FREQUENT_FRIEND_LIMIT = 15;
+
 function normalizeName(value = "") {
   return value.trim().toLowerCase();
 }
@@ -93,7 +95,6 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
   const candidates = new Map<string, {
     name: string;
     count: number;
-    latestUpdatedAt: string;
     background: string;
     foreground: string;
   }>();
@@ -115,14 +116,10 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
       const existing = candidates.get(key);
       if (existing) {
         existing.count += 1;
-        if (record.updatedAt.localeCompare(existing.latestUpdatedAt) > 0) {
-          existing.latestUpdatedAt = record.updatedAt;
-        }
       } else {
         candidates.set(key, {
           name: trimmed,
           count: 1,
-          latestUpdatedAt: record.updatedAt,
           background: "",
           foreground: "",
         });
@@ -134,18 +131,13 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
 
   const mapped = [...candidates.values()]
     .sort((left, right) => {
-      const latestComparison = right.latestUpdatedAt.localeCompare(left.latestUpdatedAt);
-      if (latestComparison !== 0) {
-        return latestComparison;
-      }
-
       if (right.count !== left.count) {
         return right.count - left.count;
       }
 
       return left.name.localeCompare(right.name);
     })
-    .slice(0, 5)
+    .slice(0, FREQUENT_FRIEND_LIMIT)
     .map((entry) => {
       const color = getAvatarTone(entry.name);
       return {
@@ -173,5 +165,5 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
     .filter((entry) => !isOwnerReference(entry.name, trimmedOwnerName))
     .map((entry) => ({ ...entry, selected: false }));
 
-  return [ownerEntry, ...withoutOwner].slice(0, 5);
+  return [ownerEntry, ...withoutOwner].slice(0, FREQUENT_FRIEND_LIMIT);
 }

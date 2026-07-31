@@ -288,6 +288,29 @@ function normalizeActiveRecordMutation(
   return nextRecord;
 }
 
+function normalizeActiveSettlementMutation(
+  record: DraftRecord,
+  mutator: (draft: DraftRecord) => void,
+) {
+  const nextRecord = cloneDeep(record);
+  if (!nextRecord.settlementState) {
+    nextRecord.settlementState = {
+      settledParticipantIds: [],
+    };
+  }
+  nextRecord.reminderState = normalizeReminderState(nextRecord.reminderState);
+  mutator(nextRecord);
+  const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
+  nextRecord.settlementState = {
+    settledParticipantIds: (
+      nextRecord.settlementState?.settledParticipantIds ?? []
+    ).filter((participantId) => validSettledIds.has(participantId)),
+  };
+  nextRecord.reminderState = pruneReminderState(nextRecord);
+  nextRecord.updatedAt = nowIso();
+  return nextRecord;
+}
+
 function ensureItemsAligned(values: DraftRecord["values"]) {
   return {
     ...values,
@@ -366,6 +389,48 @@ async function withActiveRecord(
     records: nextRecords(get().records, nextRecord),
   });
   await persistRecord(nextRecord);
+  return nextRecord;
+}
+
+async function withOptimisticActiveRecord(
+  set: (partial: Partial<SplitStore>) => void,
+  get: () => SplitStore,
+  mutator: (record: DraftRecord) => DraftRecord,
+) {
+  const active = get().getActiveRecord();
+  if (!active) {
+    return null;
+  }
+
+  const nextRecord = mutator(active);
+  const currentIds = listReminderNotificationIds(active.reminderState);
+  const nextIds = listReminderNotificationIds(nextRecord.reminderState);
+  const removedNotificationIds = [...currentIds].filter((id) => !nextIds.has(id));
+  const nextRecordUpdatedAt = nextRecord.updatedAt;
+
+  set({
+    activeRecordId: nextRecord.id,
+    records: nextRecords(get().records, nextRecord),
+  });
+
+  try {
+    await Promise.allSettled(
+      removedNotificationIds.map((notificationId) =>
+        cancelReminder(notificationId),
+      ),
+    );
+    await persistRecord(nextRecord);
+  } catch (error) {
+    const current = get().records.find((record) => record.id === nextRecord.id);
+    if (current?.updatedAt === nextRecordUpdatedAt) {
+      set({
+        activeRecordId: active.id,
+        records: nextRecords(get().records, active),
+      });
+    }
+    throw error;
+  }
+
   return nextRecord;
 }
 
@@ -568,7 +633,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async setPayer(participantId) {
-    await withActiveRecord(set, get, (record) =>
+    await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.payerParticipantId = participantId;
       }, { recomputeStatusOnValueChange: true }),
@@ -865,8 +930,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     };
   },
   async markBillPaid() {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = getSettledDebtorIds(
           draft.values,
         );
@@ -875,15 +940,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async revertBillPaid() {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = [];
       }),
     );
   },
   async toggleParticipantPaid(participantId) {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         const debtorIds = new Set(getSettledDebtorIds(draft.values));
         if (!debtorIds.has(participantId)) {
           return;

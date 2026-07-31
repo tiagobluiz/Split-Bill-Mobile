@@ -184,7 +184,7 @@ export default function RootLayout() {
           backgroundColor={PALETTE.surface}
           translucent={false}
         />
-        <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack screenOptions={{ headerShown: false }} />
       </LocalizationProvider>
     </AppThemeProvider>
   );
