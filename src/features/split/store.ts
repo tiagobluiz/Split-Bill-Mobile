@@ -364,8 +364,7 @@ function renameOwnerReferences(
   return nextRecord;
 }
 
-async function withActiveRecord(
-  set: (partial: Partial<SplitStore>) => void,
+function getActiveRecordMutation(
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
 ) {
@@ -377,8 +376,25 @@ async function withActiveRecord(
   const nextRecord = mutator(active);
   const currentIds = listReminderNotificationIds(active.reminderState);
   const nextIds = listReminderNotificationIds(nextRecord.reminderState);
-  const removedNotificationIds = [...currentIds]
-    .filter((id) => !nextIds.has(id));
+
+  return {
+    active,
+    nextRecord,
+    removedNotificationIds: [...currentIds].filter((id) => !nextIds.has(id)),
+  };
+}
+
+async function withActiveRecord(
+  set: (partial: Partial<SplitStore>) => void,
+  get: () => SplitStore,
+  mutator: (record: DraftRecord) => DraftRecord,
+) {
+  const mutation = getActiveRecordMutation(get, mutator);
+  if (!mutation) {
+    return null;
+  }
+
+  const { nextRecord, removedNotificationIds } = mutation;
   await Promise.allSettled(
     removedNotificationIds.map((notificationId) =>
       cancelReminder(notificationId),
@@ -397,34 +413,29 @@ async function withOptimisticActiveRecord(
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
 ) {
-  const active = get().getActiveRecord();
-  if (!active) {
+  const mutation = getActiveRecordMutation(get, mutator);
+  if (!mutation) {
     return null;
   }
 
-  const nextRecord = mutator(active);
-  const currentIds = listReminderNotificationIds(active.reminderState);
-  const nextIds = listReminderNotificationIds(nextRecord.reminderState);
-  const removedNotificationIds = [...currentIds].filter((id) => !nextIds.has(id));
+  const { active, nextRecord, removedNotificationIds } = mutation;
   const nextRecordUpdatedAt = nextRecord.updatedAt;
 
   set({
-    activeRecordId: nextRecord.id,
     records: nextRecords(get().records, nextRecord),
   });
 
   try {
+    await persistRecord(nextRecord);
     await Promise.allSettled(
       removedNotificationIds.map((notificationId) =>
         cancelReminder(notificationId),
       ),
     );
-    await persistRecord(nextRecord);
   } catch (error) {
     const current = get().records.find((record) => record.id === nextRecord.id);
     if (current?.updatedAt === nextRecordUpdatedAt) {
       set({
-        activeRecordId: active.id,
         records: nextRecords(get().records, active),
       });
     }
