@@ -90,6 +90,16 @@ function createRecord(overrides: Partial<any> = {}) {
   };
 }
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 async function loadStore(options?: {
   listRecords?: any[];
   recordById?: any | null;
@@ -605,6 +615,38 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("solo");
   });
 
+  it("optimistically updates payer selection before persistence finishes", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    const saveDeferred = createDeferred();
+    storageMocks.saveRecord.mockImplementationOnce(() => saveDeferred.promise);
+
+    const updatePromise = storeModule.useSplitStore.getState().setPayer("bruno");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("bruno");
+
+    saveDeferred.resolve();
+    await updatePromise;
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          payerParticipantId: "bruno",
+        }),
+      }),
+    );
+  });
+
+  it("rolls back optimistic payer selection when persistence fails", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    const saveError = new Error("write failed");
+    storageMocks.saveRecord.mockRejectedValueOnce(saveError);
+
+    await expect(
+      storeModule.useSplitStore.getState().setPayer("bruno"),
+    ).rejects.toThrow("write failed");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("ana");
+  });
+
   it("creates, updates, and removes items on the active record", async () => {
     const { storeModule, storageMocks } = await loadReadyStore();
     await storeModule.useSplitStore.getState().createItem({
@@ -855,6 +897,124 @@ describe("split store", () => {
 
     await storeModule.useSplitStore.getState().revertBillPaid();
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+  });
+
+  it("optimistically updates participant paid state before persistence finishes", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    const saveDeferred = createDeferred();
+    storageMocks.saveRecord.mockImplementationOnce(() => saveDeferred.promise);
+
+    const updatePromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+
+    saveDeferred.resolve();
+    await updatePromise;
+  });
+
+  it("optimistically marks and reverts the bill paid before persistence finishes", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    const markSave = createDeferred();
+    const revertSave = createDeferred();
+    storageMocks.saveRecord
+      .mockImplementationOnce(() => markSave.promise)
+      .mockImplementationOnce(() => revertSave.promise);
+
+    const markPromise = storeModule.useSplitStore.getState().markBillPaid();
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+
+    markSave.resolve();
+    await markPromise;
+
+    const revertPromise = storeModule.useSplitStore.getState().revertBillPaid();
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+
+    revertSave.resolve();
+    await revertPromise;
+  });
+
+  it("rolls back optimistic participant paid state when persistence fails", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    storageMocks.saveRecord.mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(
+      storeModule.useSplitStore.getState().toggleParticipantPaid("bruno"),
+    ).rejects.toThrow("write failed");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+  });
+
+  it("does not cancel removed reminders when optimistic persistence fails", async () => {
+    const record = createRecord({
+      reminderState: {
+        participantDebtReminders: {
+          bruno: {
+            notificationId: "participant-reminder",
+            scheduledForIso: "2099-01-01T10:00:00.000Z",
+            createdAt: "2026-04-04T10:00:00.000Z",
+            updatedAt: "2026-04-04T10:00:00.000Z",
+          },
+        },
+      },
+    });
+    const { storeModule, storageMocks, reminderMocks } = await loadReadyStore({ record });
+    storageMocks.saveRecord.mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(
+      storeModule.useSplitStore.getState().toggleParticipantPaid("bruno"),
+    ).rejects.toThrow("write failed");
+
+    expect(reminderMocks.cancelReminder).not.toHaveBeenCalled();
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toEqual(
+      expect.objectContaining({
+        notificationId: "participant-reminder",
+      }),
+    );
+  });
+
+  it("keeps a newer optimistic mutation when an older persistence call fails", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-04-04T10:00:00.000Z"));
+    try {
+      const { storeModule, storageMocks } = await loadReadyStore();
+      const firstSave = createDeferred();
+      storageMocks.saveRecord
+        .mockImplementationOnce(() => firstSave.promise)
+        .mockResolvedValueOnce(undefined);
+
+      const firstPromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+
+      jest.setSystemTime(new Date("2026-04-04T10:00:01.000Z"));
+      await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+
+      firstSave.reject(new Error("stale write failed"));
+      await expect(firstPromise).rejects.toThrow("stale write failed");
+
+      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not change activeRecordId when rolling back optimistic content", async () => {
+    const firstRecord = createRecord({ id: "draft-first" });
+    const secondRecord = createRecord({ id: "draft-second" });
+    const { storeModule, storageMocks } = await loadReadyStore({
+      record: firstRecord,
+      listRecords: [firstRecord, secondRecord],
+    });
+    storageMocks.saveRecord.mockRejectedValueOnce(new Error("write failed"));
+
+    const updatePromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+    storeModule.useSplitStore.setState({ activeRecordId: "draft-second" });
+
+    await expect(updatePromise).rejects.toThrow("write failed");
+
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("draft-second");
   });
 
   it("sets and clears split reminders for a specific record", async () => {

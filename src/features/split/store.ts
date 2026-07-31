@@ -288,6 +288,29 @@ function normalizeActiveRecordMutation(
   return nextRecord;
 }
 
+function normalizeActiveSettlementMutation(
+  record: DraftRecord,
+  mutator: (draft: DraftRecord) => void,
+) {
+  const nextRecord = cloneDeep(record);
+  if (!nextRecord.settlementState) {
+    nextRecord.settlementState = {
+      settledParticipantIds: [],
+    };
+  }
+  nextRecord.reminderState = normalizeReminderState(nextRecord.reminderState);
+  mutator(nextRecord);
+  const validSettledIds = new Set(getSettledDebtorIds(nextRecord.values));
+  nextRecord.settlementState = {
+    settledParticipantIds: (
+      nextRecord.settlementState?.settledParticipantIds ?? []
+    ).filter((participantId) => validSettledIds.has(participantId)),
+  };
+  nextRecord.reminderState = pruneReminderState(nextRecord);
+  nextRecord.updatedAt = nowIso();
+  return nextRecord;
+}
+
 function ensureItemsAligned(values: DraftRecord["values"]) {
   return {
     ...values,
@@ -341,8 +364,7 @@ function renameOwnerReferences(
   return nextRecord;
 }
 
-async function withActiveRecord(
-  set: (partial: Partial<SplitStore>) => void,
+function getActiveRecordMutation(
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
 ) {
@@ -354,8 +376,25 @@ async function withActiveRecord(
   const nextRecord = mutator(active);
   const currentIds = listReminderNotificationIds(active.reminderState);
   const nextIds = listReminderNotificationIds(nextRecord.reminderState);
-  const removedNotificationIds = [...currentIds]
-    .filter((id) => !nextIds.has(id));
+
+  return {
+    active,
+    nextRecord,
+    removedNotificationIds: [...currentIds].filter((id) => !nextIds.has(id)),
+  };
+}
+
+async function withActiveRecord(
+  set: (partial: Partial<SplitStore>) => void,
+  get: () => SplitStore,
+  mutator: (record: DraftRecord) => DraftRecord,
+) {
+  const mutation = getActiveRecordMutation(get, mutator);
+  if (!mutation) {
+    return null;
+  }
+
+  const { nextRecord, removedNotificationIds } = mutation;
   await Promise.allSettled(
     removedNotificationIds.map((notificationId) =>
       cancelReminder(notificationId),
@@ -366,6 +405,43 @@ async function withActiveRecord(
     records: nextRecords(get().records, nextRecord),
   });
   await persistRecord(nextRecord);
+  return nextRecord;
+}
+
+async function withOptimisticActiveRecord(
+  set: (partial: Partial<SplitStore>) => void,
+  get: () => SplitStore,
+  mutator: (record: DraftRecord) => DraftRecord,
+) {
+  const mutation = getActiveRecordMutation(get, mutator);
+  if (!mutation) {
+    return null;
+  }
+
+  const { active, nextRecord, removedNotificationIds } = mutation;
+  const nextRecordUpdatedAt = nextRecord.updatedAt;
+
+  set({
+    records: nextRecords(get().records, nextRecord),
+  });
+
+  try {
+    await persistRecord(nextRecord);
+    await Promise.allSettled(
+      removedNotificationIds.map((notificationId) =>
+        cancelReminder(notificationId),
+      ),
+    );
+  } catch (error) {
+    const current = get().records.find((record) => record.id === nextRecord.id);
+    if (current?.updatedAt === nextRecordUpdatedAt) {
+      set({
+        records: nextRecords(get().records, active),
+      });
+    }
+    throw error;
+  }
+
   return nextRecord;
 }
 
@@ -568,7 +644,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async setPayer(participantId) {
-    await withActiveRecord(set, get, (record) =>
+    await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.payerParticipantId = participantId;
       }, { recomputeStatusOnValueChange: true }),
@@ -865,8 +941,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     };
   },
   async markBillPaid() {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = getSettledDebtorIds(
           draft.values,
         );
@@ -875,15 +951,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async revertBillPaid() {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = [];
       }),
     );
   },
   async toggleParticipantPaid(participantId) {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
+    await withOptimisticActiveRecord(set, get, (record) =>
+      normalizeActiveSettlementMutation(record, (draft) => {
         const debtorIds = new Set(getSettledDebtorIds(draft.values));
         if (!debtorIds.has(participantId)) {
           return;

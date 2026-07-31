@@ -613,6 +613,12 @@ describe("split screens", () => {
             { id: "sarah", name: "Sarah" },
             { id: "david", name: "David" },
             { id: "maya", name: "Maya" },
+            { id: "olivia", name: "Olivia" },
+            { id: "peter", name: "Peter" },
+            { id: "quinn", name: "Quinn" },
+            { id: "rachel", name: "Rachel" },
+            { id: "sam", name: "Sam" },
+            { id: "uma", name: "Uma" },
           ],
         },
       }),
@@ -626,8 +632,12 @@ describe("split screens", () => {
             { id: "marcus", name: "Marcus" },
             { id: "sarah-duplicate", name: "Sarah" },
             { id: "blank", name: "   " },
-            { id: "zoe", name: "Zoe" },
             { id: "nora", name: "Nora" },
+            { id: "oscar", name: "Oscar" },
+            { id: "paula", name: "Paula" },
+            { id: "ravi", name: "Ravi" },
+            { id: "stella", name: "Stella" },
+            { id: "zoe", name: "Zoe" },
           ],
         },
       }),
@@ -641,14 +651,15 @@ describe("split screens", () => {
         .map((node: any) => node.props.accessibilityLabel)
     ));
     expect(labels[0]).toBe("Add frequent friend Tiago");
+    expect(labels).toHaveLength(15);
     expect(screen.getByText("Tiago")).toBeTruthy();
-    expect(screen.getByText("Sarah")).toBeTruthy();
     expect(screen.getByText("David")).toBeTruthy();
-    expect(screen.getByText("Maya")).toBeTruthy();
+    expect(screen.getByText("Sarah")).toBeTruthy();
     expect(screen.getByText("Elena")).toBeTruthy();
-    expect(screen.queryByText("Marcus")).toBeNull();
+    expect(screen.getByText("Marcus")).toBeTruthy();
+    expect(screen.getByText("Sam")).toBeTruthy();
+    expect(screen.queryByLabelText("Add frequent friend Stella")).toBeNull();
     expect(screen.queryByLabelText("Add frequent friend Zoe")).toBeNull();
-    expect(screen.queryByLabelText("Add frequent friend Nora")).toBeNull();
   });
 
   it("injects the phone owner into frequent friends when missing from history", () => {
@@ -695,7 +706,7 @@ describe("split screens", () => {
     expect(screen.queryByLabelText("Add frequent friend ")).toBeNull();
   });
 
-  it("orders frequent friends by most recent appearance, then appearance count, then alphabetical", () => {
+  it("orders frequent friends by appearance count, then alphabetical", () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -706,7 +717,7 @@ describe("split screens", () => {
       }),
       buildRecord({
         id: "draft-count-tie-break-a",
-        updatedAt: "2026-04-03T09:00:00.000Z",
+        updatedAt: "2026-04-01T09:00:00.000Z",
         values: {
           ...buildRecord().values,
           participants: [
@@ -725,7 +736,7 @@ describe("split screens", () => {
       }),
       buildRecord({
         id: "draft-count-tie-break-b",
-        updatedAt: "2026-04-03T09:00:00.000Z",
+        updatedAt: "2026-04-02T09:00:00.000Z",
         values: {
           ...buildRecord().values,
           participants: [
@@ -745,6 +756,14 @@ describe("split screens", () => {
           ],
         },
       }),
+      buildRecord({
+        id: "draft-oldest-alex",
+        updatedAt: "2026-03-30T09:00:00.000Z",
+        values: {
+          ...buildRecord().values,
+          participants: [{ id: "alex-oldest", name: "Alex" }],
+        },
+      }),
     ];
 
     const view = render(<ParticipantsScreen draftId="draft-1" />);
@@ -756,9 +775,9 @@ describe("split screens", () => {
 
     expect(labels).toEqual([
       "Add frequent friend Alex",
-      "Add frequent friend Zoe",
       "Add frequent friend Bruno",
       "Add frequent friend Clara",
+      "Add frequent friend Zoe",
     ]);
   });
 
