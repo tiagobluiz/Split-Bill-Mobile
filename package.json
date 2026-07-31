@@ -1,6 +1,6 @@
 {
   "name": "split-bill-mobile",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -82,6 +82,8 @@
   },
   "private": true,
   "overrides": {
-    "shell-quote": "1.8.4"
+    "shell-quote": "1.8.4",
+    "tar": "7.5.22",
+    "websocket-driver": "0.7.5"
   }
 }
