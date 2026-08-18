@@ -7,6 +7,7 @@ import {
   createDefaultValues,
   createEmptyItem,
   createId,
+  ITEM_AMOUNT_MAX_CENTS,
   normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
@@ -39,7 +40,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
-import { getDefaultTranslationSettings } from "../../i18n";
+import { getDefaultTranslationSettings, t } from "../../i18n";
 import {
   cancelReminder,
   cancelReminderState,
@@ -898,6 +899,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     let importedCount = 0;
     let importedItemIds: string[] = [];
     let mergedExistingCount = 0;
+    const invalidMergeWarnings: Array<{ code: string; message: string }> = [];
     const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
@@ -921,7 +923,22 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           );
           if (existingMatch) {
             const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
-            existingMatch.price = formatMergedImportPrice(existingCents + amountCents);
+            const mergedCents = existingCents + amountCents;
+            if (mergedCents === 0) {
+              invalidMergeWarnings.push({
+                code: "invalid-merge-amount",
+                message: t("pasteImport.invalidMergeAmount", { item: trimName(item.name) }),
+              });
+              return;
+            }
+            if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+              invalidMergeWarnings.push({
+                code: "invalid-merge-amount-too-high",
+                message: t("pasteImport.invalidMergeAmountTooHigh", { item: trimName(item.name) }),
+              });
+              return;
+            }
+            existingMatch.price = formatMergedImportPrice(mergedCents);
             if (existingItems.some((existingItem) => existingItem.id === existingMatch.id)) {
               mergedExistingCount += 1;
             }
@@ -966,9 +983,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
+        ...invalidMergeWarnings.map((warning) => warning.code),
       ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
+        ...invalidMergeWarnings.map((warning) => warning.message),
       ],
       importedCount,
       skippedDuplicateCount: 0,

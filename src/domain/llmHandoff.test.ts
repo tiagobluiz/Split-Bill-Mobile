@@ -25,6 +25,9 @@ describe("llm handoff contract", () => {
     expect(buildReceiptLlmPrompt()).toContain("Item name - 2.49");
     expect(buildReceiptLlmPrompt()).toContain("Do not add commentary");
     expect(buildReceiptLlmPrompt()).toContain("Return exactly one item per line");
+    expect(buildReceiptLlmPrompt()).toContain(
+      "Keep the item name, including spaces and all characters, at most 54 characters",
+    );
   });
 
   it("translates the prompt when translation settings are provided", () => {
@@ -41,6 +44,9 @@ describe("llm handoff contract", () => {
     expect(prompt).toContain("Regras:");
     expect(prompt).toContain("Item name - 2.49");
     expect(prompt).toContain("Devolve exatamente um item por linha");
+    expect(prompt).toContain(
+      "Mantém o nome do item, incluindo espaços e todos os caracteres, no máximo 54 caracteres",
+    );
     expect(prompt).not.toContain("Do not add commentary");
   });
 });

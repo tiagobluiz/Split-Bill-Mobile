@@ -31,6 +31,7 @@ import { useTranslation } from "../../../../i18n/provider";
 import {
   createEmptyItem,
   formatMoney,
+  ITEM_AMOUNT_MAX_CENTS,
   ITEM_NAME_MAX_LENGTH,
   normalizeMoneyInput,
   parseMoneyToCents,
@@ -242,6 +243,11 @@ export function AssignItemScreen({
         return;
       }
 
+      if (!isNewItem && mergeCandidate) {
+        setAssignNoticeMessages([t("flow.itemDetail.duplicateItem")]);
+        return;
+      }
+
       if (isNewItem) {
         await createItem({
           ...item,
@@ -295,8 +301,19 @@ export function AssignItemScreen({
 
     try {
       const targetCents = parseMoneyToCents(targetItem.price) ?? 0;
+      const mergedCents = targetCents + parsedItemPriceCents;
+      if (mergedCents === 0) {
+        setMergeCandidateItemId("");
+        setAssignNoticeMessages([t("validation.itemAmountInvalid")]);
+        return;
+      }
+      if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+        setMergeCandidateItemId("");
+        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
+        return;
+      }
       const mergedPrice = normalizeMoneyInput(
-        ((targetCents + parsedItemPriceCents) / 100).toFixed(2),
+        (mergedCents / 100).toFixed(2),
       );
       await updateItemField(targetItem.id, "price", mergedPrice);
       await trackEvent("item_insertion_success", {

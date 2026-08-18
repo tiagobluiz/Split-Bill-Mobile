@@ -800,6 +800,31 @@ describe("split store", () => {
     expect(result.skippedDuplicateCount).toBe(0);
   });
 
+  it("leaves existing items unchanged when an import merge would create an invalid amount", async () => {
+    const record = createRecord();
+    const { storeModule } = await loadReadyStore({
+      record,
+      parseResult: {
+        items: [
+          { name: "milk", price: "-3.50" },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("invalid merge", "append");
+
+    const items = storeModule.useSplitStore.getState().getActiveRecord()?.values.items ?? [];
+    expect(items.find((item) => item.name === "Milk")?.price).toBe("3.50");
+    expect(result.importedCount).toBe(0);
+    expect(result.warningCodes).toContain("invalid-merge-amount");
+    expect(result.warningMessages).toContain(
+      "Could not merge milk because the combined amount would be zero.",
+    );
+  });
+
   it("sorts participants alphabetically while preserving ids and payer", async () => {
     const record = createRecord({
       values: {

@@ -100,10 +100,7 @@ export function renderSettlementPdfHtml(
   const totalCentsDisplay = convertCents(data.totalCents, totalRate);
   const payerPaidDisplay = convertCents(data.payer.paidCents, totalRate);
   const payerNetDisplay = convertCents(data.payer.netCents, totalRate);
-  const payerConsumedDisplay = convertCents(
-    Math.max(0, data.payer.paidCents - data.payer.netCents),
-    totalRate,
-  );
+  const payerConsumedDisplay = convertCents(data.payer.consumedCents, totalRate);
   const lang = getPdfDocumentLanguage(locale);
   const nonPayers = data.people.filter(
     (person) => !person.isPayer && person.netCents < 0,

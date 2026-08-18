@@ -40,9 +40,11 @@ const SPLIT_COMPACT_HEADER_ANIMATION_MS = 160;
 export function SplitItemScreen({
   draftId,
   itemId,
+  skippedItemIds = [],
 }: {
   draftId: string;
   itemId: string;
+  skippedItemIds?: string[];
 }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -60,7 +62,7 @@ export function SplitItemScreen({
   const [summaryBottomY, setSummaryBottomY] = useState(0);
   const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const skippedItemIdsRef = useRef<Set<string>>(new Set());
+  const skippedItemIdsRef = useRef<Set<string>>(new Set(skippedItemIds));
   const compactHeaderAnimatedValue = useRef(new Animated.Value(0)).current;
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
@@ -113,6 +115,10 @@ export function SplitItemScreen({
     setIsCompactHeaderVisible(false);
   }, [itemId]);
 
+  useEffect(() => {
+    skippedItemIdsRef.current = new Set(skippedItemIds);
+  }, [itemId, skippedItemIds]);
+
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -150,7 +156,10 @@ export function SplitItemScreen({
   });
   const isSplitReady = splitErrors.length === 0;
   const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
-  const canSkipItem = !skippedItemIdsRef.current.has(item.id);
+  const canSkipItem =
+    isVisibleItem(item) &&
+    !isItemAssigned(item) &&
+    !skippedItemIdsRef.current.has(item.id);
   const ctaLabel = pendingNextItemId
     ? t("flow.splitItem.confirmNext")
     : t("flow.splitItem.confirmReview");
@@ -481,7 +490,13 @@ export function SplitItemScreen({
         item.id,
       );
       if (nextPendingItemId) {
-        router.push(`/split/${draftId}/split/${nextPendingItemId}`);
+        router.push(
+          buildSplitItemRoute(
+            draftId,
+            nextPendingItemId,
+            Array.from(skippedItemIdsRef.current),
+          ),
+        );
         return;
       }
 
@@ -496,7 +511,10 @@ export function SplitItemScreen({
       return;
     }
 
-    skippedItemIdsRef.current.add(item.id);
+    const nextSkippedItemIds = Array.from(
+      new Set([...skippedItemIdsRef.current, item.id]),
+    );
+    skippedItemIdsRef.current = new Set(nextSkippedItemIds);
     const pendingItems = record.values.items.filter(
       (candidate) =>
         candidate.id !== item.id &&
@@ -514,7 +532,9 @@ export function SplitItemScreen({
     ) ?? pendingItems[0];
 
     if (nextPendingItem) {
-      router.push(`/split/${draftId}/split/${nextPendingItem.id}`);
+      router.push(
+        buildSplitItemRoute(draftId, nextPendingItem.id, nextSkippedItemIds),
+      );
       return;
     }
 
@@ -577,4 +597,16 @@ export function SplitItemScreen({
       getRemainingPercentForParticipant={getRemainingPercentForParticipant}
     />
   );
+}
+
+function buildSplitItemRoute(
+  draftId: string,
+  itemId: string,
+  skippedItemIds: string[],
+) {
+  const uniqueSkippedItemIds = Array.from(new Set(skippedItemIds)).filter(Boolean);
+  const skippedQuery = uniqueSkippedItemIds.length
+    ? `?skippedItemIds=${uniqueSkippedItemIds.map(encodeURIComponent).join(",")}`
+    : "";
+  return `/split/${draftId}/split/${itemId}${skippedQuery}`;
 }

@@ -331,7 +331,7 @@ const enPlain = {
   "llm.receiptPrompt.rule.noCommentary": "- Do not add commentary, numbering, markdown, tables, or explanations.",
   "llm.receiptPrompt.rule.oneItemPerLine": "- Return exactly one item per line.",
   "llm.receiptPrompt.rule.itemNameMax":
-    "- Keep the item name, including spaces and all characters, under {max} characters.",
+    "- Keep the item name, including spaces and all characters, at most {max} characters.",
   "llm.receiptPrompt.rule.plainDecimal": "- Use a plain decimal number for the price.",
   "llm.receiptPrompt.rule.commaToDot": "- If the receipt uses comma decimals, convert them to dot decimals.",
   "flow.import.alreadyHaveList": "I already have the item list",
@@ -427,6 +427,10 @@ const enPlain = {
   "pasteImport.ignoreReason.missingPrice": "Missing item price",
   "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
   "pasteImport.ignoreReason.format": "Use one item per line with a name and price",
+  "pasteImport.invalidMergeAmount":
+    "Could not merge {item} because the combined amount would be zero.",
+  "pasteImport.invalidMergeAmountTooHigh":
+    "Could not merge {item} because the combined amount is too high.",
   "flow.category.general": "General",
   "flow.category.produce": "Produce",
   "flow.category.bakery": "Bakery",

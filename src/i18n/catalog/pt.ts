@@ -253,13 +253,13 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.itemDetail.priceRequired":
     "Adiciona um preço válido antes de guardares este item.",
   "flow.itemDetail.saveFailed":
-    "Nao foi possivel guardar este item agora. Tenta novamente.",
+    "Não foi possível guardar este item agora. Tenta novamente.",
   "flow.itemDetail.duplicateItem":
-    "Este item ja existe. Altera o nome, preco ou categoria.",
+    "Este item já existe. Altera o nome, preço ou categoria.",
   "flow.itemDetail.mergeDuplicate.title": "Juntar ao item existente?",
   "flow.itemDetail.mergeDuplicate.body":
-    "{name} ja esta nesta conta com o valor {amount}. Depois de juntar, fica {mergedAmount}.",
-  "flow.itemDetail.mergeDuplicate.confirm": "Juntar precos",
+    "{name} já está nesta conta com o valor {amount}. Depois de juntar, fica {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.confirm": "Juntar preços",
   "flow.itemDetail.mergeDuplicate.cancel": "Cancelar",
   "flow.itemDetail.confirmDiscard.title": "Descartar alterações?",
   "flow.itemDetail.confirmDiscard.body":
@@ -276,7 +276,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.splitItem.skip": "Saltar por agora",
   "flow.splitItem.skipA11y": "Saltar este item por agora",
   "flow.splitItem.saveFailed":
-    "Nao foi possivel guardar esta divisao agora. Tenta novamente.",
+    "Não foi possível guardar esta divisão agora. Tenta novamente.",
   "flow.splitItem.totalShares": "Total de partes",
   "flow.splitItem.eachShare": "Cada parte vale {amount}",
   "flow.splitItem.shareRate": "{amount}/parte",
@@ -340,7 +340,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "llm.receiptPrompt.rule.oneItemPerLine":
     "- Devolve exatamente um item por linha.",
   "llm.receiptPrompt.rule.itemNameMax":
-    "- Mantem o nome do item, incluindo espacos e todos os caracteres, abaixo de {max} caracteres.",
+    "- Mantém o nome do item, incluindo espaços e todos os caracteres, no máximo {max} caracteres.",
   "llm.receiptPrompt.rule.plainDecimal":
     "- Usa um número decimal simples para o preço.",
   "llm.receiptPrompt.rule.commaToDot":
@@ -439,6 +439,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
   "pasteImport.ignoreReason.invalidPrice": "O preço está em falta ou é inválido",
   "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
+  "pasteImport.invalidMergeAmount":
+    "Não foi possível juntar {item} porque o valor combinado ficaria zero.",
+  "pasteImport.invalidMergeAmountTooHigh":
+    "Não foi possível juntar {item} porque o valor combinado é demasiado alto.",
   "flow.category.general": "Geral",
   "flow.category.produce": "Fruta e legumes",
   "flow.category.bakery": "Padaria",

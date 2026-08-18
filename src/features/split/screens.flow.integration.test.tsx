@@ -1561,6 +1561,59 @@ describe("split screens", () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
+  it("blocks editing an existing item into a duplicate name", async () => {
+    const baseItem = buildRecord().values.items[0]!;
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            baseItem,
+            { ...baseItem, id: "item-2", name: "Bread", price: "2.00" },
+          ],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="item-2" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), " groceries ");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByText("This item already exists. Change the name, price, or category.")).toBeTruthy();
+  });
+
+  it("does not merge duplicate manual items into an invalid zero amount", async () => {
+    const baseItem = buildRecord().values.items[0]!;
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [{ ...baseItem, price: "1.00" }],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Groceries");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "-1.00");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Merge prices"));
+    });
+
+    expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter a valid amount different from zero.")).toBeTruthy();
+  });
+
   it("normalizes an existing integer item price before updating", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="item-1" />);
     fireEvent.changeText(screen.getByLabelText("Item price"), "1");
@@ -2538,6 +2591,55 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-3");
   });
 
+  it("keeps skipped split items skipped across item routes", async () => {
+    const baseItem = buildRecord().values.items[0]!;
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...baseItem,
+              id: "item-1",
+              name: "Milk",
+              allocations: baseItem.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+            {
+              ...baseItem,
+              id: "item-2",
+              name: "Bread",
+              allocations: baseItem.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(
+      <SplitItemScreen
+        draftId="draft-1"
+        itemId="item-2"
+        skippedItemIds={["item-1"]}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText("Skip this item for now"));
+
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
+  });
+
+  it("hides the skip action for already assigned split items", () => {
+    render(<SplitItemScreen draftId="draft-1" itemId="item-1" />);
+
+    expect(screen.queryByLabelText("Skip this item for now")).toBeNull();
+  });
+
   it("skips the current split item once and routes to the next pending item", async () => {
     const baseItem = buildRecord().values.items[0]!;
     mockStoreState.records = [
@@ -2582,7 +2684,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Skip this item for now"));
 
     expect(mockStoreState.saveItemSplit).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-3");
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-3?skippedItemIds=item-2");
   });
 
   it("supports shares mode editing, reset, close, and review confirmation on the last item", async () => {

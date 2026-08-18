@@ -228,6 +228,28 @@ describe("mobile PDF export", () => {
     expect(html).toContain("1 USD = 0.92 EUR");
   });
 
+  it("renders the payer consumed amount from settlement data without clamping it", () => {
+    const html = renderSettlementPdfHtml(
+      {
+        ...(pdfFixture.expected as any),
+        payer: {
+          ...(pdfFixture.expected as any).payer,
+          paidCents: 0,
+          netCents: 100,
+          consumedCents: -100,
+        },
+      },
+      pdfFixture.assumptions.locale,
+    );
+
+    expect(html).toContain(
+      `Consumed ${new Intl.NumberFormat(pdfFixture.assumptions.locale, {
+        style: "currency",
+        currency: (pdfFixture.expected as any).currency,
+      }).format(-1)}`,
+    );
+  });
+
   it("exports a generated PDF and opens the native share flow", async () => {
     const printToFileAsync = Print.printToFileAsync as jest.Mock;
     const isAvailableAsync = Sharing.isAvailableAsync as jest.Mock;

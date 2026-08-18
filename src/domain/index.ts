@@ -31,6 +31,7 @@ import {
   syncItemAllocations as syncItemAllocationsValue,
   SPLIT_NAME_MAX_LENGTH as SPLIT_NAME_MAX_LENGTH_VALUE,
   ITEM_NAME_MAX_LENGTH as ITEM_NAME_MAX_LENGTH_VALUE,
+  ITEM_AMOUNT_MAX_CENTS as ITEM_AMOUNT_MAX_CENTS_VALUE,
   trimName as trimNameValue,
   validateStepOne as validateStepOneValue,
   validateStepThree as validateStepThreeValue,
@@ -85,6 +86,7 @@ export const getItemUniquenessKey = getItemUniquenessKeyValue;
 export const itemHasDuplicate = itemHasDuplicateValue;
 export const SPLIT_NAME_MAX_LENGTH = SPLIT_NAME_MAX_LENGTH_VALUE;
 export const ITEM_NAME_MAX_LENGTH = ITEM_NAME_MAX_LENGTH_VALUE;
+export const ITEM_AMOUNT_MAX_CENTS = ITEM_AMOUNT_MAX_CENTS_VALUE;
 export const normalizeMoneyInput = normalizeMoneyInputValue;
 export const parseMoneyToCents = parseMoneyToCentsValue;
 export const parseSplit = parseSplitValue;
