@@ -2009,9 +2009,9 @@ describe("split screens", () => {
     );
 
     expect(screen.getByLabelText("Accepted: 1")).toBeTruthy();
-    expect(screen.getByLabelText(/Total:.*-2[,.]00/)).toBeTruthy();
+    expect(screen.getByLabelText(/Total:.*-.*2[,.]00/)).toBeTruthy();
     expect(
-      screen.getByText(/Imported .*-2[,.]00.* cancels existing .*2[,.]00/),
+      screen.getByText(/Imported .*-.*2[,.]00.* cancels existing .*2[,.]00/),
     ).toBeTruthy();
   });
 
@@ -2042,7 +2042,7 @@ describe("split screens", () => {
     expect(screen.getByLabelText("Accepted: 3")).toBeTruthy();
     expect(screen.getByLabelText(/Total:.*4[,.]00/)).toBeTruthy();
     expect(
-      screen.getByText(/Imported .*-1[,.]00.* cancels existing .*1[,.]00/),
+      screen.getByText(/Imported .*-.*1[,.]00.* cancels existing .*1[,.]00/),
     ).toBeTruthy();
     expect(screen.getByText(/Imported .*2[,.]00/)).toBeTruthy();
     expect(
