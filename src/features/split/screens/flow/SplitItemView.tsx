@@ -22,7 +22,10 @@ import { FlowContinueButton, ModeToggle } from "../shared/components";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { SplitNoticeModal } from "../shared/modals";
 import { ParticipantAvatar } from "../shared/participantComponents";
-import { getParticipantDisplayName } from "../shared/participantUtils";
+import {
+  getParticipantDisplayName,
+  sortParticipantsByName,
+} from "../shared/participantUtils";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -130,6 +133,7 @@ export function SplitItemView({
 }: SplitItemViewProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const sortedParticipants = sortParticipantsByName(record.values.participants);
 
   return (
     <AppScreen
@@ -476,7 +480,7 @@ export function SplitItemView({
               </XStack>
 
               <YStack gap="$4">
-                {record.values.participants.map((participant) => {
+                {sortedParticipants.map((participant) => {
                   const allocation = item.allocations.find(
                     (entry) => entry.participantId === participant.id,
                   );

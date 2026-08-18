@@ -96,6 +96,7 @@ import {
   getParticipantDisplayName,
   getParticipantsStepErrors,
   isOwnerReference,
+  sortParticipantsByName,
 } from "../shared/participantUtils";
 import {
   cloneAllocations,
@@ -210,6 +211,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       .map((participant) => participant.name.trim().toLowerCase())
       .filter(Boolean),
   );
+  const sortedParticipants = sortParticipantsByName(record.values.participants);
   const frequentFriends = getFrequentFriends(
     records,
     draftId,
@@ -417,9 +419,9 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
             >
               {t("flow.participants.added")}
             </Text>
-            {record.values.participants.length === 0 ? null : (
+            {sortedParticipants.length === 0 ? null : (
               <YStack gap="$3.5">
-                {record.values.participants.map((participant) => (
+                {sortedParticipants.map((participant) => (
                   <ParticipantRow
                     key={participant.id}
                     participant={participant}

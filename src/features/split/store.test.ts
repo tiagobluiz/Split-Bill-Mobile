@@ -823,7 +823,7 @@ describe("split store", () => {
     expect(result.warningMessages).toEqual([]);
   });
 
-  it("sorts participants alphabetically while preserving ids and payer", async () => {
+  it("preserves participant order and payer when participants change", async () => {
     const record = createRecord({
       values: {
         ...createValues(),
@@ -840,9 +840,9 @@ describe("split store", () => {
     ]);
 
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.participants).toEqual([
+      { id: "zara", name: "Zara" },
       { id: "ana", name: "Ana" },
       { id: "mike", name: "mike" },
-      { id: "zara", name: "Zara" },
     ]);
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("zara");
   });

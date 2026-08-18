@@ -322,19 +322,6 @@ function ensureItemsAligned(values: DraftRecord["values"]) {
   };
 }
 
-function compareParticipantsByName(
-  left: { name: string },
-  right: { name: string },
-) {
-  return trimName(left.name).localeCompare(trimName(right.name), "en-US", {
-    sensitivity: "base",
-  });
-}
-
-function sortParticipantsByName<T extends { name: string }>(participants: T[]) {
-  return [...participants].sort(compareParticipantsByName);
-}
-
 function getImportMergeKey(name: string) {
   const normalized = trimName(name).toLowerCase();
   return normalized || null;
@@ -663,7 +650,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           typeof participants === "function"
             ? participants(draft.values.participants)
             : participants;
-        draft.values.participants = sortParticipantsByName(nextParticipants);
+        draft.values.participants = nextParticipants;
         if (
           !draft.values.participants.some(
             (participant) => participant.id === draft.values.payerParticipantId,

@@ -308,12 +308,6 @@ export function AssignItemScreen({
       const mergedCents = targetCents + parsedItemPriceCents;
       if (mergedCents === 0) {
         await removeItem(targetItem.id);
-        await trackEvent("item_insertion_success", {
-          method: "manual",
-          item_count: 1,
-          provider: "none",
-          import_mode: "merge",
-        });
         setMergeCandidateItemId("");
         router.back();
         return;

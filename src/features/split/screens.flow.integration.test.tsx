@@ -1617,6 +1617,10 @@ describe("split screens", () => {
 
     expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
     expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockTrackEvent).not.toHaveBeenCalledWith(
+      "item_insertion_success",
+      expect.anything(),
+    );
     expect(mockBack).toHaveBeenCalled();
   });
 
