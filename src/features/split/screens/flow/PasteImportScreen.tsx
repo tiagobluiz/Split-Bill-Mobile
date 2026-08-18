@@ -30,7 +30,7 @@ import {
   formatMoney,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
-  itemHasDuplicate,
+  normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
   type LlmProvider,
@@ -95,6 +95,15 @@ function AiProviderIcon({
   return <Sparkles color={color} size={20} />;
 }
 
+function getImportPreviewMergeKey(name: string) {
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
+  return normalized || null;
+}
+
+function formatImportPreviewPrice(amountCents: number) {
+  return normalizeMoneyInput((amountCents / 100).toFixed(2));
+}
+
 export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -110,46 +119,66 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const prompt = buildReceiptLlmPrompt();
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
-  const previewAcceptedItems = useMemo(() => {
+  const importPreview = useMemo(() => {
     if (!record) {
-      return [];
+      return { acceptedItems: [], acceptedCount: 0, acceptedTotalCents: 0 };
     }
 
-    const existingItems = record.values.items.filter(
-      (item) => item.name.trim() || item.price.trim(),
-    );
+    const existingItems = record.values.items
+      .filter((item) => item.name.trim() || item.price.trim())
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        category: item.category,
+      }));
     const acceptedItems: Array<{
       id: string;
       name: string;
       price: string;
       category?: string;
     }> = [];
+    let acceptedCount = 0;
+    let acceptedTotalCents = 0;
+
+    const mergeTargets =
+      mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
 
     parsedPreview.items.forEach((item, index) => {
+      const amountCents = parseMoneyToCents(item.price);
+      const mergeKey = getImportPreviewMergeKey(item.name);
+      if (amountCents === null || !mergeKey) {
+        return;
+      }
+      const existingMatch = mergeTargets.find(
+        (candidate) => getImportPreviewMergeKey(candidate.name) === mergeKey,
+      );
+      if (existingMatch) {
+        const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+        existingMatch.price = formatImportPreviewPrice(existingCents + amountCents);
+        acceptedCount += 1;
+        acceptedTotalCents += amountCents;
+        return;
+      }
       const candidate = {
         id: `preview-${index}`,
-        name: item.name,
-        price: item.price,
+        name: item.name.trim().replace(/\s+/g, " "),
+        price: formatImportPreviewPrice(amountCents),
         category: "",
       };
-      const duplicateScope =
-        mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
-
-      if (!itemHasDuplicate(duplicateScope, candidate)) {
-        acceptedItems.push(candidate);
+      acceptedItems.push(candidate);
+      acceptedCount += 1;
+      acceptedTotalCents += amountCents;
+      if (mergeTargets !== acceptedItems) {
+        mergeTargets.push(candidate);
       }
     });
 
-    return acceptedItems;
+    return { acceptedItems, acceptedCount, acceptedTotalCents };
   }, [mode, parsedPreview.items, record]);
-  const parsedItemCount = previewAcceptedItems.length;
-  const ignoredLineCount =
-    parsedPreview.ignoredLines.length +
-    Math.max(0, parsedPreview.items.length - previewAcceptedItems.length);
-  const estimatedTotalCents = previewAcceptedItems.reduce(
-    (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
-    0,
-  );
+  const parsedItemCount = importPreview.acceptedCount;
+  const ignoredLineCount = parsedPreview.ignoredLines.length;
+  const estimatedTotalCents = importPreview.acceptedTotalCents;
   const locale = getDeviceLocale();
 
   const openStepTwo = () => {
@@ -200,7 +229,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       const suppressedWarningCodes = new Set([
         "no-items-detected",
         "ignored-paste-lines",
-        "ignored-duplicate-imported-items",
       ]);
       const warningCodes = result.warningCodes ?? [];
       const actionableWarnings = result.warningMessages.filter(

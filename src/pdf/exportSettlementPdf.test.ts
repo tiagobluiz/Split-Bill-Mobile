@@ -189,6 +189,7 @@ describe("mobile PDF export", () => {
         ?.length
     ).toBe(1);
     expect(html).toContain("Paid €12.00 - Collect €7.00");
+    expect(html).toContain("Consumed €5.00");
     expect(html).toContain("Bruno");
     expect(html).toContain("Milk");
     expect(html).toContain("Cheese");
@@ -197,6 +198,9 @@ describe("mobile PDF export", () => {
     expect(html).toContain("Even split");
     expect(html).toContain("Share units");
     expect(html).toContain("Percent");
+    expect(html).toContain("Ana (2 shares)");
+    expect(html).toContain("Bruno (1 share)");
+    expect(html).toContain("Juice (80%)");
     expect(html).toContain("€2.00");
     expect(html).toContain("€4.00");
 

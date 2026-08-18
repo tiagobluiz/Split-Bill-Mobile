@@ -26,6 +26,8 @@ import {
   getNextPendingSplitItemId,
   getPercentInputMessage,
   hasTrailingPercentSeparator,
+  isItemAssigned,
+  isVisibleItem,
   normalizeCommittedPercentValue,
   normalizePercentInput,
   rebalanceEditablePercentAllocations,
@@ -58,6 +60,7 @@ export function SplitItemScreen({
   const [summaryBottomY, setSummaryBottomY] = useState(0);
   const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const skippedItemIdsRef = useRef<Set<string>>(new Set());
   const compactHeaderAnimatedValue = useRef(new Animated.Value(0)).current;
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
@@ -147,6 +150,7 @@ export function SplitItemScreen({
   });
   const isSplitReady = splitErrors.length === 0;
   const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
+  const canSkipItem = !skippedItemIdsRef.current.has(item.id);
   const ctaLabel = pendingNextItemId
     ? t("flow.splitItem.confirmNext")
     : t("flow.splitItem.confirmReview");
@@ -487,6 +491,36 @@ export function SplitItemScreen({
     }
   };
 
+  const skipItem = () => {
+    if (skippedItemIdsRef.current.has(item.id)) {
+      return;
+    }
+
+    skippedItemIdsRef.current.add(item.id);
+    const pendingItems = record.values.items.filter(
+      (candidate) =>
+        candidate.id !== item.id &&
+        !skippedItemIdsRef.current.has(candidate.id) &&
+        isVisibleItem(candidate) &&
+        !isItemAssigned(candidate),
+    );
+    const currentIndex = record.values.items.findIndex(
+      (candidate) => candidate.id === item.id,
+    );
+    const nextPendingItem = pendingItems.find(
+      (candidate) =>
+        record.values.items.findIndex((entry) => entry.id === candidate.id) >
+        currentIndex,
+    ) ?? pendingItems[0];
+
+    if (nextPendingItem) {
+      router.push(`/split/${draftId}/split/${nextPendingItem.id}`);
+      return;
+    }
+
+    router.push(`/split/${draftId}/overview`);
+  };
+
   return (
     <SplitItemView
       record={record}
@@ -522,6 +556,8 @@ export function SplitItemScreen({
       ctaLabel={ctaLabel}
       isSplitReady={isSplitReady}
       onConfirmSplit={() => void confirmSplit()}
+      canSkipItem={canSkipItem}
+      onSkipItem={skipItem}
       onBack={() => router.replace(`/split/${draftId}/overview`)}
       locale={locale}
       assignedCount={assignedCount}

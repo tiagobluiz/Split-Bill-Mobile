@@ -75,7 +75,12 @@ export function ParticipantRow({
           label={`Participant avatar ${participant.name.trim() || "unknown"}`}
         />
         <YStack flex={1}>
-          <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface}>
+          <Text
+            fontFamily={FONTS.bodyBold}
+            fontSize={16}
+            color={PALETTE.onSurface}
+            numberOfLines={2}
+          >
             {displayName}
           </Text>
         </YStack>

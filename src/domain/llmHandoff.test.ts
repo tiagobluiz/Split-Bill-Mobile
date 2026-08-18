@@ -24,6 +24,7 @@ describe("llm handoff contract", () => {
     expect(buildReceiptLlmPrompt()).toContain("Read the uploaded grocery receipt");
     expect(buildReceiptLlmPrompt()).toContain("Item name - 2.49");
     expect(buildReceiptLlmPrompt()).toContain("Do not add commentary");
+    expect(buildReceiptLlmPrompt()).toContain("Return exactly one item per line");
   });
 
   it("translates the prompt when translation settings are provided", () => {
@@ -39,6 +40,7 @@ describe("llm handoff contract", () => {
     expect(prompt).not.toBe(englishPrompt);
     expect(prompt).toContain("Regras:");
     expect(prompt).toContain("Item name - 2.49");
+    expect(prompt).toContain("Devolve exatamente um item por linha");
     expect(prompt).not.toContain("Do not add commentary");
   });
 });

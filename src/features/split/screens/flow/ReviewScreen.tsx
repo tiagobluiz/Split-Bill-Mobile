@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AlertTriangle, ArrowRight, Check } from "lucide-react-native";
+import { ArrowRight, Check } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -254,11 +254,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                         >
                           {itemLabel}
                         </Text>
-                        {assigned ? (
-                          <Check color={PALETTE.success} size={16} />
-                        ) : (
-                          <AlertTriangle color={PALETTE.primary} size={16} />
-                        )}
+                        {assigned ? <Check color={PALETTE.success} size={16} /> : null}
                       </XStack>
                       <XStack alignItems="center" gap="$2.5" flexWrap="wrap">
                         <Text

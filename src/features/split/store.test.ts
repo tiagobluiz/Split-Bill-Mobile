@@ -508,6 +508,10 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName).toBe("Trip");
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.currency).toBe("USD");
 
+    const longName = "12345678901234567890123456789012345678901234567890123456789012345";
+    await storeModule.useSplitStore.getState().updateDraftMeta(longName, "eur");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName).toBe(longName.slice(0, 64));
+
     await storeModule.useSplitStore.getState().updateDraftMeta("Trip", "   ");
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.currency).toBe("GBP");
   });
@@ -766,15 +770,15 @@ describe("split store", () => {
     ).toEqual(["Imported apples", "Imported pears"]);
   });
 
-  it("uses the shared item uniqueness rule when importing pasted items", async () => {
+  it("merges imported items by normalized same-name matches", async () => {
     const record = createRecord();
     const { storeModule } = await loadReadyStore({
       record,
       parseResult: {
         items: [
-          { name: " milk ", price: "3,50" },
+          { name: " milk ", price: "1.00" },
           { name: "Imported pears", price: "2.75" },
-          { name: "Imported pears", price: "2.75" },
+          { name: "imported   pears", price: "2.25" },
         ],
         warnings: [],
       },
@@ -788,9 +792,36 @@ describe("split store", () => {
       storeModule.useSplitStore.getState().getActiveRecord()?.values.items.map((item) => item.name) ?? [];
     expect(itemNames.filter((name) => name.trim().toLowerCase() === "milk")).toHaveLength(1);
     expect(itemNames.filter((name) => name === "Imported pears")).toHaveLength(1);
-    expect(result.warningMessages).toContain("Ignored 2 duplicate imported items.");
-    expect(result.importedCount).toBe(1);
-    expect(result.skippedDuplicateCount).toBe(2);
+    const items = storeModule.useSplitStore.getState().getActiveRecord()?.values.items ?? [];
+    expect(items.find((item) => item.name === "Milk")?.price).toBe("4.50");
+    expect(items.find((item) => item.name === "Imported pears")?.price).toBe("5.00");
+    expect(result.warningMessages).not.toContain("Ignored 2 duplicate imported items.");
+    expect(result.importedCount).toBe(2);
+    expect(result.skippedDuplicateCount).toBe(0);
+  });
+
+  it("sorts participants alphabetically while preserving ids and payer", async () => {
+    const record = createRecord({
+      values: {
+        ...createValues(),
+        participants: [],
+        payerParticipantId: "zara",
+      },
+    });
+    const { storeModule } = await loadReadyStore({ record });
+
+    await storeModule.useSplitStore.getState().updateParticipants([
+      { id: "zara", name: "Zara" },
+      { id: "ana", name: "Ana" },
+      { id: "mike", name: "mike" },
+    ]);
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.participants).toEqual([
+      { id: "ana", name: "Ana" },
+      { id: "mike", name: "mike" },
+      { id: "zara", name: "Zara" },
+    ]);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("zara");
   });
 
   it("marks the active record as completed", async () => {

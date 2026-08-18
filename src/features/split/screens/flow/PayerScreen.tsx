@@ -25,7 +25,10 @@ import { FlowContinueButton } from "../shared/components";
 import { useRecord } from "../shared/hooks";
 import { SplitNoticeModal } from "../shared/modals";
 import { ParticipantAvatar } from "../shared/participantComponents";
-import { getParticipantDisplayName } from "../shared/participantUtils";
+import {
+  getParticipantDisplayName,
+  isOwnerReference,
+} from "../shared/participantUtils";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -61,6 +64,19 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
   const payerErrors = record.values.payerParticipantId
     ? []
     : [t("validation.payerRequired")];
+  const payerParticipants = [...record.values.participants].sort(
+    (left, right) => {
+      const leftIsOwner = isOwnerReference(left.name, settings.ownerName);
+      const rightIsOwner = isOwnerReference(right.name, settings.ownerName);
+      if (leftIsOwner !== rightIsOwner) {
+        return leftIsOwner ? -1 : 1;
+      }
+
+      return left.name.localeCompare(right.name, "en-US", {
+        sensitivity: "base",
+      });
+    },
+  );
 
   return (
     <AppScreen
@@ -118,7 +134,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
       >
         <YStack gap="$5">
           <YStack gap="$3.5">
-            {record.values.participants.map((participant) => {
+            {payerParticipants.map((participant) => {
               const selected =
                 participant.id === record.values.payerParticipantId;
 

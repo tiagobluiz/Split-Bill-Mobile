@@ -256,6 +256,11 @@ const ptPlain: Record<TranslationKey, string> = {
     "Nao foi possivel guardar este item agora. Tenta novamente.",
   "flow.itemDetail.duplicateItem":
     "Este item ja existe. Altera o nome, preco ou categoria.",
+  "flow.itemDetail.mergeDuplicate.title": "Juntar ao item existente?",
+  "flow.itemDetail.mergeDuplicate.body":
+    "{name} ja esta nesta conta com o valor {amount}. Depois de juntar, fica {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.confirm": "Juntar precos",
+  "flow.itemDetail.mergeDuplicate.cancel": "Cancelar",
   "flow.itemDetail.confirmDiscard.title": "Descartar alterações?",
   "flow.itemDetail.confirmDiscard.body":
     "Começaste este item mas ainda não o guardaste.",
@@ -268,6 +273,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.splitItem.title": "Dividir item",
   "flow.splitItem.confirmNext": "Confirmar e dividir o próximo",
   "flow.splitItem.confirmReview": "Confirmar e rever",
+  "flow.splitItem.skip": "Saltar por agora",
+  "flow.splitItem.skipA11y": "Saltar este item por agora",
   "flow.splitItem.saveFailed":
     "Nao foi possivel guardar esta divisao agora. Tenta novamente.",
   "flow.splitItem.totalShares": "Total de partes",
@@ -330,6 +337,10 @@ const ptPlain: Record<TranslationKey, string> = {
     "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
   "llm.receiptPrompt.rule.noCommentary":
     "- Não acrescentes comentários, numeração, markdown, tabelas ou explicações.",
+  "llm.receiptPrompt.rule.oneItemPerLine":
+    "- Devolve exatamente um item por linha.",
+  "llm.receiptPrompt.rule.itemNameMax":
+    "- Mantem o nome do item, incluindo espacos e todos os caracteres, abaixo de {max} caracteres.",
   "llm.receiptPrompt.rule.plainDecimal":
     "- Usa um número decimal simples para o preço.",
   "llm.receiptPrompt.rule.commaToDot":
@@ -508,6 +519,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "pdf.section.personBreakdown": "Detalhe por pessoa",
   "pdf.payerLabel": "Pagador",
   "pdf.payerSummary": "Pagou {paid} - Recebe {collect}",
+  "pdf.payerConsumed": "Consumiu {amount}",
+  "pdf.allocation.percent": "{percent}%",
+  "pdf.allocation.shares.one": "{count} parte",
+  "pdf.allocation.shares.other": "{count} partes",
   "pdf.summary.total": "Total do recibo",
   "pdf.summary.participants": "Participantes",
   "pdf.summary.items": "Itens",

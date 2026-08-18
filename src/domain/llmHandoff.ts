@@ -1,4 +1,5 @@
 import { getI18nRuntime, translateWithSettings, type TranslationSettings } from "../i18n";
+import { ITEM_NAME_MAX_LENGTH } from "./splitter";
 
 export type LlmProvider = "chatgpt" | "claude" | "gemini";
 
@@ -46,6 +47,10 @@ export function buildReceiptLlmPrompt(settings: TranslationSettings = getI18nRun
     translateWithSettings(settings, "llm.receiptPrompt.rule.keepItems"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.excludeNonItems"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.noCommentary"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.oneItemPerLine"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.itemNameMax", {
+      max: ITEM_NAME_MAX_LENGTH - 10,
+    }),
     translateWithSettings(settings, "llm.receiptPrompt.rule.plainDecimal"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.commaToDot"),
   ].join("\n");

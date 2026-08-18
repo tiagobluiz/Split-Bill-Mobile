@@ -447,6 +447,7 @@ Rules:
 - Keep only real purchasable items.
 - Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.
 - Do not add commentary, numbering, markdown, tables, or explanations.
+- Return exactly one item per line.
 - Use a plain decimal number for the price.
 - If the receipt uses comma decimals, convert them to dot decimals.
 ```

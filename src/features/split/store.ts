@@ -7,12 +7,15 @@ import {
   createDefaultValues,
   createEmptyItem,
   createId,
-  itemHasDuplicate,
+  normalizeMoneyInput,
+  parseMoneyToCents,
   parsePastedItems,
   rebalancePercentAllocations,
   resetPercentAllocations,
   resetShareAllocations,
   syncItemAllocations,
+  SPLIT_NAME_MAX_LENGTH,
+  trimName,
   type SplitMode,
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
@@ -318,6 +321,28 @@ function ensureItemsAligned(values: DraftRecord["values"]) {
   };
 }
 
+function compareParticipantsByName(
+  left: { name: string },
+  right: { name: string },
+) {
+  return trimName(left.name).localeCompare(trimName(right.name), "en-US", {
+    sensitivity: "base",
+  });
+}
+
+function sortParticipantsByName<T extends { name: string }>(participants: T[]) {
+  return [...participants].sort(compareParticipantsByName);
+}
+
+function getImportMergeKey(name: string) {
+  const normalized = trimName(name).toLowerCase();
+  return normalized || null;
+}
+
+function formatMergedImportPrice(amountCents: number) {
+  return normalizeMoneyInput((amountCents / 100).toFixed(2));
+}
+
 function normalizeOwnerName(value: string) {
   return value.trim().toLowerCase();
 }
@@ -601,7 +626,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async updateDraftMeta(splitName, currency, exchangeRate, exchangeRatesByPair) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.splitName = splitName.slice(0, 20);
+        draft.values.splitName = splitName.slice(0, SPLIT_NAME_MAX_LENGTH);
         draft.values.currency =
           currency.trim().toUpperCase() || get().settings.defaultCurrency;
         draft.values.exchangeRate = exchangeRate;
@@ -625,9 +650,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           typeof participants === "function"
             ? participants(draft.values.participants)
             : participants;
-        draft.values.participants = nextParticipants;
+        draft.values.participants = sortParticipantsByName(nextParticipants);
         if (
-          !nextParticipants.some(
+          !draft.values.participants.some(
             (participant) => participant.id === draft.values.payerParticipantId,
           )
         ) {
@@ -635,7 +660,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         }
         draft.settlementState.settledParticipantIds =
           draft.settlementState.settledParticipantIds.filter((participantId) =>
-            nextParticipants.some(
+            draft.values.participants.some(
               (participant) => participant.id === participantId,
             ),
           );
@@ -870,34 +895,52 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async importPastedList(rawInput, mode) {
     const parsed = parsePastedItems(rawInput);
-    let skippedDuplicateCount = 0;
     let importedCount = 0;
     let importedItemIds: string[] = [];
+    let mergedExistingCount = 0;
     const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
           (item) => item.name.trim() || item.price.trim(),
         );
         const importedItems: DraftRecord["values"]["items"] = [];
+        const mergeTargets =
+          mode === "replace" ? importedItems : [...existingItems, ...importedItems];
 
         parsed.items.forEach((item) => {
-          const nextItem = createEmptyItem(draft.values.participants);
-          const importedItem = {
-            ...nextItem,
-            name: item.name,
-            price: item.price,
-          };
-          const duplicateScope =
-            mode === "replace" ? importedItems : [...existingItems, ...importedItems];
-
-          if (itemHasDuplicate(duplicateScope, importedItem)) {
-            skippedDuplicateCount += 1;
+          const amountCents = parseMoneyToCents(item.price);
+          if (amountCents === null) {
+            return;
+          }
+          const mergeKey = getImportMergeKey(item.name);
+          if (!mergeKey) {
+            return;
+          }
+          const existingMatch = mergeTargets.find(
+            (candidate) => getImportMergeKey(candidate.name) === mergeKey,
+          );
+          if (existingMatch) {
+            const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+            existingMatch.price = formatMergedImportPrice(existingCents + amountCents);
+            if (existingItems.some((existingItem) => existingItem.id === existingMatch.id)) {
+              mergedExistingCount += 1;
+            }
             return;
           }
 
+          const nextItem = createEmptyItem(draft.values.participants);
+          const importedItem = {
+            ...nextItem,
+            name: trimName(item.name),
+            price: formatMergedImportPrice(amountCents),
+          };
+
           importedItems.push(importedItem);
+          if (mergeTargets !== importedItems) {
+            mergeTargets.push(importedItem);
+          }
         });
-        importedCount = importedItems.length;
+        importedCount = importedItems.length + mergedExistingCount;
         importedItemIds = importedItems.map((entry) => entry.id);
 
         draft.values.items =
@@ -923,20 +966,12 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
-        ...(skippedDuplicateCount > 0 ? ["ignored-duplicate-imported-items"] : []),
       ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
-        ...(skippedDuplicateCount > 0
-          ? [
-              `Ignored ${skippedDuplicateCount} duplicate imported ${
-                skippedDuplicateCount === 1 ? "item" : "items"
-              }.`,
-            ]
-          : []),
       ],
       importedCount,
-      skippedDuplicateCount,
+      skippedDuplicateCount: 0,
       importedItemIds,
     };
   },

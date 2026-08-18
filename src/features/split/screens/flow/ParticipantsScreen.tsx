@@ -150,8 +150,8 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-const MAX_SPLIT_NAME_LENGTH = 20;
-const MAX_ITEM_NAME_LENGTH = 25;
+const MAX_SPLIT_NAME_LENGTH = 64;
+const MAX_ITEM_NAME_LENGTH = 64;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
   "Produce",

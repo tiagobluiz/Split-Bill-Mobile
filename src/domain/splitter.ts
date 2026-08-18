@@ -49,8 +49,9 @@ export type SplitFormValues = {
   items: ItemFormValue[];
 };
 
+export const SPLIT_NAME_MAX_LENGTH = 64;
 export const PARTICIPANT_NAME_MAX_LENGTH = 25;
-export const ITEM_NAME_MAX_LENGTH = 32;
+export const ITEM_NAME_MAX_LENGTH = 64;
 export const ITEM_AMOUNT_MAX_CENTS = 100_000_000;
 export const ITEM_AMOUNT_TOO_HIGH_MESSAGE = "Maximum is 1 000 000";
 

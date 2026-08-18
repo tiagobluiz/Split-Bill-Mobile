@@ -67,6 +67,7 @@ import {
   createEmptyItem,
   createId,
   formatMoney,
+  SPLIT_NAME_MAX_LENGTH,
   normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
@@ -151,7 +152,6 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-const MAX_SPLIT_NAME_LENGTH = 20;
 const MAX_ITEM_NAME_LENGTH = 25;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
@@ -421,7 +421,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     }
 
     await updateDraftMeta(
-      splitName.trim().slice(0, MAX_SPLIT_NAME_LENGTH),
+      splitName.trim().slice(0, SPLIT_NAME_MAX_LENGTH),
       normalizedCurrency,
       needsConversion
         ? {
@@ -552,7 +552,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   accessibilityLabel={t("flow.setup.splitName")}
                   value={splitName}
                   onChangeText={(value) => {
-                    setSplitName(value.slice(0, MAX_SPLIT_NAME_LENGTH));
+                    setSplitName(value.slice(0, SPLIT_NAME_MAX_LENGTH));
                     if (setupNoticeMessages.length > 0) {
                       setSetupNoticeMessages([]);
                     }
@@ -560,7 +560,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   placeholder={t("flow.setup.splitNamePlaceholder")}
                   placeholderTextColor={PALETTE.inputPlaceholder}
                   style={screenStyles.assignInput}
-                  maxLength={MAX_SPLIT_NAME_LENGTH}
+                  maxLength={SPLIT_NAME_MAX_LENGTH}
                 />
               </View>
             </YStack>

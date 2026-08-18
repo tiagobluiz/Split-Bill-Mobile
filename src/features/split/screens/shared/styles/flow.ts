@@ -477,6 +477,23 @@ export const flowStyles = {
       gap: 4,
       marginTop: 4,
     },
+  splitFooterContent: {
+      position: "relative",
+    },
+  splitSkipCornerButton: {
+      position: "absolute",
+      top: -2,
+      right: -2,
+      minHeight: 30,
+      borderRadius: 999,
+      backgroundColor: PALETTE.secondaryContainer,
+      borderWidth: 1,
+      borderColor: PALETTE.outlineVariant,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+      zIndex: 2,
+    },
   itemsFooterInlineSummary: {
       gap: 4,
       marginTop: 4,

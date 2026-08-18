@@ -84,7 +84,15 @@ export function getNextPendingSplitItemId(record: DraftRecord, currentItemId?: s
   const pendingItems = record.values.items.filter(
     (item) => isVisibleItem(item) && !isItemAssigned(item) && item.id !== currentItemId
   );
-  return pendingItems[0]?.id ?? null;
+  if (!currentItemId) {
+    return pendingItems[0]?.id ?? null;
+  }
+
+  const currentIndex = record.values.items.findIndex((item) => item.id === currentItemId);
+  const nextPendingItem = pendingItems.find(
+    (item) => record.values.items.findIndex((candidate) => candidate.id === item.id) > currentIndex
+  );
+  return nextPendingItem?.id ?? pendingItems[0]?.id ?? null;
 }
 
 export function cloneItem(item: DraftRecord["values"]["items"][number]) {
