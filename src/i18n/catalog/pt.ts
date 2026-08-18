@@ -357,6 +357,11 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.previewA11y": "{label}: {value}",
   "flow.import.linePreview": "Pré-visualização das linhas",
   "flow.import.skippedByAi": "Ignorado pela IA",
+  "flow.import.previewMerges":
+    "Importado {importedAmount} -> total {mergedAmount}",
+  "flow.import.previewDeletes":
+    "Importado {importedAmount} anula o valor existente {existingAmount}",
+  "flow.import.previewAdds": "Importado {importedAmount}",
   "flow.import.addReview": "Adicionar e rever itens",
   "flow.import.samplePlaceholder":
     "Bananas - 2.49\nTomates: 1.80\nLeite 3.40",

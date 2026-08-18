@@ -1974,7 +1974,76 @@ describe("split screens", () => {
 
     expect(screen.getByLabelText("Accepted: 1")).toBeTruthy();
     expect(screen.getByLabelText(/Total:.*1[,.]00/)).toBeTruthy();
+    expect(
+      screen.getByText(/Imported .*1[,.]00.* -> merged .*3[,.]00/),
+    ).toBeTruthy();
     expect(mockStoreState.records[0].values.items[0].price).toBe("2.00");
+  });
+
+  it("shows AI handover merge rows that will delete an item", () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...buildRecord().values.items[0],
+              id: "i1",
+              name: "I1",
+              price: "2.00",
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "I1 - -2.00",
+    );
+
+    expect(screen.getByLabelText("Accepted: 1")).toBeTruthy();
+    expect(screen.getByLabelText(/Total:.*-2[,.]00/)).toBeTruthy();
+    expect(
+      screen.getByText(/Imported .*-2[,.]00.* cancels existing .*2[,.]00/),
+    ).toBeTruthy();
+  });
+
+  it("shows repeated AI handover entries using prior same-name preview state", () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...buildRecord().values.items[0],
+              id: "i1",
+              name: "I1",
+              price: "1.00",
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "I1 -1\nI1 2\nI1 3",
+    );
+
+    expect(screen.getByLabelText("Accepted: 3")).toBeTruthy();
+    expect(screen.getByLabelText(/Total:.*4[,.]00/)).toBeTruthy();
+    expect(
+      screen.getByText(/Imported .*-1[,.]00.* cancels existing .*1[,.]00/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Imported .*2[,.]00/)).toBeTruthy();
+    expect(
+      screen.getByText(/Imported .*3[,.]00.* -> merged .*5[,.]00/),
+    ).toBeTruthy();
   });
 
   it.each([

@@ -346,6 +346,11 @@ const enPlain = {
   "flow.import.previewA11y": "{label}: {value}",
   "flow.import.linePreview": "Line preview",
   "flow.import.skippedByAi": "Skipped by AI",
+  "flow.import.previewMerges":
+    "Imported {importedAmount} -> merged {mergedAmount}",
+  "flow.import.previewDeletes":
+    "Imported {importedAmount} cancels existing {existingAmount}",
+  "flow.import.previewAdds": "Imported {importedAmount}",
   "flow.import.addReview": "Add & Review Items",
   "flow.import.samplePlaceholder":
     "Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40",
