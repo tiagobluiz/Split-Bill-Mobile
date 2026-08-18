@@ -23,7 +23,6 @@ import {
   getAssignedParticipantCount,
   getFriendlySplitMessage,
   getItemCategoryLabel,
-  getNextPendingSplitItemId,
   getPercentInputMessage,
   hasTrailingPercentSeparator,
   isItemAssigned,
@@ -155,7 +154,11 @@ export function SplitItemScreen({
     items: [item],
   });
   const isSplitReady = splitErrors.length === 0;
-  const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
+  const pendingNextItemId = getNextPendingSplitItemIdExcludingSkipped(
+    record,
+    item.id,
+    skippedItemIdsRef.current,
+  );
   const canSkipItem =
     isVisibleItem(item) &&
     !isItemAssigned(item) &&
@@ -611,7 +614,8 @@ function getNextPendingSplitItemIdExcludingSkipped(
     (candidate) =>
       !skippedItemIds.has(candidate.id) &&
       isVisibleItem(candidate) &&
-      !isItemAssigned(candidate),
+      !isItemAssigned(candidate) &&
+      candidate.id !== currentItemId,
   );
   const currentIndex = record.values.items.findIndex(
     (candidate) => candidate.id === currentItemId,

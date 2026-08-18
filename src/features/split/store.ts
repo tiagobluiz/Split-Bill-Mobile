@@ -911,6 +911,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     let importedCount = 0;
     let importedItemIds: string[] = [];
     let mergedExistingCount = 0;
+    let hasAcceptedImport = false;
     const importWarnings: Array<{ code: string; message: string }> = [];
     const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
@@ -948,6 +949,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               if (wasExistingItem) {
                 mergedExistingCount += 1;
               }
+              hasAcceptedImport = true;
               return;
             }
             if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
@@ -957,6 +959,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               });
               return;
             }
+            hasAcceptedImport = true;
             existingMatch.price = formatMergedImportPrice(mergedCents);
             if (existingItems.some((existingItem) => existingItem.id === existingMatch.id)) {
               mergedExistingCount += 1;
@@ -972,6 +975,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           };
 
           importedItems.push(importedItem);
+          hasAcceptedImport = true;
           if (mergeTargets !== importedItems) {
             mergeTargets.push(importedItem);
           }
@@ -981,7 +985,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
 
         draft.values.items =
           mode === "replace"
-            ? importedItems.length > 0
+            ? hasAcceptedImport
               ? importedItems
               : draft.values.items
             : [

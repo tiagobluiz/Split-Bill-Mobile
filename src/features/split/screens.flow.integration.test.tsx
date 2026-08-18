@@ -2734,6 +2734,9 @@ describe("split screens", () => {
       />,
     );
 
+    expect(screen.getByText("Confirm & Review")).toBeTruthy();
+    expect(screen.queryByText("Confirm & Split Next")).toBeNull();
+
     fireEvent.press(screen.getByLabelText("Skip this item for now"));
 
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");

@@ -1549,4 +1549,32 @@ describe("split store", () => {
     expect(result.skippedDuplicateCount).toBe(0);
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual(record.values.items);
   });
+
+  it("replaces with an empty item list when valid replace imports cancel to zero", async () => {
+    const record = createRecord();
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+      parseResult: {
+        items: [
+          { name: "Milk", price: "3.50" },
+          { name: "milk", price: "-3.50" },
+        ],
+        warnings: [],
+      },
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+    });
+
+    const result = await storeModule.useSplitStore
+      .getState()
+      .importPastedList("Milk 3.50\nmilk -3.50", "replace");
+
+    expect(result.warningCodes).toEqual([]);
+    expect(result.skippedDuplicateCount).toBe(0);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual([]);
+  });
 });
