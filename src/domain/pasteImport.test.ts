@@ -12,6 +12,11 @@ describe("paste import parser", () => {
 
     expect(result.items).toEqual([]);
     expect(result.ignoredLines).toEqual(["item,price", "Total 12.00", "Broken Line"]);
+    expect(result.ignoredLineDetails).toEqual([
+      { line: "item,price", reason: "Header row" },
+      { line: "Total 12.00", reason: "Looks like a total or payment summary" },
+      { line: "Broken Line", reason: "Price is missing or invalid" },
+    ]);
     expect(result.warnings).toEqual([
       {
         code: "ignored-paste-lines",
@@ -55,12 +60,23 @@ describe("paste import parser", () => {
     expect(result.ignoredLines).toEqual(
       expect.arrayContaining([`Huge - 1${"0".repeat(400)}`, "Rice - EUR", "Tea,abc", "Card 4.00", "Name,Amount", "* Water -"])
     );
+    expect(result.ignoredLineDetails).toEqual(
+      expect.arrayContaining([
+        { line: "Rice - EUR", reason: "Price is missing or invalid" },
+        { line: "Card 4.00", reason: "Looks like a total or payment summary" },
+        { line: "Name,Amount", reason: "Header row" },
+        { line: "* Water -", reason: "Missing item price" },
+      ])
+    );
   });
 
   it("covers singular ignored-line warnings and malformed name/price variants", () => {
     expect(parsePastedItems("- 1.20")).toEqual({
       items: [],
       ignoredLines: ["- 1.20"],
+      ignoredLineDetails: [
+        { line: "- 1.20", reason: "Use one item per line with a name and price" },
+      ],
       warnings: [
         {
           code: "ignored-paste-lines",
@@ -76,12 +92,34 @@ describe("paste import parser", () => {
     const trailingMalformed = parsePastedItems("Milk EUR");
     expect(trailingMalformed.items).toEqual([]);
     expect(trailingMalformed.ignoredLines).toEqual(["Milk EUR"]);
+    expect(trailingMalformed.ignoredLineDetails).toEqual([
+      { line: "Milk EUR", reason: "Price is missing or invalid" },
+    ]);
+  });
+
+  it("skips imported items whose names exceed the AI handover margin", () => {
+    const validName = "A".repeat(64);
+    const longName = "B".repeat(65);
+    const result = parsePastedItems(`${validName} - 1.00\n${longName} - 2.00`);
+
+    expect(result.items).toEqual([{ name: validName, price: "1.00" }]);
+    expect(result.ignoredLines).toEqual([`${longName} - 2.00`]);
+    expect(result.ignoredLineDetails).toEqual([
+      {
+        line: `${longName} - 2.00`,
+        reason: "Item name is longer than 64 characters",
+      },
+    ]);
   });
 
   it("rejects summary labels for colon and hyphen rows too", () => {
     expect(parsePastedItems("Total: 42.00\nSubtotal - 20.00")).toEqual({
       items: [],
       ignoredLines: ["Total: 42.00", "Subtotal - 20.00"],
+      ignoredLineDetails: [
+        { line: "Total: 42.00", reason: "Looks like a total or payment summary" },
+        { line: "Subtotal - 20.00", reason: "Looks like a total or payment summary" },
+      ],
       warnings: [
         {
           code: "ignored-paste-lines",

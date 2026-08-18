@@ -195,17 +195,17 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         ),
         skipped: false,
       }));
-    const skippedRows = parsedPreview.ignoredLines
+    const skippedRows = parsedPreview.ignoredLineDetails
       .slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT)
-      .map((line, index) => ({
+      .map((detail, index) => ({
         id: `skipped-${index}`,
-        label: line.trim(),
-        detail: t("flow.import.skippedByAi"),
+        label: detail.line.trim(),
+        detail: detail.reason,
         skipped: true,
       }));
 
     return [...acceptedRows, ...skippedRows];
-  }, [locale, parsedPreview.ignoredLines, parsedPreview.items, record?.values.currency, t]);
+  }, [locale, parsedPreview.ignoredLineDetails, parsedPreview.items, record?.values.currency]);
 
   const openStepTwo = () => {
     setStep(2);

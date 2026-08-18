@@ -420,6 +420,13 @@ const enPlain = {
     "Ignored {count} pasted lines that did not match the expected format.",
   "pasteImport.noItemsDetected":
     "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+  "pasteImport.ignoreReason.header": "Header row",
+  "pasteImport.ignoreReason.summary": "Looks like a total or payment summary",
+  "pasteImport.ignoreReason.missingName": "Missing item name",
+  "pasteImport.ignoreReason.nameTooLong": "Item name is longer than {max} characters",
+  "pasteImport.ignoreReason.missingPrice": "Missing item price",
+  "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
+  "pasteImport.ignoreReason.format": "Use one item per line with a name and price",
   "flow.category.general": "General",
   "flow.category.produce": "Produce",
   "flow.category.bakery": "Bakery",

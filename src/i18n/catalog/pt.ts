@@ -432,6 +432,13 @@ const ptPlain: Record<TranslationKey, string> = {
     "Foram ignoradas {count} linhas coladas que não seguiam o formato esperado.",
   "pasteImport.noItemsDetected":
     "Não foram detetados itens válidos. Usa linhas como `Bananas - 2.49`, `Bananas 2.49` ou `item,price`.",
+  "pasteImport.ignoreReason.header": "Linha de cabeçalho",
+  "pasteImport.ignoreReason.summary": "Parece um total ou resumo de pagamento",
+  "pasteImport.ignoreReason.missingName": "Falta o nome do item",
+  "pasteImport.ignoreReason.nameTooLong": "O nome do item tem mais de {max} caracteres",
+  "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
+  "pasteImport.ignoreReason.invalidPrice": "O preço está em falta ou é inválido",
+  "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
   "flow.category.general": "Geral",
   "flow.category.produce": "Fruta e legumes",
   "flow.category.bakery": "Padaria",

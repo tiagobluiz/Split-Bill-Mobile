@@ -11,6 +11,7 @@
       { "name": "Bread", "price": "1.20" }
     ],
     "ignoredLines": [],
+    "ignoredLineDetails": [],
     "warnings": []
   }
 }

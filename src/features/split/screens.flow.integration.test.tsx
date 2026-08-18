@@ -2088,7 +2088,7 @@ describe("split screens", () => {
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.getByText("Line preview")).toBeTruthy();
-    expect(screen.getByText("Skipped by AI")).toBeTruthy();
+    expect(screen.getByText("Price is missing or invalid")).toBeTruthy();
     const skippedLabel = screen.getByTestId("import-preview-label-skipped-0");
     expect(skippedLabel.props.children).toBe("not a valid line");
     expect(StyleSheet.flatten(skippedLabel.props.style)).toEqual(
@@ -2106,6 +2106,21 @@ describe("split screens", () => {
       expect(mockAlert).not.toHaveBeenCalled();
       expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
     });
+  });
+
+  it("shows the item name length reason for long AI handover lines", () => {
+    const longName = "B".repeat(65);
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      `${longName} - 2.00`,
+    );
+
+    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+    expect(screen.getByText("Item name is longer than 64 characters")).toBeTruthy();
+    expect(screen.getByTestId("import-preview-label-skipped-0").props.children).toBe(`${longName} - 2.00`);
   });
 
   it("routes the paste close header action to home", () => {
