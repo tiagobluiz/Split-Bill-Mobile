@@ -3,6 +3,7 @@ import { Alert, Keyboard, Linking, Platform, Share, StyleSheet, TextInput } from
 import * as domain from "../../domain";
 import { applyDefaultStorePreviews, buildRecordFixture, buildStoreFixture, createRouterMocks } from "./integrationTestUtils";
 import { screenStyles } from "./screens/shared/styles";
+import { PALETTE } from "../../theme/palette";
 
 import {
   AssignItemScreen,
@@ -2086,6 +2087,16 @@ describe("split screens", () => {
     expect(screen.getByText("Import preview")).toBeTruthy();
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
+    expect(screen.getByText("Line preview")).toBeTruthy();
+    expect(screen.getByText("Skipped by AI")).toBeTruthy();
+    const skippedLabel = screen.getByTestId("import-preview-label-skipped-0");
+    expect(skippedLabel.props.children).toBe("not a valid line");
+    expect(StyleSheet.flatten(skippedLabel.props.style)).toEqual(
+      expect.objectContaining({
+        textDecorationColor: PALETTE.danger,
+        textDecorationLine: "underline",
+      }),
+    );
     expect(screen.queryByText("Ignored 1 pasted line that did not match the expected format.")).toBeNull();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add & Review Items"));

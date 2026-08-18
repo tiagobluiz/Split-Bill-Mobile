@@ -352,6 +352,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.total": "Total",
   "flow.import.ignored": "Ignoradas",
   "flow.import.previewA11y": "{label}: {value}",
+  "flow.import.linePreview": "Pré-visualização das linhas",
+  "flow.import.skippedByAi": "Ignorado pela IA",
   "flow.import.addReview": "Adicionar e rever itens",
   "flow.import.samplePlaceholder":
     "Bananas - 2.49\nTomates: 1.80\nLeite 3.40",
@@ -739,6 +741,8 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.preview": "Ver antes da tragédia",
   "flow.import.accepted": "Passaram",
   "flow.import.ignored": "Foram ao ar",
+  "flow.import.linePreview": "Linhas sob suspeita",
+  "flow.import.skippedByAi": "Ignorado pela IA",
   "flow.import.addReview": "Adicionar e rezar",
   "flow.import.openFailedTitle": "A IA não abriu. Drama.",
   "flow.import.openFailedBody": "Não deu para copiar nem abrir. Tenta outra vez.",

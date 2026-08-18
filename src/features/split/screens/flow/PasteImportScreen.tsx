@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as IntentLauncher from "expo-intent-launcher";
@@ -78,6 +78,8 @@ const AI_PROVIDERS: Array<{
     iconBackground: "#e8edff",
   },
 ];
+const IMPORT_PREVIEW_ROW_LIMIT = 6;
+const IMPORT_SKIPPED_PREVIEW_LIMIT = 4;
 
 function AiProviderIcon({
   icon,
@@ -180,6 +182,30 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const ignoredLineCount = parsedPreview.ignoredLines.length;
   const estimatedTotalCents = importPreview.acceptedTotalCents;
   const locale = getDeviceLocale();
+  const previewRows = useMemo(() => {
+    const acceptedRows = parsedPreview.items
+      .slice(0, IMPORT_PREVIEW_ROW_LIMIT)
+      .map((item, index) => ({
+        id: `accepted-${index}`,
+        label: item.name.trim().replace(/\s+/g, " "),
+        detail: formatMoney(
+          parseMoneyToCents(item.price) ?? 0,
+          record?.values.currency ?? "EUR",
+          locale,
+        ),
+        skipped: false,
+      }));
+    const skippedRows = parsedPreview.ignoredLines
+      .slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT)
+      .map((line, index) => ({
+        id: `skipped-${index}`,
+        label: line.trim(),
+        detail: t("flow.import.skippedByAi"),
+        skipped: true,
+      }));
+
+    return [...acceptedRows, ...skippedRows];
+  }, [locale, parsedPreview.ignoredLines, parsedPreview.items, record?.values.currency, t]);
 
   const openStepTwo = () => {
     setStep(2);
@@ -511,6 +537,48 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                 ) : null}
               </XStack>
               <SoftInput value={input} onChangeText={setInput} multiline placeholder={t("flow.import.samplePlaceholder")} />
+              {previewRows.length > 0 ? (
+                <YStack gap="$2.5">
+                  <FieldLabel>{t("flow.import.linePreview")}</FieldLabel>
+                  <YStack gap="$2">
+                    {previewRows.map((row) => (
+                      <XStack
+                        key={row.id}
+                        alignItems="center"
+                        gap="$2.5"
+                        paddingVertical="$1.5"
+                        testID={`import-preview-row-${row.id}`}
+                      >
+                        {row.skipped ? (
+                          <Info color={PALETTE.danger} size={16} />
+                        ) : (
+                          <CheckCircle2 color={PALETTE.success} size={16} />
+                        )}
+                        <YStack flex={1} gap="$0.5">
+                          <Text
+                            color={row.skipped ? PALETTE.danger : PALETTE.onSurface}
+                            fontFamily={FONTS.bodyBold}
+                            fontSize={14}
+                            lineHeight={19}
+                            numberOfLines={2}
+                            style={row.skipped ? styles.skippedPreviewText : undefined}
+                            testID={`import-preview-label-${row.id}`}
+                          >
+                            {row.label}
+                          </Text>
+                          <Text
+                            color={row.skipped ? PALETTE.danger : PALETTE.onSurfaceVariant}
+                            fontFamily={FONTS.bodyMedium}
+                            fontSize={12}
+                          >
+                            {row.detail}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    ))}
+                  </YStack>
+                </YStack>
+              ) : null}
             </SectionCard>
 
           </YStack>
@@ -519,3 +587,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     </AppScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  skippedPreviewText: {
+    textDecorationLine: "underline",
+    textDecorationColor: PALETTE.danger,
+    textDecorationStyle: "solid",
+  },
+});
