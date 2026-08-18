@@ -207,6 +207,10 @@ export function AssignItemScreen({
       candidate.name.trim().replace(/\s+/g, " ").toLowerCase() ===
         normalizedManualName,
   );
+  const mergeCandidateMergedCents =
+    mergeCandidate && parsedItemPriceCents !== null
+      ? (parseMoneyToCents(mergeCandidate.price) ?? 0) + parsedItemPriceCents
+      : null;
 
   const updateWorkingItemField = async (
     field: "name" | "price" | "category",
@@ -303,8 +307,15 @@ export function AssignItemScreen({
       const targetCents = parseMoneyToCents(targetItem.price) ?? 0;
       const mergedCents = targetCents + parsedItemPriceCents;
       if (mergedCents === 0) {
+        await removeItem(targetItem.id);
+        await trackEvent("item_insertion_success", {
+          method: "manual",
+          item_count: 1,
+          provider: "none",
+          import_mode: "merge",
+        });
         setMergeCandidateItemId("");
-        setAssignNoticeMessages([t("validation.itemAmountInvalid")]);
+        router.back();
         return;
       }
       if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
@@ -387,21 +398,29 @@ export function AssignItemScreen({
           {mergeCandidateItemId && mergeCandidate ? (
             <ConfirmChoiceModal
               title={t("flow.itemDetail.mergeDuplicate.title")}
-              body={t("flow.itemDetail.mergeDuplicate.body", {
-                name: mergeCandidate.name,
-                amount: formatMoney(
-                  parseMoneyToCents(mergeCandidate.price) ?? 0,
-                  record.values.currency,
-                  locale,
-                ),
-                mergedAmount: formatMoney(
-                  (parseMoneyToCents(mergeCandidate.price) ?? 0) +
-                    (parsedItemPriceCents ?? 0),
-                  record.values.currency,
-                  locale,
-                ),
-              })}
-              confirmLabel={t("flow.itemDetail.mergeDuplicate.confirm")}
+              body={t(
+                mergeCandidateMergedCents === 0
+                  ? "flow.itemDetail.mergeDuplicate.deleteBody"
+                  : "flow.itemDetail.mergeDuplicate.body",
+                {
+                  name: mergeCandidate.name,
+                  amount: formatMoney(
+                    parseMoneyToCents(mergeCandidate.price) ?? 0,
+                    record.values.currency,
+                    locale,
+                  ),
+                  mergedAmount: formatMoney(
+                    mergeCandidateMergedCents ?? 0,
+                    record.values.currency,
+                    locale,
+                  ),
+                },
+              )}
+              confirmLabel={t(
+                mergeCandidateMergedCents === 0
+                  ? "flow.itemDetail.mergeDuplicate.deleteConfirm"
+                  : "flow.itemDetail.mergeDuplicate.confirm",
+              )}
               discardLabel={t("flow.itemDetail.mergeDuplicate.cancel")}
               onConfirm={() => void mergeEditorIntoExistingItem()}
               onDiscard={() => setMergeCandidateItemId("")}

@@ -477,7 +477,7 @@ export function SplitItemScreen({
         itemId: item.id,
         mode: committedItem.splitMode,
       });
-      const nextPendingItemId = getNextPendingSplitItemId(
+      const nextPendingItemId = getNextPendingSplitItemIdExcludingSkipped(
         {
           ...record,
           values: {
@@ -488,6 +488,7 @@ export function SplitItemScreen({
           },
         },
         item.id,
+        skippedItemIdsRef.current,
       );
       if (nextPendingItemId) {
         router.push(
@@ -515,25 +516,15 @@ export function SplitItemScreen({
       new Set([...skippedItemIdsRef.current, item.id]),
     );
     skippedItemIdsRef.current = new Set(nextSkippedItemIds);
-    const pendingItems = record.values.items.filter(
-      (candidate) =>
-        candidate.id !== item.id &&
-        !skippedItemIdsRef.current.has(candidate.id) &&
-        isVisibleItem(candidate) &&
-        !isItemAssigned(candidate),
+    const nextPendingItemId = getNextPendingSplitItemIdExcludingSkipped(
+      record,
+      item.id,
+      skippedItemIdsRef.current,
     );
-    const currentIndex = record.values.items.findIndex(
-      (candidate) => candidate.id === item.id,
-    );
-    const nextPendingItem = pendingItems.find(
-      (candidate) =>
-        record.values.items.findIndex((entry) => entry.id === candidate.id) >
-        currentIndex,
-    ) ?? pendingItems[0];
 
-    if (nextPendingItem) {
+    if (nextPendingItemId) {
       router.push(
-        buildSplitItemRoute(draftId, nextPendingItem.id, nextSkippedItemIds),
+        buildSplitItemRoute(draftId, nextPendingItemId, nextSkippedItemIds),
       );
       return;
     }
@@ -609,4 +600,27 @@ function buildSplitItemRoute(
     ? `?skippedItemIds=${uniqueSkippedItemIds.map(encodeURIComponent).join(",")}`
     : "";
   return `/split/${draftId}/split/${itemId}${skippedQuery}`;
+}
+
+function getNextPendingSplitItemIdExcludingSkipped(
+  record: DraftRecord,
+  currentItemId: string,
+  skippedItemIds: Set<string>,
+) {
+  const visiblePendingItems = record.values.items.filter(
+    (candidate) =>
+      !skippedItemIds.has(candidate.id) &&
+      isVisibleItem(candidate) &&
+      !isItemAssigned(candidate),
+  );
+  const currentIndex = record.values.items.findIndex(
+    (candidate) => candidate.id === currentItemId,
+  );
+  const nextPendingItem = visiblePendingItems.find(
+    (candidate) =>
+      record.values.items.findIndex((entry) => entry.id === candidate.id) >
+      currentIndex,
+  ) ?? visiblePendingItems[0];
+
+  return nextPendingItem?.id ?? null;
 }

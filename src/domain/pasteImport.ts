@@ -115,13 +115,16 @@ function isSummaryName(name: string | undefined) {
   );
 }
 
+function looksLikeItemCode(value: string | undefined) {
+  return Boolean(value && /\d/.test(value) && /^[A-Za-z0-9_-]+$/.test(value.trim()));
+}
+
 function getIgnoredLineReason(line: string) {
   const trimmed = line.trim();
   const withoutPrefix = trimmed.replace(/^(?:[-*]\s*|\d+[.)]\s*)/, "").trim();
   const csvParts = trimmed
     .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+    .map((part) => part.trim());
 
   if (csvParts.length === 2) {
     const [name, priceRaw] = csvParts;
@@ -137,6 +140,9 @@ function getIgnoredLineReason(line: string) {
       return t("pasteImport.ignoreReason.nameTooLong", {
         max: ITEM_NAME_MAX_LENGTH,
       });
+    }
+    if (!priceRaw) {
+      return t("pasteImport.ignoreReason.missingPrice");
     }
     if (!normalizePrice(priceRaw)) {
       return t("pasteImport.ignoreReason.invalidPrice");
@@ -179,8 +185,21 @@ function getIgnoredLineReason(line: string) {
       });
     }
     if (!normalizePrice(priceRaw)) {
+      if (!/[0-9\u20AC\u0024\u00A3.,+-]/.test(priceRaw) && !looksLikeItemCode(name)) {
+        return t("pasteImport.ignoreReason.missingPrice");
+      }
       return t("pasteImport.ignoreReason.invalidPrice");
     }
+  }
+
+  if (
+    withoutPrefix &&
+    !/\s/.test(withoutPrefix) &&
+    /[A-Za-z]/.test(withoutPrefix) &&
+    !isSummaryName(withoutPrefix) &&
+    withoutPrefix.length <= ITEM_NAME_MAX_LENGTH
+  ) {
+    return t("pasteImport.ignoreReason.missingPrice");
   }
 
   return t("pasteImport.ignoreReason.format");

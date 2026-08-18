@@ -1587,7 +1587,7 @@ describe("split screens", () => {
     expect(screen.getByText("This item already exists. Change the name, price, or category.")).toBeTruthy();
   });
 
-  it("does not merge duplicate manual items into an invalid zero amount", async () => {
+  it("warns and deletes an existing item when a duplicate manual merge reaches zero", async () => {
     const baseItem = buildRecord().values.items[0]!;
     mockStoreState.records = [
       buildRecord({
@@ -1605,13 +1605,19 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
+    expect(
+      screen.getByText(
+        /Groceries is already on this bill at .* After merging, the price would be zero, so the item will be deleted\./,
+      ),
+    ).toBeTruthy();
+
     await act(async () => {
-      fireEvent.press(screen.getByText("Merge prices"));
+      fireEvent.press(screen.getByText("Delete item"));
     });
 
     expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
-    expect(mockBack).not.toHaveBeenCalled();
-    expect(screen.getByText("Enter a valid amount different from zero.")).toBeTruthy();
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockBack).toHaveBeenCalled();
   });
 
   it("normalizes an existing integer item price before updating", async () => {
@@ -2052,6 +2058,36 @@ describe("split screens", () => {
     expect(screen.getByText("Step 2 of 2")).toBeTruthy();
   });
 
+  it("shows over-limit AI handover merge rows as skipped in the preview", () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...buildRecord().values.items[0],
+              name: "Milk",
+              price: "3.50",
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText(/Bananas - 2\.49/),
+      "Milk - 1000000.00",
+    );
+
+    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+    expect(
+      screen.getByText("Could not merge Milk because the combined amount is too high."),
+    ).toBeTruthy();
+  });
+
   it("covers paste loading and warning-free import flows", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<PasteImportScreen draftId="draft-1" />);
@@ -2141,7 +2177,7 @@ describe("split screens", () => {
     expect(screen.getByText("Accepted")).toBeTruthy();
     expect(screen.getByText("Ignored")).toBeTruthy();
     expect(screen.getByText("Line preview")).toBeTruthy();
-    expect(screen.getByText("Price is missing or invalid")).toBeTruthy();
+    expect(screen.getByText("Missing item price")).toBeTruthy();
     const skippedLabel = screen.getByTestId("import-preview-label-skipped-0");
     expect(skippedLabel.props.children).toBe("not a valid line");
     expect(StyleSheet.flatten(skippedLabel.props.style)).toEqual(
@@ -2632,6 +2668,60 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Skip this item for now"));
 
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
+  });
+
+  it("excludes previously skipped items after confirming another split", async () => {
+    const baseItem = buildRecord().values.items[0]!;
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            {
+              ...baseItem,
+              id: "item-1",
+              name: "Milk",
+              allocations: baseItem.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+            {
+              ...baseItem,
+              id: "item-2",
+              name: "Bread",
+              allocations: baseItem.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: true,
+              })),
+            },
+            {
+              ...baseItem,
+              id: "item-3",
+              name: "Cheese",
+              allocations: baseItem.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: false,
+              })),
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(
+      <SplitItemScreen
+        draftId="draft-1"
+        itemId="item-2"
+        skippedItemIds={["item-1"]}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Confirm & Split Next"));
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-3?skippedItemIds=item-1");
   });
 
   it("hides the skip action for already assigned split items", () => {

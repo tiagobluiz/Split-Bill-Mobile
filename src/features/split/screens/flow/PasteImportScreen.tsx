@@ -30,6 +30,7 @@ import {
   formatMoney,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
+  ITEM_AMOUNT_MAX_CENTS,
   normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
@@ -106,6 +107,18 @@ function formatImportPreviewPrice(amountCents: number) {
   return normalizeMoneyInput((amountCents / 100).toFixed(2));
 }
 
+function removeImportPreviewTarget<T extends { id: string }>(
+  itemId: string,
+  targetLists: T[][],
+) {
+  targetLists.forEach((targetList) => {
+    const targetIndex = targetList.findIndex((entry) => entry.id === itemId);
+    if (targetIndex >= 0) {
+      targetList.splice(targetIndex, 1);
+    }
+  });
+}
+
 export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -123,7 +136,13 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const hasPastedText = input.trim().length > 0;
   const importPreview = useMemo(() => {
     if (!record) {
-      return { acceptedItems: [], acceptedCount: 0, acceptedTotalCents: 0 };
+      return {
+        acceptedItems: [],
+        acceptedCount: 0,
+        acceptedTotalCents: 0,
+        skippedMergeRows: [],
+        skippedMergeLineIndexes: new Set<number>(),
+      };
     }
 
     const existingItems = record.values.items
@@ -140,6 +159,13 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       price: string;
       category?: string;
     }> = [];
+    const skippedMergeRows: Array<{
+      id: string;
+      label: string;
+      detail: string;
+      skipped: true;
+    }> = [];
+    const skippedMergeLineIndexes = new Set<number>();
     let acceptedCount = 0;
     let acceptedTotalCents = 0;
 
@@ -157,7 +183,30 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       );
       if (existingMatch) {
         const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
-        existingMatch.price = formatImportPreviewPrice(existingCents + amountCents);
+        const mergedCents = existingCents + amountCents;
+        if (mergedCents === 0) {
+          removeImportPreviewTarget(existingMatch.id, [
+            existingItems,
+            acceptedItems,
+            mergeTargets,
+          ]);
+          acceptedCount += 1;
+          acceptedTotalCents += amountCents;
+          return;
+        }
+        if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+          skippedMergeLineIndexes.add(index);
+          skippedMergeRows.push({
+            id: `skipped-merge-${index}`,
+            label: item.name.trim().replace(/\s+/g, " "),
+            detail: t("pasteImport.invalidMergeAmountTooHigh", {
+              item: item.name.trim().replace(/\s+/g, " "),
+            }),
+            skipped: true,
+          });
+          return;
+        }
+        existingMatch.price = formatImportPreviewPrice(mergedCents);
         acceptedCount += 1;
         acceptedTotalCents += amountCents;
         return;
@@ -176,14 +225,22 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       }
     });
 
-    return { acceptedItems, acceptedCount, acceptedTotalCents };
-  }, [mode, parsedPreview.items, record]);
+    return {
+      acceptedItems,
+      acceptedCount,
+      acceptedTotalCents,
+      skippedMergeRows,
+      skippedMergeLineIndexes,
+    };
+  }, [mode, parsedPreview.items, record, t]);
   const parsedItemCount = importPreview.acceptedCount;
-  const ignoredLineCount = parsedPreview.ignoredLines.length;
+  const ignoredLineCount =
+    parsedPreview.ignoredLines.length + importPreview.skippedMergeRows.length;
   const estimatedTotalCents = importPreview.acceptedTotalCents;
   const locale = getDeviceLocale();
   const previewRows = useMemo(() => {
     const acceptedRows = parsedPreview.items
+      .filter((item, index) => !importPreview.skippedMergeLineIndexes.has(index))
       .slice(0, IMPORT_PREVIEW_ROW_LIMIT)
       .map((item, index) => ({
         id: `accepted-${index}`,
@@ -204,8 +261,12 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         skipped: true,
       }));
 
-    return [...acceptedRows, ...skippedRows];
-  }, [locale, parsedPreview.ignoredLineDetails, parsedPreview.items, record?.values.currency]);
+    return [
+      ...acceptedRows,
+      ...importPreview.skippedMergeRows.slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT),
+      ...skippedRows,
+    ];
+  }, [importPreview.skippedMergeRows, locale, parsedPreview.ignoredLineDetails, parsedPreview.items, record?.values.currency]);
 
   const openStepTwo = () => {
     setStep(2);

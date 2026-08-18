@@ -15,7 +15,7 @@ describe("paste import parser", () => {
     expect(result.ignoredLineDetails).toEqual([
       { line: "item,price", reason: "Header row" },
       { line: "Total 12.00", reason: "Looks like a total or payment summary" },
-      { line: "Broken Line", reason: "Price is missing or invalid" },
+      { line: "Broken Line", reason: "Missing item price" },
     ]);
     expect(result.warnings).toEqual([
       {
@@ -93,7 +93,19 @@ describe("paste import parser", () => {
     expect(trailingMalformed.items).toEqual([]);
     expect(trailingMalformed.ignoredLines).toEqual(["Milk EUR"]);
     expect(trailingMalformed.ignoredLineDetails).toEqual([
-      { line: "Milk EUR", reason: "Price is missing or invalid" },
+      { line: "Milk EUR", reason: "Missing item price" },
+    ]);
+  });
+
+  it("distinguishes missing price from invalid price in line preview reasons", () => {
+    const result = parsePastedItems("I2\nI2 x\nMilk,\n,2.00");
+
+    expect(result.items).toEqual([]);
+    expect(result.ignoredLineDetails).toEqual([
+      { line: "I2", reason: "Missing item price" },
+      { line: "I2 x", reason: "Price is missing or invalid" },
+      { line: "Milk,", reason: "Missing item price" },
+      { line: ",2.00", reason: "Missing item name" },
     ]);
   });
 

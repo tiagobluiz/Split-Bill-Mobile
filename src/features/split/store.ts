@@ -344,6 +344,18 @@ function formatMergedImportPrice(amountCents: number) {
   return normalizeMoneyInput((amountCents / 100).toFixed(2));
 }
 
+function removeImportMergeTarget(
+  itemId: string,
+  targetLists: Array<DraftRecord["values"]["items"]>,
+) {
+  targetLists.forEach((targetList) => {
+    const targetIndex = targetList.findIndex((entry) => entry.id === itemId);
+    if (targetIndex >= 0) {
+      targetList.splice(targetIndex, 1);
+    }
+  });
+}
+
 function normalizeOwnerName(value: string) {
   return value.trim().toLowerCase();
 }
@@ -899,7 +911,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     let importedCount = 0;
     let importedItemIds: string[] = [];
     let mergedExistingCount = 0;
-    const invalidMergeWarnings: Array<{ code: string; message: string }> = [];
+    const importWarnings: Array<{ code: string; message: string }> = [];
     const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
@@ -925,14 +937,21 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
             const mergedCents = existingCents + amountCents;
             if (mergedCents === 0) {
-              invalidMergeWarnings.push({
-                code: "invalid-merge-amount",
-                message: t("pasteImport.invalidMergeAmount", { item: trimName(item.name) }),
-              });
+              const wasExistingItem = existingItems.some(
+                (existingItem) => existingItem.id === existingMatch.id,
+              );
+              removeImportMergeTarget(existingMatch.id, [
+                existingItems,
+                importedItems,
+                mergeTargets,
+              ]);
+              if (wasExistingItem) {
+                mergedExistingCount += 1;
+              }
               return;
             }
             if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-              invalidMergeWarnings.push({
+              importWarnings.push({
                 code: "invalid-merge-amount-too-high",
                 message: t("pasteImport.invalidMergeAmountTooHigh", { item: trimName(item.name) }),
               });
@@ -983,11 +1002,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
-        ...invalidMergeWarnings.map((warning) => warning.code),
+        ...importWarnings.map((warning) => warning.code),
       ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
-        ...invalidMergeWarnings.map((warning) => warning.message),
+        ...importWarnings.map((warning) => warning.message),
       ],
       importedCount,
       skippedDuplicateCount: 0,

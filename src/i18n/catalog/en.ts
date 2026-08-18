@@ -257,7 +257,10 @@ const enPlain = {
   "flow.itemDetail.mergeDuplicate.title": "Merge with existing item?",
   "flow.itemDetail.mergeDuplicate.body":
     "{name} is already on this bill at {amount}. After merging, it will be {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.deleteBody":
+    "{name} is already on this bill at {amount}. After merging, the price would be zero, so the item will be deleted.",
   "flow.itemDetail.mergeDuplicate.confirm": "Merge prices",
+  "flow.itemDetail.mergeDuplicate.deleteConfirm": "Delete item",
   "flow.itemDetail.mergeDuplicate.cancel": "Cancel",
   "flow.itemDetail.confirmDiscard.title": "Discard changes?",
   "flow.itemDetail.confirmDiscard.body":
@@ -427,8 +430,6 @@ const enPlain = {
   "pasteImport.ignoreReason.missingPrice": "Missing item price",
   "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
   "pasteImport.ignoreReason.format": "Use one item per line with a name and price",
-  "pasteImport.invalidMergeAmount":
-    "Could not merge {item} because the combined amount would be zero.",
   "pasteImport.invalidMergeAmountTooHigh":
     "Could not merge {item} because the combined amount is too high.",
   "flow.category.general": "General",

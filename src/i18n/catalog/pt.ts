@@ -259,7 +259,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.itemDetail.mergeDuplicate.title": "Juntar ao item existente?",
   "flow.itemDetail.mergeDuplicate.body":
     "{name} já está nesta conta com o valor {amount}. Depois de juntar, fica {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.deleteBody":
+    "{name} já está nesta conta com o valor {amount}. Depois de juntar, o preço ficaria zero, por isso o item será apagado.",
   "flow.itemDetail.mergeDuplicate.confirm": "Juntar preços",
+  "flow.itemDetail.mergeDuplicate.deleteConfirm": "Apagar item",
   "flow.itemDetail.mergeDuplicate.cancel": "Cancelar",
   "flow.itemDetail.confirmDiscard.title": "Descartar alterações?",
   "flow.itemDetail.confirmDiscard.body":
@@ -439,8 +442,6 @@ const ptPlain: Record<TranslationKey, string> = {
   "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
   "pasteImport.ignoreReason.invalidPrice": "O preço está em falta ou é inválido",
   "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
-  "pasteImport.invalidMergeAmount":
-    "Não foi possível juntar {item} porque o valor combinado ficaria zero.",
   "pasteImport.invalidMergeAmountTooHigh":
     "Não foi possível juntar {item} porque o valor combinado é demasiado alto.",
   "flow.category.general": "Geral",
