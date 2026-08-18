@@ -23,9 +23,10 @@ import {
   getAssignedParticipantCount,
   getFriendlySplitMessage,
   getItemCategoryLabel,
-  getNextPendingSplitItemId,
   getPercentInputMessage,
   hasTrailingPercentSeparator,
+  isItemAssigned,
+  isVisibleItem,
   normalizeCommittedPercentValue,
   normalizePercentInput,
   rebalanceEditablePercentAllocations,
@@ -38,9 +39,11 @@ const SPLIT_COMPACT_HEADER_ANIMATION_MS = 160;
 export function SplitItemScreen({
   draftId,
   itemId,
+  skippedItemIds = [],
 }: {
   draftId: string;
   itemId: string;
+  skippedItemIds?: string[];
 }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -58,6 +61,7 @@ export function SplitItemScreen({
   const [summaryBottomY, setSummaryBottomY] = useState(0);
   const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const skippedItemIdsRef = useRef<Set<string>>(new Set(skippedItemIds));
   const compactHeaderAnimatedValue = useRef(new Animated.Value(0)).current;
   const modeAllocationsRef = useRef<{
     even: DraftRecord["values"]["items"][number]["allocations"];
@@ -110,6 +114,10 @@ export function SplitItemScreen({
     setIsCompactHeaderVisible(false);
   }, [itemId]);
 
+  useEffect(() => {
+    skippedItemIdsRef.current = new Set(skippedItemIds);
+  }, [itemId, skippedItemIds]);
+
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -146,7 +154,15 @@ export function SplitItemScreen({
     items: [item],
   });
   const isSplitReady = splitErrors.length === 0;
-  const pendingNextItemId = getNextPendingSplitItemId(record, item.id);
+  const pendingNextItemId = getNextPendingSplitItemIdExcludingSkipped(
+    record,
+    item.id,
+    skippedItemIdsRef.current,
+  );
+  const canSkipItem =
+    isVisibleItem(item) &&
+    !isItemAssigned(item) &&
+    !skippedItemIdsRef.current.has(item.id);
   const ctaLabel = pendingNextItemId
     ? t("flow.splitItem.confirmNext")
     : t("flow.splitItem.confirmReview");
@@ -464,7 +480,7 @@ export function SplitItemScreen({
         itemId: item.id,
         mode: committedItem.splitMode,
       });
-      const nextPendingItemId = getNextPendingSplitItemId(
+      const nextPendingItemId = getNextPendingSplitItemIdExcludingSkipped(
         {
           ...record,
           values: {
@@ -475,9 +491,16 @@ export function SplitItemScreen({
           },
         },
         item.id,
+        skippedItemIdsRef.current,
       );
       if (nextPendingItemId) {
-        router.push(`/split/${draftId}/split/${nextPendingItemId}`);
+        router.push(
+          buildSplitItemRoute(
+            draftId,
+            nextPendingItemId,
+            Array.from(skippedItemIdsRef.current),
+          ),
+        );
         return;
       }
 
@@ -485,6 +508,31 @@ export function SplitItemScreen({
     } catch {
       setSplitNoticeMessages([t("flow.splitItem.saveFailed")]);
     }
+  };
+
+  const skipItem = () => {
+    if (skippedItemIdsRef.current.has(item.id)) {
+      return;
+    }
+
+    const nextSkippedItemIds = Array.from(
+      new Set([...skippedItemIdsRef.current, item.id]),
+    );
+    skippedItemIdsRef.current = new Set(nextSkippedItemIds);
+    const nextPendingItemId = getNextPendingSplitItemIdExcludingSkipped(
+      record,
+      item.id,
+      skippedItemIdsRef.current,
+    );
+
+    if (nextPendingItemId) {
+      router.push(
+        buildSplitItemRoute(draftId, nextPendingItemId, nextSkippedItemIds),
+      );
+      return;
+    }
+
+    router.push(`/split/${draftId}/overview`);
   };
 
   return (
@@ -522,6 +570,8 @@ export function SplitItemScreen({
       ctaLabel={ctaLabel}
       isSplitReady={isSplitReady}
       onConfirmSplit={() => void confirmSplit()}
+      canSkipItem={canSkipItem}
+      onSkipItem={skipItem}
       onBack={() => router.replace(`/split/${draftId}/overview`)}
       locale={locale}
       assignedCount={assignedCount}
@@ -541,4 +591,40 @@ export function SplitItemScreen({
       getRemainingPercentForParticipant={getRemainingPercentForParticipant}
     />
   );
+}
+
+function buildSplitItemRoute(
+  draftId: string,
+  itemId: string,
+  skippedItemIds: string[],
+) {
+  const uniqueSkippedItemIds = Array.from(new Set(skippedItemIds)).filter(Boolean);
+  const skippedQuery = uniqueSkippedItemIds.length
+    ? `?skippedItemIds=${uniqueSkippedItemIds.map(encodeURIComponent).join(",")}`
+    : "";
+  return `/split/${draftId}/split/${itemId}${skippedQuery}`;
+}
+
+function getNextPendingSplitItemIdExcludingSkipped(
+  record: DraftRecord,
+  currentItemId: string,
+  skippedItemIds: Set<string>,
+) {
+  const visiblePendingItems = record.values.items.filter(
+    (candidate) =>
+      !skippedItemIds.has(candidate.id) &&
+      isVisibleItem(candidate) &&
+      !isItemAssigned(candidate) &&
+      candidate.id !== currentItemId,
+  );
+  const currentIndex = record.values.items.findIndex(
+    (candidate) => candidate.id === currentItemId,
+  );
+  const nextPendingItem = visiblePendingItems.find(
+    (candidate) =>
+      record.values.items.findIndex((entry) => entry.id === candidate.id) >
+      currentIndex,
+  ) ?? visiblePendingItems[0];
+
+  return nextPendingItem?.id ?? null;
 }

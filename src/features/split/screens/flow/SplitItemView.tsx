@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
 import Slider from "@react-native-community/slider";
-import { Check } from "lucide-react-native";
+import { ArrowRight, Check } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Text as TamaguiText,
@@ -22,7 +22,10 @@ import { FlowContinueButton, ModeToggle } from "../shared/components";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { SplitNoticeModal } from "../shared/modals";
 import { ParticipantAvatar } from "../shared/participantComponents";
-import { getParticipantDisplayName } from "../shared/participantUtils";
+import {
+  getParticipantDisplayName,
+  sortParticipantsByName,
+} from "../shared/participantUtils";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -61,6 +64,8 @@ type SplitItemViewProps = {
   ctaLabel: string;
   isSplitReady: boolean;
   onConfirmSplit: () => void;
+  canSkipItem: boolean;
+  onSkipItem: () => void;
   onBack: () => void;
   locale: string;
   assignedCount: number;
@@ -106,6 +111,8 @@ export function SplitItemView({
   ctaLabel,
   isSplitReady,
   onConfirmSplit,
+  canSkipItem,
+  onSkipItem,
   onBack,
   locale,
   assignedCount,
@@ -126,6 +133,7 @@ export function SplitItemView({
 }: SplitItemViewProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const sortedParticipants = sortParticipantsByName(record.values.participants);
 
   return (
     <AppScreen
@@ -139,7 +147,27 @@ export function SplitItemView({
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <FooterBubble>
-            <YStack gap="$3">
+            <YStack gap="$3" style={screenStyles.splitFooterContent}>
+              {canSkipItem ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("flow.splitItem.skipA11y")}
+                  onPress={onSkipItem}
+                  style={screenStyles.splitSkipCornerButton}
+                >
+                  <XStack alignItems="center" justifyContent="center" gap="$1">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={12}
+                      color={PALETTE.primary}
+                      textAlign="center"
+                    >
+                      {t("flow.splitItem.skip")}
+                    </Text>
+                    <ArrowRight color={PALETTE.primary} size={14} />
+                  </XStack>
+                </Pressable>
+              ) : null}
               {item.splitMode === "even" ? (
                 <YStack style={screenStyles.splitFooterInlineSummary}>
                   <Text
@@ -287,7 +315,7 @@ export function SplitItemView({
               fontFamily={FONTS.headlineBold}
               fontSize={16}
               color={PALETTE.onSurface}
-              numberOfLines={1}
+              numberOfLines={2}
               ellipsizeMode="tail"
               flex={1}
             >
@@ -390,6 +418,7 @@ export function SplitItemView({
                 color={PALETTE.onSurface}
                 textAlign="center"
                 letterSpacing={-1.4}
+                numberOfLines={3}
               >
                 {itemNameLabel}
               </Text>
@@ -451,7 +480,7 @@ export function SplitItemView({
               </XStack>
 
               <YStack gap="$4">
-                {record.values.participants.map((participant) => {
+                {sortedParticipants.map((participant) => {
                   const allocation = item.allocations.find(
                     (entry) => entry.participantId === participant.id,
                   );
@@ -497,6 +526,7 @@ export function SplitItemView({
                               fontFamily={FONTS.headlineBold}
                               fontSize={18}
                               color={PALETTE.onSurface}
+                              numberOfLines={2}
                             >
                               {getParticipantDisplayName(
                                 participant.name,

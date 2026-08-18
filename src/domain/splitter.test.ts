@@ -496,7 +496,7 @@ describe("splitter domain", () => {
         items: [
           {
             id: "huge",
-            name: "X".repeat(33),
+            name: "X".repeat(65),
             price: "1000001",
             splitMode: "even",
             allocations: [
@@ -506,7 +506,7 @@ describe("splitter domain", () => {
           },
         ],
       }).map((entry) => entry.message)
-    ).toEqual(expect.arrayContaining(["Keep item names under 32 characters.", "Maximum is 1 000 000"]));
+    ).toEqual(expect.arrayContaining(["Keep item names under 64 characters.", "Maximum is 1 000 000"]));
   });
 
   it("rejects non-finite decimal inputs through the public validation and rebalance APIs", () => {

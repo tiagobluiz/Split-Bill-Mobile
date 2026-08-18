@@ -7,12 +7,16 @@ import {
   createDefaultValues,
   createEmptyItem,
   createId,
-  itemHasDuplicate,
+  ITEM_AMOUNT_MAX_CENTS,
+  normalizeMoneyInput,
+  parseMoneyToCents,
   parsePastedItems,
   rebalancePercentAllocations,
   resetPercentAllocations,
   resetShareAllocations,
   syncItemAllocations,
+  SPLIT_NAME_MAX_LENGTH,
+  trimName,
   type SplitMode,
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
@@ -36,7 +40,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
-import { getDefaultTranslationSettings } from "../../i18n";
+import { getDefaultTranslationSettings, t } from "../../i18n";
 import {
   cancelReminder,
   cancelReminderState,
@@ -316,6 +320,27 @@ function ensureItemsAligned(values: DraftRecord["values"]) {
     ...values,
     items: syncItemAllocations(values.items, values.participants),
   };
+}
+
+function getImportMergeKey(name: string) {
+  const normalized = trimName(name).toLowerCase();
+  return normalized || null;
+}
+
+function formatMergedImportPrice(amountCents: number) {
+  return normalizeMoneyInput((amountCents / 100).toFixed(2));
+}
+
+function removeImportMergeTarget(
+  itemId: string,
+  targetLists: Array<DraftRecord["values"]["items"]>,
+) {
+  targetLists.forEach((targetList) => {
+    const targetIndex = targetList.findIndex((entry) => entry.id === itemId);
+    if (targetIndex >= 0) {
+      targetList.splice(targetIndex, 1);
+    }
+  });
 }
 
 function normalizeOwnerName(value: string) {
@@ -601,7 +626,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async updateDraftMeta(splitName, currency, exchangeRate, exchangeRatesByPair) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.splitName = splitName.slice(0, 20);
+        draft.values.splitName = splitName.slice(0, SPLIT_NAME_MAX_LENGTH);
         draft.values.currency =
           currency.trim().toUpperCase() || get().settings.defaultCurrency;
         draft.values.exchangeRate = exchangeRate;
@@ -627,7 +652,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             : participants;
         draft.values.participants = nextParticipants;
         if (
-          !nextParticipants.some(
+          !draft.values.participants.some(
             (participant) => participant.id === draft.values.payerParticipantId,
           )
         ) {
@@ -635,7 +660,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         }
         draft.settlementState.settledParticipantIds =
           draft.settlementState.settledParticipantIds.filter((participantId) =>
-            nextParticipants.some(
+            draft.values.participants.some(
               (participant) => participant.id === participantId,
             ),
           );
@@ -870,39 +895,84 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async importPastedList(rawInput, mode) {
     const parsed = parsePastedItems(rawInput);
-    let skippedDuplicateCount = 0;
     let importedCount = 0;
     let importedItemIds: string[] = [];
+    let mergedExistingCount = 0;
+    let hasAcceptedImport = false;
+    const importWarnings: Array<{ code: string; message: string }> = [];
     const updatedRecord = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         const existingItems = draft.values.items.filter(
           (item) => item.name.trim() || item.price.trim(),
         );
         const importedItems: DraftRecord["values"]["items"] = [];
+        const mergeTargets =
+          mode === "replace" ? importedItems : [...existingItems, ...importedItems];
 
         parsed.items.forEach((item) => {
-          const nextItem = createEmptyItem(draft.values.participants);
-          const importedItem = {
-            ...nextItem,
-            name: item.name,
-            price: item.price,
-          };
-          const duplicateScope =
-            mode === "replace" ? importedItems : [...existingItems, ...importedItems];
-
-          if (itemHasDuplicate(duplicateScope, importedItem)) {
-            skippedDuplicateCount += 1;
+          const amountCents = parseMoneyToCents(item.price);
+          if (amountCents === null) {
+            return;
+          }
+          const mergeKey = getImportMergeKey(item.name);
+          if (!mergeKey) {
+            return;
+          }
+          const existingMatch = mergeTargets.find(
+            (candidate) => getImportMergeKey(candidate.name) === mergeKey,
+          );
+          if (existingMatch) {
+            const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+            const mergedCents = existingCents + amountCents;
+            if (mergedCents === 0) {
+              const wasExistingItem = existingItems.some(
+                (existingItem) => existingItem.id === existingMatch.id,
+              );
+              removeImportMergeTarget(existingMatch.id, [
+                existingItems,
+                importedItems,
+                mergeTargets,
+              ]);
+              if (wasExistingItem) {
+                mergedExistingCount += 1;
+              }
+              hasAcceptedImport = true;
+              return;
+            }
+            if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+              importWarnings.push({
+                code: "invalid-merge-amount-too-high",
+                message: t("pasteImport.invalidMergeAmountTooHigh", { item: trimName(item.name) }),
+              });
+              return;
+            }
+            hasAcceptedImport = true;
+            existingMatch.price = formatMergedImportPrice(mergedCents);
+            if (existingItems.some((existingItem) => existingItem.id === existingMatch.id)) {
+              mergedExistingCount += 1;
+            }
             return;
           }
 
+          const nextItem = createEmptyItem(draft.values.participants);
+          const importedItem = {
+            ...nextItem,
+            name: trimName(item.name),
+            price: formatMergedImportPrice(amountCents),
+          };
+
           importedItems.push(importedItem);
+          hasAcceptedImport = true;
+          if (mergeTargets !== importedItems) {
+            mergeTargets.push(importedItem);
+          }
         });
-        importedCount = importedItems.length;
+        importedCount = importedItems.length + mergedExistingCount;
         importedItemIds = importedItems.map((entry) => entry.id);
 
         draft.values.items =
           mode === "replace"
-            ? importedItems.length > 0
+            ? hasAcceptedImport
               ? importedItems
               : draft.values.items
             : [
@@ -923,20 +993,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return {
       warningCodes: [
         ...parsed.warnings.map((warning) => warning.code),
-        ...(skippedDuplicateCount > 0 ? ["ignored-duplicate-imported-items"] : []),
+        ...importWarnings.map((warning) => warning.code),
       ],
       warningMessages: [
         ...parsed.warnings.map((warning) => warning.message),
-        ...(skippedDuplicateCount > 0
-          ? [
-              `Ignored ${skippedDuplicateCount} duplicate imported ${
-                skippedDuplicateCount === 1 ? "item" : "items"
-              }.`,
-            ]
-          : []),
+        ...importWarnings.map((warning) => warning.message),
       ],
       importedCount,
-      skippedDuplicateCount,
+      skippedDuplicateCount: 0,
       importedItemIds,
     };
   },

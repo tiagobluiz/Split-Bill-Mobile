@@ -97,8 +97,8 @@
         "splitMode": "shares",
         "splitModeLabel": "Share units",
         "shares": [
-          { "participantId": "ana", "name": "Ana", "amountCents": 200 },
-          { "participantId": "bruno", "name": "Bruno", "amountCents": 100 }
+          { "participantId": "ana", "name": "Ana", "amountCents": 200, "allocationLabel": "2 shares" },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 100, "allocationLabel": "1 share" }
         ]
       },
       {
@@ -108,8 +108,8 @@
         "splitMode": "percent",
         "splitModeLabel": "Percent",
         "shares": [
-          { "participantId": "ana", "name": "Ana", "amountCents": 100 },
-          { "participantId": "bruno", "name": "Bruno", "amountCents": 400 }
+          { "participantId": "ana", "name": "Ana", "amountCents": 100, "allocationLabel": "20%" },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 400, "allocationLabel": "80%" }
         ]
       }
     ],
@@ -120,8 +120,8 @@
         "totalAmountCents": 500,
         "items": [
           { "itemId": "even-item", "itemName": "Milk", "amountCents": 200 },
-          { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 200 },
-          { "itemId": "percent-item", "itemName": "Juice", "amountCents": 100 }
+          { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 200, "allocationLabel": "2 shares" },
+          { "itemId": "percent-item", "itemName": "Juice", "amountCents": 100, "allocationLabel": "20%" }
         ]
       },
       {
@@ -130,8 +130,8 @@
         "totalAmountCents": 700,
         "items": [
           { "itemId": "even-item", "itemName": "Milk", "amountCents": 200 },
-          { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 100 },
-          { "itemId": "percent-item", "itemName": "Juice", "amountCents": 400 }
+          { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 100, "allocationLabel": "1 share" },
+          { "itemId": "percent-item", "itemName": "Juice", "amountCents": 400, "allocationLabel": "80%" }
         ]
       }
     ]

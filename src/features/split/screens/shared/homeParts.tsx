@@ -162,7 +162,12 @@ export function RecordRow({
       >
         <XStack alignItems="center" justifyContent="space-between" gap="$3">
           <YStack flex={1} gap="$1">
-            <Text fontFamily={FONTS.headlineBold} fontSize={18} color={PALETTE.onSurface}>
+            <Text
+              fontFamily={FONTS.headlineBold}
+              fontSize={18}
+              color={PALETTE.onSurface}
+              numberOfLines={2}
+            >
               {title}
             </Text>
             <Text

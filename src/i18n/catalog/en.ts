@@ -254,6 +254,14 @@ const enPlain = {
     "We could not save this item right now. Please try again.",
   "flow.itemDetail.duplicateItem":
     "This item already exists. Change the name, price, or category.",
+  "flow.itemDetail.mergeDuplicate.title": "Merge with existing item?",
+  "flow.itemDetail.mergeDuplicate.body":
+    "{name} is already on this bill at {amount}. After merging, it will be {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.deleteBody":
+    "{name} is already on this bill at {amount}. After merging, the price would be zero, so the item will be deleted.",
+  "flow.itemDetail.mergeDuplicate.confirm": "Merge prices",
+  "flow.itemDetail.mergeDuplicate.deleteConfirm": "Delete item",
+  "flow.itemDetail.mergeDuplicate.cancel": "Cancel",
   "flow.itemDetail.confirmDiscard.title": "Discard changes?",
   "flow.itemDetail.confirmDiscard.body":
     "You started this item but have not saved it yet.",
@@ -267,6 +275,8 @@ const enPlain = {
   "flow.splitItem.title": "Split Item",
   "flow.splitItem.confirmNext": "Confirm & Split Next",
   "flow.splitItem.confirmReview": "Confirm & Review",
+  "flow.splitItem.skip": "Skip for now",
+  "flow.splitItem.skipA11y": "Skip this item for now",
   "flow.splitItem.saveFailed":
     "We could not save this split right now. Please try again.",
   "flow.splitItem.totalShares": "Total shares",
@@ -322,6 +332,9 @@ const enPlain = {
   "llm.receiptPrompt.rule.keepItems": "- Keep only real purchasable items.",
   "llm.receiptPrompt.rule.excludeNonItems": "- Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.",
   "llm.receiptPrompt.rule.noCommentary": "- Do not add commentary, numbering, markdown, tables, or explanations.",
+  "llm.receiptPrompt.rule.oneItemPerLine": "- Return exactly one item per line.",
+  "llm.receiptPrompt.rule.itemNameMax":
+    "- Keep the item name, including spaces and all characters, at most {max} characters.",
   "llm.receiptPrompt.rule.plainDecimal": "- Use a plain decimal number for the price.",
   "llm.receiptPrompt.rule.commaToDot": "- If the receipt uses comma decimals, convert them to dot decimals.",
   "flow.import.alreadyHaveList": "I already have the item list",
@@ -331,6 +344,13 @@ const enPlain = {
   "flow.import.total": "Total",
   "flow.import.ignored": "Ignored",
   "flow.import.previewA11y": "{label}: {value}",
+  "flow.import.linePreview": "Line preview",
+  "flow.import.skippedByAi": "Skipped by AI",
+  "flow.import.previewMerges":
+    "Imported {importedAmount} -> merged {mergedAmount}",
+  "flow.import.previewDeletes":
+    "Imported {importedAmount} cancels existing {existingAmount}",
+  "flow.import.previewAdds": "Imported {importedAmount}",
   "flow.import.addReview": "Add & Review Items",
   "flow.import.samplePlaceholder":
     "Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40",
@@ -408,6 +428,15 @@ const enPlain = {
     "Ignored {count} pasted lines that did not match the expected format.",
   "pasteImport.noItemsDetected":
     "No valid items were detected. Use lines like `Bananas - 2.49`, `Bananas 2.49`, or `item,price`.",
+  "pasteImport.ignoreReason.header": "Header row",
+  "pasteImport.ignoreReason.summary": "Looks like a total or payment summary",
+  "pasteImport.ignoreReason.missingName": "Missing item name",
+  "pasteImport.ignoreReason.nameTooLong": "Item name is longer than {max} characters",
+  "pasteImport.ignoreReason.missingPrice": "Missing item price",
+  "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
+  "pasteImport.ignoreReason.format": "Use one item per line with a name and price",
+  "pasteImport.invalidMergeAmountTooHigh":
+    "Could not merge {item} because the combined amount is too high.",
   "flow.category.general": "General",
   "flow.category.produce": "Produce",
   "flow.category.bakery": "Bakery",
@@ -494,6 +523,10 @@ const enPlain = {
   "pdf.section.personBreakdown": "Person breakdown",
   "pdf.payerLabel": "Payer",
   "pdf.payerSummary": "Paid {paid} - Collect {collect}",
+  "pdf.payerConsumed": "Consumed {amount}",
+  "pdf.allocation.percent": "{percent}%",
+  "pdf.allocation.shares.one": "{count} share",
+  "pdf.allocation.shares.other": "{count} shares",
   "pdf.summary.total": "Total receipt",
   "pdf.summary.participants": "Participants",
   "pdf.summary.items": "Items",

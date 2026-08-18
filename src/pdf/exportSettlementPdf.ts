@@ -100,6 +100,7 @@ export function renderSettlementPdfHtml(
   const totalCentsDisplay = convertCents(data.totalCents, totalRate);
   const payerPaidDisplay = convertCents(data.payer.paidCents, totalRate);
   const payerNetDisplay = convertCents(data.payer.netCents, totalRate);
+  const payerConsumedDisplay = convertCents(data.payer.consumedCents, totalRate);
   const lang = getPdfDocumentLanguage(locale);
   const nonPayers = data.people.filter(
     (person) => !person.isPayer && person.netCents < 0,
@@ -128,7 +129,11 @@ export function renderSettlementPdfHtml(
         .map(
           (share) => `
             <div class="share-row">
-              <div>${escapeHtml(share.name)}</div>
+              <div>${escapeHtml(
+                share.allocationLabel
+                  ? `${share.name} (${share.allocationLabel})`
+                  : share.name,
+              )}</div>
               <div>${escapeHtml(
                 formatPdfMoney(
                   convertCents(share.amountCents, totalRate),
@@ -166,7 +171,11 @@ export function renderSettlementPdfHtml(
         .map(
           (item) => `
             <div class="share-row">
-              <div>${escapeHtml(item.itemName)}</div>
+              <div>${escapeHtml(
+                item.allocationLabel
+                  ? `${item.itemName} (${item.allocationLabel})`
+                  : item.itemName,
+              )}</div>
               <div>${escapeHtml(
                 formatPdfMoney(
                   convertCents(item.amountCents, totalRate),
@@ -303,6 +312,7 @@ export function renderSettlementPdfHtml(
           font-weight: 800;
           color: #111827;
           text-align: center;
+          overflow-wrap: anywhere;
         }
 
         .title-date {
@@ -383,6 +393,7 @@ export function renderSettlementPdfHtml(
           font-size: 18px;
           font-weight: 800;
           color: #111827;
+          overflow-wrap: anywhere;
         }
 
         .payer-summary {
@@ -390,6 +401,13 @@ export function renderSettlementPdfHtml(
           font-size: 12px;
           font-weight: 800;
           color: #9a3412;
+        }
+
+        .payer-consumed {
+          margin: 4px 0 0;
+          font-size: 11px;
+          font-weight: 700;
+          color: #5f6b7a;
         }
 
         .owes-list {
@@ -415,6 +433,7 @@ export function renderSettlementPdfHtml(
 
         .name-cell {
           flex-basis: 70%;
+          overflow-wrap: anywhere;
         }
 
         .amount-cell {
@@ -445,6 +464,7 @@ export function renderSettlementPdfHtml(
           font-size: 12px;
           font-weight: 800;
           color: #0f172a;
+          overflow-wrap: anywhere;
         }
 
         .item-meta {
@@ -458,6 +478,10 @@ export function renderSettlementPdfHtml(
           justify-content: space-between;
           gap: 12px;
           padding: 4px 0;
+        }
+
+        .share-row div {
+          overflow-wrap: anywhere;
         }
       </style>
     </head>
@@ -497,6 +521,13 @@ export function renderSettlementPdfHtml(
               t("pdf.payerSummary", {
                 paid: formatPdfMoney(payerPaidDisplay, totalCurrency, locale),
                 collect: formatPdfMoney(payerNetDisplay, totalCurrency, locale),
+              }),
+            )}
+          </p>
+          <p class="payer-consumed">
+            ${escapeHtml(
+              t("pdf.payerConsumed", {
+                amount: formatPdfMoney(payerConsumedDisplay, totalCurrency, locale),
               }),
             )}
           </p>

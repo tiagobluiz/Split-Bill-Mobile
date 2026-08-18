@@ -31,7 +31,8 @@ import { useTranslation } from "../../../../i18n/provider";
 import {
   createEmptyItem,
   formatMoney,
-  itemHasDuplicate,
+  ITEM_AMOUNT_MAX_CENTS,
+  ITEM_NAME_MAX_LENGTH,
   normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
@@ -71,7 +72,6 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-const MAX_ITEM_NAME_LENGTH = 25;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
   "Produce",
@@ -114,6 +114,7 @@ export function AssignItemScreen({
   );
   const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
   const [showDeleteItemModal, setShowDeleteItemModal] = useState(false);
+  const [mergeCandidateItemId, setMergeCandidateItemId] = useState("");
   const nameInputRef = useRef<TextInput>(null);
   const priceInputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
@@ -199,16 +200,17 @@ export function AssignItemScreen({
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
   const isSaveReady = hasValidName && hasValidPrice;
-  const duplicateItemExists = itemHasDuplicate(
-    record.values.items,
-    {
-      ...item,
-      name: trimmedItemName,
-      price: normalizedItemPrice,
-      category: effectiveCategory,
-    },
-    isNewItem ? undefined : item.id,
+  const normalizedManualName = trimmedItemName.replace(/\s+/g, " ").toLowerCase();
+  const mergeCandidate = record.values.items.find(
+    (candidate) =>
+      candidate.id !== item.id &&
+      candidate.name.trim().replace(/\s+/g, " ").toLowerCase() ===
+        normalizedManualName,
   );
+  const mergeCandidateMergedCents =
+    mergeCandidate && parsedItemPriceCents !== null
+      ? (parseMoneyToCents(mergeCandidate.price) ?? 0) + parsedItemPriceCents
+      : null;
 
   const updateWorkingItemField = async (
     field: "name" | "price" | "category",
@@ -216,7 +218,7 @@ export function AssignItemScreen({
   ) => {
     setAssignNoticeMessages([]);
     const nextValue =
-      field === "name" ? value.slice(0, MAX_ITEM_NAME_LENGTH) : value;
+      field === "name" ? value.slice(0, ITEM_NAME_MAX_LENGTH) : value;
     setEditorItem((current) => ({ ...current!, [field]: nextValue }));
   };
 
@@ -240,7 +242,12 @@ export function AssignItemScreen({
         return;
       }
 
-      if (duplicateItemExists) {
+      if (isNewItem && mergeCandidate) {
+        setMergeCandidateItemId(mergeCandidate.id);
+        return;
+      }
+
+      if (!isNewItem && mergeCandidate) {
         setAssignNoticeMessages([t("flow.itemDetail.duplicateItem")]);
         return;
       }
@@ -283,6 +290,52 @@ export function AssignItemScreen({
         action: "saveEditor",
         isNewItem,
       });
+      setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);
+    }
+  };
+
+  const mergeEditorIntoExistingItem = async () => {
+    const targetItem = record.values.items.find(
+      (candidate) => candidate.id === mergeCandidateItemId,
+    );
+    if (!targetItem || parsedItemPriceCents === null) {
+      setMergeCandidateItemId("");
+      return;
+    }
+
+    try {
+      const targetCents = parseMoneyToCents(targetItem.price) ?? 0;
+      const mergedCents = targetCents + parsedItemPriceCents;
+      if (mergedCents === 0) {
+        await removeItem(targetItem.id);
+        setMergeCandidateItemId("");
+        router.back();
+        return;
+      }
+      if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+        setMergeCandidateItemId("");
+        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
+        return;
+      }
+      const mergedPrice = normalizeMoneyInput(
+        (mergedCents / 100).toFixed(2),
+      );
+      await updateItemField(targetItem.id, "price", mergedPrice);
+      await trackEvent("item_insertion_success", {
+        method: "manual",
+        item_count: 1,
+        provider: "none",
+        import_mode: "merge",
+      });
+      setMergeCandidateItemId("");
+      router.back();
+    } catch (error) {
+      recordError(error, {
+        screen: "AssignItemScreen",
+        action: "mergeEditorIntoExistingItem",
+        isNewItem,
+      });
+      setMergeCandidateItemId("");
       setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);
     }
   };
@@ -334,6 +387,37 @@ export function AssignItemScreen({
                 }
               }}
               onDiscard={() => setShowDeleteItemModal(false)}
+            />
+          ) : null}
+          {mergeCandidateItemId && mergeCandidate ? (
+            <ConfirmChoiceModal
+              title={t("flow.itemDetail.mergeDuplicate.title")}
+              body={t(
+                mergeCandidateMergedCents === 0
+                  ? "flow.itemDetail.mergeDuplicate.deleteBody"
+                  : "flow.itemDetail.mergeDuplicate.body",
+                {
+                  name: mergeCandidate.name,
+                  amount: formatMoney(
+                    parseMoneyToCents(mergeCandidate.price) ?? 0,
+                    record.values.currency,
+                    locale,
+                  ),
+                  mergedAmount: formatMoney(
+                    mergeCandidateMergedCents ?? 0,
+                    record.values.currency,
+                    locale,
+                  ),
+                },
+              )}
+              confirmLabel={t(
+                mergeCandidateMergedCents === 0
+                  ? "flow.itemDetail.mergeDuplicate.deleteConfirm"
+                  : "flow.itemDetail.mergeDuplicate.confirm",
+              )}
+              discardLabel={t("flow.itemDetail.mergeDuplicate.cancel")}
+              onConfirm={() => void mergeEditorIntoExistingItem()}
+              onDiscard={() => setMergeCandidateItemId("")}
             />
           ) : null}
           <SplitNoticeModal
@@ -412,7 +496,7 @@ export function AssignItemScreen({
                   ref={nameInputRef}
                   accessibilityLabel={t("flow.itemDetail.nameA11y")}
                   value={item.name}
-                  maxLength={MAX_ITEM_NAME_LENGTH}
+                  maxLength={ITEM_NAME_MAX_LENGTH}
                   onChangeText={(value) =>
                     void updateWorkingItemField("name", value)
                   }

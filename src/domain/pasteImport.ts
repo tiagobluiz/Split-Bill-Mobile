@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { ITEM_NAME_MAX_LENGTH } from "./splitter";
 
 export type ReceiptImportItem = {
   name: string;
@@ -10,10 +11,16 @@ export type ReceiptImportWarning = {
   message: string;
 };
 
+export type IgnoredPasteLineDetail = {
+  line: string;
+  reason: string;
+};
+
 export type ParsedPasteImportResult = {
   items: ReceiptImportItem[];
   warnings: ReceiptImportWarning[];
   ignoredLines: string[];
+  ignoredLineDetails: IgnoredPasteLineDetail[];
 };
 
 const PASTE_SUMMARY_LABELS = ["total", "subtotal", "tax", "vat", "paid", "payment", "cash", "card"];
@@ -63,6 +70,7 @@ function parseLineFormat(line: string) {
   const normalizedName = name?.replace(/[:\-]+$/, "").trim().toLowerCase();
   if (
     !name ||
+    name.length > ITEM_NAME_MAX_LENGTH ||
     !price ||
     !normalizedName ||
     PASTE_SUMMARY_LABELS.some((label) => normalizedName === label || normalizedName.startsWith(`${label} `))
@@ -92,11 +100,109 @@ function parseCsvLine(line: string) {
   }
 
   const price = normalizePrice(priceRaw);
-  if (!name || !price) {
+  if (!name || name.length > ITEM_NAME_MAX_LENGTH || !price) {
     return null;
   }
 
   return { name, price };
+}
+
+function isSummaryName(name: string | undefined) {
+  const normalizedName = name?.replace(/[:\-]+$/, "").trim().toLowerCase();
+  return Boolean(
+    normalizedName &&
+      PASTE_SUMMARY_LABELS.some((label) => normalizedName === label || normalizedName.startsWith(`${label} `)),
+  );
+}
+
+function looksLikeItemCode(value: string | undefined) {
+  return Boolean(value && /\d/.test(value) && /^[A-Za-z0-9_-]+$/.test(value.trim()));
+}
+
+function getIgnoredLineReason(line: string) {
+  const trimmed = line.trim();
+  const withoutPrefix = trimmed.replace(/^(?:[-*]\s*|\d+[.)]\s*)/, "").trim();
+  const csvParts = trimmed
+    .split(",")
+    .map((part) => part.trim());
+
+  if (csvParts.length === 2) {
+    const [name, priceRaw] = csvParts;
+    const lowerName = name.toLowerCase();
+    const lowerPrice = priceRaw.toLowerCase();
+    if ((lowerName === "item" || lowerName === "name") && (lowerPrice === "price" || lowerPrice === "amount")) {
+      return t("pasteImport.ignoreReason.header");
+    }
+    if (!name) {
+      return t("pasteImport.ignoreReason.missingName");
+    }
+    if (name.length > ITEM_NAME_MAX_LENGTH) {
+      return t("pasteImport.ignoreReason.nameTooLong", {
+        max: ITEM_NAME_MAX_LENGTH,
+      });
+    }
+    if (!priceRaw) {
+      return t("pasteImport.ignoreReason.missingPrice");
+    }
+    if (!normalizePrice(priceRaw)) {
+      return t("pasteImport.ignoreReason.invalidPrice");
+    }
+  }
+
+  const separatorMatch = withoutPrefix.match(/^(.*?)(?:\s+-\s*|:\s*)([-\d.,\s\u20AC\u0024\u00A3A-Za-z]*)$/);
+  if (separatorMatch) {
+    const name = separatorMatch[1]?.trim();
+    const priceRaw = separatorMatch[2]?.trim() ?? "";
+    if (!name) {
+      return t("pasteImport.ignoreReason.missingName");
+    }
+    if (isSummaryName(name)) {
+      return t("pasteImport.ignoreReason.summary");
+    }
+    if (name.length > ITEM_NAME_MAX_LENGTH) {
+      return t("pasteImport.ignoreReason.nameTooLong", {
+        max: ITEM_NAME_MAX_LENGTH,
+      });
+    }
+    if (!priceRaw) {
+      return t("pasteImport.ignoreReason.missingPrice");
+    }
+    if (!normalizePrice(priceRaw)) {
+      return t("pasteImport.ignoreReason.invalidPrice");
+    }
+  }
+
+  const trailingPriceMatch = withoutPrefix.match(/^(.*\S)\s+([-\d.,\u20AC\u0024\u00A3A-Za-z]+)$/);
+  if (trailingPriceMatch) {
+    const name = trailingPriceMatch[1]?.trim();
+    const priceRaw = trailingPriceMatch[2]?.trim() ?? "";
+    if (isSummaryName(name)) {
+      return t("pasteImport.ignoreReason.summary");
+    }
+    if (name && name.length > ITEM_NAME_MAX_LENGTH) {
+      return t("pasteImport.ignoreReason.nameTooLong", {
+        max: ITEM_NAME_MAX_LENGTH,
+      });
+    }
+    if (!normalizePrice(priceRaw)) {
+      if (!/[0-9\u20AC\u0024\u00A3.,+-]/.test(priceRaw) && !looksLikeItemCode(name)) {
+        return t("pasteImport.ignoreReason.missingPrice");
+      }
+      return t("pasteImport.ignoreReason.invalidPrice");
+    }
+  }
+
+  if (
+    withoutPrefix &&
+    !/\s/.test(withoutPrefix) &&
+    /[A-Za-z]/.test(withoutPrefix) &&
+    !isSummaryName(withoutPrefix) &&
+    withoutPrefix.length <= ITEM_NAME_MAX_LENGTH
+  ) {
+    return t("pasteImport.ignoreReason.missingPrice");
+  }
+
+  return t("pasteImport.ignoreReason.format");
 }
 
 function parseTrailingPriceLine(line: string) {
@@ -113,6 +219,7 @@ function parseTrailingPriceLine(line: string) {
 
   if (
     !name ||
+    name.length > ITEM_NAME_MAX_LENGTH ||
     !price ||
     !normalizedName ||
     PASTE_SUMMARY_LABELS.some((label) => normalizedName === label || normalizedName.startsWith(`${label} `))
@@ -131,6 +238,7 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
 
   const items: ReceiptImportItem[] = [];
   const ignoredLines: string[] = [];
+  const ignoredLineDetails: IgnoredPasteLineDetail[] = [];
 
   lines.forEach((line) => {
     const parsed = parseLineFormat(line) ?? parseCsvLine(line) ?? parseTrailingPriceLine(line);
@@ -140,6 +248,10 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
     }
 
     ignoredLines.push(line);
+    ignoredLineDetails.push({
+      line,
+      reason: getIgnoredLineReason(line),
+    });
   });
 
   const warnings: ReceiptImportWarning[] = [];
@@ -165,5 +277,6 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
     items,
     warnings,
     ignoredLines,
+    ignoredLineDetails,
   };
 }

@@ -54,6 +54,19 @@ export function isOwnerReference(name: string, ownerName: string) {
   return normalized === normalizeName(ownerName) || normalized === "you";
 }
 
+export function compareParticipantsByName(
+  left: { name: string },
+  right: { name: string },
+) {
+  return left.name.trim().localeCompare(right.name.trim(), undefined, {
+    sensitivity: "base",
+  });
+}
+
+export function sortParticipantsByName<T extends { name: string }>(participants: T[]) {
+  return [...participants].sort(compareParticipantsByName);
+}
+
 export function getParticipantDisplayName(name: string, ownerName: string) {
   const trimmedName = name.trim();
   if (!trimmedName) {

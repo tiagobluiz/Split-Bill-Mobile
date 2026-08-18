@@ -19,8 +19,7 @@ export async function fetchExchangeRate(
     const response = await fetch(
       `https://api.frankfurter.app/latest?from=${encodeURIComponent(source)}&to=${encodeURIComponent(target)}`,
       { signal: controller.signal },
-    );
-    clearTimeout(timeout);
+    ).finally(() => clearTimeout(timeout));
     if (!response.ok) {
       return { rate: 1, source: "fallback" };
     }

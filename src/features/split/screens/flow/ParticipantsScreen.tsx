@@ -96,6 +96,7 @@ import {
   getParticipantDisplayName,
   getParticipantsStepErrors,
   isOwnerReference,
+  sortParticipantsByName,
 } from "../shared/participantUtils";
 import {
   cloneAllocations,
@@ -150,8 +151,8 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-const MAX_SPLIT_NAME_LENGTH = 20;
-const MAX_ITEM_NAME_LENGTH = 25;
+const MAX_SPLIT_NAME_LENGTH = 64;
+const MAX_ITEM_NAME_LENGTH = 64;
 const ITEM_CATEGORY_OPTIONS = [
   "General",
   "Produce",
@@ -210,6 +211,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       .map((participant) => participant.name.trim().toLowerCase())
       .filter(Boolean),
   );
+  const sortedParticipants = sortParticipantsByName(record.values.participants);
   const frequentFriends = getFrequentFriends(
     records,
     draftId,
@@ -417,9 +419,9 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
             >
               {t("flow.participants.added")}
             </Text>
-            {record.values.participants.length === 0 ? null : (
+            {sortedParticipants.length === 0 ? null : (
               <YStack gap="$3.5">
-                {record.values.participants.map((participant) => (
+                {sortedParticipants.map((participant) => (
                   <ParticipantRow
                     key={participant.id}
                     participant={participant}

@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as IntentLauncher from "expo-intent-launcher";
-import { Bot, CheckCircle2, ClipboardCopy, Info, MessageCircle, ReceiptText, Sparkles } from "lucide-react-native";
+import { Bot, ClipboardCopy, Info, Merge, MessageCircle, Plus, ReceiptText, Sparkles, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Paragraph as TamaguiParagraph,
@@ -30,7 +30,8 @@ import {
   formatMoney,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
-  itemHasDuplicate,
+  ITEM_AMOUNT_MAX_CENTS,
+  normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
   type LlmProvider,
@@ -78,6 +79,16 @@ const AI_PROVIDERS: Array<{
     iconBackground: "#e8edff",
   },
 ];
+const IMPORT_PREVIEW_ROW_LIMIT = 6;
+const IMPORT_SKIPPED_PREVIEW_LIMIT = 4;
+type ImportPreviewRowIntent = "add" | "merge" | "delete" | "skipped";
+type ImportPreviewRow = {
+  id: string;
+  label: string;
+  detail: string;
+  skipped: boolean;
+  intent: ImportPreviewRowIntent;
+};
 
 function AiProviderIcon({
   icon,
@@ -95,6 +106,44 @@ function AiProviderIcon({
   return <Sparkles color={color} size={20} />;
 }
 
+function getImportPreviewMergeKey(name: string) {
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
+  return normalized || null;
+}
+
+function formatImportPreviewPrice(amountCents: number) {
+  return normalizeMoneyInput((amountCents / 100).toFixed(2));
+}
+
+function removeImportPreviewTarget<T extends { id: string }>(
+  itemId: string,
+  targetLists: T[][],
+) {
+  targetLists.forEach((targetList) => {
+    const targetIndex = targetList.findIndex((entry) => entry.id === itemId);
+    if (targetIndex >= 0) {
+      targetList.splice(targetIndex, 1);
+    }
+  });
+}
+
+function ImportPreviewRowIcon({
+  intent,
+}: {
+  intent: ImportPreviewRowIntent;
+}) {
+  if (intent === "skipped") {
+    return <Info color={PALETTE.danger} size={16} />;
+  }
+  if (intent === "delete") {
+    return <Trash2 color={PALETTE.danger} size={16} />;
+  }
+  if (intent === "merge") {
+    return <Merge color={PALETTE.primary} size={16} />;
+  }
+  return <Plus color={PALETTE.success} size={16} />;
+}
+
 export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -110,47 +159,174 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const prompt = buildReceiptLlmPrompt();
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
-  const previewAcceptedItems = useMemo(() => {
+  const locale = getDeviceLocale();
+  const importPreview = useMemo(() => {
     if (!record) {
-      return [];
+      return {
+        acceptedRows: [],
+        acceptedCount: 0,
+        acceptedTotalCents: 0,
+        skippedMergeRows: [],
+      };
     }
 
-    const existingItems = record.values.items.filter(
-      (item) => item.name.trim() || item.price.trim(),
-    );
+    const existingItems = record.values.items
+      .filter((item) => item.name.trim() || item.price.trim())
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        category: item.category,
+      }));
+    const acceptedRows: ImportPreviewRow[] = [];
     const acceptedItems: Array<{
       id: string;
       name: string;
       price: string;
       category?: string;
     }> = [];
+    const skippedMergeRows: ImportPreviewRow[] = [];
+    let acceptedCount = 0;
+    let acceptedTotalCents = 0;
+
+    const mergeTargets =
+      mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
 
     parsedPreview.items.forEach((item, index) => {
+      const amountCents = parseMoneyToCents(item.price);
+      const mergeKey = getImportPreviewMergeKey(item.name);
+      const displayName = item.name.trim().replace(/\s+/g, " ");
+      if (amountCents === null || !mergeKey) {
+        return;
+      }
+      const existingMatch = mergeTargets.find(
+        (candidate) => getImportPreviewMergeKey(candidate.name) === mergeKey,
+      );
+      if (existingMatch) {
+        const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+        const mergedCents = existingCents + amountCents;
+        if (mergedCents === 0) {
+          removeImportPreviewTarget(existingMatch.id, [
+            existingItems,
+            acceptedItems,
+            mergeTargets,
+          ]);
+          acceptedRows.push({
+            id: `accepted-${index}`,
+            label: displayName,
+            detail: t("flow.import.previewDeletes", {
+              importedAmount: formatMoney(
+                amountCents,
+                record.values.currency,
+                locale,
+              ),
+              existingAmount: formatMoney(
+                existingCents,
+                record.values.currency,
+                locale,
+              ),
+            }),
+            skipped: false,
+            intent: "delete",
+          });
+          acceptedCount += 1;
+          acceptedTotalCents += amountCents;
+          return;
+        }
+        if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+          skippedMergeRows.push({
+            id: `skipped-merge-${index}`,
+            label: displayName,
+            detail: t("pasteImport.invalidMergeAmountTooHigh", {
+              item: displayName,
+            }),
+            skipped: true,
+            intent: "skipped",
+          });
+          return;
+        }
+        existingMatch.price = formatImportPreviewPrice(mergedCents);
+        acceptedRows.push({
+          id: `accepted-${index}`,
+          label: displayName,
+          detail: t("flow.import.previewMerges", {
+            importedAmount: formatMoney(
+              amountCents,
+              record.values.currency,
+              locale,
+            ),
+            mergedAmount: formatMoney(
+              mergedCents,
+              record.values.currency,
+              locale,
+            ),
+          }),
+          skipped: false,
+          intent: "merge",
+        });
+        acceptedCount += 1;
+        acceptedTotalCents += amountCents;
+        return;
+      }
       const candidate = {
         id: `preview-${index}`,
-        name: item.name,
-        price: item.price,
+        name: item.name.trim().replace(/\s+/g, " "),
+        price: formatImportPreviewPrice(amountCents),
         category: "",
       };
-      const duplicateScope =
-        mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
-
-      if (!itemHasDuplicate(duplicateScope, candidate)) {
-        acceptedItems.push(candidate);
+      acceptedItems.push(candidate);
+      acceptedRows.push({
+        id: `accepted-${index}`,
+        label: displayName,
+        detail: t("flow.import.previewAdds", {
+          importedAmount: formatMoney(
+            amountCents,
+            record.values.currency,
+            locale,
+          ),
+        }),
+        skipped: false,
+        intent: "add",
+      });
+      acceptedCount += 1;
+      acceptedTotalCents += amountCents;
+      if (mergeTargets !== acceptedItems) {
+        mergeTargets.push(candidate);
       }
     });
 
-    return acceptedItems;
-  }, [mode, parsedPreview.items, record]);
-  const parsedItemCount = previewAcceptedItems.length;
+    return {
+      acceptedRows,
+      acceptedCount,
+      acceptedTotalCents,
+      skippedMergeRows,
+    };
+  }, [locale, mode, parsedPreview.items, record, t]);
+  const parsedItemCount = importPreview.acceptedCount;
   const ignoredLineCount =
-    parsedPreview.ignoredLines.length +
-    Math.max(0, parsedPreview.items.length - previewAcceptedItems.length);
-  const estimatedTotalCents = previewAcceptedItems.reduce(
-    (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
-    0,
-  );
-  const locale = getDeviceLocale();
+    parsedPreview.ignoredLines.length + importPreview.skippedMergeRows.length;
+  const estimatedTotalCents = importPreview.acceptedTotalCents;
+  const previewRows = useMemo(() => {
+    const acceptedRows = importPreview.acceptedRows.slice(
+      0,
+      IMPORT_PREVIEW_ROW_LIMIT,
+    );
+    const skippedRows = parsedPreview.ignoredLineDetails
+      .slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT)
+      .map((detail, index) => ({
+        id: `skipped-${index}`,
+        label: detail.line.trim(),
+        detail: detail.reason,
+        skipped: true,
+        intent: "skipped" as const,
+      }));
+
+    return [
+      ...acceptedRows,
+      ...importPreview.skippedMergeRows.slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT),
+      ...skippedRows,
+    ];
+  }, [importPreview.acceptedRows, importPreview.skippedMergeRows, parsedPreview.ignoredLineDetails]);
 
   const openStepTwo = () => {
     setStep(2);
@@ -200,7 +376,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       const suppressedWarningCodes = new Set([
         "no-items-detected",
         "ignored-paste-lines",
-        "ignored-duplicate-imported-items",
       ]);
       const warningCodes = result.warningCodes ?? [];
       const actionableWarnings = result.warningMessages.filter(
@@ -483,6 +658,44 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                 ) : null}
               </XStack>
               <SoftInput value={input} onChangeText={setInput} multiline placeholder={t("flow.import.samplePlaceholder")} />
+              {previewRows.length > 0 ? (
+                <YStack gap="$2.5">
+                  <FieldLabel>{t("flow.import.linePreview")}</FieldLabel>
+                  <YStack gap="$2">
+                    {previewRows.map((row) => (
+                      <XStack
+                        key={row.id}
+                        alignItems="center"
+                        gap="$2.5"
+                        paddingVertical="$1.5"
+                        testID={`import-preview-row-${row.id}`}
+                      >
+                        <ImportPreviewRowIcon intent={row.intent} />
+                        <YStack flex={1} gap="$0.5">
+                          <Text
+                            color={row.skipped ? PALETTE.danger : PALETTE.onSurface}
+                            fontFamily={FONTS.bodyBold}
+                            fontSize={14}
+                            lineHeight={19}
+                            numberOfLines={2}
+                            style={row.skipped ? styles.skippedPreviewText : undefined}
+                            testID={`import-preview-label-${row.id}`}
+                          >
+                            {row.label}
+                          </Text>
+                          <Text
+                            color={row.skipped ? PALETTE.danger : PALETTE.onSurfaceVariant}
+                            fontFamily={FONTS.bodyMedium}
+                            fontSize={12}
+                          >
+                            {row.detail}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    ))}
+                  </YStack>
+                </YStack>
+              ) : null}
             </SectionCard>
 
           </YStack>
@@ -491,3 +704,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     </AppScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  skippedPreviewText: {
+    textDecorationLine: "underline",
+    textDecorationColor: PALETTE.danger,
+    textDecorationStyle: "solid",
+  },
+});

@@ -14,6 +14,7 @@ export type PdfExportItemShare = {
   participantId: string;
   name: string;
   amountCents: number;
+  allocationLabel?: string;
 };
 
 export type PdfExportItem = {
@@ -29,6 +30,7 @@ export type PdfExportPersonItemShare = {
   itemId: string;
   itemName: string;
   amountCents: number;
+  allocationLabel?: string;
 };
 
 export type PdfExportPersonBreakdown = {
@@ -63,6 +65,10 @@ function comparePeopleByDisplayOrder<T extends { name: string; isPayer: boolean 
     return left.isPayer ? -1 : 1;
   }
 
+  return left.name.localeCompare(right.name, "en-US", { sensitivity: "base" });
+}
+
+function compareByName<T extends { name: string }>(left: T, right: T) {
   return left.name.localeCompare(right.name, "en-US", { sensitivity: "base" });
 }
 
@@ -121,6 +127,53 @@ function getParticipantName(participantId: string, participants: ParsedParticipa
   return participants.find((participant) => participant.id === participantId)?.name ?? t("pdf.unknownParticipant");
 }
 
+function formatAllocationNumber(value: string) {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return "";
+  }
+
+  return parsed.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function getAllocationLabel(
+  sourceItem: SplitFormValues["items"][number],
+  participantId: string,
+) {
+  const allocation = sourceItem.allocations.find(
+    (entry) => entry.participantId === participantId,
+  );
+  if (!allocation) {
+    return undefined;
+  }
+
+  if (sourceItem.splitMode === "percent") {
+    const percent = formatAllocationNumber(allocation.percent);
+    return percent ? t("pdf.allocation.percent", { percent }) : undefined;
+  }
+
+  if (sourceItem.splitMode === "shares") {
+    const shares = formatAllocationNumber(allocation.shares);
+    if (!shares) {
+      return undefined;
+    }
+
+    const count = Number.parseFloat(shares);
+    return t(count === 1 ? "pdf.allocation.shares.one" : "pdf.allocation.shares.other", {
+      count: shares,
+    });
+  }
+
+  return undefined;
+}
+
+function withOptionalAllocationLabel<T extends object>(
+  value: T,
+  allocationLabel?: string,
+) {
+  return allocationLabel ? { ...value, allocationLabel } : value;
+}
+
 export function buildPdfExportData(values: SplitFormValues, date = new Date(), locale = "en-US"): PdfExportData {
   const settlement = computeSettlement(values);
   const parsed = parseSplit(values);
@@ -131,23 +184,34 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
 
   const payer = settlement.data.people.find((person) => person.isPayer)!;
 
-  const items = parsed.data.items.map((item) => ({
-    id: item.id,
-    name: item.name,
-    amountCents: item.amountCents,
-    splitMode: item.splitMode,
-    splitModeLabel: getSplitModeLabel(item.splitMode),
-    shares: item.shares
-      .filter((share) => share.amountCents !== 0)
-      .map((share) => ({
-        participantId: share.participantId,
-        name: getParticipantName(share.participantId, parsed.data.participants),
-        amountCents: share.amountCents,
-      })),
-  }));
+  const items: PdfExportItem[] = parsed.data.items.map((item) => {
+    const sourceItem = values.items.find((entry) => entry.id === item.id);
+
+    return {
+      id: item.id,
+      name: item.name,
+      amountCents: item.amountCents,
+      splitMode: item.splitMode,
+      splitModeLabel: getSplitModeLabel(item.splitMode),
+      shares: item.shares
+        .filter((share) => share.amountCents !== 0)
+        .map((share) =>
+          withOptionalAllocationLabel(
+            {
+              participantId: share.participantId,
+              name: getParticipantName(share.participantId, parsed.data.participants),
+              amountCents: share.amountCents,
+            },
+            sourceItem
+              ? getAllocationLabel(sourceItem, share.participantId)
+              : undefined,
+          ),
+        ),
+    };
+  });
 
   const personBreakdown = [...settlement.data.people]
-    .sort(comparePeopleByDisplayOrder)
+    .sort(compareByName)
     .map((person) => {
       const personItems = items
         .map((item) => {
@@ -158,11 +222,14 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
             return null;
           }
 
-          return {
-            itemId: item.id,
-            itemName: item.name,
-            amountCents: personShare.amountCents,
-          };
+          return withOptionalAllocationLabel(
+            {
+              itemId: item.id,
+              itemName: item.name,
+              amountCents: personShare.amountCents,
+            },
+            personShare.allocationLabel,
+          );
         })
         .filter((item): item is PdfExportPersonItemShare => item !== null);
 

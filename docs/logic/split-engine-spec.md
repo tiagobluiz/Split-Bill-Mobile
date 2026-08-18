@@ -148,7 +148,7 @@ Step-two validation enforces:
 
 - at least 1 item
 - each item name must be non-empty if an amount is present
-- max item name length is `32`
+- max item name length is `64`
 - each item amount must parse successfully
 - each item amount must be non-zero
 - each item amount must stay within `ITEM_AMOUNT_MAX_CENTS`

@@ -253,9 +253,17 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.itemDetail.priceRequired":
     "Adiciona um preço válido antes de guardares este item.",
   "flow.itemDetail.saveFailed":
-    "Nao foi possivel guardar este item agora. Tenta novamente.",
+    "Não foi possível guardar este item agora. Tenta novamente.",
   "flow.itemDetail.duplicateItem":
-    "Este item ja existe. Altera o nome, preco ou categoria.",
+    "Este item já existe. Altera o nome, preço ou categoria.",
+  "flow.itemDetail.mergeDuplicate.title": "Juntar ao item existente?",
+  "flow.itemDetail.mergeDuplicate.body":
+    "{name} já está nesta conta com o valor {amount}. Depois de juntar, fica {mergedAmount}.",
+  "flow.itemDetail.mergeDuplicate.deleteBody":
+    "{name} já está nesta conta com o valor {amount}. Depois de juntar, o preço ficaria zero, por isso o item será apagado.",
+  "flow.itemDetail.mergeDuplicate.confirm": "Juntar preços",
+  "flow.itemDetail.mergeDuplicate.deleteConfirm": "Apagar item",
+  "flow.itemDetail.mergeDuplicate.cancel": "Cancelar",
   "flow.itemDetail.confirmDiscard.title": "Descartar alterações?",
   "flow.itemDetail.confirmDiscard.body":
     "Começaste este item mas ainda não o guardaste.",
@@ -268,8 +276,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.splitItem.title": "Dividir item",
   "flow.splitItem.confirmNext": "Confirmar e dividir o próximo",
   "flow.splitItem.confirmReview": "Confirmar e rever",
+  "flow.splitItem.skip": "Saltar por agora",
+  "flow.splitItem.skipA11y": "Saltar este item por agora",
   "flow.splitItem.saveFailed":
-    "Nao foi possivel guardar esta divisao agora. Tenta novamente.",
+    "Não foi possível guardar esta divisão agora. Tenta novamente.",
   "flow.splitItem.totalShares": "Total de partes",
   "flow.splitItem.eachShare": "Cada parte vale {amount}",
   "flow.splitItem.shareRate": "{amount}/parte",
@@ -330,6 +340,10 @@ const ptPlain: Record<TranslationKey, string> = {
     "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
   "llm.receiptPrompt.rule.noCommentary":
     "- Não acrescentes comentários, numeração, markdown, tabelas ou explicações.",
+  "llm.receiptPrompt.rule.oneItemPerLine":
+    "- Devolve exatamente um item por linha.",
+  "llm.receiptPrompt.rule.itemNameMax":
+    "- Mantém o nome do item, incluindo espaços e todos os caracteres, no máximo {max} caracteres.",
   "llm.receiptPrompt.rule.plainDecimal":
     "- Usa um número decimal simples para o preço.",
   "llm.receiptPrompt.rule.commaToDot":
@@ -341,6 +355,13 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.total": "Total",
   "flow.import.ignored": "Ignoradas",
   "flow.import.previewA11y": "{label}: {value}",
+  "flow.import.linePreview": "Pré-visualização das linhas",
+  "flow.import.skippedByAi": "Ignorado pela IA",
+  "flow.import.previewMerges":
+    "Importado {importedAmount} -> total {mergedAmount}",
+  "flow.import.previewDeletes":
+    "Importado {importedAmount} anula o valor existente {existingAmount}",
+  "flow.import.previewAdds": "Importado {importedAmount}",
   "flow.import.addReview": "Adicionar e rever itens",
   "flow.import.samplePlaceholder":
     "Bananas - 2.49\nTomates: 1.80\nLeite 3.40",
@@ -419,6 +440,15 @@ const ptPlain: Record<TranslationKey, string> = {
     "Foram ignoradas {count} linhas coladas que não seguiam o formato esperado.",
   "pasteImport.noItemsDetected":
     "Não foram detetados itens válidos. Usa linhas como `Bananas - 2.49`, `Bananas 2.49` ou `item,price`.",
+  "pasteImport.ignoreReason.header": "Linha de cabeçalho",
+  "pasteImport.ignoreReason.summary": "Parece um total ou resumo de pagamento",
+  "pasteImport.ignoreReason.missingName": "Falta o nome do item",
+  "pasteImport.ignoreReason.nameTooLong": "O nome do item tem mais de {max} caracteres",
+  "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
+  "pasteImport.ignoreReason.invalidPrice": "O preço está em falta ou é inválido",
+  "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
+  "pasteImport.invalidMergeAmountTooHigh":
+    "Não foi possível juntar {item} porque o valor combinado é demasiado alto.",
   "flow.category.general": "Geral",
   "flow.category.produce": "Fruta e legumes",
   "flow.category.bakery": "Padaria",
@@ -508,6 +538,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "pdf.section.personBreakdown": "Detalhe por pessoa",
   "pdf.payerLabel": "Pagador",
   "pdf.payerSummary": "Pagou {paid} - Recebe {collect}",
+  "pdf.payerConsumed": "Consumiu {amount}",
+  "pdf.allocation.percent": "{percent}%",
+  "pdf.allocation.shares.one": "{count} parte",
+  "pdf.allocation.shares.other": "{count} partes",
   "pdf.summary.total": "Total do recibo",
   "pdf.summary.participants": "Participantes",
   "pdf.summary.items": "Itens",
@@ -724,6 +758,8 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.preview": "Ver antes da tragédia",
   "flow.import.accepted": "Passaram",
   "flow.import.ignored": "Foram ao ar",
+  "flow.import.linePreview": "Linhas sob suspeita",
+  "flow.import.skippedByAi": "Ignorado pela IA",
   "flow.import.addReview": "Adicionar e rezar",
   "flow.import.openFailedTitle": "A IA não abriu. Drama.",
   "flow.import.openFailedBody": "Não deu para copiar nem abrir. Tenta outra vez.",

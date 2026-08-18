@@ -146,6 +146,66 @@ describe("output contracts", () => {
     );
 
     expect(data.people.map((person) => person.name)).toEqual(["Zed", "Ada", "Bob"]);
+    expect(data.personBreakdown.map((person) => person.name)).toEqual(["Ada", "Bob", "Zed"]);
+  });
+
+  it("adds shares and percent labels to PDF breakdown entries while preserving item order", () => {
+    const data = buildPdfExportData(
+      {
+        currency: "EUR",
+        payerParticipantId: "zed",
+        participants: [
+          { id: "zed", name: "Zed" },
+          { id: "bob", name: "Bob" },
+        ],
+        items: [
+          {
+            id: "shares-item",
+            name: "Item 1",
+            price: "9.00",
+            splitMode: "shares",
+            allocations: [
+              { participantId: "zed", evenIncluded: true, shares: "2", percent: "50", percentLocked: false },
+              { participantId: "bob", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+            ],
+          },
+          {
+            id: "percent-item",
+            name: "Item 2",
+            price: "10.00",
+            splitMode: "percent",
+            allocations: [
+              { participantId: "zed", evenIncluded: true, shares: "1", percent: "35", percentLocked: false },
+              { participantId: "bob", evenIncluded: true, shares: "1", percent: "65", percentLocked: false },
+            ],
+          },
+        ],
+      },
+      new Date("2026-03-10T12:00:00.000Z"),
+      "en-US",
+    );
+
+    expect(data.items.map((item) => item.name)).toEqual(["Item 1", "Item 2"]);
+    expect(data.items[0]?.shares).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ participantId: "zed", allocationLabel: "2 shares" }),
+        expect.objectContaining({ participantId: "bob", allocationLabel: "1 share" }),
+      ]),
+    );
+    expect(data.items[1]?.shares).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ participantId: "zed", allocationLabel: "35%" }),
+        expect.objectContaining({ participantId: "bob", allocationLabel: "65%" }),
+      ]),
+    );
+    expect(data.personBreakdown[0]?.name).toBe("Bob");
+    expect(data.personBreakdown[0]?.items.map((item) => item.itemName)).toEqual(["Item 1", "Item 2"]);
+    expect(data.personBreakdown[0]?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemName: "Item 1", allocationLabel: "1 share" }),
+        expect.objectContaining({ itemName: "Item 2", allocationLabel: "65%" }),
+      ]),
+    );
   });
 
   it("builds padded filenames, localized dates, and unknown share names through the public export contract", () => {
@@ -186,6 +246,7 @@ describe("output contracts", () => {
         participantId: "ghost",
         name: "Unknown",
         amountCents: -100,
+        allocationLabel: "100%",
       },
     ]);
   });
