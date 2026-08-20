@@ -2151,14 +2151,17 @@ describe("split screens", () => {
     fireEvent.press(screen.getByText("I already have the item list"));
     fireEvent.changeText(
       screen.getByPlaceholderText(/Bananas - 2\.49/),
-      "Milk - 1000000.00",
+      "Bread - 1.00\nMilk - 1000000.00\nCheese - 2.00",
     );
 
-    expect(screen.getByLabelText("Accepted: 0")).toBeTruthy();
+    expect(screen.getByLabelText("Accepted: 2")).toBeTruthy();
     expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
     expect(
       screen.getByText("Could not merge Milk because the combined amount is too high."),
     ).toBeTruthy();
+    expect(screen.getByTestId("import-preview-label-accepted-0").props.children).toBe("Bread");
+    expect(screen.getByTestId("import-preview-label-skipped-merge-1").props.children).toBe("Milk");
+    expect(screen.getByTestId("import-preview-label-accepted-2").props.children).toBe("Cheese");
   });
 
   it("covers paste loading and warning-free import flows", async () => {
@@ -2268,6 +2271,19 @@ describe("split screens", () => {
       expect(mockAlert).not.toHaveBeenCalled();
       expect(mockStoreState.importPastedList).toHaveBeenCalledWith("not a valid line", "append");
     });
+  });
+
+  it("keeps AI handover line preview rows in pasted order", () => {
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("I already have the item list"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40"),
+      "Bananas - 2.49\nTotal 2.49\nMilk 3.40",
+    );
+
+    expect(screen.getByTestId("import-preview-label-accepted-0").props.children).toBe("Bananas");
+    expect(screen.getByTestId("import-preview-label-skipped-1").props.children).toBe("Total 2.49");
+    expect(screen.getByTestId("import-preview-label-accepted-2").props.children).toBe("Milk");
   });
 
   it("shows the item name length reason for long AI handover lines", () => {

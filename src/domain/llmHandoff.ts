@@ -44,10 +44,12 @@ export function buildReceiptLlmPrompt(settings: TranslationSettings = getI18nRun
     "Item name - 2.49",
     "",
     translateWithSettings(settings, "llm.receiptPrompt.rules"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.plainTextCodeBlock"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine"),
+    translateWithSettings(settings, "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.keepItems"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.excludeNonItems"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.noCommentary"),
-    translateWithSettings(settings, "llm.receiptPrompt.rule.oneItemPerLine"),
     translateWithSettings(settings, "llm.receiptPrompt.rule.itemNameMax", {
       max: ITEM_NAME_MAX_LENGTH - 10,
     }),

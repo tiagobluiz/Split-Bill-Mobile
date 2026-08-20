@@ -17,6 +17,11 @@ describe("paste import parser", () => {
       { line: "Total 12.00", reason: "Looks like a total or payment summary" },
       { line: "Broken Line", reason: "Missing item price" },
     ]);
+    expect(result.lineDetails).toEqual([
+      { kind: "ignored", line: "item,price", reason: "Header row" },
+      { kind: "ignored", line: "Total 12.00", reason: "Looks like a total or payment summary" },
+      { kind: "ignored", line: "Broken Line", reason: "Missing item price" },
+    ]);
     expect(result.warnings).toEqual([
       {
         code: "ignored-paste-lines",
@@ -36,6 +41,25 @@ describe("paste import parser", () => {
       { name: "Bananas", price: "2.49" },
       { name: "Milk", price: "3.40" },
       { name: "Bread", price: "1.20" },
+    ]);
+  });
+
+  it("preserves original non-blank line order across accepted and ignored rows", () => {
+    const result = parsePastedItems("\nBananas - 2.49\nTotal 2.49\n\nMilk 3.40\nBroken Line");
+
+    expect(result.items).toEqual([
+      { name: "Bananas", price: "2.49" },
+      { name: "Milk", price: "3.40" },
+    ]);
+    expect(result.ignoredLineDetails).toEqual([
+      { line: "Total 2.49", reason: "Looks like a total or payment summary" },
+      { line: "Broken Line", reason: "Missing item price" },
+    ]);
+    expect(result.lineDetails).toEqual([
+      { kind: "item", line: "Bananas - 2.49", item: { name: "Bananas", price: "2.49" } },
+      { kind: "ignored", line: "Total 2.49", reason: "Looks like a total or payment summary" },
+      { kind: "item", line: "Milk 3.40", item: { name: "Milk", price: "3.40" } },
+      { kind: "ignored", line: "Broken Line", reason: "Missing item price" },
     ]);
   });
 
@@ -76,6 +100,9 @@ describe("paste import parser", () => {
       ignoredLines: ["- 1.20"],
       ignoredLineDetails: [
         { line: "- 1.20", reason: "Use one item per line with a name and price" },
+      ],
+      lineDetails: [
+        { kind: "ignored", line: "- 1.20", reason: "Use one item per line with a name and price" },
       ],
       warnings: [
         {
@@ -131,6 +158,10 @@ describe("paste import parser", () => {
       ignoredLineDetails: [
         { line: "Total: 42.00", reason: "Looks like a total or payment summary" },
         { line: "Subtotal - 20.00", reason: "Looks like a total or payment summary" },
+      ],
+      lineDetails: [
+        { kind: "ignored", line: "Total: 42.00", reason: "Looks like a total or payment summary" },
+        { kind: "ignored", line: "Subtotal - 20.00", reason: "Looks like a total or payment summary" },
       ],
       warnings: [
         {

@@ -440,14 +440,16 @@ The prompt text is:
 
 ```txt
 Read the uploaded grocery receipt and extract only the purchased receipt items.
-Return the result in this exact format, one item per line:
+Return the result in this exact format:
 Item name - 2.49
 
 Rules:
+- Return the result inside a plain-text code block.
+- Exactly one purchased item per physical line.
+- Do not put more than one item on the same physical line.
 - Keep only real purchasable items.
 - Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.
-- Do not add commentary, numbering, markdown, tables, or explanations.
-- Return exactly one item per line.
+- Do not add commentary, numbering, tables, or explanations.
 - Keep the item name, including spaces and all characters, at most 54 characters.
 - Use a plain decimal number for the price.
 - If the receipt uses comma decimals, convert them to dot decimals.
