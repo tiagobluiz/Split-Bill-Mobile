@@ -332,16 +332,20 @@ const ptPlain: Record<TranslationKey, string> = {
   "llm.receiptPrompt.readReceipt":
     "Lê o talão enviado e extrai apenas os itens comprados.",
   "llm.receiptPrompt.returnFormat":
-    "Devolve o resultado exatamente neste formato, um item por linha:",
+    "Devolve o resultado exatamente neste formato:",
   "llm.receiptPrompt.rules": "Regras:",
+  "llm.receiptPrompt.rule.plainTextCodeBlock":
+    "- Devolve o resultado dentro de um bloco de código em texto simples.",
+  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine":
+    "- Exatamente um item comprado por linha física.",
+  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine":
+    "- Não ponhas mais do que um item na mesma linha física.",
   "llm.receiptPrompt.rule.keepItems":
     "- Mantém apenas itens reais que possam ser comprados.",
   "llm.receiptPrompt.rule.excludeNonItems":
     "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
   "llm.receiptPrompt.rule.noCommentary":
-    "- Não acrescentes comentários, numeração, markdown, tabelas ou explicações.",
-  "llm.receiptPrompt.rule.oneItemPerLine":
-    "- Devolve exatamente um item por linha.",
+    "- Não acrescentes comentários, numeração, tabelas ou explicações.",
   "llm.receiptPrompt.rule.itemNameMax":
     "- Mantém o nome do item, incluindo espaços e todos os caracteres, no máximo {max} caracteres.",
   "llm.receiptPrompt.rule.plainDecimal":
@@ -769,10 +773,13 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.applyFailedTitle": "Importação foi à vida",
   "flow.import.applyFailedBody": "A lista colada não entrou. Tenta melhor.",
 
-  "llm.receiptPrompt.returnFormat": "Devolve isto exatamente assim, um item por linha:",
+  "llm.receiptPrompt.returnFormat": "Devolve isto exatamente assim:",
   "llm.receiptPrompt.rules": "Regras. Sim, há regras:",
+  "llm.receiptPrompt.rule.plainTextCodeBlock": "- Mete o resultado num bloco de código em texto simples.",
+  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine": "- Um item comprado por linha física. Um.",
+  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine": "- Nada de enfiar dois itens na mesma linha.",
   "llm.receiptPrompt.rule.keepItems": "- Só itens reais. Nada de lixo.",
-  "llm.receiptPrompt.rule.noCommentary": "- Sem conversa, listas, markdown, tabelas ou desculpas.",
+  "llm.receiptPrompt.rule.noCommentary": "- Sem conversa, numeração, tabelas ou explicações.",
   "llm.receiptPrompt.rule.commaToDot": "- Vírgulas decimais viram pontos. Sem drama.",
 
   "flow.review.title": "Última hipótese",

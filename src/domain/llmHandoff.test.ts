@@ -21,11 +21,17 @@ describe("llm handoff contract", () => {
   });
 
   it("matches the documented prompt text", () => {
-    expect(buildReceiptLlmPrompt()).toContain("Read the uploaded grocery receipt");
-    expect(buildReceiptLlmPrompt()).toContain("Item name - 2.49");
-    expect(buildReceiptLlmPrompt()).toContain("Do not add commentary");
-    expect(buildReceiptLlmPrompt()).toContain("Return exactly one item per line");
-    expect(buildReceiptLlmPrompt()).toContain(
+    const prompt = buildReceiptLlmPrompt();
+
+    expect(prompt).toContain("Read the uploaded grocery receipt");
+    expect(prompt).toContain("Return the result in this exact format:\nItem name - 2.49");
+    expect(prompt).toContain("Return the result inside a plain-text code block");
+    expect(prompt).toContain("Exactly one purchased item per physical line");
+    expect(prompt).toContain("Do not put more than one item on the same physical line");
+    expect(prompt).toContain("Do not add commentary, numbering, tables, or explanations");
+    expect(prompt).not.toContain("markdown");
+    expect(prompt).not.toContain("Return exactly one item per line");
+    expect(prompt).toContain(
       "Keep the item name, including spaces and all characters, at most 54 characters",
     );
   });
@@ -43,7 +49,9 @@ describe("llm handoff contract", () => {
     expect(prompt).not.toBe(englishPrompt);
     expect(prompt).toContain("Regras:");
     expect(prompt).toContain("Item name - 2.49");
-    expect(prompt).toContain("Devolve exatamente um item por linha");
+    expect(prompt).toContain("Devolve o resultado dentro de um bloco de código em texto simples");
+    expect(prompt).toContain("Exatamente um item comprado por linha física");
+    expect(prompt).toContain("Não ponhas mais do que um item na mesma linha física");
     expect(prompt).toContain(
       "Mantém o nome do item, incluindo espaços e todos os caracteres, no máximo 54 caracteres",
     );

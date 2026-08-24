@@ -39,7 +39,12 @@ import {
 } from "./splitter";
 
 export type { LlmProvider } from "./llmHandoff";
-export type { ParsedPasteImportResult, ReceiptImportItem, ReceiptImportWarning } from "./pasteImport";
+export type {
+  ParsedPasteImportResult,
+  PasteLineDetail,
+  ReceiptImportItem,
+  ReceiptImportWarning,
+} from "./pasteImport";
 export type {
   PdfExportData,
   PdfExportItem,

@@ -12,6 +12,13 @@
     ],
     "ignoredLines": [],
     "ignoredLineDetails": [],
+    "lineDetails": [
+      { "kind": "item", "line": "Bananas - 2.49", "item": { "name": "Bananas", "price": "2.49" } },
+      { "kind": "item", "line": "Tomatoes: 1.80", "item": { "name": "Tomatoes", "price": "1.80" } },
+      { "kind": "item", "line": "Yogurt 2.10", "item": { "name": "Yogurt", "price": "2.10" } },
+      { "kind": "item", "line": "1. Milk - 3,40 EUR", "item": { "name": "Milk", "price": "3.40" } },
+      { "kind": "item", "line": "- Bread - 1.20", "item": { "name": "Bread", "price": "1.20" } }
+    ],
     "warnings": []
   }
 }

@@ -80,7 +80,6 @@ const AI_PROVIDERS: Array<{
   },
 ];
 const IMPORT_PREVIEW_ROW_LIMIT = 6;
-const IMPORT_SKIPPED_PREVIEW_LIMIT = 4;
 type ImportPreviewRowIntent = "add" | "merge" | "delete" | "skipped";
 type ImportPreviewRow = {
   id: string;
@@ -163,10 +162,10 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const importPreview = useMemo(() => {
     if (!record) {
       return {
-        acceptedRows: [],
         acceptedCount: 0,
         acceptedTotalCents: 0,
-        skippedMergeRows: [],
+        ignoredMergeCount: 0,
+        rows: [],
       };
     }
 
@@ -178,21 +177,33 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         price: item.price,
         category: item.category,
       }));
-    const acceptedRows: ImportPreviewRow[] = [];
+    const rows: ImportPreviewRow[] = [];
     const acceptedItems: Array<{
       id: string;
       name: string;
       price: string;
       category?: string;
     }> = [];
-    const skippedMergeRows: ImportPreviewRow[] = [];
     let acceptedCount = 0;
     let acceptedTotalCents = 0;
+    let ignoredMergeCount = 0;
 
     const mergeTargets =
       mode === "replace" ? acceptedItems : [...existingItems, ...acceptedItems];
 
-    parsedPreview.items.forEach((item, index) => {
+    parsedPreview.lineDetails.forEach((detail, index) => {
+      if (detail.kind === "ignored") {
+        rows.push({
+          id: `skipped-${index}`,
+          label: detail.line.trim(),
+          detail: detail.reason,
+          skipped: true,
+          intent: "skipped",
+        });
+        return;
+      }
+
+      const item = detail.item;
       const amountCents = parseMoneyToCents(item.price);
       const mergeKey = getImportPreviewMergeKey(item.name);
       const displayName = item.name.trim().replace(/\s+/g, " ");
@@ -211,7 +222,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             acceptedItems,
             mergeTargets,
           ]);
-          acceptedRows.push({
+          rows.push({
             id: `accepted-${index}`,
             label: displayName,
             detail: t("flow.import.previewDeletes", {
@@ -234,7 +245,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
           return;
         }
         if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-          skippedMergeRows.push({
+          rows.push({
             id: `skipped-merge-${index}`,
             label: displayName,
             detail: t("pasteImport.invalidMergeAmountTooHigh", {
@@ -243,10 +254,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             skipped: true,
             intent: "skipped",
           });
+          ignoredMergeCount += 1;
           return;
         }
         existingMatch.price = formatImportPreviewPrice(mergedCents);
-        acceptedRows.push({
+        rows.push({
           id: `accepted-${index}`,
           label: displayName,
           detail: t("flow.import.previewMerges", {
@@ -275,7 +287,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         category: "",
       };
       acceptedItems.push(candidate);
-      acceptedRows.push({
+      rows.push({
         id: `accepted-${index}`,
         label: displayName,
         detail: t("flow.import.previewAdds", {
@@ -296,37 +308,19 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     });
 
     return {
-      acceptedRows,
       acceptedCount,
       acceptedTotalCents,
-      skippedMergeRows,
+      ignoredMergeCount,
+      rows,
     };
-  }, [locale, mode, parsedPreview.items, record, t]);
+  }, [locale, mode, parsedPreview.lineDetails, record, t]);
   const parsedItemCount = importPreview.acceptedCount;
   const ignoredLineCount =
-    parsedPreview.ignoredLines.length + importPreview.skippedMergeRows.length;
+    parsedPreview.ignoredLines.length + importPreview.ignoredMergeCount;
   const estimatedTotalCents = importPreview.acceptedTotalCents;
   const previewRows = useMemo(() => {
-    const acceptedRows = importPreview.acceptedRows.slice(
-      0,
-      IMPORT_PREVIEW_ROW_LIMIT,
-    );
-    const skippedRows = parsedPreview.ignoredLineDetails
-      .slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT)
-      .map((detail, index) => ({
-        id: `skipped-${index}`,
-        label: detail.line.trim(),
-        detail: detail.reason,
-        skipped: true,
-        intent: "skipped" as const,
-      }));
-
-    return [
-      ...acceptedRows,
-      ...importPreview.skippedMergeRows.slice(0, IMPORT_SKIPPED_PREVIEW_LIMIT),
-      ...skippedRows,
-    ];
-  }, [importPreview.acceptedRows, importPreview.skippedMergeRows, parsedPreview.ignoredLineDetails]);
+    return importPreview.rows.slice(0, IMPORT_PREVIEW_ROW_LIMIT);
+  }, [importPreview.rows]);
 
   const openStepTwo = () => {
     setStep(2);

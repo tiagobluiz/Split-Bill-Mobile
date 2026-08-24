@@ -16,11 +16,24 @@ export type IgnoredPasteLineDetail = {
   reason: string;
 };
 
+export type PasteLineDetail =
+  | {
+      kind: "item";
+      line: string;
+      item: ReceiptImportItem;
+    }
+  | {
+      kind: "ignored";
+      line: string;
+      reason: string;
+    };
+
 export type ParsedPasteImportResult = {
   items: ReceiptImportItem[];
   warnings: ReceiptImportWarning[];
   ignoredLines: string[];
   ignoredLineDetails: IgnoredPasteLineDetail[];
+  lineDetails: PasteLineDetail[];
 };
 
 const PASTE_SUMMARY_LABELS = ["total", "subtotal", "tax", "vat", "paid", "payment", "cash", "card"];
@@ -230,27 +243,43 @@ function parseTrailingPriceLine(line: string) {
   return { name, price };
 }
 
+function isCodeFenceLine(line: string) {
+  return /^```[\w -]*$/.test(line.trim());
+}
+
 export function parsePastedItems(input: string): ParsedPasteImportResult {
   const lines = input
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0 && !isCodeFenceLine(line));
 
   const items: ReceiptImportItem[] = [];
   const ignoredLines: string[] = [];
   const ignoredLineDetails: IgnoredPasteLineDetail[] = [];
+  const lineDetails: PasteLineDetail[] = [];
 
   lines.forEach((line) => {
     const parsed = parseLineFormat(line) ?? parseCsvLine(line) ?? parseTrailingPriceLine(line);
     if (parsed) {
       items.push(parsed);
+      lineDetails.push({
+        kind: "item",
+        line,
+        item: parsed,
+      });
       return;
     }
 
+    const reason = getIgnoredLineReason(line);
     ignoredLines.push(line);
     ignoredLineDetails.push({
       line,
-      reason: getIgnoredLineReason(line),
+      reason,
+    });
+    lineDetails.push({
+      kind: "ignored",
+      line,
+      reason,
     });
   });
 
@@ -278,5 +307,6 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
     warnings,
     ignoredLines,
     ignoredLineDetails,
+    lineDetails,
   };
 }
