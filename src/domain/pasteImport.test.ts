@@ -44,6 +44,22 @@ describe("paste import parser", () => {
     ]);
   });
 
+  it("ignores plain-text code fence lines around AI output", () => {
+    const result = parsePastedItems("```text\nBananas - 2.49\nMilk 3.40\n```");
+
+    expect(result.items).toEqual([
+      { name: "Bananas", price: "2.49" },
+      { name: "Milk", price: "3.40" },
+    ]);
+    expect(result.ignoredLines).toEqual([]);
+    expect(result.ignoredLineDetails).toEqual([]);
+    expect(result.lineDetails).toEqual([
+      { kind: "item", line: "Bananas - 2.49", item: { name: "Bananas", price: "2.49" } },
+      { kind: "item", line: "Milk 3.40", item: { name: "Milk", price: "3.40" } },
+    ]);
+    expect(result.warnings).toEqual([]);
+  });
+
   it("preserves original non-blank line order across accepted and ignored rows", () => {
     const result = parsePastedItems("\nBananas - 2.49\nTotal 2.49\n\nMilk 3.40\nBroken Line");
 

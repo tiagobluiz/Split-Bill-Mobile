@@ -779,7 +779,7 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine": "- Um item comprado por linha física. Um.",
   "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine": "- Nada de enfiar dois itens na mesma linha.",
   "llm.receiptPrompt.rule.keepItems": "- Só itens reais. Nada de lixo.",
-  "llm.receiptPrompt.rule.noCommentary": "- Sem conversa, listas, tabelas ou desculpas.",
+  "llm.receiptPrompt.rule.noCommentary": "- Sem conversa, numeração, tabelas ou explicações.",
   "llm.receiptPrompt.rule.commaToDot": "- Vírgulas decimais viram pontos. Sem drama.",
 
   "flow.review.title": "Última hipótese",

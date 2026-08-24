@@ -243,11 +243,15 @@ function parseTrailingPriceLine(line: string) {
   return { name, price };
 }
 
+function isCodeFenceLine(line: string) {
+  return /^```[\w -]*$/.test(line.trim());
+}
+
 export function parsePastedItems(input: string): ParsedPasteImportResult {
   const lines = input
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0 && !isCodeFenceLine(line));
 
   const items: ReceiptImportItem[] = [];
   const ignoredLines: string[] = [];
