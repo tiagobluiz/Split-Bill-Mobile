@@ -5,6 +5,7 @@ import {
   normalizeReminderState,
   type ReminderState,
 } from "../features/split/reminders";
+import { normalizeTagIds } from "../features/split/tags";
 
 export type RecordStatus = "draft" | "completed";
 
@@ -111,6 +112,7 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
     values: {
       ...values,
       splitName: typeof values.splitName === "string" ? values.splitName : "",
+      tagIds: normalizeTagIds((values as { tagIds?: unknown }).tagIds),
       items,
     },
     settlementState,

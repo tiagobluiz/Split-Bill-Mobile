@@ -3,23 +3,25 @@ import { Pressable, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
-import {
-  Text as TamaguiText,
-  YStack as TamaguiYStack,
-} from "tamagui";
+import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 
 import {
   AppScreen,
-  PrimaryButton,
   StackedFloatingFooter,
   useFloatingFooterInset,
 } from "../../../../components/ui";
 import { getDeviceLocale, prefers24HourTime } from "../../../../lib/device";
-import { trackSplitFlowStarted } from "../../../../lib/telemetry";
+import {
+  trackSplitFlowStarted,
+  trackSplitTagsUsed,
+} from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { getSettlementPreview, useSplitStore } from "../../store";
-import { getRecordMoneyPreview, getHomeBalanceCards } from "../shared/settlementUtils";
+import {
+  getRecordMoneyPreview,
+  getHomeBalanceCards,
+} from "../shared/settlementUtils";
 import { HomeTabBar, type HomeTabKey } from "../shared/homeParts";
 import { HomeHomeTabContent } from "./HomeHomeTabContent";
 import { HomeOverlayStack } from "./HomeOverlayStack";
@@ -29,11 +31,17 @@ import type {
   ActivityBalanceFilter,
   ActivityDateFilter,
   ActivityStateFilter,
+  ActivityTagFilterMode,
   HomeRecord,
   RecordActionTarget,
 } from "./homeTypes";
 import { useHomeSettingsDraftController } from "./useHomeSettingsDraftController";
 import { screenStyles } from "../shared/styles";
+import {
+  isDefaultSplitTag,
+  type SplitTagColor,
+  type SplitTagIcon,
+} from "../../tags";
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
@@ -46,20 +54,25 @@ export function HomeScreenView() {
     removeRecord,
     settings,
     updateSettings,
+    updateRecordDetails,
     setSplitReminder,
     clearSplitReminder,
-  } =
-    useSplitStore(
-      useShallow((state) => ({
-        records: state.records,
-        createDraft: state.createDraft,
-        removeRecord: state.removeRecord,
-        settings: state.settings,
-        updateSettings: state.updateSettings,
-        setSplitReminder: state.setSplitReminder,
-        clearSplitReminder: state.clearSplitReminder,
-      })),
-    );
+    addTag,
+    removeTag,
+  } = useSplitStore(
+    useShallow((state) => ({
+      records: state.records,
+      createDraft: state.createDraft,
+      removeRecord: state.removeRecord,
+      settings: state.settings,
+      updateSettings: state.updateSettings,
+      updateRecordDetails: state.updateRecordDetails,
+      setSplitReminder: state.setSplitReminder,
+      clearSplitReminder: state.clearSplitReminder,
+      addTag: state.addTag,
+      removeTag: state.removeTag,
+    })),
+  );
 
   const insets = useSafeAreaInsets();
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
@@ -69,9 +82,6 @@ export function HomeScreenView() {
   const use24HourClock = prefers24HourTime();
 
   const [activeTab, setActiveTab] = useState<HomeTabKey>("home");
-  const [pendingTabChange, setPendingTabChange] = useState<HomeTabKey | null>(
-    null,
-  );
   const [pendingDelete, setPendingDelete] = useState<RecordActionTarget | null>(
     null,
   );
@@ -83,14 +93,24 @@ export function HomeScreenView() {
     useState<ActivityDateFilter>("newest");
   const [activityBalanceFilter, setActivityBalanceFilter] =
     useState<ActivityBalanceFilter>("all");
+  const [activityTagFilterIds, setActivityTagFilterIds] = useState<string[]>(
+    [],
+  );
+  const [activityTagFilterMode, setActivityTagFilterMode] =
+    useState<ActivityTagFilterMode>("all");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [visibleSplitCount, setVisibleSplitCount] = useState(20);
 
-  const [splitReminderPickerRecordId, setSplitReminderPickerRecordId] = useState("");
+  const [splitReminderPickerRecordId, setSplitReminderPickerRecordId] =
+    useState("");
+  const [quickEditRecordId, setQuickEditRecordId] = useState("");
   const [splitReminderPickerHasExisting, setSplitReminderPickerHasExisting] =
     useState(false);
-  const [splitReminderErrorMessage, setSplitReminderErrorMessage] = useState("");
+  const [splitReminderErrorMessage, setSplitReminderErrorMessage] =
+    useState("");
   const [reminderToastMessage, setReminderToastMessage] = useState("");
+  const [pendingTagDeleteId, setPendingTagDeleteId] = useState("");
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
 
   const [isCreatingSplit, setIsCreatingSplit] = useState(false);
   const creatingSplitRef = useRef(false);
@@ -100,13 +120,6 @@ export function HomeScreenView() {
   const settingsController = useHomeSettingsDraftController({
     settings,
     updateSettings,
-    onDiscardExtraState: () => {
-      setSelectedRecordActionTarget(null);
-      setSplitReminderPickerRecordId("");
-      setSplitReminderPickerHasExisting(false);
-      setSplitReminderErrorMessage("");
-      setPendingTabChange(null);
-    },
   });
 
   useFocusEffect(
@@ -119,6 +132,16 @@ export function HomeScreenView() {
   const visibleRecords = pendingDelete
     ? records.filter((record) => record.id !== pendingDelete.id)
     : records;
+  const tagUsageCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    records.forEach((record) => {
+      const uniqueTagIds = new Set(record.values.tagIds ?? []);
+      uniqueTagIds.forEach((tagId) => {
+        counts.set(tagId, (counts.get(tagId) ?? 0) + 1);
+      });
+    });
+    return counts;
+  }, [records]);
 
   const balances = getHomeBalanceCards(
     visibleRecords,
@@ -159,7 +182,17 @@ export function HomeScreenView() {
         : ownerNetCents > 0;
     });
 
-    return [...byBalance].sort((left, right) =>
+    const byTags =
+      activityTagFilterIds.length === 0
+        ? byBalance
+        : byBalance.filter((record) => {
+            const recordTagIds = new Set(record.values.tagIds ?? []);
+            return activityTagFilterMode === "all"
+              ? activityTagFilterIds.every((tagId) => recordTagIds.has(tagId))
+              : activityTagFilterIds.some((tagId) => recordTagIds.has(tagId));
+          });
+
+    return [...byTags].sort((left, right) =>
       activityDateFilter === "newest"
         ? right.updatedAt.localeCompare(left.updatedAt)
         : left.updatedAt.localeCompare(right.updatedAt),
@@ -168,6 +201,8 @@ export function HomeScreenView() {
     activityBalanceFilter,
     activityDateFilter,
     activityStateFilter,
+    activityTagFilterIds,
+    activityTagFilterMode,
     settings.ownerName,
     visibleRecords,
   ]);
@@ -176,6 +211,7 @@ export function HomeScreenView() {
   const splitReminderPickerRecord = records.find(
     (record) => record.id === splitReminderPickerRecordId,
   );
+  const quickEditRecord = records.find((record) => record.id === quickEditRecordId);
 
   const commitPendingDelete = async (nextPending: RecordActionTarget) => {
     clearTimeout(deleteTimeoutRef.current);
@@ -221,7 +257,12 @@ export function HomeScreenView() {
 
   useEffect(() => {
     setVisibleSplitCount(20);
-  }, [activityBalanceFilter, activityDateFilter, activityStateFilter]);
+  }, [
+    activityBalanceFilter,
+    activityDateFilter,
+    activityStateFilter,
+    activityTagFilterIds,
+  ]);
 
   useEffect(() => {
     if (!reminderToastMessage) {
@@ -260,14 +301,16 @@ export function HomeScreenView() {
     if (
       activeTab === "settings" &&
       nextTab !== "settings" &&
-      settingsController.settingsDirty
+      !settingsController.canLeaveSettings()
     ) {
-      setPendingTabChange(nextTab);
       return;
     }
 
     setActiveTab(nextTab);
   };
+
+  const hideHomeFooter =
+    (activeTab === "settings" && tagEditorOpen) || Boolean(quickEditRecord);
 
   const getSplitReminderLabel = (record: HomeRecord) => {
     const reminder = record.reminderState?.splitReminder;
@@ -334,6 +377,41 @@ export function HomeScreenView() {
       });
   };
 
+  const handleAddQuickEditTag = async (
+    label: string,
+    icon?: SplitTagIcon | null,
+    color?: SplitTagColor,
+  ) => {
+    return addTag(label, icon, color);
+  };
+
+  const handleSaveQuickEdit = async (details: {
+    splitName: string;
+    tagIds: string[];
+  }) => {
+    const record = quickEditRecord;
+    if (!record) {
+      return;
+    }
+    const previousTagIds = record.values.tagIds ?? [];
+    await updateRecordDetails(record.id, details);
+    const tagSetChanged =
+      previousTagIds.length !== details.tagIds.length ||
+      previousTagIds.some((tagId) => !details.tagIds.includes(tagId));
+    if (tagSetChanged && details.tagIds.length > 0) {
+      const selectedTags = (settings.tags ?? []).filter((tag) =>
+        details.tagIds.includes(tag.id),
+      );
+      void trackSplitTagsUsed({
+        tagCount: selectedTags.length,
+        builtInTagCount: selectedTags.filter(isDefaultSplitTag).length,
+        customTagCount: selectedTags.filter((tag) => !isDefaultSplitTag(tag))
+          .length,
+      });
+    }
+    setQuickEditRecordId("");
+  };
+
   return (
     <AppScreen
       scroll={false}
@@ -343,7 +421,9 @@ export function HomeScreenView() {
           settingsNoticeMessages={settingsController.settingsNoticeMessages}
           onDismissSettingsNotice={settingsController.clearSettingsNotice}
           selectedRecordActionTarget={selectedRecordActionTarget}
-          onDismissRecordActionTarget={() => setSelectedRecordActionTarget(null)}
+          onDismissRecordActionTarget={() =>
+            setSelectedRecordActionTarget(null)
+          }
           onRecordActionReminder={() => {
             const target = selectedRecordActionTarget;
             if (!target) {
@@ -360,6 +440,14 @@ export function HomeScreenView() {
             );
             setSplitReminderPickerRecordId(target.id);
           }}
+          onRecordActionEditDetails={() => {
+            const target = selectedRecordActionTarget;
+            if (!target) {
+              return;
+            }
+            setSelectedRecordActionTarget(null);
+            setQuickEditRecordId(target.id);
+          }}
           onRecordActionDelete={() => {
             const target = selectedRecordActionTarget;
             if (!target) {
@@ -369,6 +457,11 @@ export function HomeScreenView() {
             setSelectedRecordActionTarget(null);
             queueDelete(target.id, target.title);
           }}
+          quickEditRecord={quickEditRecord}
+          tags={settings.tags ?? []}
+          onCancelQuickEdit={() => setQuickEditRecordId("")}
+          onSaveQuickEdit={handleSaveQuickEdit}
+          onAddQuickEditTag={handleAddQuickEditTag}
           splitReminderPickerRecord={splitReminderPickerRecord}
           splitReminderPickerHasExisting={splitReminderPickerHasExisting}
           splitReminderErrorMessage={splitReminderErrorMessage}
@@ -393,7 +486,9 @@ export function HomeScreenView() {
           footerInsetBottom={footerInsetBottom}
           profileActionMenuOpen={settingsController.profileActionMenuOpen}
           setProfileActionMenuOpen={settingsController.setProfileActionMenuOpen}
-          ownerProfileImageUriDraft={settingsController.ownerProfileImageUriDraft}
+          ownerProfileImageUriDraft={
+            settingsController.ownerProfileImageUriDraft
+          }
           setOwnerProfileImageUriDraft={
             settingsController.setOwnerProfileImageUriDraft
           }
@@ -439,77 +534,54 @@ export function HomeScreenView() {
           }
           addCustomCurrency={settingsController.addCustomCurrency}
           closeCustomCurrencyModal={settingsController.closeCustomCurrencyModal}
-          pendingTabChange={pendingTabChange}
-          onConfirmPendingTabChange={() => {
-            void settingsController.saveSettings().then((saved) => {
-              if (saved && pendingTabChange) {
-                setActiveTab(pendingTabChange);
-                setPendingTabChange(null);
-              }
-            });
-          }}
-          onDiscardPendingTabChange={() => {
-            settingsController.discardSettingsDraft();
-            if (!pendingTabChange) {
-              return;
-            }
-
-            setActiveTab(pendingTabChange);
-            setPendingTabChange(null);
-          }}
         />
       }
       footer={
-        <StackedFloatingFooter onMeasuredHeight={onMeasuredHeight}>
-          {activeTab === "settings" ? (
-            <PrimaryButton
-              label={t("settings.save")}
-              onPress={() => void settingsController.saveSettings()}
-              disabled={!settingsController.settingsDirty}
-            />
-          ) : null}
-          {pendingDelete ? (
-            <View style={screenStyles.undoBanner}>
-              <YStack flex={1} gap="$1">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onPrimary}
+        hideHomeFooter ? null : (
+          <StackedFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+            {pendingDelete ? (
+              <View style={screenStyles.undoBanner}>
+                <YStack flex={1} gap="$1">
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={14}
+                    color={PALETTE.onPrimary}
+                  >
+                    {t("home.undoSplitDeleted")}
+                  </Text>
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={12}
+                    color="rgba(255,255,255,0.82)"
+                  >
+                    {pendingDelete.title}
+                  </Text>
+                </YStack>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Undo delete"
+                  style={screenStyles.undoButton}
+                  onPress={() => {
+                    clearTimeout(deleteTimeoutRef.current);
+                    deleteTimeoutRef.current = null;
+                    setPendingDelete(null);
+                  }}
                 >
-                  {t("home.undoSplitDeleted")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={12}
-                  color="rgba(255,255,255,0.82)"
-                >
-                  {pendingDelete.title}
-                </Text>
-              </YStack>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Undo delete"
-                style={screenStyles.undoButton}
-                onPress={() => {
-                  clearTimeout(deleteTimeoutRef.current);
-                  deleteTimeoutRef.current = null;
-                  setPendingDelete(null);
-                }}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={PALETTE.onPrimary}
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {t("common.undo")}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-          <HomeTabBar activeTab={activeTab} onChange={attemptTabChange} />
-        </StackedFloatingFooter>
+                  <Text
+                    fontFamily={FONTS.bodyBold}
+                    fontSize={12}
+                    color={PALETTE.onPrimary}
+                    textTransform="uppercase"
+                    letterSpacing={1.6}
+                  >
+                    {t("common.undo")}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <HomeTabBar activeTab={activeTab} onChange={attemptTabChange} />
+          </StackedFloatingFooter>
+        )
       }
     >
       {activeTab === "home" ? (
@@ -542,6 +614,10 @@ export function HomeScreenView() {
           setActivityBalanceFilter={setActivityBalanceFilter}
           activityDateFilter={activityDateFilter}
           setActivityDateFilter={setActivityDateFilter}
+          activityTagFilterIds={activityTagFilterIds}
+          setActivityTagFilterIds={setActivityTagFilterIds}
+          activityTagFilterMode={activityTagFilterMode}
+          setActivityTagFilterMode={setActivityTagFilterMode}
           visibleSplitCount={visibleSplitCount}
           filteredSplitRecordsLength={filteredSplitRecords.length}
           onIncreaseVisibleCount={() =>
@@ -559,9 +635,16 @@ export function HomeScreenView() {
           settings={settings}
           ownerNameDraft={settingsController.ownerNameDraft}
           setOwnerNameDraft={settingsController.setOwnerNameDraft}
-          ownerProfileImageUriDraft={settingsController.ownerProfileImageUriDraft}
-          balanceFeatureEnabledDraft={settingsController.balanceFeatureEnabledDraft}
-          setBalanceFeatureEnabledDraft={settingsController.setBalanceFeatureEnabledDraft}
+          validateOwnerNameDraft={settingsController.validateOwnerNameDraft}
+          ownerProfileImageUriDraft={
+            settingsController.ownerProfileImageUriDraft
+          }
+          balanceFeatureEnabledDraft={
+            settingsController.balanceFeatureEnabledDraft
+          }
+          setBalanceFeatureEnabledDraft={
+            settingsController.setBalanceFeatureEnabledDraft
+          }
           trackPaymentsFeatureEnabledDraft={
             settingsController.trackPaymentsFeatureEnabledDraft
           }
@@ -588,6 +671,16 @@ export function HomeScreenView() {
             settingsController.setSplitListAmountDisplayDraft
           }
           customCurrenciesDraft={settingsController.customCurrenciesDraft}
+          tags={settings.tags ?? []}
+          onAddTag={addTag}
+          tagEditorOpen={tagEditorOpen}
+          setTagEditorOpen={setTagEditorOpen}
+          pendingTagDeleteId={pendingTagDeleteId}
+          setPendingTagDeleteId={setPendingTagDeleteId}
+          getTagUsageCount={(tagId) => tagUsageCounts.get(tagId) ?? 0}
+          onConfirmDeleteTag={(tagId) => {
+            void removeTag(tagId).then(() => setPendingTagDeleteId(""));
+          }}
         />
       ) : null}
     </AppScreen>

@@ -162,6 +162,38 @@ describe("telemetry", () => {
     expect(splitModeCalls).toHaveLength(2);
   });
 
+  it("tracks tag usage and tag management events", async () => {
+    const telemetry = loadTelemetryModule();
+
+    await telemetry.trackSplitTagsUsed({
+      tagCount: 3,
+      builtInTagCount: 2,
+      customTagCount: 1,
+    });
+    await telemetry.trackSplitTagsUsed({
+      tagCount: 0,
+      builtInTagCount: 0,
+      customTagCount: 0,
+    });
+    await telemetry.trackCustomTagCreated({ iconType: "custom" });
+    await telemetry.trackDefaultTagRemoved();
+
+    expect(mockLogEvent).toHaveBeenCalledWith("split_tags_used", {
+      tag_count: 3,
+      built_in_tag_count: 2,
+      custom_tag_count: 1,
+    });
+    expect(mockLogEvent).toHaveBeenCalledWith("custom_tag_created", {
+      icon_type: "custom",
+    });
+    expect(mockLogEvent).toHaveBeenCalledWith("default_tag_removed", undefined);
+    expect(
+      mockLogEvent.mock.calls.filter(
+        (call: any[]) => call[0] === "split_tags_used",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("clears per-draft telemetry memory after split completion", async () => {
     const telemetry = loadTelemetryModule();
     telemetry.rememberItemOrigins("draft-1", ["item-ai"], "ai_handover");

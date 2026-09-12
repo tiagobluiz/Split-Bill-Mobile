@@ -26,6 +26,7 @@ export type ItemFormValue = {
 
 export type SplitFormValues = {
   splitName?: string;
+  tagIds?: string[];
   currency: string;
   exchangeRate?: {
     sourceCurrency: string;
@@ -416,6 +417,7 @@ export function createEmptyItem(participants: ParticipantFormValue[]): ItemFormV
 export function createDefaultValues(locale?: string): SplitFormValues {
   return {
     splitName: "",
+    tagIds: [],
     currency: detectCurrency(locale),
     participants: [],
     payerParticipantId: "",

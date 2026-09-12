@@ -28,9 +28,27 @@ export function buildRecordFixture(overrides: Partial<any> = {}) {
           price: "9.00",
           splitMode: "even",
           allocations: [
-            { participantId: "ana", evenIncluded: true, shares: "1", percent: "33.34", percentLocked: false },
-            { participantId: "bruno", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
-            { participantId: "zoe", evenIncluded: true, shares: "1", percent: "33.33", percentLocked: false },
+            {
+              participantId: "ana",
+              evenIncluded: true,
+              shares: "1",
+              percent: "33.34",
+              percentLocked: false,
+            },
+            {
+              participantId: "bruno",
+              evenIncluded: true,
+              shares: "1",
+              percent: "33.33",
+              percentLocked: false,
+            },
+            {
+              participantId: "zoe",
+              evenIncluded: true,
+              shares: "1",
+              percent: "33.33",
+              percentLocked: false,
+            },
           ],
         },
       ],
@@ -59,6 +77,20 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
+      tags: [
+        {
+          id: "tag-restaurant",
+          label: "Restaurant",
+          icon: "utensils",
+          color: "orange",
+        },
+        {
+          id: "tag-groceries",
+          label: "Groceries",
+          icon: "cart",
+          color: "mint",
+        },
+      ],
       customCurrencies: [],
     },
     bootstrap: jest.fn(),
@@ -75,8 +107,20 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
       category: "",
       splitMode: "even",
       allocations: [
-        { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-        { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+        {
+          participantId: "ana",
+          evenIncluded: true,
+          shares: "1",
+          percent: "50",
+          percentLocked: false,
+        },
+        {
+          participantId: "bruno",
+          evenIncluded: true,
+          shares: "1",
+          percent: "50",
+          percentLocked: false,
+        },
       ],
     })),
     createItem: jest.fn(async () => undefined),
@@ -97,6 +141,9 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
       importedItemIds: [],
     })),
     updateSettings: jest.fn(async () => undefined),
+    addTag: jest.fn(async () => true),
+    removeTag: jest.fn(async () => undefined),
+    updateRecordDetails: jest.fn(async () => undefined),
     updateDraftMeta: jest.fn(async () => undefined),
     markBillPaid: jest.fn(async () => undefined),
     revertBillPaid: jest.fn(async () => undefined),
@@ -133,17 +180,42 @@ export function applyDefaultStorePreviews(store: any) {
               },
             ],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 900, consumedCents: 300, netCents: 600 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
-              { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 900,
+                consumedCents: 300,
+                netCents: 600,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 300,
+                netCents: -300,
+              },
+              {
+                participantId: "zoe",
+                name: "Zoe",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 300,
+                netCents: -300,
+              },
             ],
             transfers: [],
           },
         }
-      : null
+      : null,
   );
   store.getClipboardSummaryPreview.mockImplementation((record: any) =>
-    record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+    record
+      ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00."
+      : null,
   );
-  store.getPdfExportPreview.mockImplementation((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null));
+  store.getPdfExportPreview.mockImplementation((record: any) =>
+    record ? { fileName: "split-bill-2026-03-09.pdf" } : null,
+  );
 }

@@ -13,6 +13,7 @@ type SplitStepName =
   | "results";
 type SplitStatus = "draft" | "completed";
 type SplitModeName = "even" | "shares" | "percent";
+type CustomTagIconType = "none" | "default" | "custom";
 
 type AnalyticsInstance = {
   setAnalyticsCollectionEnabled: (enabled: boolean) => Promise<void>;
@@ -229,9 +230,7 @@ export function syncDraftItemOrigins(draftId: string, itemIds: string[]) {
   }
 
   const retainedIds = new Set(
-    itemIds
-      .map((itemId) => itemId.trim())
-      .filter(Boolean),
+    itemIds.map((itemId) => itemId.trim()).filter(Boolean),
   );
 
   for (const itemId of originMap.keys()) {
@@ -305,4 +304,32 @@ export async function trackItemSplitModeUsedOnce(params: {
     method_origin: methodOrigin,
   });
   trackedSplitModesByDraftId.add(dedupeKey);
+}
+
+export async function trackSplitTagsUsed(params: {
+  tagCount: number;
+  builtInTagCount: number;
+  customTagCount: number;
+}) {
+  if (params.tagCount <= 0) {
+    return;
+  }
+
+  await trackEvent("split_tags_used", {
+    tag_count: params.tagCount,
+    built_in_tag_count: params.builtInTagCount,
+    custom_tag_count: params.customTagCount,
+  });
+}
+
+export async function trackCustomTagCreated(params: {
+  iconType: CustomTagIconType;
+}) {
+  await trackEvent("custom_tag_created", {
+    icon_type: params.iconType,
+  });
+}
+
+export async function trackDefaultTagRemoved() {
+  await trackEvent("default_tag_removed");
 }

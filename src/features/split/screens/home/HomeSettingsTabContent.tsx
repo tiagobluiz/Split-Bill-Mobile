@@ -1,5 +1,5 @@
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -8,6 +8,7 @@ import {
 
 import { FieldLabel, SectionEyebrow } from "../../../../components/ui";
 import type { AppSettings } from "../../../../storage/settings";
+import type { SplitTag, SplitTagColor, SplitTagIcon } from "../../tags";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -19,10 +20,11 @@ import {
   isBalanceDependentSplitListAmountDisplay,
   MAX_OWNER_NAME_LENGTH,
 } from "./useHomeSettingsDraftController";
-import type {
-  SplitListAmountDisplayOption,
-} from "./homeTypes";
+import type { SplitListAmountDisplayOption } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
+import { ConfirmChoiceModal } from "../shared/modals";
+import { TagChip } from "../shared/TagChips";
+import { TagEditorModal } from "../shared/TagEditorModal";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
@@ -34,6 +36,7 @@ export function HomeSettingsTabContent({
   settings,
   ownerNameDraft,
   setOwnerNameDraft,
+  validateOwnerNameDraft,
   ownerProfileImageUriDraft,
   balanceFeatureEnabledDraft,
   setBalanceFeatureEnabledDraft,
@@ -51,12 +54,21 @@ export function HomeSettingsTabContent({
   splitListAmountDisplayDraft,
   setSplitListAmountDisplayDraft,
   customCurrenciesDraft,
+  tags,
+  onAddTag,
+  tagEditorOpen,
+  setTagEditorOpen,
+  pendingTagDeleteId,
+  setPendingTagDeleteId,
+  getTagUsageCount,
+  onConfirmDeleteTag,
 }: {
   topInset: number;
   footerInsetBottom: number;
   settings: AppSettings;
   ownerNameDraft: string;
   setOwnerNameDraft: (value: string) => void;
+  validateOwnerNameDraft: () => boolean;
   ownerProfileImageUriDraft: string;
   balanceFeatureEnabledDraft: boolean;
   setBalanceFeatureEnabledDraft: (
@@ -84,8 +96,24 @@ export function HomeSettingsTabContent({
     value: "remaining" | "total" | "userPaid" | "totalAndRemaining",
   ) => void;
   customCurrenciesDraft: Array<{ code: string; name: string; symbol: string }>;
+  tags: SplitTag[];
+  onAddTag: (
+    label: string,
+    icon?: SplitTagIcon | null,
+    color?: SplitTagColor,
+  ) => Promise<boolean>;
+  tagEditorOpen: boolean;
+  setTagEditorOpen: (value: boolean) => void;
+  pendingTagDeleteId: string;
+  setPendingTagDeleteId: (tagId: string) => void;
+  getTagUsageCount: (tagId: string) => number;
+  onConfirmDeleteTag: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
+  const pendingDeleteTag = tags.find((tag) => tag.id === pendingTagDeleteId);
+  const pendingDeleteTagUsageCount = pendingDeleteTag
+    ? getTagUsageCount(pendingDeleteTag.id)
+    : 0;
 
   return (
     <YStack flex={1}>
@@ -137,6 +165,7 @@ export function HomeSettingsTabContent({
                     placeholderTextColor={PALETTE.inputPlaceholder}
                     style={screenStyles.assignInput}
                     maxLength={MAX_OWNER_NAME_LENGTH}
+                    onBlur={validateOwnerNameDraft}
                   />
                 </View>
                 <Text
@@ -149,6 +178,49 @@ export function HomeSettingsTabContent({
                 </Text>
               </YStack>
             </XStack>
+          </YStack>
+          <View style={screenStyles.itemsSectionSeparator} />
+          <YStack gap="$4">
+            <SectionEyebrow>{t("tags.settingsTitle")}</SectionEyebrow>
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={14}
+              lineHeight={21}
+              color={PALETTE.onSurfaceVariant}
+            >
+              {t("tags.settingsDescription")}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("tags.add")}
+              style={screenStyles.tagCreateButton}
+              onPress={() => setTagEditorOpen(true)}
+            >
+              <Plus color={PALETTE.primary} size={16} />
+              <Text
+                fontFamily={FONTS.bodyBold}
+                fontSize={14}
+                color={PALETTE.primary}
+              >
+                {t("tags.add")}
+              </Text>
+            </Pressable>
+            <YStack gap="$2">
+              {tags.map((tag) => (
+                <View key={tag.id} style={screenStyles.tagManagerRow}>
+                  <TagChip tag={tag} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("tags.deleteA11y", {
+                      tag: tag.label,
+                    })}
+                    onPress={() => setPendingTagDeleteId(tag.id)}
+                  >
+                    <Trash2 color={PALETTE.danger} size={18} />
+                  </Pressable>
+                </View>
+              ))}
+            </YStack>
           </YStack>
           <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
@@ -196,9 +268,21 @@ export function HomeSettingsTabContent({
                 style={screenStyles.selectRow}
                 onPress={() => setLanguageMenuOpen(true)}
               >
-                <XStack alignItems="center" justifyContent="space-between" gap="$3">
-                  <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
-                    {t(languageDraft === "pt" ? "settings.language.pt" : "settings.language.en")}
+                <XStack
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap="$3"
+                >
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={17}
+                    color={PALETTE.onSurface}
+                  >
+                    {t(
+                      languageDraft === "pt"
+                        ? "settings.language.pt"
+                        : "settings.language.en",
+                    )}
                   </Text>
                   <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
                 </XStack>
@@ -212,8 +296,16 @@ export function HomeSettingsTabContent({
                 style={screenStyles.selectRow}
                 onPress={() => setHumourMenuOpen(true)}
               >
-                <XStack alignItems="center" justifyContent="space-between" gap="$3">
-                  <Text fontFamily={FONTS.bodyMedium} fontSize={17} color={PALETTE.onSurface}>
+                <XStack
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap="$3"
+                >
+                  <Text
+                    fontFamily={FONTS.bodyMedium}
+                    fontSize={17}
+                    color={PALETTE.onSurface}
+                  >
                     {t(
                       humourDraft === "sassy"
                         ? "settings.humour.sassy"
@@ -338,7 +430,9 @@ export function HomeSettingsTabContent({
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  {trackPaymentsFeatureEnabledDraft ? t("common.on") : t("common.off")}
+                  {trackPaymentsFeatureEnabledDraft
+                    ? t("common.on")
+                    : t("common.off")}
                 </Text>
               </Pressable>
             </View>
@@ -397,7 +491,9 @@ export function HomeSettingsTabContent({
                   textTransform="uppercase"
                   letterSpacing={1.6}
                 >
-                  {balanceFeatureEnabledDraft ? t("common.on") : t("common.off")}
+                  {balanceFeatureEnabledDraft
+                    ? t("common.on")
+                    : t("common.off")}
                 </Text>
               </Pressable>
             </View>
@@ -416,6 +512,37 @@ export function HomeSettingsTabContent({
           </YStack>
         </YStack>
       </ScrollView>
+      {pendingDeleteTag ? (
+        <ConfirmChoiceModal
+          title={t("tags.confirmDeleteTitle")}
+          body={t("tags.confirmDeleteBody", {
+            tag: pendingDeleteTag.label,
+            usage: t(
+              pendingDeleteTagUsageCount === 1
+                ? "tags.confirmDeleteUsageSingular"
+                : "tags.confirmDeleteUsagePlural",
+              { count: pendingDeleteTagUsageCount },
+            ),
+          })}
+          confirmLabel={t("tags.confirmDelete")}
+          discardLabel={t("common.cancel")}
+          onConfirm={() => onConfirmDeleteTag(pendingDeleteTag.id)}
+          onDiscard={() => setPendingTagDeleteId("")}
+        />
+      ) : null}
+      {tagEditorOpen ? (
+        <TagEditorModal
+          existingTags={tags}
+          onCancel={() => setTagEditorOpen(false)}
+          onSave={async (label, icon, color) => {
+            const saved = await onAddTag(label, icon, color);
+            if (saved) {
+              setTagEditorOpen(false);
+            }
+            return saved;
+          }}
+        />
+      ) : null}
     </YStack>
   );
 }

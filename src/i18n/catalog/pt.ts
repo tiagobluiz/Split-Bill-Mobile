@@ -33,7 +33,6 @@ const ptPlain: Record<TranslationKey, string> = {
   "settings.splitRowsDescription":
     "Escolhe que valor cada cartão mostra no Início e em Divisões.",
   "settings.features": "Funcionalidades",
-  "settings.save": "Guardar definições",
   "settings.ownerNameLabel": "O teu nome",
   "settings.ownerNameHint":
     "Este é o nome que a app usa para te identificar na divisão, por exemplo `Tiago (Tu)`.",
@@ -86,11 +85,13 @@ const ptPlain: Record<TranslationKey, string> = {
     "Mostra o total e o que falta acertar",
   "settings.splitRows.totalAndRemaining.description":
     "Mostra primeiro o total da divisão e, por baixo, o teu valor em aberto.",
-  "settings.splitRows.requiresBalanceSuffix": "Requer o auxiliar de saldo ligado.",
+  "settings.splitRows.requiresBalanceSuffix":
+    "Requer o auxiliar de saldo ligado.",
   "settings.trackPayments.title": "Registar pagamentos",
   "settings.trackPayments.description":
     "Ativa isto se quiseres marcar pessoas como pagas depois de o dinheiro ficar acertado.",
-  "settings.trackPayments.toggleA11y": "Ativar ou desativar registar pagamentos",
+  "settings.trackPayments.toggleA11y":
+    "Ativar ou desativar registar pagamentos",
   "settings.balanceHelper.title": "Auxiliar de saldo",
   "settings.balanceHelper.description":
     "Ativa isto se quiseres ver quanto deves e quanto te devem.",
@@ -105,11 +106,40 @@ const ptPlain: Record<TranslationKey, string> = {
   "settings.backup.underDevelopment": "Em desenvolvimento",
   "settings.backup.notice":
     "Não guardamos dados na cloud. Tudo o que crias nesta app fica neste dispositivo. Sem cópia de segurança, perder o telefone significa perder os dados.",
-  "settings.confirmSave.title": "Guardar as alterações?",
-  "settings.confirmSave.body":
-    "Mudaste as definições. Guarda agora ou descarta antes de sair desta página.",
-  "settings.confirmSave.confirm": "Guardar alterações",
-  "settings.confirmSave.discard": "Descartar alterações",
+  "tags.label": "Tags",
+  "tags.settingsTitle": "Tags",
+  "tags.settingsDescription": "Cria e remove tags para organizar as divisões.",
+  "tags.createTitle": "Criar nova tag",
+  "tags.createDescription":
+    "Organiza as tuas despesas com tags personalizadas.",
+  "tags.livePreview": "Pré-visualização",
+  "tags.newTag": "Nova tag",
+  "tags.name": "Nome da tag",
+  "tags.selectIcon": "Escolher ícone",
+  "tags.noIcon": "Sem ícone",
+  "tags.addCustomIcon": "Adicionar ícone personalizado",
+  "tags.selectColor": "Escolher cor",
+  "tags.addCustomColor": "Adicionar cor personalizada",
+  "tags.createAction": "Criar tag",
+  "tags.iconA11y": "Escolher ícone {icon}",
+  "tags.colorA11y": "Escolher cor {color}",
+  "tags.choose": "Escolher tags",
+  "tags.add": "Adicionar tag",
+  "tags.save": "Guardar tag",
+  "tags.namePlaceholder": "Nome da tag",
+  "tags.noneSelected": "Sem tags",
+  "tags.selectedCount": "{count} tags selecionadas",
+  "tags.validationMissingName": "Falta o nome da tag.",
+  "tags.validationDuplicateName": "Já existe uma tag com esse nome.",
+  "tags.validation": "Usa um nome único até 24 caracteres.",
+  "tags.deleteA11y": "Apagar tag {tag}",
+  "tags.confirmDeleteTitle": "Apagar tag?",
+  "tags.confirmDeleteBody":
+    "Isto vai remover {tag} das Definições e das divisões existentes que a usam. {usage}",
+  "tags.confirmDeleteUsageSingular": "Neste momento, 1 divisão usa esta tag.",
+  "tags.confirmDeleteUsagePlural":
+    "Neste momento, {count} divisões usam esta tag.",
+  "tags.confirmDelete": "Apagar tag",
   "home.openSettings": "Abrir definições",
   "home.openHome": "Abrir início",
   "home.openSplits": "Abrir divisões",
@@ -118,12 +148,21 @@ const ptPlain: Record<TranslationKey, string> = {
   "home.startSplit": "Nova divisão",
   "home.couldNotCreateSplit": "Não foi possível criar a divisão",
   "home.noSplitsTitle": "Ainda não há divisões",
-  "home.noSplitsDescription": "As tuas divisões mais recentes vão aparecer aqui.",
+  "home.noSplitsDescription":
+    "As tuas divisões mais recentes vão aparecer aqui.",
   "home.noSplitsFilteredTitle": "Não há divisões aqui",
   "home.undoSplitDeleted": "Divisão apagada",
   "home.rowActions.title": "Ações da divisão",
+  "home.rowActions.editDetails": "Editar detalhes",
+  "home.rowActions.editDetailsA11y": "Editar detalhes da divisão {title}",
   "home.rowActions.delete": "Apagar",
   "home.rowActions.deleteA11y": "Apagar divisão {title}",
+  "home.editDetails.title": "Editar detalhes da divisão",
+  "home.editDetails.description": "Atualiza o nome da divisão e as tags.",
+  "home.editDetails.save": "Guardar detalhes",
+  "home.editDetails.nameRequired": "Falta o nome da divisão.",
+  "home.editDetails.saveFailed":
+    "Não foi possível guardar os detalhes da divisão. {error}",
   "home.youAreOwed": "Devem-te",
   "home.youOwe": "Deves",
   "home.recent": "Recentes",
@@ -141,6 +180,15 @@ const ptPlain: Record<TranslationKey, string> = {
   "home.filter.status": "Estado",
   "home.filter.balance": "Saldo",
   "home.filter.date": "Data",
+  "home.filter.tags": "Tags",
+  "home.filter.chooseTags": "Escolher filtros de tag",
+  "home.filter.noTags": "Qualquer tag",
+  "home.filter.tagCount": "{count} tags",
+  "home.filter.tagsSelectedCount": "{count} tags selecionadas",
+  "home.filter.tagMatch": "Correspondência",
+  "home.filter.tagMatchAll": "Todas",
+  "home.filter.tagMatchAny": "Qualquer",
+  "home.filter.applyTags": "Aplicar",
   "home.tab.home": "Início",
   "home.tab.splits": "Divisões",
   "home.tab.settings": "Definições",
@@ -189,10 +237,12 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.setup.exchangeRateUpdatedAt": "Atualizado em: {date}",
   "flow.setup.exchangeRateA11y": "Taxa de câmbio",
   "flow.setup.exchangeRatePlaceholder": "1,00",
-  "flow.setup.exchangeRateInvalid": "Insere uma taxa de câmbio válida superior a 0.",
+  "flow.setup.exchangeRateInvalid":
+    "Insere uma taxa de câmbio válida superior a 0.",
   "flow.setup.refreshExchangeRateA11y": "Atualizar taxa de câmbio",
   "flow.setup.rateConfirmTitle": "A taxa de câmbio é 1",
-  "flow.setup.rateConfirmBody": "Isto é incomum para moedas diferentes. Confirma se é intencional.",
+  "flow.setup.rateConfirmBody":
+    "Isto é incomum para moedas diferentes. Confirma se é intencional.",
   "flow.setup.rateConfirmContinue": "Continuar",
   "flow.setup.rateConfirmEdit": "Editar taxa",
   "flow.participants.title": "Quem vai dividir?",
@@ -367,8 +417,7 @@ const ptPlain: Record<TranslationKey, string> = {
     "Importado {importedAmount} anula o valor existente {existingAmount}",
   "flow.import.previewAdds": "Importado {importedAmount}",
   "flow.import.addReview": "Adicionar e rever itens",
-  "flow.import.samplePlaceholder":
-    "Bananas - 2.49\nTomates: 1.80\nLeite 3.40",
+  "flow.import.samplePlaceholder": "Bananas - 2.49\nTomates: 1.80\nLeite 3.40",
   "flow.import.openFailedTitle": "Não foi possível abrir a importação com IA",
   "flow.import.openFailedBody":
     "Não foi possível copiar o prompt nem abrir a ferramenta de IA selecionada. Tenta novamente.",
@@ -433,8 +482,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.results.contributors": "{count} contribuintes",
   "flow.results.owed": "Em dívida",
   "flow.results.settled": "Pago",
-  "flow.results.togglePaidAddBackA11y":
-    "Voltar a marcar {name} como em dívida",
+  "flow.results.togglePaidAddBackA11y": "Voltar a marcar {name} como em dívida",
   "flow.results.togglePaidSettleA11y": "Marcar {name} como pago",
   "flow.results.togglePaidFailed":
     "Não foi possível atualizar o estado de pagamento de {name}.",
@@ -447,9 +495,11 @@ const ptPlain: Record<TranslationKey, string> = {
   "pasteImport.ignoreReason.header": "Linha de cabeçalho",
   "pasteImport.ignoreReason.summary": "Parece um total ou resumo de pagamento",
   "pasteImport.ignoreReason.missingName": "Falta o nome do item",
-  "pasteImport.ignoreReason.nameTooLong": "O nome do item tem mais de {max} caracteres",
+  "pasteImport.ignoreReason.nameTooLong":
+    "O nome do item tem mais de {max} caracteres",
   "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
-  "pasteImport.ignoreReason.invalidPrice": "O preço está em falta ou é inválido",
+  "pasteImport.ignoreReason.invalidPrice":
+    "O preço está em falta ou é inválido",
   "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
   "pasteImport.invalidMergeAmountTooHigh":
     "Não foi possível juntar {item} porque o valor combinado é demasiado alto.",
@@ -486,7 +536,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "record.settlement.payerOwesThem": "Pagador deve-lhes",
   "modal.dismissActionSheet": "Fechar folha de ações",
   "modal.dismissNotice": "Fechar aviso da divisão",
-  "validation.participantNameRequired": "Adiciona um nome para cada participante.",
+  "validation.participantNameRequired":
+    "Adiciona um nome para cada participante.",
   "validation.participantNameMax":
     "Mantém os nomes abaixo de {max} caracteres.",
   "validation.participantNameUnique":
@@ -516,7 +567,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "friendly.itemsMin":
     "Adiciona pelo menos um item com preço antes de continuar.",
   "friendly.splitEvenMin": "Escolhe pelo menos uma pessoa para este item.",
-  "friendly.sharesTotalMin": "Adiciona pelo menos uma parte antes de continuar.",
+  "friendly.sharesTotalMin":
+    "Adiciona pelo menos uma parte antes de continuar.",
   "friendly.sharesNonNegative": "As partes não podem ficar abaixo de zero.",
   "friendly.percentNonNegative": "A percentagem não pode ficar abaixo de zero.",
   "friendly.percentTotal": "Garante que as percentagens somam 100%.",
@@ -568,9 +620,6 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
 
   "settings.trackPayments.title": "Quem já pagou?",
   "settings.balanceHelper.title": "Quem deve a quem",
-  "settings.confirmSave.title": "Vais guardar ou quê?",
-  "settings.confirmSave.confirm": "Guarda lá isso",
-  "settings.confirmSave.discard": "Deixa andar",
 
   "home.startSplit": "Novo Ajuste de Contas",
   "home.noSplitsTitle": "Nada por aqui… ainda",
@@ -579,7 +628,7 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "home.undoSplitDeleted": "Apagado… mas calma",
   "home.youAreOwed": "O que te roubaram",
   "home.youOwe": "O que te emprestaram",
-  
+
   "flow.setup.next": "Seguinte: os criminosos",
 
   "flow.participants.title": "Quem é que entra nisto?",
@@ -609,10 +658,13 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.askAiTitle": "Deixa a IA ver isso",
   "flow.import.afterAi": "Copia bem e volta",
   "flow.import.copyPrompt": "Copia isso",
-  "llm.receiptPrompt.readReceipt": "Lê o talão enviado e extrai apenas os itens comprados.",
-  "llm.receiptPrompt.returnFormat": "Devolve o resultado exatamente neste formato, um item por linha:",
+  "llm.receiptPrompt.readReceipt":
+    "Lê o talão enviado e extrai apenas os itens comprados.",
+  "llm.receiptPrompt.returnFormat":
+    "Devolve o resultado exatamente neste formato, um item por linha:",
   "llm.receiptPrompt.rules": "Regras:",
-  "llm.receiptPrompt.rule.keepItems": "- Mantém apenas itens reais que possam ser comprados.",
+  "llm.receiptPrompt.rule.keepItems":
+    "- Mantém apenas itens reais que possam ser comprados.",
   "llm.receiptPrompt.rule.excludeNonItems":
     "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
   "llm.receiptPrompt.rule.noCommentary":
@@ -630,7 +682,7 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.results.invalidTitle": "Isto não bate certo",
   "flow.results.totalSettled": "Tudo tratado",
   "flow.results.revertMarkPaid": "Afinal ainda devem",
-  
+
   "validation.participantsMin": "Pelo menos duas pessoas, vá",
   "validation.participantNameMax":
     "Mantém os nomes abaixo de {max} caracteres.",
@@ -647,13 +699,12 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "clipboard.person.owes": "{name}: deve {amount}",
   "clipboard.person.getsBack": "{name}: recebe {amount}",
 
-  "reminders.notification.splitBody":
-    "Esta conta ainda está em aberto...",
+  "reminders.notification.splitBody": "Esta conta ainda está em aberto...",
   "reminders.notification.debtBodyNamed":
     "{name} ainda tem valor em aberto. Vai lembrando.",
   "reminders.notification.debtBodyUnnamed":
     "Alguém ainda tem valor em aberto. Vai lembrando.",
-  "pdf.invalid": "Assim não dá para exportar"
+  "pdf.invalid": "Assim não dá para exportar",
 };
 
 const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
@@ -665,15 +716,14 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "common.tryAgain": "Tenta lá outra vez.",
 
   "settings.ownerNameRequired": "Mete um nome. Qualquer coisa.",
-  "settings.defaultCurrencyRequired": "Escolhe uma moeda. Isto não é o Monopólio.",
+  "settings.defaultCurrencyRequired":
+    "Escolhe uma moeda. Isto não é o Monopólio.",
   "settings.currencyValidationName": "A moeda precisa de nome, génio.",
-  "settings.currencyValidationSymbol": "A moeda precisa de um símbolo também, já agora.",
+  "settings.currencyValidationSymbol":
+    "A moeda precisa de um símbolo também, já agora.",
   "settings.trackPayments.title": "Caça aos caloteiros",
   "settings.balanceHelper.title": "Radar de dívidas",
   "settings.backup.why": "Para não chorares depois",
-  "settings.confirmSave.title": "Guardas ou vais fugir?",
-  "settings.confirmSave.confirm": "Guardar, pronto",
-  "settings.confirmSave.discard": "Deitar tudo fora",
 
   "home.startSplit": "Papá Pagou Outra Vez",
   "home.noSplitsTitle": "Nada. Suspeito.",
@@ -766,7 +816,8 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "flow.import.skippedByAi": "Ignorado pela IA",
   "flow.import.addReview": "Adicionar e rezar",
   "flow.import.openFailedTitle": "A IA não abriu. Drama.",
-  "flow.import.openFailedBody": "Não deu para copiar nem abrir. Tenta outra vez.",
+  "flow.import.openFailedBody":
+    "Não deu para copiar nem abrir. Tenta outra vez.",
   "flow.import.copyFailedTitle": "Nem copiar deu",
   "flow.import.copyFailedBody": "O prompt não copiou. Parabéns.",
   "flow.import.notesTitle": "Notas do desastre",
@@ -775,12 +826,17 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
 
   "llm.receiptPrompt.returnFormat": "Devolve isto exatamente assim:",
   "llm.receiptPrompt.rules": "Regras. Sim, há regras:",
-  "llm.receiptPrompt.rule.plainTextCodeBlock": "- Mete o resultado num bloco de código em texto simples.",
-  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine": "- Um item comprado por linha física. Um.",
-  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine": "- Nada de enfiar dois itens na mesma linha.",
+  "llm.receiptPrompt.rule.plainTextCodeBlock":
+    "- Mete o resultado num bloco de código em texto simples.",
+  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine":
+    "- Um item comprado por linha física. Um.",
+  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine":
+    "- Nada de enfiar dois itens na mesma linha.",
   "llm.receiptPrompt.rule.keepItems": "- Só itens reais. Nada de lixo.",
-  "llm.receiptPrompt.rule.noCommentary": "- Sem conversa, numeração, tabelas ou explicações.",
-  "llm.receiptPrompt.rule.commaToDot": "- Vírgulas decimais viram pontos. Sem drama.",
+  "llm.receiptPrompt.rule.noCommentary":
+    "- Sem conversa, numeração, tabelas ou explicações.",
+  "llm.receiptPrompt.rule.commaToDot":
+    "- Vírgulas decimais viram pontos. Sem drama.",
 
   "flow.review.title": "Última hipótese",
   "flow.review.showResults": "Mostrar a sentença",
@@ -796,7 +852,8 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
 
   "flow.results.title": "Aqui está a facada",
   "flow.results.invalidTitle": "Isto não bate certo",
-  "flow.results.invalidDescription": "Só há resultados quando a conta deixar de ser um crime.",
+  "flow.results.invalidDescription":
+    "Só há resultados quando a conta deixar de ser um crime.",
   "flow.results.pdfUnavailable": "PDF indisponível. Que pena.",
   "flow.results.pdfFailed": "O PDF morreu.",
   "flow.results.shareFailedTitle": "Partilha falhou",
@@ -860,7 +917,8 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
 
   "clipboard.payer.paidOnly": "{name}: pagou {amount}. Herói.",
   "clipboard.payer.getBack": "{name}: pagou {amount} e vai buscar {net}.",
-  "clipboard.payer.stillOwes": "{name}: pagou {amount} e ainda deve {net}. Triste.",
+  "clipboard.payer.stillOwes":
+    "{name}: pagou {amount} e ainda deve {net}. Triste.",
   "clipboard.person.owes": "{name}: deve {amount}. Paga.",
   "clipboard.person.getsBack": "{name}: recebe {amount}. Sortudo.",
   "reminders.notification.splitBody":
@@ -881,7 +939,7 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "pdf.payerLabel": "Mártir",
   "pdf.payerSummary": "Pagou {paid} - Cobra {collect}",
   "pdf.summary.total": "Rombo total",
-  "pdf.sharingUnavailable": "Partilhar aqui? Nem pensar."
+  "pdf.sharingUnavailable": "Partilhar aqui? Nem pensar.",
 };
 
 export const ptCatalog = {

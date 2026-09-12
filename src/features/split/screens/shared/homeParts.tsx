@@ -10,12 +10,14 @@ import {
 
 import type { DraftRecord } from "../../../../storage/records";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
+import type { SplitTag } from "../../tags";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { t } from "../../../../i18n";
 import { getSettlementPreview } from "../../store";
 import { buildRecordRoute, getRecordTitle } from "../../routes";
 import { getRecentRowMeta } from "./settlementUtils";
 import { screenStyles } from "./styles";
+import { TagChipRow } from "./TagChips";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
@@ -92,6 +94,7 @@ export function RecordRow({
     defaultCurrency?: string;
     splitListAmountDisplay?: SplitListAmountDisplay;
     customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
+    tags?: SplitTag[];
   };
   onOpenActions: (target: { id: string; title: string }) => void;
   reminderLabel?: string;
@@ -170,6 +173,10 @@ export function RecordRow({
             >
               {title}
             </Text>
+            <TagChipRow
+              tags={settings.tags ?? []}
+              selectedIds={record.values.tagIds ?? []}
+            />
             <Text
               fontFamily={FONTS.bodyBold}
               fontSize={12}

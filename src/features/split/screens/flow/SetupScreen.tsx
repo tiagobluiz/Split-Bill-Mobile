@@ -79,7 +79,10 @@ import {
 import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import { fetchExchangeRate } from "../../../../lib/exchangeRates";
-import { trackSplitStepCompleted } from "../../../../lib/telemetry";
+import {
+  trackSplitStepCompleted,
+  trackSplitTagsUsed,
+} from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -89,6 +92,7 @@ import {
   getSettlementPreview,
   useSplitStore,
 } from "../../store";
+import { isDefaultSplitTag } from "../../tags";
 import {
   getAvatarTone,
   getCurrencyOptionLabel,
@@ -146,6 +150,8 @@ import {
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
 import { screenStyles } from "../shared/styles";
+import { TagChip } from "../shared/TagChips";
+import { TagEditorModal } from "../shared/TagEditorModal";
 
 const Paragraph = TamaguiParagraph as any;
 const Text = TamaguiText as any;
@@ -171,20 +177,26 @@ const ITEM_CATEGORY_OPTIONS = [
 export function SetupScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { updateDraftMeta, setStep, settings, getActiveRecord } = useSplitStore(
-    useShallow((state) => ({
-      updateDraftMeta: state.updateDraftMeta,
-      setStep: state.setStep,
-      settings: state.settings,
-      getActiveRecord: state.getActiveRecord,
-    })),
-  );
+  const { updateDraftMeta, setStep, settings, getActiveRecord, addTag } =
+    useSplitStore(
+      useShallow((state) => ({
+        updateDraftMeta: state.updateDraftMeta,
+        setStep: state.setStep,
+        settings: state.settings,
+        getActiveRecord: state.getActiveRecord,
+        addTag: state.addTag,
+      })),
+    );
   const insets = useSafeAreaInsets();
   const [splitName, setSplitName] = useState(record?.values.splitName ?? "");
   const [currency, setCurrency] = useState(
     record?.values.currency ?? settings.defaultCurrency,
   );
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    record?.values.tagIds ?? [],
+  );
   const [rateInput, setRateInput] = useState(
     String(record?.values.exchangeRate?.rate ?? 1),
   );
@@ -249,6 +261,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     if (record) {
       setSplitName(record.values.splitName ?? "");
       setCurrency(record.values.currency ?? settings.defaultCurrency);
+      setSelectedTagIds(record.values.tagIds ?? []);
       setRateInput(String(record.values.exchangeRate?.rate ?? 1));
       setRateSource(record.values.exchangeRate?.rateSource ?? "fallback");
       setRateUpdatedAt(record.values.exchangeRate?.rateUpdatedAt ?? null);
@@ -272,6 +285,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         setRateUpdatedAt(null);
       }
       setCurrencyMenuOpen(false);
+      setTagModalOpen(false);
       setSetupNoticeMessages([]);
     }
   }, [record, settings.defaultCurrency]);
@@ -289,11 +303,12 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       : []),
   ];
   const normalizedCurrency = currency.trim().toUpperCase();
-  const normalizedTargetCurrency = settings.defaultCurrency.trim().toUpperCase();
+  const normalizedTargetCurrency = settings.defaultCurrency
+    .trim()
+    .toUpperCase();
   const parsedRate = Number(rateInput.replace(",", "."));
   const hasValidRateInput = Number.isFinite(parsedRate) && parsedRate > 0;
-  const effectiveRate =
-    hasValidRateInput ? parsedRate : 1;
+  const effectiveRate = hasValidRateInput ? parsedRate : 1;
   const needsConversion = normalizedCurrency !== normalizedTargetCurrency;
   const canContinue = Boolean(normalizedCurrency);
   const isSetupStepReady =
@@ -379,10 +394,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     const legacyRate = record?.values.exchangeRate;
     const legacyPairMatches = Boolean(
       legacyRate &&
-        legacyRate.sourceCurrency.trim().toUpperCase() === normalizedCurrency &&
-        legacyRate.targetCurrency.trim().toUpperCase() === normalizedTargetCurrency &&
-        Number.isFinite(legacyRate.rate) &&
-        legacyRate.rate > 0,
+      legacyRate.sourceCurrency.trim().toUpperCase() === normalizedCurrency &&
+      legacyRate.targetCurrency.trim().toUpperCase() ===
+        normalizedTargetCurrency &&
+      Number.isFinite(legacyRate.rate) &&
+      legacyRate.rate > 0,
     );
 
     if (rateByPair[pairKey] || persistedEntry || legacyPairMatches) {
@@ -444,7 +460,17 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
           },
         ]),
       ),
+      selectedTagIds,
     );
+    const selectedTags = (settings.tags ?? []).filter((tag) =>
+      selectedTagIds.includes(tag.id),
+    );
+    void trackSplitTagsUsed({
+      tagCount: selectedTags.length,
+      builtInTagCount: selectedTags.filter(isDefaultSplitTag).length,
+      customTagCount: selectedTags.filter((tag) => !isDefaultSplitTag(tag))
+        .length,
+    });
     await setStep(2);
     const currentStatus = getActiveRecord()?.status ?? record.status;
     await trackSplitStepCompleted({
@@ -457,7 +483,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   return (
     <AppScreen
       scroll={false}
-      overlay={(
+      overlay={
         <>
           <SplitNoticeModal
             messages={setupNoticeMessages}
@@ -478,6 +504,28 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               onDismiss={() => setCurrencyMenuOpen(false)}
             />
           ) : null}
+          {tagModalOpen ? (
+            <TagEditorModal
+              existingTags={settings.tags ?? []}
+              onCancel={() => setTagModalOpen(false)}
+              onSave={async (label, icon, color) => {
+                const before = settings.tags ?? [];
+                const saved = await addTag(label, icon, color);
+                if (!saved) {
+                  return false;
+                }
+                const after = useSplitStore.getState().settings.tags ?? [];
+                const created = after.find(
+                  (tag) => !before.some((entry) => entry.id === tag.id),
+                );
+                if (created) {
+                  setSelectedTagIds((current) => [...current, created.id]);
+                }
+                setTagModalOpen(false);
+                return true;
+              }}
+            />
+          ) : null}
           {showRateConfirmModal ? (
             <ConfirmChoiceModal
               title={t("flow.setup.rateConfirmTitle")}
@@ -492,35 +540,35 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             />
           ) : null}
         </>
-      )}
+      }
       footer={
-        <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
-          <FlowContinueButton
-            accessibilityLabel={t("flow.setup.nextA11y")}
-            disabled={!isSetupStepReady}
-            label={t("flow.setup.next", undefined, { maxLength: 26 })}
-            onPress={async () => {
-              if (!canContinue) {
-                return;
-              }
-              if (!splitName.trim()) {
-                setSetupNoticeMessages([
-                  t("flow.setup.nameRequired"),
-                ]);
-                return;
-              }
-              if (needsConversion && !hasValidRateInput) {
-                setSetupNoticeMessages([t("flow.setup.exchangeRateInvalid")]);
-                return;
-              }
-              if (needsConversion && effectiveRate === 1) {
-                setShowRateConfirmModal(true);
-                return;
-              }
-              await persistAndContinue();
-            }}
-          />
-        </MeasuredFloatingFooter>
+        tagModalOpen ? null : (
+          <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+            <FlowContinueButton
+              accessibilityLabel={t("flow.setup.nextA11y")}
+              disabled={!isSetupStepReady}
+              label={t("flow.setup.next", undefined, { maxLength: 26 })}
+              onPress={async () => {
+                if (!canContinue) {
+                  return;
+                }
+                if (!splitName.trim()) {
+                  setSetupNoticeMessages([t("flow.setup.nameRequired")]);
+                  return;
+                }
+                if (needsConversion && !hasValidRateInput) {
+                  setSetupNoticeMessages([t("flow.setup.exchangeRateInvalid")]);
+                  return;
+                }
+                if (needsConversion && effectiveRate === 1) {
+                  setShowRateConfirmModal(true);
+                  return;
+                }
+                await persistAndContinue();
+              }}
+            />
+          </MeasuredFloatingFooter>
+        )
       }
     >
       <View
@@ -610,22 +658,28 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                           const numericValue = Number(value.replace(",", "."));
                           setRateInput(value);
                           setRateSource("manual");
-                          if (Number.isFinite(numericValue) && numericValue > 0) {
+                          if (
+                            Number.isFinite(numericValue) &&
+                            numericValue > 0
+                          ) {
                             const updatedAt = new Date().toISOString();
                             setRateUpdatedAt(updatedAt);
                             setRateByPair((prev) => ({
                               ...prev,
-                              [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
-                                rate: numericValue,
-                                rateSource: "manual",
-                                rateUpdatedAt: updatedAt,
-                              },
+                              [`${normalizedCurrency}->${normalizedTargetCurrency}`]:
+                                {
+                                  rate: numericValue,
+                                  rateSource: "manual",
+                                  rateUpdatedAt: updatedAt,
+                                },
                             }));
                           } else {
                             setRateUpdatedAt(null);
                             setRateByPair((prev) => {
                               const next = { ...prev };
-                              delete next[`${normalizedCurrency}->${normalizedTargetCurrency}`];
+                              delete next[
+                                `${normalizedCurrency}->${normalizedTargetCurrency}`
+                              ];
                               return next;
                             });
                           }
@@ -638,7 +692,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     </View>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={t("flow.setup.refreshExchangeRateA11y")}
+                      accessibilityLabel={t(
+                        "flow.setup.refreshExchangeRateA11y",
+                      )}
                       onPress={() => {
                         void fetchLiveRate();
                       }}
@@ -648,7 +704,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                           width: 46,
                           height: 46,
                           borderRadius: 14,
-                          backgroundColor: loadingRate ? PALETTE.surfaceContainerHigh : PALETTE.primary,
+                          backgroundColor: loadingRate
+                            ? PALETTE.surfaceContainerHigh
+                            : PALETTE.primary,
                           alignItems: "center",
                           justifyContent: "center",
                         },
@@ -681,6 +739,49 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 ) : null}
               </YStack>
             ) : null}
+            <YStack gap="$2">
+              <FieldLabel>{t("tags.label")}</FieldLabel>
+              <View style={screenStyles.tagPickerGrid}>
+                {(settings.tags ?? []).map((tag) => {
+                  const selected = selectedTagIds.includes(tag.id);
+                  return (
+                    <Pressable
+                      key={tag.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={tag.label}
+                      accessibilityState={{ selected }}
+                      style={screenStyles.tagFilterOption}
+                      onPress={() => {
+                        setSelectedTagIds((current) =>
+                          current.includes(tag.id)
+                            ? current.filter((id) => id !== tag.id)
+                            : [...current, tag.id],
+                        );
+                      }}
+                    >
+                      <TagChip tag={tag} selected={selected} />
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("tags.add")}
+                  style={screenStyles.tagPickerAddInline}
+                  onPress={() => setTagModalOpen(true)}
+                >
+                  <XStack alignItems="center" gap="$1.5">
+                    <Plus color={PALETTE.primary} size={13} />
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={12}
+                      color={PALETTE.primary}
+                    >
+                      {t("tags.add")}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              </View>
+            </YStack>
           </YStack>
         </YStack>
       </ScrollView>

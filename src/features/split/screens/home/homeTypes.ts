@@ -1,9 +1,13 @@
 import type { DraftRecord } from "../../../../storage/records";
-import type { AppSettings, SplitListAmountDisplay } from "../../../../storage/settings";
+import type {
+  AppSettings,
+  SplitListAmountDisplay,
+} from "../../../../storage/settings";
 
 export type ActivityStateFilter = "all" | "settled" | "unsettled";
 export type ActivityDateFilter = "newest" | "oldest";
 export type ActivityBalanceFilter = "all" | "nothingDue" | "somethingDue";
+export type ActivityTagFilterMode = "all" | "any";
 
 export type RecordActionTarget = {
   id: string;

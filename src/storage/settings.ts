@@ -7,6 +7,7 @@ import {
   type AppLanguage,
 } from "../i18n";
 import { getDeviceLocale } from "../lib/device";
+import { normalizeTags, type SplitTag } from "../features/split/tags";
 
 export type AppSettings = {
   ownerName: string;
@@ -18,6 +19,7 @@ export type AppSettings = {
   language: AppLanguage;
   humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
+  tags?: SplitTag[];
   customCurrencies: Array<{
     code: string;
     name: string;
@@ -79,6 +81,7 @@ function getDefaultSettings(): AppSettings {
     language: translationDefaults.language,
     humour: translationDefaults.humour,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
+    tags: normalizeTags(undefined),
     customCurrencies: [],
   };
 }
@@ -158,6 +161,7 @@ export async function getAppSettings() {
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       parsed.splitListAmountDisplay,
     ),
+    tags: normalizeTags(parsed.tags),
     customCurrencies: Array.isArray(parsed.customCurrencies)
       ? parsed.customCurrencies
           .filter(
@@ -189,6 +193,7 @@ export async function saveAppSettings(settings: AppSettings) {
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       settings.splitListAmountDisplay,
     ),
+    ...(settings.tags ? { tags: normalizeTags(settings.tags) } : {}),
   };
   await withAppDatabaseRetry((db) =>
     db.runAsync(

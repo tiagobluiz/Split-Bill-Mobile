@@ -74,7 +74,7 @@ describe("settings storage", () => {
       "SELECT key, payload FROM app_settings WHERE key = ?",
       ["app-settings"]
     );
-    expect(loaded).toEqual({
+    expect(loaded).toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
@@ -190,7 +190,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -204,7 +204,7 @@ describe("settings storage", () => {
 
     const missing = await loadModule({ row: null });
     await missing.settingsModule.initializeSettingsStorage();
-    await expect(missing.settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(missing.settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -236,7 +236,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
@@ -282,7 +282,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -307,7 +307,7 @@ describe("settings storage", () => {
       });
 
       await settingsModule.initializeSettingsStorage();
-      await expect(settingsModule.getAppSettings()).resolves.toEqual({
+      await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
         ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,

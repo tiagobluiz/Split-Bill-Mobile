@@ -25,6 +25,11 @@ type LoadedStore = {
     cancelReminderState: jest.Mock;
     reconcileScheduledReminders: jest.Mock;
   };
+  telemetryMocks: {
+    trackCustomTagCreated: jest.Mock;
+    trackDefaultTagRemoved: jest.Mock;
+    trackSplitFlowCompleted: jest.Mock;
+  };
 };
 
 function createValues() {
@@ -43,8 +48,20 @@ function createValues() {
         price: "3.50",
         splitMode: "even" as const,
         allocations: [
-          { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-          { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          {
+            participantId: "ana",
+            evenIncluded: true,
+            shares: "1",
+            percent: "50",
+            percentLocked: false,
+          },
+          {
+            participantId: "bruno",
+            evenIncluded: true,
+            shares: "1",
+            percent: "50",
+            percentLocked: false,
+          },
         ],
       },
       {
@@ -53,8 +70,20 @@ function createValues() {
         price: "2.50",
         splitMode: "shares" as const,
         allocations: [
-          { participantId: "ana", evenIncluded: true, shares: "2", percent: "50", percentLocked: false },
-          { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          {
+            participantId: "ana",
+            evenIncluded: true,
+            shares: "2",
+            percent: "50",
+            percentLocked: false,
+          },
+          {
+            participantId: "bruno",
+            evenIncluded: true,
+            shares: "1",
+            percent: "50",
+            percentLocked: false,
+          },
         ],
       },
       {
@@ -63,8 +92,20 @@ function createValues() {
         price: "4.00",
         splitMode: "percent" as const,
         allocations: [
-          { participantId: "ana", evenIncluded: true, shares: "1", percent: "60", percentLocked: false },
-          { participantId: "bruno", evenIncluded: true, shares: "1", percent: "40", percentLocked: false },
+          {
+            participantId: "ana",
+            evenIncluded: true,
+            shares: "1",
+            percent: "60",
+            percentLocked: false,
+          },
+          {
+            participantId: "bruno",
+            evenIncluded: true,
+            shares: "1",
+            percent: "40",
+            percentLocked: false,
+          },
         ],
       },
     ],
@@ -103,7 +144,10 @@ function createDeferred<T = void>() {
 async function loadStore(options?: {
   listRecords?: any[];
   recordById?: any | null;
-  parseResult?: { items: Array<{ name: string; price: string }>; warnings: Array<{ code: string; message: string }> };
+  parseResult?: {
+    items: Array<{ name: string; price: string }>;
+    warnings: Array<{ code: string; message: string }>;
+  };
   rebalanceResult?: any[] | null;
 }): Promise<LoadedStore> {
   jest.resetModules();
@@ -112,7 +156,9 @@ async function loadStore(options?: {
     initializeRecordsStorage: jest.fn(async () => undefined),
     listRecords: jest.fn(async () => options?.listRecords ?? []),
     getRecordById: jest.fn(async (id: string) =>
-      options?.recordById && options.recordById.id === id ? options.recordById : null
+      options?.recordById && options.recordById.id === id
+        ? options.recordById
+        : null,
     ),
     saveRecord: jest.fn(async () => undefined),
     deleteRecord: jest.fn(async () => undefined),
@@ -134,7 +180,9 @@ async function loadStore(options?: {
 
   const domainMocks = {
     buildClipboardSummary: jest.fn(() => "summary output"),
-    buildPdfExportData: jest.fn(() => ({ fileName: "split-bill-2026-04-04.pdf" })),
+    buildPdfExportData: jest.fn(() => ({
+      fileName: "split-bill-2026-04-04.pdf",
+    })),
     computeSettlement: jest.fn(() => ({
       ok: true,
       data: {
@@ -142,8 +190,22 @@ async function loadStore(options?: {
         totalCents: 1000,
         itemBreakdown: [],
         people: [
-          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1000, consumedCents: 500, netCents: 500 },
-          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 500, netCents: -500 },
+          {
+            participantId: "ana",
+            name: "Ana",
+            isPayer: true,
+            paidCents: 1000,
+            consumedCents: 500,
+            netCents: 500,
+          },
+          {
+            participantId: "bruno",
+            name: "Bruno",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: 500,
+            netCents: -500,
+          },
         ],
         transfers: [],
       },
@@ -156,25 +218,42 @@ async function loadStore(options?: {
             { name: "Imported apples", price: "1.25" },
             { name: "Imported pears", price: "2.75" },
           ],
-          warnings: [{ code: "ignored-paste-lines", message: "Ignored 1 pasted line." }],
-        }
+          warnings: [
+            { code: "ignored-paste-lines", message: "Ignored 1 pasted line." },
+          ],
+        },
     ),
-    rebalancePercentAllocations: jest.fn((allocations: any[], participantId: string, nextValue: string) => {
-      if (typeof options?.rebalanceResult !== "undefined") {
-        return options.rebalanceResult;
-      }
-      return actualDomain.rebalancePercentAllocations(allocations, participantId, nextValue);
-    }),
+    rebalancePercentAllocations: jest.fn(
+      (allocations: any[], participantId: string, nextValue: string) => {
+        if (typeof options?.rebalanceResult !== "undefined") {
+          return options.rebalanceResult;
+        }
+        return actualDomain.rebalancePercentAllocations(
+          allocations,
+          participantId,
+          nextValue,
+        );
+      },
+    ),
   };
   const reminderMocks = {
     ensureReminderPermission: jest.fn(async () => true),
-    scheduleReminder: jest.fn(async () => ({ notificationId: "reminder-notification" })),
+    scheduleReminder: jest.fn(async () => ({
+      notificationId: "reminder-notification",
+    })),
     cancelReminder: jest.fn(async () => undefined),
     cancelReminderState: jest.fn(async () => undefined),
     reconcileScheduledReminders: jest.fn(async (records: any[]) => ({
       records,
       changed: false,
     })),
+  };
+  const telemetryMocks = {
+    rememberItemOrigins: jest.fn(),
+    syncDraftItemOrigins: jest.fn(),
+    trackCustomTagCreated: jest.fn(async () => undefined),
+    trackDefaultTagRemoved: jest.fn(async () => undefined),
+    trackSplitFlowCompleted: jest.fn(async () => undefined),
   };
 
   jest.doMock("../../storage/records", () => storageMocks);
@@ -183,7 +262,8 @@ async function loadStore(options?: {
     initializeSettingsStorage: storageMocks.initializeSettingsStorage,
     getAppSettings: storageMocks.getAppSettings,
     saveAppSettings: storageMocks.saveAppSettings,
-    normalizeFeatureFlags: jest.requireActual("../../storage/settings").normalizeFeatureFlags,
+    normalizeFeatureFlags: jest.requireActual("../../storage/settings")
+      .normalizeFeatureFlags,
   }));
   const actualDevice = jest.requireActual("../../lib/device");
   jest.doMock("../../lib/device", () => ({
@@ -198,6 +278,7 @@ async function loadStore(options?: {
     ...jest.requireActual("./reminders"),
     ...reminderMocks,
   }));
+  jest.doMock("../../lib/telemetry", () => telemetryMocks);
 
   let storeModule: typeof import("./store");
   jest.isolateModules(() => {
@@ -209,6 +290,7 @@ async function loadStore(options?: {
     storageMocks,
     domainMocks,
     reminderMocks,
+    telemetryMocks,
   };
 }
 
@@ -216,7 +298,10 @@ async function loadReadyStore(options?: {
   record?: any;
   listRecords?: any[];
   recordById?: any | null;
-  parseResult?: { items: Array<{ name: string; price: string }>; warnings: Array<{ code: string; message: string }> };
+  parseResult?: {
+    items: Array<{ name: string; price: string }>;
+    warnings: Array<{ code: string; message: string }>;
+  };
   rebalanceResult?: any[] | null;
 }) {
   const record = options?.record ?? createRecord();
@@ -241,7 +326,11 @@ async function loadReadyStore(options?: {
 
 describe("split store", () => {
   it("bootstraps, creates drafts, opens records, and removes records", async () => {
-    const existing = createRecord({ id: "draft-existing", status: "completed" as const, step: 5 });
+    const existing = createRecord({
+      id: "draft-existing",
+      status: "completed" as const,
+      step: 5,
+    });
     const fetched = createRecord({ id: "draft-fetched" });
     const { storeModule, storageMocks } = await loadStore({
       listRecords: [existing],
@@ -252,20 +341,30 @@ describe("split store", () => {
     expect(storageMocks.initializeSettingsStorage).toHaveBeenCalledTimes(1);
     expect(storageMocks.initializeRecordsStorage).toHaveBeenCalledTimes(1);
     expect(storeModule.useSplitStore.getState().ready).toBe(true);
-    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("draft-existing");
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
+      "draft-existing",
+    );
 
     const created = await storeModule.useSplitStore.getState().createDraft();
     expect(created.id).toBe("generated-1");
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(expect.objectContaining({ id: "generated-1" }));
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "generated-1" }),
+    );
 
-    const openedExisting = await storeModule.useSplitStore.getState().openRecord("draft-existing");
+    const openedExisting = await storeModule.useSplitStore
+      .getState()
+      .openRecord("draft-existing");
     expect(openedExisting?.id).toBe("draft-existing");
     expect(storageMocks.getRecordById).not.toHaveBeenCalled();
 
-    const openedFetched = await storeModule.useSplitStore.getState().openRecord("draft-fetched");
+    const openedFetched = await storeModule.useSplitStore
+      .getState()
+      .openRecord("draft-fetched");
     expect(openedFetched?.id).toBe("draft-fetched");
 
-    await expect(storeModule.useSplitStore.getState().openRecord("missing")).resolves.toBeNull();
+    await expect(
+      storeModule.useSplitStore.getState().openRecord("missing"),
+    ).resolves.toBeNull();
 
     await storeModule.useSplitStore.getState().removeRecord("draft-existing");
     expect(storageMocks.deleteRecord).toHaveBeenCalledWith("draft-existing");
@@ -294,8 +393,12 @@ describe("split store", () => {
       );
 
     await storeModule.useSplitStore.getState().bootstrap();
-    const firstDraftPromise = storeModule.useSplitStore.getState().createDraft();
-    const secondDraftPromise = storeModule.useSplitStore.getState().createDraft();
+    const firstDraftPromise = storeModule.useSplitStore
+      .getState()
+      .createDraft();
+    const secondDraftPromise = storeModule.useSplitStore
+      .getState()
+      .createDraft();
 
     rejectFirstSave(new Error("first-save-failed"));
     await expect(firstDraftPromise).rejects.toThrow("first-save-failed");
@@ -304,7 +407,9 @@ describe("split store", () => {
     await expect(secondDraftPromise).rejects.toThrow("second-save-failed");
 
     const state = storeModule.useSplitStore.getState();
-    expect(state.records.map((record) => record.id)).toEqual(["draft-existing"]);
+    expect(state.records.map((record) => record.id)).toEqual([
+      "draft-existing",
+    ]);
     expect(state.activeRecordId).toBe("draft-existing");
     expect(state.getActiveRecord()?.id).toBe("draft-existing");
   });
@@ -316,7 +421,7 @@ describe("split store", () => {
       ownerName: "Tiago",
       balanceFeatureEnabled: false,
     });
-    expect(storeModule.useSplitStore.getState().settings).toEqual({
+    expect(storeModule.useSplitStore.getState().settings).toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
@@ -325,15 +430,17 @@ describe("split store", () => {
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
-    expect(storageMocks.saveAppSettings).toHaveBeenCalledWith({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "EUR",
-      splitListAmountDisplay: "remaining",
-      customCurrencies: [],
-    });
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerName: "Tiago",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      }),
+    );
   });
 
   it("renames owner references in stored records when the profile name changes", async () => {
@@ -347,7 +454,7 @@ describe("split store", () => {
         payerParticipantId: "owner",
       },
     });
-    const { storeModule, storageMocks } = await loadStore({
+    const { storeModule, storageMocks, telemetryMocks } = await loadStore({
       listRecords: [record],
     });
 
@@ -356,7 +463,9 @@ describe("split store", () => {
       ownerName: "Tiago Luiz",
     });
 
-    expect(storeModule.useSplitStore.getState().records[0]?.values.participants).toEqual([
+    expect(
+      storeModule.useSplitStore.getState().records[0]?.values.participants,
+    ).toEqual([
       { id: "owner", name: "Tiago Luiz" },
       { id: "bruno", name: "Bruno" },
     ]);
@@ -368,7 +477,7 @@ describe("split store", () => {
             { id: "bruno", name: "Bruno" },
           ],
         }),
-      })
+      }),
     );
   });
 
@@ -382,7 +491,7 @@ describe("split store", () => {
         ],
       },
     });
-    const { storeModule, storageMocks } = await loadStore({
+    const { storeModule, storageMocks, telemetryMocks } = await loadStore({
       listRecords: [record],
     });
 
@@ -391,8 +500,15 @@ describe("split store", () => {
       ownerName: "   ",
     });
 
-    expect(storeModule.useSplitStore.getState().records[0]).toEqual(record);
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(record);
+    expect(storeModule.useSplitStore.getState().records[0]).toMatchObject(
+      record,
+    );
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: record.id,
+        values: expect.objectContaining(record.values),
+      }),
+    );
   });
 
   it("ignores blank participant names while still renaming owner aliases", async () => {
@@ -415,7 +531,9 @@ describe("split store", () => {
       ownerName: "Tiago Luiz",
     });
 
-    expect(storeModule.useSplitStore.getState().records[0]?.values.participants).toEqual([
+    expect(
+      storeModule.useSplitStore.getState().records[0]?.values.participants,
+    ).toEqual([
       { id: "empty", name: "" },
       { id: "owner", name: "Tiago Luiz" },
     ]);
@@ -423,7 +541,7 @@ describe("split store", () => {
 
   it("does not rewrite records when the owner name stays the same", async () => {
     const record = createRecord();
-    const { storeModule, storageMocks } = await loadStore({
+    const { storeModule, storageMocks, telemetryMocks } = await loadStore({
       listRecords: [record],
     });
 
@@ -433,8 +551,15 @@ describe("split store", () => {
       balanceFeatureEnabled: false,
     });
 
-    expect(storeModule.useSplitStore.getState().records[0]).toEqual(record);
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(record);
+    expect(storeModule.useSplitStore.getState().records[0]).toMatchObject(
+      record,
+    );
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: record.id,
+        values: expect.objectContaining(record.values),
+      }),
+    );
   });
 
   it("handles missing owner settings and rename passes with no owner aliases in records", async () => {
@@ -475,7 +600,9 @@ describe("split store", () => {
     await storeModule.useSplitStore.getState().updateSettings({
       ownerName: "Tiago Luiz",
     });
-    expect(storeModule.useSplitStore.getState().records[0]?.values.participants).toEqual([
+    expect(
+      storeModule.useSplitStore.getState().records[0]?.values.participants,
+    ).toEqual([
       { id: "ana", name: "Ana" },
       { id: "bruno", name: "Bruno" },
     ]);
@@ -487,7 +614,7 @@ describe("split store", () => {
             { id: "bruno", name: "Bruno" },
           ],
         }),
-      })
+      }),
     );
   });
 
@@ -501,19 +628,236 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "GBP", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "GBP",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
     });
 
     await storeModule.useSplitStore.getState().updateDraftMeta("Trip", "usd");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName).toBe("Trip");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.currency).toBe("USD");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName,
+    ).toBe("Trip");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.currency,
+    ).toBe("USD");
 
-    const longName = "12345678901234567890123456789012345678901234567890123456789012345";
+    const longName =
+      "12345678901234567890123456789012345678901234567890123456789012345";
     await storeModule.useSplitStore.getState().updateDraftMeta(longName, "eur");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName).toBe(longName.slice(0, 64));
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.splitName,
+    ).toBe(longName.slice(0, 64));
 
     await storeModule.useSplitStore.getState().updateDraftMeta("Trip", "   ");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.currency).toBe("GBP");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.currency,
+    ).toBe("GBP");
+  });
+
+  it("updates split details by id without changing currency, rates, step, or reminders", async () => {
+    const exchangeRatesByPair = {
+      "USD:EUR": {
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        rate: 0.92,
+        updatedAt: "2026-01-01T12:00:00.000Z",
+      },
+    };
+    const record = createRecord({
+      id: "details-record",
+      step: 5,
+      status: "draft",
+      values: {
+        ...createValues(),
+        splitName: "Old dinner",
+        currency: "USD",
+        exchangeRate: 1.2,
+        exchangeRatesByPair,
+        tagIds: ["tag-groceries"],
+      },
+      reminderState: {
+        splitReminder: {
+          scheduledForIso: "2026-02-01T10:00:00.000Z",
+          notificationId: "split-reminder",
+          createdAt: "2026-01-01T10:00:00.000Z",
+          updatedAt: "2026-01-01T10:00:00.000Z",
+        },
+        participantDebtReminders: {},
+      },
+    });
+    const { storeModule, storageMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: null,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+        tags: [
+          {
+            id: "tag-groceries",
+            label: "Groceries",
+            icon: "cart",
+            color: "mint",
+            builtIn: true,
+          },
+          {
+            id: "tag-restaurant",
+            label: "Restaurant",
+            icon: "utensils",
+            color: "orange",
+            builtIn: true,
+          },
+        ],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().updateRecordDetails(
+      "details-record",
+      {
+        splitName: "Updated dinner",
+        tagIds: ["tag-restaurant", "missing"],
+      },
+    );
+
+    const updated = storeModule.useSplitStore
+      .getState()
+      .records.find((entry) => entry.id === "details-record");
+    expect(updated?.values.splitName).toBe("Updated dinner");
+    expect(updated?.values.tagIds).toEqual(["tag-restaurant"]);
+    expect(updated?.values.currency).toBe("USD");
+    expect(updated?.values.exchangeRate).toBe(1.2);
+    expect(updated?.values.exchangeRatesByPair).toEqual(exchangeRatesByPair);
+    expect(updated?.step).toBe(5);
+    expect(updated?.reminderState?.splitReminder?.notificationId).toBe(
+      "split-reminder",
+    );
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "details-record",
+        values: expect.objectContaining({
+          splitName: "Updated dinner",
+          currency: "USD",
+          tagIds: ["tag-restaurant"],
+        }),
+      }),
+    );
+  });
+
+  it("saves selected split tags and manages tag deletion across existing records", async () => {
+    const record = createRecord({
+      values: {
+        ...createValues(),
+        tagIds: ["tag-groceries", "custom-tag"],
+      },
+    });
+    const { storeModule, storageMocks, telemetryMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+        tags: [
+          {
+            id: "tag-groceries",
+            label: "Groceries",
+            icon: "cart",
+            color: "mint",
+            builtIn: true,
+          },
+          {
+            id: "custom-tag",
+            label: "Birthday",
+            icon: "heart",
+            color: "orange",
+          },
+        ],
+      },
+    });
+
+    await storeModule.useSplitStore
+      .getState()
+      .updateDraftMeta("Tagged", "EUR", undefined, undefined, [
+        "tag-groceries",
+        "missing",
+      ]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.tagIds,
+    ).toEqual(["tag-groceries"]);
+
+    await expect(
+      storeModule.useSplitStore.getState().addTag(" Birthday "),
+    ).resolves.toBe(false);
+    await expect(
+      storeModule.useSplitStore.getState().addTag("Work", null, "clay"),
+    ).resolves.toBe(true);
+    await expect(
+      storeModule.useSplitStore
+        .getState()
+        .addTag("Spain", "custom:🇪🇸", "orange"),
+    ).resolves.toBe(true);
+    expect(telemetryMocks.trackCustomTagCreated).toHaveBeenCalledWith({
+      iconType: "none",
+    });
+    expect(telemetryMocks.trackCustomTagCreated).toHaveBeenCalledWith({
+      iconType: "custom",
+    });
+    expect(storeModule.useSplitStore.getState().settings.tags).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Work", icon: null, color: "clay" }),
+        expect.objectContaining({
+          label: "Spain",
+          icon: "custom:🇪🇸",
+          color: "orange",
+        }),
+      ]),
+    );
+
+    await storeModule.useSplitStore.getState().removeTag("tag-groceries");
+    expect(telemetryMocks.trackDefaultTagRemoved).toHaveBeenCalledTimes(1);
+    expect(storeModule.useSplitStore.getState().settings.tags).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: "tag-groceries" }),
+      ]),
+    );
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.tagIds,
+    ).toEqual([]);
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({ tagIds: [] }),
+      }),
+    );
   });
 
   it("builds clipboard preview from the current settlement state", async () => {
@@ -532,10 +876,16 @@ describe("split store", () => {
       activeRecordId: record.id,
     });
 
-    expect(storeModule.getClipboardSummaryPreview(record)).toBe("summary output");
-    expect(domainMocks.buildClipboardSummary).toHaveBeenCalledWith(record.values, "en-US", {
-      settledParticipantIds: ["bruno"],
-    });
+    expect(storeModule.getClipboardSummaryPreview(record)).toBe(
+      "summary output",
+    );
+    expect(domainMocks.buildClipboardSummary).toHaveBeenCalledWith(
+      record.values,
+      "en-US",
+      {
+        settledParticipantIds: ["bruno"],
+      },
+    );
   });
 
   it("builds clipboard preview with an empty settled list when settlement state is missing", async () => {
@@ -546,10 +896,16 @@ describe("split store", () => {
       listRecords: [record],
     });
 
-    expect(storeModule.getClipboardSummaryPreview(record)).toBe("summary output");
-    expect(domainMocks.buildClipboardSummary).toHaveBeenCalledWith(record.values, "en-US", {
-      settledParticipantIds: [],
-    });
+    expect(storeModule.getClipboardSummaryPreview(record)).toBe(
+      "summary output",
+    );
+    expect(domainMocks.buildClipboardSummary).toHaveBeenCalledWith(
+      record.values,
+      "en-US",
+      {
+        settledParticipantIds: [],
+      },
+    );
   });
 
   it("bootstraps with no records and preserves the active record when deleting another entry", async () => {
@@ -569,12 +925,20 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().removeRecord("draft-other");
-    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("draft-active");
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
+      "draft-active",
+    );
   });
 
   it("reassigns the active record when the current one is removed and another record remains", async () => {
-    const first = createRecord({ id: "draft-first", updatedAt: "2026-04-04T10:00:00.000Z" });
-    const second = createRecord({ id: "draft-second", updatedAt: "2026-04-04T09:00:00.000Z" });
+    const first = createRecord({
+      id: "draft-first",
+      updatedAt: "2026-04-04T10:00:00.000Z",
+    });
+    const second = createRecord({
+      id: "draft-second",
+      updatedAt: "2026-04-04T09:00:00.000Z",
+    });
     const { storeModule } = await loadStore({
       listRecords: [first, second],
     });
@@ -586,7 +950,9 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().removeRecord("draft-first");
-    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("draft-second");
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
+      "draft-second",
+    );
   });
 
   it("clears the active record when the last remaining record is removed", async () => {
@@ -608,15 +974,30 @@ describe("split store", () => {
   it("updates steps and participant ownership fields on the active record", async () => {
     const { storeModule } = await loadReadyStore();
     await storeModule.useSplitStore.getState().setStep(2);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(2);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      2,
+    );
 
-    await storeModule.useSplitStore.getState().updateParticipants([{ id: "solo", name: "Solo" }]);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.participants).toEqual([{ id: "solo", name: "Solo" }]);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(2);
+    await storeModule.useSplitStore
+      .getState()
+      .updateParticipants([{ id: "solo", name: "Solo" }]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .participants,
+    ).toEqual([{ id: "solo", name: "Solo" }]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      2,
+    );
 
     await storeModule.useSplitStore.getState().setPayer("solo");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("solo");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("solo");
   });
 
   it("optimistically updates payer selection before persistence finishes", async () => {
@@ -624,9 +1005,14 @@ describe("split store", () => {
     const saveDeferred = createDeferred();
     storageMocks.saveRecord.mockImplementationOnce(() => saveDeferred.promise);
 
-    const updatePromise = storeModule.useSplitStore.getState().setPayer("bruno");
+    const updatePromise = storeModule.useSplitStore
+      .getState()
+      .setPayer("bruno");
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("bruno");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("bruno");
 
     saveDeferred.resolve();
     await updatePromise;
@@ -648,7 +1034,10 @@ describe("split store", () => {
       storeModule.useSplitStore.getState().setPayer("bruno"),
     ).rejects.toThrow("write failed");
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("ana");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("ana");
   });
 
   it("creates, updates, and removes items on the active record", async () => {
@@ -660,20 +1049,46 @@ describe("split store", () => {
       category: "",
       splitMode: "even",
       allocations: [
-        { participantId: "solo", evenIncluded: true, shares: "1", percent: "100", percentLocked: false },
+        {
+          participantId: "solo",
+          evenIncluded: true,
+          shares: "1",
+          percent: "100",
+          percentLocked: false,
+        },
       ],
     });
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items.some((item) => item.id === "item-created")).toBe(true);
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.some((item) => item.id === "item-created"),
+    ).toBe(true);
 
     await storeModule.useSplitStore.getState().saveItemSplit("item-even", {
-      ...storeModule.useSplitStore.getState().getActiveRecord()!.values.items[0],
+      ...storeModule.useSplitStore.getState().getActiveRecord()!.values
+        .items[0],
       splitMode: "shares",
       allocations: [
-        { participantId: "ana", evenIncluded: true, shares: "3", percent: "75", percentLocked: false },
-        { participantId: "bruno", evenIncluded: true, shares: "1", percent: "25", percentLocked: false },
+        {
+          participantId: "ana",
+          evenIncluded: true,
+          shares: "3",
+          percent: "75",
+          percentLocked: false,
+        },
+        {
+          participantId: "bruno",
+          evenIncluded: true,
+          shares: "1",
+          percent: "25",
+          percentLocked: false,
+        },
       ],
     });
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]).toEqual(
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0],
+    ).toEqual(
       expect.objectContaining({
         id: "item-even",
         splitMode: "shares",
@@ -681,42 +1096,72 @@ describe("split store", () => {
           expect.objectContaining({ participantId: "ana", shares: "3" }),
           expect.objectContaining({ participantId: "bruno", shares: "1" }),
         ]),
-      })
+      }),
     );
 
-    await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
-    await storeModule.useSplitStore.getState().updateItemField("item-even", "price", "9.99");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]).toEqual(
-      expect.objectContaining({ name: "Updated milk", price: "9.99" })
-    );
+    await storeModule.useSplitStore
+      .getState()
+      .updateItemField("item-even", "name", "Updated milk");
+    await storeModule.useSplitStore
+      .getState()
+      .updateItemField("item-even", "price", "9.99");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0],
+    ).toEqual(expect.objectContaining({ name: "Updated milk", price: "9.99" }));
 
     await storeModule.useSplitStore.getState().removeItem("item-even");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items.some((item) => item.id === "item-even")
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.some((item) => item.id === "item-even"),
     ).toBe(false);
     expect(storageMocks.saveRecord).toHaveBeenCalled();
   });
 
   it("updates split allocations across even, shares, and percent modes", async () => {
     const { storeModule, record, domainMocks } = await loadReadyStore();
-    await storeModule.useSplitStore.getState().toggleEvenIncluded("item-even", "ana");
+    await storeModule.useSplitStore
+      .getState()
+      .toggleEvenIncluded("item-even", "ana");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0].allocations[0]?.evenIncluded
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]
+        .allocations[0]?.evenIncluded,
     ).toBe(false);
 
-    await storeModule.useSplitStore.getState().setItemSplitMode("item-even", "percent");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]?.splitMode).toBe("percent");
-    await storeModule.useSplitStore.getState().setItemSplitMode("item-even", "shares");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]?.splitMode).toBe("shares");
-    await storeModule.useSplitStore.getState().setItemSplitMode("item-even", "even");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]?.splitMode).toBe("even");
-
-    await storeModule.useSplitStore.getState().setItemSharesValue("item-shares", "ana", "7");
+    await storeModule.useSplitStore
+      .getState()
+      .setItemSplitMode("item-even", "percent");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1].allocations[0]?.shares
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]
+        ?.splitMode,
+    ).toBe("percent");
+    await storeModule.useSplitStore
+      .getState()
+      .setItemSplitMode("item-even", "shares");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]
+        ?.splitMode,
+    ).toBe("shares");
+    await storeModule.useSplitStore
+      .getState()
+      .setItemSplitMode("item-even", "even");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]
+        ?.splitMode,
+    ).toBe("even");
+
+    await storeModule.useSplitStore
+      .getState()
+      .setItemSharesValue("item-shares", "ana", "7");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1]
+        .allocations[0]?.shares,
     ).toBe("7");
 
-    const didChangePercent = await storeModule.useSplitStore.getState().setItemPercentValue("item-percent", "ana", "100");
+    const didChangePercent = await storeModule.useSplitStore
+      .getState()
+      .setItemPercentValue("item-percent", "ana", "100");
     expect(didChangePercent).toBe(true);
     expect(domainMocks.rebalancePercentAllocations).toHaveBeenCalled();
 
@@ -725,26 +1170,51 @@ describe("split store", () => {
       rebalanceResult: null,
     });
     await expect(
-      storeWithRejectedPercent.storeModule.useSplitStore.getState().setItemPercentValue("item-percent", "ana", "70")
+      storeWithRejectedPercent.storeModule.useSplitStore
+        .getState()
+        .setItemPercentValue("item-percent", "ana", "70"),
     ).resolves.toBe(false);
 
-    await storeModule.useSplitStore.getState().resetItemAllocations("item-percent");
-    await storeModule.useSplitStore.getState().resetItemAllocations("item-shares");
-    await storeModule.useSplitStore.getState().resetItemAllocations("item-even");
+    await storeModule.useSplitStore
+      .getState()
+      .resetItemAllocations("item-percent");
+    await storeModule.useSplitStore
+      .getState()
+      .resetItemAllocations("item-shares");
+    await storeModule.useSplitStore
+      .getState()
+      .resetItemAllocations("item-even");
 
-    await storeModule.useSplitStore.getState().focusOnlyParticipant("item-even", "ana");
+    await storeModule.useSplitStore
+      .getState()
+      .focusOnlyParticipant("item-even", "ana");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0]?.allocations.map((allocation) => allocation.evenIncluded)
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items[0]?.allocations.map(
+          (allocation) => allocation.evenIncluded,
+        ),
     ).toEqual([true, false]);
 
-    await storeModule.useSplitStore.getState().focusOnlyParticipant("item-shares", "ana");
+    await storeModule.useSplitStore
+      .getState()
+      .focusOnlyParticipant("item-shares", "ana");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1]?.allocations.map((allocation) => allocation.shares)
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items[1]?.allocations.map((allocation) => allocation.shares),
     ).toEqual(["1", "0"]);
 
-    await storeModule.useSplitStore.getState().focusOnlyParticipant("item-percent", "ana");
+    await storeModule.useSplitStore
+      .getState()
+      .focusOnlyParticipant("item-percent", "ana");
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[2]?.allocations.map((allocation) => allocation.percent)
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items[2]?.allocations.map((allocation) => allocation.percent),
     ).toEqual(["100", "0"]);
   });
 
@@ -757,7 +1227,10 @@ describe("split store", () => {
     expect(appendResult.importedCount).toBe(2);
     expect(appendResult.skippedDuplicateCount).toBe(0);
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items.some((item) => item.name === "Imported apples")
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.some((item) => item.name === "Imported apples"),
     ).toBe(true);
 
     const replaceResult = await storeModule.useSplitStore
@@ -766,7 +1239,10 @@ describe("split store", () => {
     expect(replaceResult.importedCount).toBe(2);
     expect(replaceResult.skippedDuplicateCount).toBe(0);
     expect(
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items.map((item) => item.name)
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.map((item) => item.name),
     ).toEqual(["Imported apples", "Imported pears"]);
   });
 
@@ -789,13 +1265,26 @@ describe("split store", () => {
       .importPastedList("duplicate rows", "append");
 
     const itemNames =
-      storeModule.useSplitStore.getState().getActiveRecord()?.values.items.map((item) => item.name) ?? [];
-    expect(itemNames.filter((name) => name.trim().toLowerCase() === "milk")).toHaveLength(1);
-    expect(itemNames.filter((name) => name === "Imported pears")).toHaveLength(1);
-    const items = storeModule.useSplitStore.getState().getActiveRecord()?.values.items ?? [];
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.map((item) => item.name) ?? [];
+    expect(
+      itemNames.filter((name) => name.trim().toLowerCase() === "milk"),
+    ).toHaveLength(1);
+    expect(itemNames.filter((name) => name === "Imported pears")).toHaveLength(
+      1,
+    );
+    const items =
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items ??
+      [];
     expect(items.find((item) => item.name === "Milk")?.price).toBe("4.50");
-    expect(items.find((item) => item.name === "Imported pears")?.price).toBe("5.00");
-    expect(result.warningMessages).not.toContain("Ignored 2 duplicate imported items.");
+    expect(items.find((item) => item.name === "Imported pears")?.price).toBe(
+      "5.00",
+    );
+    expect(result.warningMessages).not.toContain(
+      "Ignored 2 duplicate imported items.",
+    );
     expect(result.importedCount).toBe(2);
     expect(result.skippedDuplicateCount).toBe(0);
   });
@@ -805,9 +1294,7 @@ describe("split store", () => {
     const { storeModule } = await loadReadyStore({
       record,
       parseResult: {
-        items: [
-          { name: "milk", price: "-3.50" },
-        ],
+        items: [{ name: "milk", price: "-3.50" }],
         warnings: [],
       },
     });
@@ -816,7 +1303,9 @@ describe("split store", () => {
       .getState()
       .importPastedList("invalid merge", "append");
 
-    const items = storeModule.useSplitStore.getState().getActiveRecord()?.values.items ?? [];
+    const items =
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items ??
+      [];
     expect(items.some((item) => item.name === "Milk")).toBe(false);
     expect(result.importedCount).toBe(1);
     expect(result.warningCodes).not.toContain("invalid-merge-amount");
@@ -839,19 +1328,25 @@ describe("split store", () => {
       { id: "mike", name: "mike" },
     ]);
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.participants).toEqual([
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .participants,
+    ).toEqual([
       { id: "zara", name: "Zara" },
       { id: "ana", name: "Ana" },
       { id: "mike", name: "mike" },
     ]);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("zara");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("zara");
   });
 
   it("marks the active record as completed", async () => {
     const { storeModule, storageMocks } = await loadReadyStore();
     await storeModule.useSplitStore.getState().markCompleted();
     expect(storeModule.useSplitStore.getState().getActiveRecord()).toEqual(
-      expect.objectContaining({ status: "completed", step: 6 })
+      expect.objectContaining({ status: "completed", step: 6 }),
     );
     expect(storageMocks.saveRecord).toHaveBeenCalled();
   });
@@ -871,8 +1366,20 @@ describe("split store", () => {
       category: "",
       splitMode: "even",
       allocations: [
-        { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-        { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+        {
+          participantId: "ana",
+          evenIncluded: true,
+          shares: "1",
+          percent: "50",
+          percentLocked: false,
+        },
+        {
+          participantId: "bruno",
+          evenIncluded: true,
+          shares: "1",
+          percent: "50",
+          percentLocked: false,
+        },
       ],
     });
 
@@ -937,20 +1444,42 @@ describe("split store", () => {
       ready: true,
       records: [record],
       activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
     });
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
 
     await storeModule.useSplitStore.getState().markBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
 
     await storeModule.useSplitStore.getState().revertBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
   });
 
   it("optimistically updates participant paid state before persistence finishes", async () => {
@@ -958,9 +1487,14 @@ describe("split store", () => {
     const saveDeferred = createDeferred();
     storageMocks.saveRecord.mockImplementationOnce(() => saveDeferred.promise);
 
-    const updatePromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+    const updatePromise = storeModule.useSplitStore
+      .getState()
+      .toggleParticipantPaid("bruno");
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
 
     saveDeferred.resolve();
     await updatePromise;
@@ -976,14 +1510,20 @@ describe("split store", () => {
 
     const markPromise = storeModule.useSplitStore.getState().markBillPaid();
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
 
     markSave.resolve();
     await markPromise;
 
     const revertPromise = storeModule.useSplitStore.getState().revertBillPaid();
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
 
     revertSave.resolve();
     await revertPromise;
@@ -997,7 +1537,10 @@ describe("split store", () => {
       storeModule.useSplitStore.getState().toggleParticipantPaid("bruno"),
     ).rejects.toThrow("write failed");
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
   });
 
   it("does not cancel removed reminders when optimistic persistence fails", async () => {
@@ -1013,7 +1556,9 @@ describe("split store", () => {
         },
       },
     });
-    const { storeModule, storageMocks, reminderMocks } = await loadReadyStore({ record });
+    const { storeModule, storageMocks, reminderMocks } = await loadReadyStore({
+      record,
+    });
     storageMocks.saveRecord.mockRejectedValueOnce(new Error("write failed"));
 
     await expect(
@@ -1021,7 +1566,10 @@ describe("split store", () => {
     ).rejects.toThrow("write failed");
 
     expect(reminderMocks.cancelReminder).not.toHaveBeenCalled();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toEqual(
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState
+        ?.participantDebtReminders.bruno,
+    ).toEqual(
       expect.objectContaining({
         notificationId: "participant-reminder",
       }),
@@ -1038,17 +1586,28 @@ describe("split store", () => {
         .mockImplementationOnce(() => firstSave.promise)
         .mockResolvedValueOnce(undefined);
 
-      const firstPromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+      const firstPromise = storeModule.useSplitStore
+        .getState()
+        .toggleParticipantPaid("bruno");
+      expect(
+        storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+          .settledParticipantIds,
+      ).toEqual(["bruno"]);
 
       jest.setSystemTime(new Date("2026-04-04T10:00:01.000Z"));
       await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+      expect(
+        storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+          .settledParticipantIds,
+      ).toEqual([]);
 
       firstSave.reject(new Error("stale write failed"));
       await expect(firstPromise).rejects.toThrow("stale write failed");
 
-      expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+      expect(
+        storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+          .settledParticipantIds,
+      ).toEqual([]);
     } finally {
       jest.useRealTimers();
     }
@@ -1063,12 +1622,16 @@ describe("split store", () => {
     });
     storageMocks.saveRecord.mockRejectedValueOnce(new Error("write failed"));
 
-    const updatePromise = storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+    const updatePromise = storeModule.useSplitStore
+      .getState()
+      .toggleParticipantPaid("bruno");
     storeModule.useSplitStore.setState({ activeRecordId: "draft-second" });
 
     await expect(updatePromise).rejects.toThrow("write failed");
 
-    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("draft-second");
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
+      "draft-second",
+    );
   });
 
   it("sets and clears split reminders for a specific record", async () => {
@@ -1076,7 +1639,9 @@ describe("split store", () => {
     const { storeModule, reminderMocks } = await loadReadyStore({ record });
     const scheduledForIso = "2099-01-01T10:00:00.000Z";
 
-    await storeModule.useSplitStore.getState().setSplitReminder(record.id, scheduledForIso);
+    await storeModule.useSplitStore
+      .getState()
+      .setSplitReminder(record.id, scheduledForIso);
 
     expect(reminderMocks.ensureReminderPermission).toHaveBeenCalled();
     expect(reminderMocks.scheduleReminder).toHaveBeenCalledWith(
@@ -1086,7 +1651,10 @@ describe("split store", () => {
         scheduledForIso,
       }),
     );
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.splitReminder).toEqual(
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState
+        ?.splitReminder,
+    ).toEqual(
       expect.objectContaining({
         notificationId: "reminder-notification",
         scheduledForIso,
@@ -1094,8 +1662,13 @@ describe("split store", () => {
     );
 
     await storeModule.useSplitStore.getState().clearSplitReminder(record.id);
-    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.splitReminder).toBeUndefined();
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith(
+      "reminder-notification",
+    );
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState
+        ?.splitReminder,
+    ).toBeUndefined();
   });
 
   it("sets a participant debt reminder and auto-cancels it when that debt is settled", async () => {
@@ -1106,7 +1679,10 @@ describe("split store", () => {
     await storeModule.useSplitStore
       .getState()
       .setParticipantDebtReminder(record.id, "bruno", scheduledForIso);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toEqual(
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState
+        ?.participantDebtReminders.bruno,
+    ).toEqual(
       expect.objectContaining({
         notificationId: "reminder-notification",
         scheduledForIso,
@@ -1114,8 +1690,13 @@ describe("split store", () => {
     );
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toBeUndefined();
-    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState
+        ?.participantDebtReminders.bruno,
+    ).toBeUndefined();
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith(
+      "reminder-notification",
+    );
   });
 
   it("clears split and participant reminders when the bill is marked as paid", async () => {
@@ -1123,7 +1704,9 @@ describe("split store", () => {
     const { storeModule, reminderMocks } = await loadReadyStore({ record });
     const scheduledForIso = "2099-01-01T10:00:00.000Z";
 
-    await storeModule.useSplitStore.getState().setSplitReminder(record.id, scheduledForIso);
+    await storeModule.useSplitStore
+      .getState()
+      .setSplitReminder(record.id, scheduledForIso);
     reminderMocks.scheduleReminder.mockResolvedValueOnce({
       notificationId: "participant-reminder",
     });
@@ -1132,11 +1715,17 @@ describe("split store", () => {
       .setParticipantDebtReminder(record.id, "bruno", scheduledForIso);
 
     await storeModule.useSplitStore.getState().markBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState).toEqual({
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.reminderState,
+    ).toEqual({
       participantDebtReminders: {},
     });
-    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("reminder-notification");
-    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("participant-reminder");
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith(
+      "reminder-notification",
+    );
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith(
+      "participant-reminder",
+    );
   });
 
   it("tracks paid settlement state for reverse settlements where the payer owes others", async () => {
@@ -1152,149 +1741,30 @@ describe("split store", () => {
         totalCents: 200,
         itemBreakdown: [],
         people: [
-          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
-          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
-          { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
-        ],
-        transfers: [],
-      },
-    });
-
-    storeModule.useSplitStore.setState({
-      ready: true,
-      records: [record],
-      activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
-    });
-
-    await storeModule.useSplitStore.getState().markBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds.sort()).toEqual([
-      "bruno",
-      "zoe",
-    ]);
-
-    await storeModule.useSplitStore.getState().toggleParticipantPaid("zoe");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
-  });
-
-  it("ignores paid toggles for non-debtors and clears settled ids when participants are removed", async () => {
-    const record = createRecord({
-      settlementState: {
-        settledParticipantIds: ["bruno"],
-      },
-    });
-    const { storeModule } = await loadStore({
-      listRecords: [record],
-    });
-
-    storeModule.useSplitStore.setState({
-      ready: true,
-      records: [record],
-      activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
-    });
-
-    await storeModule.useSplitStore.getState().toggleParticipantPaid("ana");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
-
-    await storeModule.useSplitStore.getState().updateParticipants([{ id: "ana", name: "Ana" }]);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
-  });
-
-  it("drops stale settled ids when an edit changes who still owes money", async () => {
-    const record = createRecord({
-      settlementState: {
-        settledParticipantIds: ["bruno"],
-      },
-    });
-    const { storeModule, domainMocks } = await loadStore({
-      listRecords: [record],
-    });
-
-    domainMocks.computeSettlement.mockReturnValue({
-      ok: true,
-      data: {
-        currency: "EUR",
-        totalCents: 1000,
-        itemBreakdown: [],
-        people: [
-          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1000, consumedCents: 400, netCents: 600 },
-          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 400, netCents: 0 },
-          { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 200, netCents: -200 },
-        ],
-        transfers: [],
-      },
-    });
-
-    storeModule.useSplitStore.setState({
-      ready: true,
-      records: [record],
-      activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
-    });
-
-    await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
-  });
-
-  it("creates an empty settled state when an edited record had none", async () => {
-    const record = createRecord({
-      settlementState: undefined,
-    });
-    const { storeModule } = await loadStore({
-      listRecords: [record],
-    });
-
-    storeModule.useSplitStore.setState({
-      ready: true,
-      records: [record],
-      activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
-    });
-
-    await storeModule.useSplitStore.getState().updateItemField("item-even", "name", "Updated milk");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState).toEqual({
-      settledParticipantIds: [],
-    });
-  });
-
-  it("keeps bill-paid settlement empty when the current draft cannot be settled", async () => {
-    const record = createRecord();
-    const { storeModule, domainMocks } = await loadStore({
-      listRecords: [record],
-    });
-
-    domainMocks.computeSettlement.mockReturnValueOnce({
-      ok: false,
-      errors: [],
-    });
-
-    storeModule.useSplitStore.setState({
-      ready: true,
-      records: [record],
-      activeRecordId: record.id,
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [] },
-    });
-
-    await storeModule.useSplitStore.getState().markBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
-  });
-
-  it("keeps bill-paid settlement empty when the payer has no net balance", async () => {
-    const record = createRecord();
-    const { storeModule, domainMocks } = await loadStore({
-      listRecords: [record],
-    });
-
-    domainMocks.computeSettlement.mockReturnValue({
-      ok: true,
-      data: {
-        currency: "EUR",
-        totalCents: 0,
-        itemBreakdown: [],
-        people: [
-          { participantId: "ana", name: "Ana", isPayer: true, paidCents: 0, consumedCents: 0, netCents: 0 },
-          { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 0, netCents: 0 },
+          {
+            participantId: "ana",
+            name: "Ana",
+            isPayer: true,
+            paidCents: 200,
+            consumedCents: 350,
+            netCents: -150,
+          },
+          {
+            participantId: "bruno",
+            name: "Bruno",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: -50,
+            netCents: 50,
+          },
+          {
+            participantId: "zoe",
+            name: "Zoe",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: 150,
+            netCents: 100,
+          },
         ],
         transfers: [],
       },
@@ -1318,7 +1788,260 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().markBillPaid();
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.settlementState.settledParticipantIds.sort(),
+    ).toEqual(["bruno", "zoe"]);
+
+    await storeModule.useSplitStore.getState().toggleParticipantPaid("zoe");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
+  });
+
+  it("ignores paid toggles for non-debtors and clears settled ids when participants are removed", async () => {
+    const record = createRecord({
+      settlementState: {
+        settledParticipantIds: ["bruno"],
+      },
+    });
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().toggleParticipantPaid("ana");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual(["bruno"]);
+
+    await storeModule.useSplitStore
+      .getState()
+      .updateParticipants([{ id: "ana", name: "Ana" }]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
+  });
+
+  it("drops stale settled ids when an edit changes who still owes money", async () => {
+    const record = createRecord({
+      settlementState: {
+        settledParticipantIds: ["bruno"],
+      },
+    });
+    const { storeModule, domainMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    domainMocks.computeSettlement.mockReturnValue({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 1000,
+        itemBreakdown: [],
+        people: [
+          {
+            participantId: "ana",
+            name: "Ana",
+            isPayer: true,
+            paidCents: 1000,
+            consumedCents: 400,
+            netCents: 600,
+          },
+          {
+            participantId: "bruno",
+            name: "Bruno",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: 400,
+            netCents: 0,
+          },
+          {
+            participantId: "zoe",
+            name: "Zoe",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: 200,
+            netCents: -200,
+          },
+        ],
+        transfers: [],
+      },
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+
+    await storeModule.useSplitStore
+      .getState()
+      .updateItemField("item-even", "name", "Updated milk");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
+  });
+
+  it("creates an empty settled state when an edited record had none", async () => {
+    const record = createRecord({
+      settlementState: undefined,
+    });
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+
+    await storeModule.useSplitStore
+      .getState()
+      .updateItemField("item-even", "name", "Updated milk");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState,
+    ).toEqual({
+      settledParticipantIds: [],
+    });
+  });
+
+  it("keeps bill-paid settlement empty when the current draft cannot be settled", async () => {
+    const record = createRecord();
+    const { storeModule, domainMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    domainMocks.computeSettlement.mockReturnValueOnce({
+      ok: false,
+      errors: [],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().markBillPaid();
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
+  });
+
+  it("keeps bill-paid settlement empty when the payer has no net balance", async () => {
+    const record = createRecord();
+    const { storeModule, domainMocks } = await loadStore({
+      listRecords: [record],
+    });
+
+    domainMocks.computeSettlement.mockReturnValue({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 0,
+        itemBreakdown: [],
+        people: [
+          {
+            participantId: "ana",
+            name: "Ana",
+            isPayer: true,
+            paidCents: 0,
+            consumedCents: 0,
+            netCents: 0,
+          },
+          {
+            participantId: "bruno",
+            name: "Bruno",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: 0,
+            netCents: 0,
+          },
+        ],
+        transfers: [],
+      },
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().markBillPaid();
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
+        .settledParticipantIds,
+    ).toEqual([]);
   });
 
   it("keeps the payer when updated participants still contain that participant and ignores unmatched allocation edits", async () => {
@@ -1338,16 +2061,41 @@ describe("split store", () => {
       { id: "bruno", name: "Bruno" },
       { id: "carla", name: "Carla" },
     ]);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("ana");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(1);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("ana");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      1,
+    );
 
-    const beforeToggle = storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0].allocations.map((entry) => entry.evenIncluded);
-    await storeModule.useSplitStore.getState().toggleEvenIncluded("item-even", "missing");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[0].allocations.map((entry) => entry.evenIncluded)).toEqual(beforeToggle);
+    const beforeToggle = storeModule.useSplitStore
+      .getState()
+      .getActiveRecord()
+      ?.values.items[0].allocations.map((entry) => entry.evenIncluded);
+    await storeModule.useSplitStore
+      .getState()
+      .toggleEvenIncluded("item-even", "missing");
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items[0].allocations.map((entry) => entry.evenIncluded),
+    ).toEqual(beforeToggle);
 
-    const beforeShares = storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1].allocations.map((entry) => entry.shares);
-    await storeModule.useSplitStore.getState().setItemSharesValue("item-shares", "missing", "9");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1].allocations.map((entry) => entry.shares)).toEqual(beforeShares);
+    const beforeShares = storeModule.useSplitStore
+      .getState()
+      .getActiveRecord()
+      ?.values.items[1].allocations.map((entry) => entry.shares);
+    await storeModule.useSplitStore
+      .getState()
+      .setItemSharesValue("item-shares", "missing", "9");
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items[1].allocations.map((entry) => entry.shares),
+    ).toEqual(beforeShares);
   });
 
   it("falls back to payer when participants stay valid but the payer is cleared", async () => {
@@ -1367,8 +2115,13 @@ describe("split store", () => {
       { id: "bruno-2", name: "Bruno" },
     ]);
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.payerParticipantId).toBe("");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(3);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values
+        .payerParticipantId,
+    ).toBe("");
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      3,
+    );
   });
 
   it("keeps the draft on participants until the user explicitly advances, even when participant data is already valid", async () => {
@@ -1399,10 +2152,14 @@ describe("split store", () => {
       { id: "bruno", name: "Bruno" },
     ]);
 
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(1);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      1,
+    );
 
     await storeModule.useSplitStore.getState().setStep(2);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(2);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      2,
+    );
   });
 
   it("falls back to participants when a stored draft step is non-finite", async () => {
@@ -1428,8 +2185,12 @@ describe("split store", () => {
       activeRecordId: record.id,
     });
 
-    await storeModule.useSplitStore.getState().updateParticipants(record.values.participants);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(1);
+    await storeModule.useSplitStore
+      .getState()
+      .updateParticipants(record.values.participants);
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.step).toBe(
+      1,
+    );
   });
 
   it("focuses percent allocations onto one participant and keeps append imports from blank existing items", async () => {
@@ -1444,8 +2205,20 @@ describe("split store", () => {
             price: "",
             splitMode: "even" as const,
             allocations: [
-              { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-              { participantId: "bruno", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+              {
+                participantId: "ana",
+                evenIncluded: true,
+                shares: "1",
+                percent: "50",
+                percentLocked: false,
+              },
+              {
+                participantId: "bruno",
+                evenIncluded: true,
+                shares: "1",
+                percent: "50",
+                percentLocked: false,
+              },
             ],
           },
         ],
@@ -1461,14 +2234,34 @@ describe("split store", () => {
       activeRecordId: record.id,
     });
 
-    await storeModule.useSplitStore.getState().focusOnlyParticipant("item-percent", "ana");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[2].allocations).toEqual([
-      expect.objectContaining({ participantId: "ana", percent: "100", percentLocked: true }),
-      expect.objectContaining({ participantId: "bruno", percent: "0", percentLocked: false }),
+    await storeModule.useSplitStore
+      .getState()
+      .focusOnlyParticipant("item-percent", "ana");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[2]
+        .allocations,
+    ).toEqual([
+      expect.objectContaining({
+        participantId: "ana",
+        percent: "100",
+        percentLocked: true,
+      }),
+      expect.objectContaining({
+        participantId: "bruno",
+        percent: "0",
+        percentLocked: false,
+      }),
     ]);
 
-    await storeModule.useSplitStore.getState().importPastedList("ignored text", "append");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items.some((item) => item.id === "blank")).toBe(false);
+    await storeModule.useSplitStore
+      .getState()
+      .importPastedList("ignored text", "append");
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.some((item) => item.id === "blank"),
+    ).toBe(false);
   });
 
   it("focuses share allocations onto one participant while zeroing the rest", async () => {
@@ -1483,8 +2276,13 @@ describe("split store", () => {
       activeRecordId: record.id,
     });
 
-    await storeModule.useSplitStore.getState().focusOnlyParticipant("item-shares", "ana");
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1].allocations).toEqual([
+    await storeModule.useSplitStore
+      .getState()
+      .focusOnlyParticipant("item-shares", "ana");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items[1]
+        .allocations,
+    ).toEqual([
       expect.objectContaining({ participantId: "ana", shares: "1" }),
       expect.objectContaining({ participantId: "bruno", shares: "0" }),
     ]);
@@ -1518,10 +2316,14 @@ describe("split store", () => {
     expect(storeModule.getSettlementPreview(record)).toEqual(
       expect.objectContaining({
         ok: true,
-      })
+      }),
     );
-    expect(storeModule.getClipboardSummaryPreview(record)).toBe("summary output");
-    expect(storeModule.getPdfExportPreview(record)).toEqual({ fileName: "split-bill-2026-04-04.pdf" });
+    expect(storeModule.getClipboardSummaryPreview(record)).toBe(
+      "summary output",
+    );
+    expect(storeModule.getPdfExportPreview(record)).toEqual({
+      fileName: "split-bill-2026-04-04.pdf",
+    });
     expect(domainMocks.buildClipboardSummary).toHaveBeenCalled();
     expect(domainMocks.buildPdfExportData).toHaveBeenCalled();
   });
@@ -1547,7 +2349,9 @@ describe("split store", () => {
       .importPastedList("totals only", "replace");
     expect(result.importedCount).toBe(0);
     expect(result.skippedDuplicateCount).toBe(0);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual(record.values.items);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items,
+    ).toEqual(record.values.items);
   });
 
   it("replaces with an empty item list when valid replace imports cancel to zero", async () => {
@@ -1575,6 +2379,8 @@ describe("split store", () => {
 
     expect(result.warningCodes).toEqual([]);
     expect(result.skippedDuplicateCount).toBe(0);
-    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.items).toEqual([]);
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items,
+    ).toEqual([]);
   });
 });
