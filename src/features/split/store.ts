@@ -527,6 +527,8 @@ async function withRecordById(
   return nextRecord;
 }
 
+let settingsPersistenceQueue = Promise.resolve();
+
 export const useSplitStore = create<SplitStore>((set, get) => ({
   ready: false,
   records: [],
@@ -675,8 +677,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       settings: nextSettings,
       records: nextRecords,
     });
-    await Promise.all(nextRecords.map((record) => saveRecord(record)));
-    await saveAppSettings(nextSettings);
+    const persistSnapshot = settingsPersistenceQueue
+      .catch(() => undefined)
+      .then(async () => {
+        await Promise.all(nextRecords.map((record) => saveRecord(record)));
+        await saveAppSettings(nextSettings);
+      });
+    settingsPersistenceQueue = persistSnapshot.then(
+      () => undefined,
+      () => undefined,
+    );
+    await persistSnapshot;
   },
   async addTag(label, icon, color) {
     const nextTag = createCustomTag(
@@ -742,20 +753,16 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateRecordDetails(recordId, details) {
     await withRecordById(set, get, recordId, (record) =>
-      normalizeActiveRecordMutation(
-        record,
-        (draft) => {
-          draft.values.splitName = details.splitName.slice(
-            0,
-            SPLIT_NAME_MAX_LENGTH,
-          );
-          draft.values.tagIds = normalizeTagIds(
-            details.tagIds,
-            get().settings.tags,
-          );
-        },
-        { recomputeStatusOnValueChange: true },
-      ),
+      normalizeActiveRecordMutation(record, (draft) => {
+        draft.values.splitName = details.splitName.slice(
+          0,
+          SPLIT_NAME_MAX_LENGTH,
+        );
+        draft.values.tagIds = normalizeTagIds(
+          details.tagIds,
+          get().settings.tags,
+        );
+      }),
     );
   },
   async updateDraftMeta(

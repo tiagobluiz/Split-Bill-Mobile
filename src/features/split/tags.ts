@@ -194,7 +194,9 @@ export function normalizeTags(value: unknown): SplitTag[] {
     })
     .filter((entry): entry is SplitTag => Boolean(entry));
 
-  return normalized.length > 0 ? normalized : DEFAULT_SPLIT_TAGS;
+  return normalized.length > 0 || value.length === 0
+    ? normalized
+    : DEFAULT_SPLIT_TAGS;
 }
 
 export function normalizeTagIds(value: unknown, tags?: SplitTag[]) {
@@ -204,17 +206,19 @@ export function normalizeTagIds(value: unknown, tags?: SplitTag[]) {
 
   const validIds = tags ? new Set(tags.map((tag) => tag.id)) : null;
   const seen = new Set<string>();
-  return value.filter((entry): entry is string => {
+  const normalized: string[] = [];
+  value.forEach((entry) => {
     if (typeof entry !== "string") {
-      return false;
+      return;
     }
     const id = entry.trim();
     if (!id || seen.has(id) || (validIds && !validIds.has(id))) {
-      return false;
+      return;
     }
     seen.add(id);
-    return true;
+    normalized.push(id);
   });
+  return normalized;
 }
 
 export function createCustomTag(

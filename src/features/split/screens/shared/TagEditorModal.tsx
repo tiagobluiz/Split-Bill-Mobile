@@ -91,6 +91,7 @@ export function TagEditorModal({
   const [customColor, setCustomColor] = useState<`#${string}`>("#ef476f");
   const [customColorOpen, setCustomColorOpen] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const emojiKeyboard = useEmojiKeyboard();
 
@@ -393,16 +394,27 @@ export function TagEditorModal({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("tags.createAction")}
+                  disabled={saving}
                   style={screenStyles.splitNoticeButton}
                   onPress={async () => {
+                    if (saving) {
+                      return;
+                    }
                     const validationMessage = validateTagName();
                     if (validationMessage) {
                       setError(validationMessage);
                       return;
                     }
-                    const saved = await onSave(label, icon, color);
-                    if (!saved) {
+                    setSaving(true);
+                    try {
+                      const saved = await onSave(label, icon, color);
+                      if (!saved) {
+                        setError(t("tags.validation"));
+                      }
+                    } catch {
                       setError(t("tags.validation"));
+                    } finally {
+                      setSaving(false);
                     }
                   }}
                 >

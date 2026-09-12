@@ -443,6 +443,51 @@ describe("split store", () => {
     );
   });
 
+  it("serializes settings persistence so older snapshots cannot overwrite newer ones", async () => {
+    const { storeModule, storageMocks } = await loadStore();
+    const firstSave = createDeferred<void>();
+    const secondSave = createDeferred<void>();
+    storageMocks.saveAppSettings
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementationOnce(() => secondSave.promise);
+
+    await storeModule.useSplitStore.getState().bootstrap();
+    const firstUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ ownerName: "First" });
+    const secondUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ ownerName: "Second" });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(storeModule.useSplitStore.getState().settings.ownerName).toBe(
+      "Second",
+    );
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ ownerName: "First" }),
+    );
+
+    firstSave.resolve();
+    await firstUpdate;
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(2);
+    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ ownerName: "Second" }),
+    );
+
+    secondSave.resolve();
+    await secondUpdate;
+  });
+
   it("renames owner references in stored records when the profile name changes", async () => {
     const record = createRecord({
       values: {
@@ -760,6 +805,64 @@ describe("split store", () => {
         }),
       }),
     );
+  });
+
+  it("keeps completed split status when only split details change", async () => {
+    const completedAt = "2026-04-05T10:00:00.000Z";
+    const record = createRecord({
+      id: "completed-details-record",
+      status: "completed",
+      step: 6,
+      completedAt,
+      values: {
+        ...createValues(),
+        splitName: "Old dinner",
+        tagIds: ["tag-groceries"],
+      },
+    });
+    const { storeModule } = await loadStore({
+      listRecords: [record],
+    });
+
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      activeRecordId: record.id,
+      settings: {
+        ownerName: "You",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+        tags: [
+          {
+            id: "tag-restaurant",
+            label: "Restaurant",
+            icon: "utensils",
+            color: "orange",
+            builtIn: true,
+          },
+        ],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().updateRecordDetails(record.id, {
+      splitName: "Updated dinner",
+      tagIds: ["tag-restaurant"],
+    });
+
+    expect(storeModule.useSplitStore.getState().records[0]).toMatchObject({
+      status: "completed",
+      completedAt,
+      values: expect.objectContaining({
+        splitName: "Updated dinner",
+        tagIds: ["tag-restaurant"],
+      }),
+    });
   });
 
   it("saves selected split tags and manages tag deletion across existing records", async () => {

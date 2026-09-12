@@ -150,4 +150,36 @@ describe("SplitDetailsQuickEditModal", () => {
       tagIds: ["tag-groceries", "tag-beach"],
     });
   });
+
+  it("preserves local tag changes when creating a new tag refreshes settings tags", async () => {
+    const onSave = jest.fn(async () => undefined);
+    const onAddTag = jest.fn(async () => true);
+    const rendered = renderModal({ onAddTag, onSave });
+
+    fireEvent.press(screen.getByText("Groceries"));
+    fireEvent.press(screen.getByLabelText("Add tag"));
+    fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Beach");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    rendered.rerender(
+      <SplitDetailsQuickEditModal
+        {...rendered.props}
+        tags={[
+          ...baseTags,
+          { id: "tag-beach", label: "Beach", icon: "plane", color: "clay" },
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      splitName: "Dinner",
+      tagIds: ["tag-beach"],
+    });
+  });
 });

@@ -130,6 +130,49 @@ describe("settings storage", () => {
     });
   });
 
+  it("preserves an explicitly empty saved tag list", async () => {
+    const { database, settingsModule } = await loadModule({
+      row: {
+        key: "app-settings",
+        payload: JSON.stringify({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "",
+          balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
+          defaultCurrency: "EUR",
+          language: "en",
+          humour: "plain",
+          splitListAmountDisplay: "remaining",
+          customCurrencies: [],
+          tags: [],
+        }),
+      },
+    });
+
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
+      tags: [],
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "Tiago",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+      tags: [],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [
+      string,
+      [string, string],
+    ];
+    expect(JSON.parse(saveArgs[1][1])).toMatchObject({ tags: [] });
+  });
+
   it("loads and saves the optional PDF download directory URI", async () => {
     const { database, settingsModule } = await loadModule({
       row: {

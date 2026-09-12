@@ -99,9 +99,21 @@ export function HomeSplitsTabContent({
     () => sortTagsAlphabetically(settings.tags ?? []),
     [settings.tags],
   );
+  const availableTagIds = useMemo(
+    () => new Set((settings.tags ?? []).map((tag) => tag.id)),
+    [settings.tags],
+  );
   const selectedTagLabels = (settings.tags ?? [])
     .filter((tag) => activityTagFilterIds.includes(tag.id))
     .map((tag) => tag.label);
+
+  useEffect(() => {
+    if (activityTagFilterIds.some((tagId) => !availableTagIds.has(tagId))) {
+      setActivityTagFilterIds((current) =>
+        current.filter((tagId) => availableTagIds.has(tagId)),
+      );
+    }
+  }, [activityTagFilterIds, availableTagIds, setActivityTagFilterIds]);
 
   useEffect(() => {
     if (tagFilterMenuOpen) {

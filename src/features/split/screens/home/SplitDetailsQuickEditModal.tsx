@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Plus } from "lucide-react-native";
 import {
@@ -65,13 +65,22 @@ export function SplitDetailsQuickEditModal({
   const [pendingCreatedTagLabel, setPendingCreatedTagLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const orderedTags = useMemo(() => sortTagsAlphabetically(tags), [tags]);
+  const previousRecordIdRef = useRef(record.id);
 
   useEffect(() => {
+    if (previousRecordIdRef.current === record.id) {
+      return;
+    }
+    previousRecordIdRef.current = record.id;
     setNameDraft(record.values.splitName ?? "");
     setSelectedTagIds(normalizeSelectedTagIds(record.values.tagIds ?? [], tags));
     setError("");
     setSaving(false);
   }, [record.id, record.values.splitName, record.values.tagIds, tags]);
+
+  useEffect(() => {
+    setSelectedTagIds((current) => normalizeSelectedTagIds(current, tags));
+  }, [tags]);
 
   useEffect(() => {
     if (!pendingCreatedTagLabel) {

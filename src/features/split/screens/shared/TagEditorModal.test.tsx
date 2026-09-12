@@ -1,0 +1,48 @@
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+
+import { TagEditorModal } from "./TagEditorModal";
+
+function createDeferred<T = boolean>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("TagEditorModal", () => {
+  it("handles rejected saves and blocks concurrent submissions", async () => {
+    const save = createDeferred<boolean>();
+    const onSave = jest.fn(() => save.promise);
+    render(
+      <TagEditorModal existingTags={[]} onSave={onSave} onCancel={jest.fn()} />,
+    );
+
+    fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Beach");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      save.reject(new Error("offline"));
+      await save.promise.catch(() => undefined);
+    });
+
+    expect(
+      screen.getByText("Use a unique tag name up to 24 characters."),
+    ).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(2);
+  });
+});

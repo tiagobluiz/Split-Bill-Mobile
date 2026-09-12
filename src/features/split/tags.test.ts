@@ -23,6 +23,7 @@ describe("split tags", () => {
 
   it("normalizes persisted tags and keeps default metadata when missing", () => {
     expect(normalizeTags(undefined)).toBe(DEFAULT_SPLIT_TAGS);
+    expect(normalizeTags([])).toEqual([]);
     expect(
       normalizeTags([
         null,
@@ -64,9 +65,9 @@ describe("split tags", () => {
 
   it("normalizes selected tag ids against optional known tags", () => {
     expect(normalizeTagIds("bad")).toEqual([]);
-    expect(normalizeTagIds(["one", "one", "", 5])).toEqual(["one"]);
+    expect(normalizeTagIds([" one ", "one", "", 5])).toEqual(["one"]);
     expect(
-      normalizeTagIds(["tag-groceries", "missing"], DEFAULT_SPLIT_TAGS),
+      normalizeTagIds([" tag-groceries ", "missing"], DEFAULT_SPLIT_TAGS),
     ).toEqual(["tag-groceries"]);
   });
 
