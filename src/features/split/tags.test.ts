@@ -62,25 +62,6 @@ describe("split tags", () => {
     expect(normalizeTags([{ id: "", label: "" }])).toBe(DEFAULT_SPLIT_TAGS);
   });
 
-  it("migrates persisted Other tags to the current iconless default", () => {
-    expect(
-      normalizeTags([
-        {
-          id: "tag-other",
-          label: "Other",
-          icon: "briefcase",
-          color: "clay",
-          builtIn: true,
-        },
-      ]),
-    ).toEqual([
-      expect.objectContaining({
-        id: "tag-other",
-        icon: null,
-      }),
-    ]);
-  });
-
   it("normalizes selected tag ids against optional known tags", () => {
     expect(normalizeTagIds("bad")).toEqual([]);
     expect(normalizeTagIds(["one", "one", "", 5])).toEqual(["one"]);

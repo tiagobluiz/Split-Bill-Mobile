@@ -178,12 +178,11 @@ export function normalizeTags(value: unknown): SplitTag[] {
       }
       seen.add(key);
       const defaultTag = DEFAULT_TAG_BY_ID.get(id);
-      const shouldUseDefaultIcon = raw.icon === undefined || id === "tag-other";
       return {
         id,
         label,
         icon:
-          shouldUseDefaultIcon && defaultTag
+          raw.icon === undefined && defaultTag
             ? defaultTag.icon
             : normalizeTagIcon(raw.icon),
         color:
