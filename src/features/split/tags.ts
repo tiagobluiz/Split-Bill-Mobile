@@ -140,6 +140,15 @@ export function normalizeTagName(value: string) {
   return trimName(value).slice(0, TAG_NAME_MAX_LENGTH);
 }
 
+export function sortTagsAlphabetically(tags: SplitTag[]) {
+  return [...tags].sort((left, right) =>
+    left.label.localeCompare(right.label, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
+}
+
 export function normalizeTags(value: unknown): SplitTag[] {
   if (!Array.isArray(value)) {
     return DEFAULT_SPLIT_TAGS;

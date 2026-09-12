@@ -7,6 +7,7 @@ import {
   normalizeTagIds,
   normalizeTagName,
   normalizeTags,
+  sortTagsAlphabetically,
 } from "./tags";
 
 describe("split tags", () => {
@@ -67,6 +68,28 @@ describe("split tags", () => {
     expect(
       normalizeTagIds(["tag-groceries", "missing"], DEFAULT_SPLIT_TAGS),
     ).toEqual(["tag-groceries"]);
+  });
+
+  it("sorts tags alphabetically without changing the source array", () => {
+    const tags = [
+      { id: "z", label: "Zoo", icon: null, color: "gray" },
+      { id: "a", label: "activities", icon: null, color: "mint" },
+      { id: "b", label: "Beach 2", icon: null, color: "orange" },
+      { id: "c", label: "Beach 10", icon: null, color: "clay" },
+    ] as const;
+
+    expect(sortTagsAlphabetically([...tags]).map((tag) => tag.label)).toEqual([
+      "activities",
+      "Beach 2",
+      "Beach 10",
+      "Zoo",
+    ]);
+    expect(tags.map((tag) => tag.label)).toEqual([
+      "Zoo",
+      "activities",
+      "Beach 2",
+      "Beach 10",
+    ]);
   });
 
   it("creates custom tags only when names are unique", () => {

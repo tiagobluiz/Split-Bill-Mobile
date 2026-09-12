@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
 import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
 import {
@@ -8,7 +9,12 @@ import {
 
 import { FieldLabel, SectionEyebrow } from "../../../../components/ui";
 import type { AppSettings } from "../../../../storage/settings";
-import type { SplitTag, SplitTagColor, SplitTagIcon } from "../../tags";
+import {
+  sortTagsAlphabetically,
+  type SplitTag,
+  type SplitTagColor,
+  type SplitTagIcon,
+} from "../../tags";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -110,6 +116,7 @@ export function HomeSettingsTabContent({
   onConfirmDeleteTag: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
+  const orderedTags = useMemo(() => sortTagsAlphabetically(tags), [tags]);
   const pendingDeleteTag = tags.find((tag) => tag.id === pendingTagDeleteId);
   const pendingDeleteTagUsageCount = pendingDeleteTag
     ? getTagUsageCount(pendingDeleteTag.id)
@@ -206,7 +213,7 @@ export function HomeSettingsTabContent({
               </Text>
             </Pressable>
             <YStack gap="$2">
-              {tags.map((tag) => (
+              {orderedTags.map((tag) => (
                 <View key={tag.id} style={screenStyles.tagManagerRow}>
                   <TagChip tag={tag} />
                   <Pressable

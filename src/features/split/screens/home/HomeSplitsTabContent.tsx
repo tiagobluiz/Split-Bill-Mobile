@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { ChevronDown, Filter } from "lucide-react-native";
 import {
@@ -16,6 +16,7 @@ import {
 import type { AppSettings } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
+import { sortTagsAlphabetically } from "../../tags";
 import { ModePills } from "../shared/components";
 import { RecordRow } from "../shared/homeParts";
 import { TagChip } from "../shared/TagChips";
@@ -94,6 +95,10 @@ export function HomeSplitsTabContent({
   const [draftTagFilterIds, setDraftTagFilterIds] = useState<string[]>([]);
   const [draftTagFilterMode, setDraftTagFilterMode] =
     useState<ActivityTagFilterMode>("all");
+  const orderedTags = useMemo(
+    () => sortTagsAlphabetically(settings.tags ?? []),
+    [settings.tags],
+  );
   const selectedTagLabels = (settings.tags ?? [])
     .filter((tag) => activityTagFilterIds.includes(tag.id))
     .map((tag) => tag.label);
@@ -293,7 +298,7 @@ export function HomeSplitsTabContent({
                 contentContainerStyle={screenStyles.tagFilterContent}
                 showsVerticalScrollIndicator
               >
-                {(settings.tags ?? []).map((tag) => {
+                {orderedTags.map((tag) => {
                   const selected = draftTagFilterIds.includes(tag.id);
                   return (
                     <Pressable

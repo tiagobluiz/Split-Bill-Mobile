@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Plus } from "lucide-react-native";
 import {
@@ -12,6 +12,7 @@ import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
   normalizeTagName,
+  sortTagsAlphabetically,
   type SplitTag,
   type SplitTagColor,
   type SplitTagIcon,
@@ -63,6 +64,7 @@ export function SplitDetailsQuickEditModal({
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [pendingCreatedTagLabel, setPendingCreatedTagLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const orderedTags = useMemo(() => sortTagsAlphabetically(tags), [tags]);
 
   useEffect(() => {
     setNameDraft(record.values.splitName ?? "");
@@ -182,7 +184,7 @@ export function SplitDetailsQuickEditModal({
                   {t("tags.label")}
                 </Text>
                 <View style={screenStyles.tagPickerGrid}>
-                  {tags.map((tag) => {
+                  {orderedTags.map((tag) => {
                     const selected = selectedTagIds.includes(tag.id);
                     return (
                       <Pressable

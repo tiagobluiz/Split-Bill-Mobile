@@ -92,7 +92,7 @@ import {
   getSettlementPreview,
   useSplitStore,
 } from "../../store";
-import { isDefaultSplitTag } from "../../tags";
+import { isDefaultSplitTag, sortTagsAlphabetically } from "../../tags";
 import {
   getAvatarTone,
   getCurrencyOptionLabel,
@@ -302,6 +302,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         ]
       : []),
   ];
+  const orderedTags = useMemo(
+    () => sortTagsAlphabetically(settings.tags ?? []),
+    [settings.tags],
+  );
   const normalizedCurrency = currency.trim().toUpperCase();
   const normalizedTargetCurrency = settings.defaultCurrency
     .trim()
@@ -742,7 +746,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             <YStack gap="$2">
               <FieldLabel>{t("tags.label")}</FieldLabel>
               <View style={screenStyles.tagPickerGrid}>
-                {(settings.tags ?? []).map((tag) => {
+                {orderedTags.map((tag) => {
                   const selected = selectedTagIds.includes(tag.id);
                   return (
                     <Pressable
