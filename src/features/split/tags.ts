@@ -71,7 +71,7 @@ export const DEFAULT_SPLIT_TAGS: SplitTag[] = [
   {
     id: "tag-other",
     label: "Other",
-    icon: "briefcase",
+    icon: null,
     color: "clay",
     builtIn: true,
   },
