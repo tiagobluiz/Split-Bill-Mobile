@@ -1,7 +1,4 @@
-import {
-  getDefaultTranslationSettings,
-  translateWithSettings,
-} from "./index";
+import { getDefaultTranslationSettings, translateWithSettings } from "./index";
 
 describe("i18n", () => {
   it("resolves the exact language and humour variant", () => {
@@ -17,9 +14,9 @@ describe("i18n", () => {
     expect(
       translateWithSettings(
         { language: "en", humour: "sassy" },
-        "settings.save",
+        "settings.userProfile",
       ),
-    ).toBe("Save Settings");
+    ).toBe("User profile");
   });
 
   it("falls back to plain humour when the requested variant is too long", () => {

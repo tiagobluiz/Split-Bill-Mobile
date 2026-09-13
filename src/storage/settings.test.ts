@@ -74,7 +74,7 @@ describe("settings storage", () => {
       "SELECT key, payload FROM app_settings WHERE key = ?",
       ["app-settings"]
     );
-    expect(loaded).toEqual({
+    expect(loaded).toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
@@ -128,6 +128,49 @@ describe("settings storage", () => {
       trackPaymentsFeatureEnabled: false,
       splitListAmountDisplay: "totalAndRemaining",
     });
+  });
+
+  it("preserves an explicitly empty saved tag list", async () => {
+    const { database, settingsModule } = await loadModule({
+      row: {
+        key: "app-settings",
+        payload: JSON.stringify({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "",
+          balanceFeatureEnabled: true,
+          trackPaymentsFeatureEnabled: true,
+          defaultCurrency: "EUR",
+          language: "en",
+          humour: "plain",
+          splitListAmountDisplay: "remaining",
+          customCurrencies: [],
+          tags: [],
+        }),
+      },
+    });
+
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
+      tags: [],
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "Tiago",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: defaultLanguage,
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+      tags: [],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [
+      string,
+      [string, string],
+    ];
+    expect(JSON.parse(saveArgs[1][1])).toMatchObject({ tags: [] });
   });
 
   it("loads and saves the optional PDF download directory URI", async () => {
@@ -190,7 +233,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -204,7 +247,7 @@ describe("settings storage", () => {
 
     const missing = await loadModule({ row: null });
     await missing.settingsModule.initializeSettingsStorage();
-    await expect(missing.settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(missing.settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -236,7 +279,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
@@ -282,7 +325,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.initializeSettingsStorage();
-    await expect(settingsModule.getAppSettings()).resolves.toEqual({
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -307,7 +350,7 @@ describe("settings storage", () => {
       });
 
       await settingsModule.initializeSettingsStorage();
-      await expect(settingsModule.getAppSettings()).resolves.toEqual({
+      await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
         ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,

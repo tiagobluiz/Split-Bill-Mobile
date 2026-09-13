@@ -3,12 +3,12 @@ import { BackHandler, TextInput } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { createId } from "../../../../domain";
-import {
-  type AppHumour,
-  type AppLanguage,
-} from "../../../../i18n";
+import { type AppHumour, type AppLanguage } from "../../../../i18n";
 import { useTranslation } from "../../../../i18n/provider";
-import type { AppSettings, SplitListAmountDisplay } from "../../../../storage/settings";
+import type {
+  AppSettings,
+  SplitListAmountDisplay,
+} from "../../../../storage/settings";
 import { getCurrencyOptions } from "../shared/participantUtils";
 import type {
   SelectableSplitListAmountDisplayOption,
@@ -17,6 +17,7 @@ import type {
 
 export const MAX_OWNER_NAME_LENGTH = 12;
 const MAX_CUSTOM_CURRENCY_SUFFIX = 999;
+const OWNER_NAME_AUTOSAVE_DELAY_MS = 450;
 
 function normalizeCustomCurrencyCodeCandidate(value: string) {
   return (
@@ -49,7 +50,7 @@ function findAvailableCurrencyCodeFromBase(
 function findAlphabeticCurrencyCodeFallback(existingCodes: Set<string>) {
   for (let index = 0; index < 26 ** 3; index += 1) {
     const first = String.fromCharCode(65 + Math.floor(index / (26 * 26)));
-    const second = String.fromCharCode(65 + Math.floor(index / 26) % 26);
+    const second = String.fromCharCode(65 + (Math.floor(index / 26) % 26));
     const third = String.fromCharCode(65 + (index % 26));
     const candidate = `${first}${second}${third}`;
     if (!existingCodes.has(candidate)) {
@@ -81,16 +82,27 @@ export function normalizeSplitListAmountDisplaySetting(
   return resolvedValue;
 }
 
+type PersistableSettings = Pick<
+  AppSettings,
+  | "ownerName"
+  | "ownerProfileImageUri"
+  | "balanceFeatureEnabled"
+  | "trackPaymentsFeatureEnabled"
+  | "defaultCurrency"
+  | "language"
+  | "humour"
+  | "splitListAmountDisplay"
+  | "customCurrencies"
+>;
+
 type UseHomeSettingsDraftControllerParams = {
   settings: AppSettings;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
-  onDiscardExtraState: () => void;
 };
 
 export function useHomeSettingsDraftController({
   settings,
   updateSettings,
-  onDiscardExtraState,
 }: UseHomeSettingsDraftControllerParams) {
   const { t } = useTranslation();
   const [settingsNoticeMessages, setSettingsNoticeMessages] = useState<
@@ -144,6 +156,17 @@ export function useHomeSettingsDraftController({
     symbol: boolean;
   }>({ name: false, symbol: false });
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
+  const ownerNameDraftRef = useRef(ownerNameDraft);
+  const ownerProfileImageUriDraftRef = useRef(ownerProfileImageUriDraft);
+  const balanceFeatureEnabledDraftRef = useRef(balanceFeatureEnabledDraft);
+  const trackPaymentsFeatureEnabledDraftRef = useRef(
+    trackPaymentsFeatureEnabledDraft,
+  );
+  const defaultCurrencyDraftRef = useRef(defaultCurrencyDraft);
+  const languageDraftRef = useRef(languageDraft);
+  const humourDraftRef = useRef(humourDraft);
+  const splitListAmountDisplayDraftRef = useRef(splitListAmountDisplayDraft);
+  const customCurrenciesDraftRef = useRef(customCurrenciesDraft);
 
   const splitListAmountDisplayOptions: SplitListAmountDisplayOption[] = [
     {
@@ -191,50 +214,106 @@ export function useHomeSettingsDraftController({
     customCurrencies: customCurrenciesDraft,
   });
 
-  const normalizedStoredSplitListAmountDisplay =
-    normalizeSplitListAmountDisplaySetting(
-      settings.splitListAmountDisplay,
-      settings.balanceFeatureEnabled,
-    );
+  const clearSettingsNotice = useCallback(() => {
+    setSettingsNoticeTitle(t("common.almostThere"));
+    setSettingsNoticeMessages([]);
+  }, [t]);
 
-  const hasLegacySplitListAmountDisplayMismatch =
-    (settings.balanceFeatureEnabled ?? true) === false &&
-    (settings.splitListAmountDisplay ?? "remaining") !==
-      normalizedStoredSplitListAmountDisplay;
+  const showSaveFailure = useCallback(
+    (error: unknown) => {
+      setSettingsNoticeTitle(t("common.couldNotSaveSettings"));
+      setSettingsNoticeMessages([
+        error instanceof Error && error.message
+          ? error.message
+          : t("common.tryAgain"),
+      ]);
+    },
+    [t],
+  );
 
-  const settingsDirty =
-    ownerNameDraft.trim() !== (settings.ownerName ?? "") ||
-    ownerProfileImageUriDraft.trim() !==
-      (settings.ownerProfileImageUri ?? "") ||
-    balanceFeatureEnabledDraft !== (settings.balanceFeatureEnabled ?? true) ||
-    trackPaymentsFeatureEnabledDraft !==
-      (settings.trackPaymentsFeatureEnabled ?? true) ||
-    defaultCurrencyDraft.trim().toUpperCase() !==
-      (settings.defaultCurrency ?? "") ||
-    languageDraft !== (settings.language ?? "en") ||
-    humourDraft !== (settings.humour ?? "plain") ||
-    hasLegacySplitListAmountDisplayMismatch ||
-    splitListAmountDisplayDraft !== normalizedStoredSplitListAmountDisplay ||
-    JSON.stringify(customCurrenciesDraft) !==
-      JSON.stringify(settings.customCurrencies ?? []);
+  const persistSettings = useCallback(
+    async (overrides: Partial<PersistableSettings>) => {
+      const nextOwnerName = overrides.ownerName ?? ownerNameDraftRef.current;
+      const nextDefaultCurrency =
+        overrides.defaultCurrency ??
+        defaultCurrencyDraftRef.current.trim().toUpperCase();
+      const nextBalance =
+        overrides.balanceFeatureEnabled ??
+        balanceFeatureEnabledDraftRef.current;
+      const nextSplitRows =
+        overrides.splitListAmountDisplay ??
+        splitListAmountDisplayDraftRef.current;
+      const persistedSplitListAmountDisplay =
+        !nextBalance && isBalanceDependentSplitListAmountDisplay(nextSplitRows)
+          ? "total"
+          : nextSplitRows;
+
+      if (!nextOwnerName.trim()) {
+        setSettingsNoticeTitle(t("common.almostThere"));
+        setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+        return false;
+      }
+
+      if (!nextDefaultCurrency.trim()) {
+        setSettingsNoticeTitle(t("common.almostThere"));
+        setSettingsNoticeMessages([t("settings.defaultCurrencyRequired")]);
+        return false;
+      }
+
+      try {
+        await updateSettings({
+          ownerName: nextOwnerName.trim(),
+          ownerProfileImageUri:
+            overrides.ownerProfileImageUri ??
+            ownerProfileImageUriDraftRef.current.trim(),
+          balanceFeatureEnabled: nextBalance,
+          trackPaymentsFeatureEnabled:
+            overrides.trackPaymentsFeatureEnabled ??
+            trackPaymentsFeatureEnabledDraftRef.current,
+          defaultCurrency: nextDefaultCurrency.trim().toUpperCase(),
+          language: overrides.language ?? languageDraftRef.current,
+          humour: overrides.humour ?? humourDraftRef.current,
+          splitListAmountDisplay: persistedSplitListAmountDisplay,
+          customCurrencies:
+            overrides.customCurrencies ?? customCurrenciesDraftRef.current,
+        });
+        clearSettingsNotice();
+        return true;
+      } catch (error) {
+        showSaveFailure(error);
+        return false;
+      }
+    },
+    [clearSettingsNotice, showSaveFailure, t, updateSettings],
+  );
 
   useEffect(() => {
     setOwnerNameDraft(settings.ownerName ?? "");
+    ownerNameDraftRef.current = settings.ownerName ?? "";
     setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
+    ownerProfileImageUriDraftRef.current = settings.ownerProfileImageUri ?? "";
     setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
+    balanceFeatureEnabledDraftRef.current =
+      settings.balanceFeatureEnabled ?? true;
     setTrackPaymentsFeatureEnabledDraft(
       settings.trackPaymentsFeatureEnabled ?? true,
     );
+    trackPaymentsFeatureEnabledDraftRef.current =
+      settings.trackPaymentsFeatureEnabled ?? true;
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
+    defaultCurrencyDraftRef.current = settings.defaultCurrency ?? "";
     setLanguageDraft(settings.language ?? "en");
+    languageDraftRef.current = settings.language ?? "en";
     setHumourDraft(settings.humour ?? "plain");
-    setSplitListAmountDisplayDraft(
-      normalizeSplitListAmountDisplaySetting(
-        settings.splitListAmountDisplay,
-        settings.balanceFeatureEnabled,
-      ),
+    humourDraftRef.current = settings.humour ?? "plain";
+    const normalizedSplitRows = normalizeSplitListAmountDisplaySetting(
+      settings.splitListAmountDisplay,
+      settings.balanceFeatureEnabled,
     );
+    setSplitListAmountDisplayDraft(normalizedSplitRows);
+    splitListAmountDisplayDraftRef.current = normalizedSplitRows;
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
+    customCurrenciesDraftRef.current = settings.customCurrencies ?? [];
   }, [
     settings.balanceFeatureEnabled,
     settings.trackPaymentsFeatureEnabled,
@@ -246,6 +325,21 @@ export function useHomeSettingsDraftController({
     settings.ownerName,
     settings.ownerProfileImageUri,
   ]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const trimmedName = ownerNameDraft.trim();
+      if (!trimmedName) {
+        return;
+      }
+      if (trimmedName === (settings.ownerName ?? "")) {
+        return;
+      }
+      void persistSettings({ ownerName: trimmedName });
+    }, OWNER_NAME_AUTOSAVE_DELAY_MS);
+
+    return () => clearTimeout(timeout);
+  }, [ownerNameDraft, persistSettings, settings.ownerName, t]);
 
   const closeCustomCurrencyModal = useCallback(() => {
     setCurrencyModalOpen(false);
@@ -275,89 +369,133 @@ export function useHomeSettingsDraftController({
     return () => backSubscription.remove();
   }, [closeCustomCurrencyModal, currencyMenuOpen, currencyModalOpen]);
 
-  const clearSettingsNotice = () => {
-    setSettingsNoticeTitle(t("common.almostThere"));
-    setSettingsNoticeMessages([]);
+  const setOwnerNameDraftAndSave = (value: string) => {
+    ownerNameDraftRef.current = value;
+    setOwnerNameDraft(value);
+    if (value.trim()) {
+      clearSettingsNotice();
+    }
   };
 
-  const saveSettings = async () => {
-    const trimmedName = ownerNameDraft.trim();
-    const persistedSplitListAmountDisplay =
-      !balanceFeatureEnabledDraft &&
-      isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)
-        ? "total"
-        : splitListAmountDisplayDraft;
+  const validateOwnerNameDraft = () => {
+    if (ownerNameDraftRef.current.trim()) {
+      return true;
+    }
+    setSettingsNoticeTitle(t("common.almostThere"));
+    setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+    return false;
+  };
 
-    if (!trimmedName) {
-      setSettingsNoticeTitle(t("common.almostThere"));
-      setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+  const setOwnerProfileImageUriDraftAndSave = (value: string) => {
+    const nextValue = value.trim();
+    ownerProfileImageUriDraftRef.current = nextValue;
+    setOwnerProfileImageUriDraft(nextValue);
+    void persistSettings({ ownerProfileImageUri: nextValue });
+  };
+
+  const setBalanceFeatureEnabledDraftAndSave = (
+    value: boolean | ((value: boolean) => boolean),
+  ) => {
+    const nextBalance =
+      typeof value === "function"
+        ? value(balanceFeatureEnabledDraftRef.current)
+        : value;
+    const nextTrackPayments = nextBalance
+      ? true
+      : trackPaymentsFeatureEnabledDraftRef.current;
+    const nextSplitRows =
+      !nextBalance &&
+      isBalanceDependentSplitListAmountDisplay(
+        splitListAmountDisplayDraftRef.current,
+      )
+        ? "total"
+        : splitListAmountDisplayDraftRef.current;
+    balanceFeatureEnabledDraftRef.current = nextBalance;
+    trackPaymentsFeatureEnabledDraftRef.current = nextTrackPayments;
+    splitListAmountDisplayDraftRef.current = nextSplitRows;
+    setBalanceFeatureEnabledDraft(nextBalance);
+    setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
+    setSplitListAmountDisplayDraft(nextSplitRows);
+    void persistSettings({
+      balanceFeatureEnabled: nextBalance,
+      trackPaymentsFeatureEnabled: nextTrackPayments,
+      splitListAmountDisplay: nextSplitRows,
+    });
+  };
+
+  const setTrackPaymentsFeatureEnabledDraftAndSave = (
+    value: boolean | ((value: boolean) => boolean),
+  ) => {
+    const nextTrackPayments =
+      typeof value === "function"
+        ? value(trackPaymentsFeatureEnabledDraftRef.current)
+        : value;
+    const nextBalance = nextTrackPayments
+      ? balanceFeatureEnabledDraftRef.current
+      : false;
+    const nextSplitRows =
+      !nextBalance &&
+      isBalanceDependentSplitListAmountDisplay(
+        splitListAmountDisplayDraftRef.current,
+      )
+        ? "total"
+        : splitListAmountDisplayDraftRef.current;
+    trackPaymentsFeatureEnabledDraftRef.current = nextTrackPayments;
+    balanceFeatureEnabledDraftRef.current = nextBalance;
+    splitListAmountDisplayDraftRef.current = nextSplitRows;
+    setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
+    setBalanceFeatureEnabledDraft(nextBalance);
+    setSplitListAmountDisplayDraft(nextSplitRows);
+    void persistSettings({
+      balanceFeatureEnabled: nextBalance,
+      trackPaymentsFeatureEnabled: nextTrackPayments,
+      splitListAmountDisplay: nextSplitRows,
+    });
+  };
+
+  const setDefaultCurrencyDraftAndSave = (value: string) => {
+    const nextValue = value.trim().toUpperCase();
+    defaultCurrencyDraftRef.current = nextValue;
+    setDefaultCurrencyDraft(nextValue);
+    setCurrencyMenuOpen(false);
+    void persistSettings({ defaultCurrency: nextValue });
+  };
+
+  const setLanguageDraftAndSave = (value: AppLanguage) => {
+    languageDraftRef.current = value;
+    setLanguageDraft(value);
+    setLanguageMenuOpen(false);
+    void persistSettings({ language: value });
+  };
+
+  const setHumourDraftAndSave = (value: AppHumour) => {
+    humourDraftRef.current = value;
+    setHumourDraft(value);
+    setHumourMenuOpen(false);
+    void persistSettings({ humour: value });
+  };
+
+  const setSplitListAmountDisplayDraftAndSave = (
+    value: SplitListAmountDisplay,
+  ) => {
+    splitListAmountDisplayDraftRef.current = value;
+    setSplitListAmountDisplayDraft(value);
+    setSplitListAmountDisplayMenuOpen(false);
+    void persistSettings({ splitListAmountDisplay: value });
+  };
+
+  const canLeaveSettings = () => {
+    if (!validateOwnerNameDraft()) {
       return false;
     }
 
-    if (!defaultCurrencyDraft.trim()) {
+    if (!defaultCurrencyDraftRef.current.trim()) {
       setSettingsNoticeTitle(t("common.almostThere"));
       setSettingsNoticeMessages([t("settings.defaultCurrencyRequired")]);
       return false;
     }
 
-    try {
-      await updateSettings({
-        ownerName: trimmedName,
-        ownerProfileImageUri: ownerProfileImageUriDraft.trim(),
-        balanceFeatureEnabled: balanceFeatureEnabledDraft,
-        trackPaymentsFeatureEnabled: trackPaymentsFeatureEnabledDraft,
-        defaultCurrency: defaultCurrencyDraft.trim().toUpperCase(),
-        language: languageDraft,
-        humour: humourDraft,
-        splitListAmountDisplay: persistedSplitListAmountDisplay,
-        customCurrencies: customCurrenciesDraft,
-      });
-
-      setCurrencyMenuOpen(false);
-      setLanguageMenuOpen(false);
-      setHumourMenuOpen(false);
-      setSplitListAmountDisplayMenuOpen(false);
-      clearSettingsNotice();
-      return true;
-    } catch (error) {
-      setSettingsNoticeTitle(t("common.couldNotSaveSettings"));
-      setSettingsNoticeMessages([
-        error instanceof Error && error.message
-          ? error.message
-          : t("common.tryAgain"),
-      ]);
-      return false;
-    }
-  };
-
-  const discardSettingsDraft = () => {
-    setOwnerNameDraft(settings.ownerName ?? "");
-    setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
-    setTrackPaymentsFeatureEnabledDraft(
-      settings.trackPaymentsFeatureEnabled ?? true,
-    );
-    setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
-    setLanguageDraft(settings.language ?? "en");
-    setHumourDraft(settings.humour ?? "plain");
-    setSplitListAmountDisplayDraft(
-      normalizeSplitListAmountDisplaySetting(
-        settings.splitListAmountDisplay,
-        settings.balanceFeatureEnabled,
-      ),
-    );
-    setCustomCurrenciesDraft(settings.customCurrencies ?? []);
-    setCustomCurrencyName("");
-    setCustomCurrencySymbol("");
-    setCurrencyMenuOpen(false);
-    setLanguageMenuOpen(false);
-    setHumourMenuOpen(false);
-    setSplitListAmountDisplayMenuOpen(false);
-    setCurrencyModalOpen(false);
-    setProfileActionMenuOpen(false);
-    setCustomCurrencyErrors({ name: false, symbol: false });
-    clearSettingsNotice();
-    onDiscardExtraState();
+    return true;
   };
 
   const pickProfileImage = async (mode: "camera" | "library") => {
@@ -396,8 +534,7 @@ export function useHomeSettingsDraftController({
       return;
     }
 
-    setOwnerProfileImageUriDraft(result.assets[0].uri);
-    clearSettingsNotice();
+    setOwnerProfileImageUriDraftAndSave(result.assets[0].uri);
   };
 
   const addCustomCurrency = async () => {
@@ -446,34 +583,41 @@ export function useHomeSettingsDraftController({
       ...customCurrenciesDraft,
       { code: nextCode, name: trimmedName, symbol: trimmedSymbol },
     ];
+    customCurrenciesDraftRef.current = nextCustomCurrencies;
+    defaultCurrencyDraftRef.current = nextCode;
     setCustomCurrenciesDraft(nextCustomCurrencies);
     setDefaultCurrencyDraft(nextCode);
     setCustomCurrencyName("");
     setCustomCurrencySymbol("");
     setCustomCurrencyErrors({ name: false, symbol: false });
     closeCustomCurrencyModal();
-    clearSettingsNotice();
+    void persistSettings({
+      customCurrencies: nextCustomCurrencies,
+      defaultCurrency: nextCode,
+    });
   };
 
   return {
     settingsNoticeMessages,
     settingsNoticeTitle,
     ownerNameDraft,
-    setOwnerNameDraft,
+    setOwnerNameDraft: setOwnerNameDraftAndSave,
+    validateOwnerNameDraft,
     ownerProfileImageUriDraft,
-    setOwnerProfileImageUriDraft,
+    setOwnerProfileImageUriDraft: setOwnerProfileImageUriDraftAndSave,
     balanceFeatureEnabledDraft,
-    setBalanceFeatureEnabledDraft,
+    setBalanceFeatureEnabledDraft: setBalanceFeatureEnabledDraftAndSave,
     trackPaymentsFeatureEnabledDraft,
-    setTrackPaymentsFeatureEnabledDraft,
+    setTrackPaymentsFeatureEnabledDraft:
+      setTrackPaymentsFeatureEnabledDraftAndSave,
     defaultCurrencyDraft,
-    setDefaultCurrencyDraft,
+    setDefaultCurrencyDraft: setDefaultCurrencyDraftAndSave,
     languageDraft,
-    setLanguageDraft,
+    setLanguageDraft: setLanguageDraftAndSave,
     humourDraft,
-    setHumourDraft,
+    setHumourDraft: setHumourDraftAndSave,
     splitListAmountDisplayDraft,
-    setSplitListAmountDisplayDraft,
+    setSplitListAmountDisplayDraft: setSplitListAmountDisplayDraftAndSave,
     customCurrenciesDraft,
     setCustomCurrenciesDraft,
     splitListAmountDisplayOptions,
@@ -498,11 +642,9 @@ export function useHomeSettingsDraftController({
     setCustomCurrencyErrors,
     customCurrencySymbolInputRef,
     draftCurrencyOptions,
-    settingsDirty,
     closeCustomCurrencyModal,
     clearSettingsNotice,
-    saveSettings,
-    discardSettingsDraft,
+    canLeaveSettings,
     pickProfileImage,
     addCustomCurrency,
   };

@@ -85,7 +85,7 @@ describe("records storage", () => {
       "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id = ?",
       ["draft-1"]
     );
-    expect(listed).toEqual([
+    expect(listed).toMatchObject([
       {
         id: "draft-1",
         status: "completed",

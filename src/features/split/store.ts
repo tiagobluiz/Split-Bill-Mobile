@@ -23,6 +23,8 @@ import { cloneDeep, getDeviceLocale } from "../../lib/device";
 import {
   rememberItemOrigins,
   syncDraftItemOrigins,
+  trackCustomTagCreated,
+  trackDefaultTagRemoved,
   trackSplitFlowCompleted,
 } from "../../lib/telemetry";
 import {
@@ -40,6 +42,14 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
+import {
+  createCustomTag,
+  isDefaultSplitTag,
+  normalizeTagIds,
+  normalizeTags,
+  type SplitTagColor,
+  type SplitTagIcon,
+} from "./tags";
 import { getDefaultTranslationSettings, t } from "../../i18n";
 import {
   cancelReminder,
@@ -71,16 +81,25 @@ type SplitStore = {
   openRecord: (id: string) => Promise<DraftRecord | null>;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  addTag: (
+    label: string,
+    icon?: SplitTagIcon | null,
+    color?: SplitTagColor,
+  ) => Promise<boolean>;
+  removeTag: (tagId: string) => Promise<void>;
+  updateRecordDetails: (
+    recordId: string,
+    details: { splitName: string; tagIds: string[] },
+  ) => Promise<void>;
   updateDraftMeta: (
     splitName: string,
     currency: string,
     exchangeRate?: DraftRecord["values"]["exchangeRate"],
     exchangeRatesByPair?: DraftRecord["values"]["exchangeRatesByPair"],
+    tagIds?: string[],
   ) => Promise<void>;
   setStep: (step: number) => Promise<void>;
-  updateParticipants: (
-    participants: ParticipantsUpdater,
-  ) => Promise<void>;
+  updateParticipants: (participants: ParticipantsUpdater) => Promise<void>;
   setPayer: (participantId: string) => Promise<void>;
   createItem: (item: DraftRecord["values"]["items"][number]) => Promise<void>;
   saveItemSplit: (
@@ -123,7 +142,10 @@ type SplitStore = {
   markBillPaid: () => Promise<void>;
   revertBillPaid: () => Promise<void>;
   toggleParticipantPaid: (participantId: string) => Promise<void>;
-  setSplitReminder: (recordId: string, scheduledForIso: string) => Promise<void>;
+  setSplitReminder: (
+    recordId: string,
+    scheduledForIso: string,
+  ) => Promise<void>;
   clearSplitReminder: (recordId: string) => Promise<void>;
   setParticipantDebtReminder: (
     recordId: string,
@@ -194,7 +216,10 @@ function getSettledDebtorIds(values: DraftRecord["values"]) {
     .map((person) => person.participantId);
 }
 
-function createReminderEntry(notificationId: string, scheduledForIso: string): ReminderEntry {
+function createReminderEntry(
+  notificationId: string,
+  scheduledForIso: string,
+): ReminderEntry {
   const timestamp = nowIso();
   return {
     notificationId,
@@ -225,8 +250,11 @@ function getCurrentDebtorIdSet(record: DraftRecord) {
 function pruneReminderState(record: DraftRecord) {
   const normalized = normalizeReminderState(record.reminderState);
   const debtorIds = getCurrentDebtorIdSet(record);
-  const settledIds = new Set(record.settlementState?.settledParticipantIds ?? []);
-  const participantDebtReminders: ReminderState["participantDebtReminders"] = {};
+  const settledIds = new Set(
+    record.settlementState?.settledParticipantIds ?? [],
+  );
+  const participantDebtReminders: ReminderState["participantDebtReminders"] =
+    {};
 
   Object.entries(normalized.participantDebtReminders).forEach(
     ([participantId, reminder]) => {
@@ -485,7 +513,9 @@ async function withRecordById(
   const currentIds = listReminderNotificationIds(existing.reminderState);
   const nextIds = listReminderNotificationIds(nextRecord.reminderState);
   const removedIds = [...currentIds].filter((id) => !nextIds.has(id));
-  await Promise.allSettled(removedIds.map((notificationId) => cancelReminder(notificationId)));
+  await Promise.allSettled(
+    removedIds.map((notificationId) => cancelReminder(notificationId)),
+  );
 
   const updatedRecords = nextRecords(get().records, nextRecord);
   set({
@@ -495,6 +525,19 @@ async function withRecordById(
   });
   await persistRecord(nextRecord);
   return nextRecord;
+}
+
+let settingsPersistenceQueue = Promise.resolve();
+
+function enqueueSettingsPersistence(job: () => Promise<void>) {
+  const persistSnapshot = settingsPersistenceQueue
+    .catch(() => undefined)
+    .then(job);
+  settingsPersistenceQueue = persistSnapshot.then(
+    () => undefined,
+    () => undefined,
+  );
+  return persistSnapshot;
 }
 
 export const useSplitStore = create<SplitStore>((set, get) => ({
@@ -509,6 +552,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     splitListAmountDisplay: "remaining",
+    tags: normalizeTags(undefined),
     customCurrencies: [],
   },
   async bootstrap() {
@@ -518,14 +562,35 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       listRecords(),
       getAppSettings(),
     ]);
-    const { records, changed } = await reconcileScheduledReminders(rawRecords);
+    const normalizedSettings = {
+      ...settings,
+      tags: normalizeTags(settings.tags),
+    };
+    const validTagIds = new Set(normalizedSettings.tags.map((tag) => tag.id));
+    const taggedRecords = rawRecords.map((record) => ({
+      ...record,
+      values: {
+        ...record.values,
+        tagIds: normalizeTagIds(record.values.tagIds, normalizedSettings.tags),
+      },
+    }));
+    const { records, changed } =
+      await reconcileScheduledReminders(taggedRecords);
     if (changed) {
       await Promise.all(records.map((record) => saveRecord(record)));
     }
     set({
       ready: true,
-      records,
-      settings,
+      records: records.map((record) => ({
+        ...record,
+        values: {
+          ...record.values,
+          tagIds: (record.values.tagIds ?? []).filter((tagId) =>
+            validTagIds.has(tagId),
+          ),
+        },
+      })),
+      settings: normalizedSettings,
       activeRecordId: records[0]?.id ?? null,
     });
   },
@@ -540,7 +605,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       await persistRecord(draft);
     } catch (error) {
       set((state) => {
-        const records = state.records.filter((record) => record.id !== draft.id);
+        const records = state.records.filter(
+          (record) => record.id !== draft.id,
+        );
         const fallbackActiveRecordId =
           state.activeRecordId === draft.id
             ? previousActiveRecordId
@@ -606,6 +673,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     const nextSettings = {
       ...mergedSettings,
       ...normalizedFlags,
+      tags: normalizeTags(mergedSettings.tags),
     };
     const nextOwnerName = nextSettings.ownerName || "";
     const nextRecords =
@@ -620,20 +688,119 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       settings: nextSettings,
       records: nextRecords,
     });
-    await Promise.all(nextRecords.map((record) => saveRecord(record)));
-    await saveAppSettings(nextSettings);
+    const ownerNameChanged =
+      normalizeOwnerName(previousOwnerName) !==
+      normalizeOwnerName(nextOwnerName);
+    const persistSnapshot = enqueueSettingsPersistence(async () => {
+      if (ownerNameChanged) {
+        await Promise.all(get().records.map((record) => saveRecord(record)));
+      }
+      await saveAppSettings(nextSettings);
+    });
+    await persistSnapshot;
   },
-  async updateDraftMeta(splitName, currency, exchangeRate, exchangeRatesByPair) {
-    await withActiveRecord(set, get, (record) =>
+  async addTag(label, icon, color) {
+    const nextTag = createCustomTag(
+      label,
+      get().settings.tags ?? [],
+      icon,
+      color,
+    );
+    if (!nextTag) {
+      return false;
+    }
+    const nextSettings = {
+      ...get().settings,
+      tags: [...normalizeTags(get().settings.tags), nextTag],
+    };
+    set({ settings: nextSettings });
+    await enqueueSettingsPersistence(() => saveAppSettings(nextSettings));
+    void trackCustomTagCreated({
+      iconType: nextTag.icon
+        ? nextTag.icon.startsWith("custom:")
+          ? "custom"
+          : "default"
+        : "none",
+    });
+    return true;
+  },
+  async removeTag(tagId) {
+    const previousRecords = get().records;
+    const removedTag = normalizeTags(get().settings.tags).find(
+      (tag) => tag.id === tagId,
+    );
+    const nextSettings = {
+      ...get().settings,
+      tags: normalizeTags(get().settings.tags).filter(
+        (tag) => tag.id !== tagId,
+      ),
+    };
+    const changedRecordIds = new Set<string>();
+    const nextRecords = previousRecords.map((record) => {
+      const hadTag = (record.values.tagIds ?? []).includes(tagId);
+      if (hadTag) {
+        changedRecordIds.add(record.id);
+      }
+      return {
+        ...record,
+        values: {
+          ...record.values,
+          tagIds: (record.values.tagIds ?? []).filter((id) => id !== tagId),
+        },
+        updatedAt: hadTag ? nowIso() : record.updatedAt,
+      };
+    });
+    set({ settings: nextSettings, records: nextRecords });
+    await enqueueSettingsPersistence(() =>
+      Promise.all([
+        saveAppSettings(nextSettings),
+        ...nextRecords
+          .filter((record) => changedRecordIds.has(record.id))
+          .map((record) => saveRecord(record)),
+      ]).then(() => undefined),
+    );
+    if (removedTag && isDefaultSplitTag(removedTag)) {
+      void trackDefaultTagRemoved();
+    }
+  },
+  async updateRecordDetails(recordId, details) {
+    await withRecordById(set, get, recordId, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.splitName = splitName.slice(0, SPLIT_NAME_MAX_LENGTH);
-        draft.values.currency =
-          currency.trim().toUpperCase() || get().settings.defaultCurrency;
-        draft.values.exchangeRate = exchangeRate;
-        if (exchangeRatesByPair !== undefined) {
-          draft.values.exchangeRatesByPair = exchangeRatesByPair;
-        }
-      }, { recomputeStatusOnValueChange: true }),
+        draft.values.splitName = details.splitName.slice(
+          0,
+          SPLIT_NAME_MAX_LENGTH,
+        );
+        draft.values.tagIds = normalizeTagIds(
+          details.tagIds,
+          get().settings.tags,
+        );
+      }),
+    );
+  },
+  async updateDraftMeta(
+    splitName,
+    currency,
+    exchangeRate,
+    exchangeRatesByPair,
+    tagIds,
+  ) {
+    await withActiveRecord(set, get, (record) =>
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.splitName = splitName.slice(0, SPLIT_NAME_MAX_LENGTH);
+          draft.values.currency =
+            currency.trim().toUpperCase() || get().settings.defaultCurrency;
+          draft.values.exchangeRate = exchangeRate;
+          if (exchangeRatesByPair !== undefined) {
+            draft.values.exchangeRatesByPair = exchangeRatesByPair;
+          }
+          if (tagIds !== undefined) {
+            draft.values.tagIds = normalizeTagIds(tagIds, get().settings.tags);
+          }
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async setStep(step) {
@@ -645,76 +812,102 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateParticipants(participants) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        const nextParticipants =
-          typeof participants === "function"
-            ? participants(draft.values.participants)
-            : participants;
-        draft.values.participants = nextParticipants;
-        if (
-          !draft.values.participants.some(
-            (participant) => participant.id === draft.values.payerParticipantId,
-          )
-        ) {
-          draft.values.payerParticipantId = "";
-        }
-        draft.settlementState.settledParticipantIds =
-          draft.settlementState.settledParticipantIds.filter((participantId) =>
-            draft.values.participants.some(
-              (participant) => participant.id === participantId,
-            ),
-          );
-        draft.values = ensureItemsAligned(draft.values);
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          const nextParticipants =
+            typeof participants === "function"
+              ? participants(draft.values.participants)
+              : participants;
+          draft.values.participants = nextParticipants;
+          if (
+            !draft.values.participants.some(
+              (participant) =>
+                participant.id === draft.values.payerParticipantId,
+            )
+          ) {
+            draft.values.payerParticipantId = "";
+          }
+          draft.settlementState.settledParticipantIds =
+            draft.settlementState.settledParticipantIds.filter(
+              (participantId) =>
+                draft.values.participants.some(
+                  (participant) => participant.id === participantId,
+                ),
+            );
+          draft.values = ensureItemsAligned(draft.values);
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async setPayer(participantId) {
     await withOptimisticActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.payerParticipantId = participantId;
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.payerParticipantId = participantId;
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async createItem(item) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        const [syncedItem] = syncItemAllocations(
-          [item],
-          draft.values.participants,
-        );
-        draft.values.items.push(syncedItem);
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          const [syncedItem] = syncItemAllocations(
+            [item],
+            draft.values.participants,
+          );
+          draft.values.items.push(syncedItem);
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async saveItemSplit(itemId, item) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        const [syncedItem] = syncItemAllocations(
-          [{ ...item, id: itemId }],
-          draft.values.participants,
-        );
-        draft.values.items = draft.values.items.map((entry) =>
-          entry.id === itemId ? syncedItem : entry,
-        );
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          const [syncedItem] = syncItemAllocations(
+            [{ ...item, id: itemId }],
+            draft.values.participants,
+          );
+          draft.values.items = draft.values.items.map((entry) =>
+            entry.id === itemId ? syncedItem : entry,
+          );
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async updateItemField(itemId, field, value) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) =>
-          item.id === itemId ? { ...item, [field]: value } : item,
-        );
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) =>
+            item.id === itemId ? { ...item, [field]: value } : item,
+          );
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async removeItem(itemId) {
     const updatedRecord = await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.filter(
-          (item) => item.id !== itemId,
-        );
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.filter(
+            (item) => item.id !== itemId,
+          );
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
     if (updatedRecord) {
       syncDraftItemOrigins(
@@ -725,172 +918,201 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async setItemSplitMode(itemId, splitMode) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) => {
-          if (item.id !== itemId) {
-            return item;
-          }
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) => {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-          if (splitMode === "percent") {
+            if (splitMode === "percent") {
+              return {
+                ...item,
+                splitMode,
+                allocations: resetPercentAllocations(item.allocations),
+              };
+            }
+
+            if (splitMode === "shares") {
+              return {
+                ...item,
+                splitMode,
+                allocations: resetShareAllocations(item.allocations),
+              };
+            }
+
             return {
               ...item,
               splitMode,
-              allocations: resetPercentAllocations(item.allocations),
+              allocations: item.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: true,
+              })),
             };
-          }
-
-          if (splitMode === "shares") {
-            return {
-              ...item,
-              splitMode,
-              allocations: resetShareAllocations(item.allocations),
-            };
-          }
-
-          return {
-            ...item,
-            splitMode,
-            allocations: item.allocations.map((allocation) => ({
-              ...allocation,
-              evenIncluded: true,
-            })),
-          };
-        });
-      }, { recomputeStatusOnValueChange: true }),
+          });
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async toggleEvenIncluded(itemId, participantId) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                allocations: item.allocations.map((allocation) =>
-                  allocation.participantId === participantId
-                    ? { ...allocation, evenIncluded: !allocation.evenIncluded }
-                    : allocation,
-                ),
-              }
-            : item,
-        );
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  allocations: item.allocations.map((allocation) =>
+                    allocation.participantId === participantId
+                      ? {
+                          ...allocation,
+                          evenIncluded: !allocation.evenIncluded,
+                        }
+                      : allocation,
+                  ),
+                }
+              : item,
+          );
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async setItemSharesValue(itemId, participantId, nextValue) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                allocations: item.allocations.map((allocation) =>
-                  allocation.participantId === participantId
-                    ? { ...allocation, shares: nextValue }
-                    : allocation,
-                ),
-              }
-            : item,
-        );
-      }, { recomputeStatusOnValueChange: true }),
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  allocations: item.allocations.map((allocation) =>
+                    allocation.participantId === participantId
+                      ? { ...allocation, shares: nextValue }
+                      : allocation,
+                  ),
+                }
+              : item,
+          );
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async setItemPercentValue(itemId, participantId, nextValue) {
     let didChange = false;
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) => {
-          if (item.id !== itemId) {
-            return item;
-          }
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) => {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-          const nextAllocations = rebalancePercentAllocations(
-            item.allocations,
-            participantId,
-            nextValue,
-          );
-          if (!nextAllocations) {
-            return item;
-          }
+            const nextAllocations = rebalancePercentAllocations(
+              item.allocations,
+              participantId,
+              nextValue,
+            );
+            if (!nextAllocations) {
+              return item;
+            }
 
-          didChange = true;
-          return { ...item, allocations: nextAllocations };
-        });
-      }, { recomputeStatusOnValueChange: true }),
+            didChange = true;
+            return { ...item, allocations: nextAllocations };
+          });
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
     return didChange;
   },
   async resetItemAllocations(itemId) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) => {
-          if (item.id !== itemId) {
-            return item;
-          }
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) => {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-          if (item.splitMode === "percent") {
+            if (item.splitMode === "percent") {
+              return {
+                ...item,
+                allocations: resetPercentAllocations(item.allocations),
+              };
+            }
+
+            if (item.splitMode === "shares") {
+              return {
+                ...item,
+                allocations: resetShareAllocations(item.allocations),
+              };
+            }
+
             return {
               ...item,
-              allocations: resetPercentAllocations(item.allocations),
+              allocations: item.allocations.map((allocation) => ({
+                ...allocation,
+                evenIncluded: true,
+              })),
             };
-          }
-
-          if (item.splitMode === "shares") {
-            return {
-              ...item,
-              allocations: resetShareAllocations(item.allocations),
-            };
-          }
-
-          return {
-            ...item,
-            allocations: item.allocations.map((allocation) => ({
-              ...allocation,
-              evenIncluded: true,
-            })),
-          };
-        });
-      }, { recomputeStatusOnValueChange: true }),
+          });
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async focusOnlyParticipant(itemId, participantId) {
     await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        draft.values.items = draft.values.items.map((item) => {
-          if (item.id !== itemId) {
-            return item;
-          }
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          draft.values.items = draft.values.items.map((item) => {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-          if (item.splitMode === "even") {
+            if (item.splitMode === "even") {
+              return {
+                ...item,
+                allocations: item.allocations.map((allocation) => ({
+                  ...allocation,
+                  evenIncluded: allocation.participantId === participantId,
+                })),
+              };
+            }
+
+            if (item.splitMode === "shares") {
+              return {
+                ...item,
+                allocations: item.allocations.map((allocation) => ({
+                  ...allocation,
+                  shares:
+                    allocation.participantId === participantId ? "1" : "0",
+                })),
+              };
+            }
+
             return {
               ...item,
               allocations: item.allocations.map((allocation) => ({
                 ...allocation,
-                evenIncluded: allocation.participantId === participantId,
+                percent:
+                  allocation.participantId === participantId ? "100" : "0",
+                percentLocked: allocation.participantId === participantId,
               })),
             };
-          }
-
-          if (item.splitMode === "shares") {
-            return {
-              ...item,
-              allocations: item.allocations.map((allocation) => ({
-                ...allocation,
-                shares: allocation.participantId === participantId ? "1" : "0",
-              })),
-            };
-          }
-
-          return {
-            ...item,
-            allocations: item.allocations.map((allocation) => ({
-              ...allocation,
-              percent: allocation.participantId === participantId ? "100" : "0",
-              percentLocked: allocation.participantId === participantId,
-            })),
-          };
-        });
-      }, { recomputeStatusOnValueChange: true }),
+          });
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
   },
   async importPastedList(rawInput, mode) {
@@ -901,85 +1123,94 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     let hasAcceptedImport = false;
     const importWarnings: Array<{ code: string; message: string }> = [];
     const updatedRecord = await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(record, (draft) => {
-        const existingItems = draft.values.items.filter(
-          (item) => item.name.trim() || item.price.trim(),
-        );
-        const importedItems: DraftRecord["values"]["items"] = [];
-        const mergeTargets =
-          mode === "replace" ? importedItems : [...existingItems, ...importedItems];
-
-        parsed.items.forEach((item) => {
-          const amountCents = parseMoneyToCents(item.price);
-          if (amountCents === null) {
-            return;
-          }
-          const mergeKey = getImportMergeKey(item.name);
-          if (!mergeKey) {
-            return;
-          }
-          const existingMatch = mergeTargets.find(
-            (candidate) => getImportMergeKey(candidate.name) === mergeKey,
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          const existingItems = draft.values.items.filter(
+            (item) => item.name.trim() || item.price.trim(),
           );
-          if (existingMatch) {
-            const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
-            const mergedCents = existingCents + amountCents;
-            if (mergedCents === 0) {
-              const wasExistingItem = existingItems.some(
-                (existingItem) => existingItem.id === existingMatch.id,
-              );
-              removeImportMergeTarget(existingMatch.id, [
-                existingItems,
-                importedItems,
-                mergeTargets,
-              ]);
-              if (wasExistingItem) {
-                mergedExistingCount += 1;
+          const importedItems: DraftRecord["values"]["items"] = [];
+          const mergeTargets =
+            mode === "replace"
+              ? importedItems
+              : [...existingItems, ...importedItems];
+
+          parsed.items.forEach((item) => {
+            const amountCents = parseMoneyToCents(item.price);
+            if (amountCents === null) {
+              return;
+            }
+            const mergeKey = getImportMergeKey(item.name);
+            if (!mergeKey) {
+              return;
+            }
+            const existingMatch = mergeTargets.find(
+              (candidate) => getImportMergeKey(candidate.name) === mergeKey,
+            );
+            if (existingMatch) {
+              const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+              const mergedCents = existingCents + amountCents;
+              if (mergedCents === 0) {
+                const wasExistingItem = existingItems.some(
+                  (existingItem) => existingItem.id === existingMatch.id,
+                );
+                removeImportMergeTarget(existingMatch.id, [
+                  existingItems,
+                  importedItems,
+                  mergeTargets,
+                ]);
+                if (wasExistingItem) {
+                  mergedExistingCount += 1;
+                }
+                hasAcceptedImport = true;
+                return;
+              }
+              if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
+                importWarnings.push({
+                  code: "invalid-merge-amount-too-high",
+                  message: t("pasteImport.invalidMergeAmountTooHigh", {
+                    item: trimName(item.name),
+                  }),
+                });
+                return;
               }
               hasAcceptedImport = true;
+              existingMatch.price = formatMergedImportPrice(mergedCents);
+              if (
+                existingItems.some(
+                  (existingItem) => existingItem.id === existingMatch.id,
+                )
+              ) {
+                mergedExistingCount += 1;
+              }
               return;
             }
-            if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-              importWarnings.push({
-                code: "invalid-merge-amount-too-high",
-                message: t("pasteImport.invalidMergeAmountTooHigh", { item: trimName(item.name) }),
-              });
-              return;
-            }
+
+            const nextItem = createEmptyItem(draft.values.participants);
+            const importedItem = {
+              ...nextItem,
+              name: trimName(item.name),
+              price: formatMergedImportPrice(amountCents),
+            };
+
+            importedItems.push(importedItem);
             hasAcceptedImport = true;
-            existingMatch.price = formatMergedImportPrice(mergedCents);
-            if (existingItems.some((existingItem) => existingItem.id === existingMatch.id)) {
-              mergedExistingCount += 1;
+            if (mergeTargets !== importedItems) {
+              mergeTargets.push(importedItem);
             }
-            return;
-          }
+          });
+          importedCount = importedItems.length + mergedExistingCount;
+          importedItemIds = importedItems.map((entry) => entry.id);
 
-          const nextItem = createEmptyItem(draft.values.participants);
-          const importedItem = {
-            ...nextItem,
-            name: trimName(item.name),
-            price: formatMergedImportPrice(amountCents),
-          };
-
-          importedItems.push(importedItem);
-          hasAcceptedImport = true;
-          if (mergeTargets !== importedItems) {
-            mergeTargets.push(importedItem);
-          }
-        });
-        importedCount = importedItems.length + mergedExistingCount;
-        importedItemIds = importedItems.map((entry) => entry.id);
-
-        draft.values.items =
-          mode === "replace"
-            ? hasAcceptedImport
-              ? importedItems
-              : draft.values.items
-            : [
-                ...existingItems,
-                ...importedItems,
-              ];
-      }, { recomputeStatusOnValueChange: true }),
+          draft.values.items =
+            mode === "replace"
+              ? hasAcceptedImport
+                ? importedItems
+                : draft.values.items
+              : [...existingItems, ...importedItems];
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
     );
     if (updatedRecord) {
       syncDraftItemOrigins(
@@ -1094,7 +1325,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     }
 
     const debtorIds = getCurrentDebtorIdSet(record);
-    const settledIds = new Set(record.settlementState?.settledParticipantIds ?? []);
+    const settledIds = new Set(
+      record.settlementState?.settledParticipantIds ?? [],
+    );
     if (!debtorIds.has(participantId) || settledIds.has(participantId)) {
       throw new Error("participant-debt-not-actionable");
     }
@@ -1129,7 +1362,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             ...nextReminderState,
             participantDebtReminders: {
               ...nextReminderState.participantDebtReminders,
-              [participantId]: createReminderEntry(notificationId, scheduledForIso),
+              [participantId]: createReminderEntry(
+                notificationId,
+                scheduledForIso,
+              ),
             },
           };
         }),
@@ -1210,7 +1446,10 @@ export function getSettlementPreview(record: DraftRecord | null) {
   return computeSettlement(record.values);
 }
 
-export function getClipboardSummaryPreview(record: DraftRecord | null, appCurrency?: string) {
+export function getClipboardSummaryPreview(
+  record: DraftRecord | null,
+  appCurrency?: string,
+) {
   if (!record) {
     return null;
   }

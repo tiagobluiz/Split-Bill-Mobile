@@ -33,7 +33,6 @@ const enPlain = {
   "settings.splitRowsDescription":
     "Choose which amount each split card shows in Home and Splits.",
   "settings.features": "Features",
-  "settings.save": "Save Settings",
   "settings.ownerNameLabel": "Your name",
   "settings.ownerNameHint":
     "This is the name the app uses for your own spot in a split, like `Tiago (You)`.",
@@ -70,7 +69,8 @@ const enPlain = {
   "settings.splitRowsPicker": "Choose split row amount",
   "settings.splitRowsPickerTitle": "Choose what split rows show",
   "settings.splitRows.remaining.label": "Outstanding balance",
-  "settings.splitRows.remaining.summary": "Show what is still unsettled for you",
+  "settings.splitRows.remaining.summary":
+    "Show what is still unsettled for you",
   "settings.splitRows.remaining.description":
     "Shows how much is still unsettled for you in that split. 'Owed' means they owe you, and 'Owe' means you owe them.",
   "settings.splitRows.total.label": "Total bill",
@@ -86,7 +86,8 @@ const enPlain = {
     "Show both the total and what is still unsettled",
   "settings.splitRows.totalAndRemaining.description":
     "Shows the full split total first, with your unsettled amount underneath for extra context.",
-  "settings.splitRows.requiresBalanceSuffix": "Requires Balance helper to be on.",
+  "settings.splitRows.requiresBalanceSuffix":
+    "Requires Balance helper to be on.",
   "settings.trackPayments.title": "Track payments",
   "settings.trackPayments.description":
     "Turn this on if you want to mark people as paid inside one split after money has been settled.",
@@ -105,11 +106,47 @@ const enPlain = {
   "settings.backup.underDevelopment": "Under development",
   "settings.backup.notice":
     "We do not save any data onto the cloud. Whatever you create on this app stays on this device. Without backup, losing the phone means losing the data too.",
-  "settings.confirmSave.title": "Save your changes?",
-  "settings.confirmSave.body":
-    "You changed your settings. Save them now or discard them before leaving this page.",
-  "settings.confirmSave.confirm": "Save changes",
-  "settings.confirmSave.discard": "Discard changes",
+  "tags.label": "Tags",
+  "tags.settingsTitle": "Tags",
+  "tags.settingsDescription":
+    "Create and remove the labels you use to organize splits.",
+  "tags.createTitle": "Create New Tag",
+  "tags.createDescription": "Organize your expenses with custom labels.",
+  "tags.livePreview": "Live preview",
+  "tags.newTag": "New Tag",
+  "tags.name": "Tag Name",
+  "tags.selectIcon": "Select Icon",
+  "tags.noIcon": "No icon",
+  "tags.addCustomIcon": "Add custom icon",
+  "tags.selectColor": "Select Color",
+  "tags.addCustomColor": "Add custom color",
+  "tags.createAction": "Create Tag",
+  "tags.iconA11y": "Select {icon} icon",
+  "tags.colorA11y": "Select {color} color",
+  "tags.choose": "Choose tags",
+  "tags.add": "Add tag",
+  "tags.save": "Save tag",
+  "tags.namePlaceholder": "Tag name",
+  "tags.noneSelected": "No tags selected",
+  "tags.selectedCount": "{count} tags selected",
+  "tags.validationMissingName": "Tag name is missing.",
+  "tags.validationDuplicateName": "A tag with that name already exists.",
+  "tags.validation": "Use a unique tag name up to 24 characters.",
+  "tags.deleteA11y": "Delete tag {tag}",
+  "tags.confirmDeleteTitle": "Delete tag?",
+  "tags.confirmDeleteBody":
+    "This will remove {tag} from Settings and any existing splits that use it. {usage}",
+  "tags.confirmDeleteUsageSingular": "Currently 1 split uses this tag.",
+  "tags.confirmDeleteUsagePlural": "Currently {count} splits use this tag.",
+  "tags.confirmDelete": "Delete tag",
+  "tags.defaults.restaurant": "Restaurant",
+  "tags.defaults.groceries": "Groceries",
+  "tags.defaults.drinks": "Drinks",
+  "tags.defaults.travel": "Travel",
+  "tags.defaults.rent": "Rent",
+  "tags.defaults.utilities": "Utilities",
+  "tags.defaults.activities": "Activities",
+  "tags.defaults.other": "Other",
   "home.openSettings": "Open Settings",
   "home.openHome": "Open Home",
   "home.openSplits": "Open Splits",
@@ -122,8 +159,15 @@ const enPlain = {
   "home.noSplitsFilteredTitle": "No splits here",
   "home.undoSplitDeleted": "Split deleted",
   "home.rowActions.title": "Split actions",
+  "home.rowActions.editDetails": "Edit details",
+  "home.rowActions.editDetailsA11y": "Edit split details for {title}",
   "home.rowActions.delete": "Delete",
   "home.rowActions.deleteA11y": "Delete split {title}",
+  "home.editDetails.title": "Edit split details",
+  "home.editDetails.description": "Update the split name and tags.",
+  "home.editDetails.save": "Save details",
+  "home.editDetails.nameRequired": "Split name is missing.",
+  "home.editDetails.saveFailed": "Could not save split details. {error}",
   "home.youAreOwed": "You are owed",
   "home.youOwe": "You owe",
   "home.recent": "Recent",
@@ -141,6 +185,15 @@ const enPlain = {
   "home.filter.status": "Status",
   "home.filter.balance": "Balance",
   "home.filter.date": "Date",
+  "home.filter.tags": "Tags",
+  "home.filter.chooseTags": "Choose tag filters",
+  "home.filter.noTags": "Any tag",
+  "home.filter.tagCount": "{count} tags",
+  "home.filter.tagsSelectedCount": "{count} tags selected",
+  "home.filter.tagMatch": "Match",
+  "home.filter.tagMatchAll": "All of",
+  "home.filter.tagMatchAny": "Any of",
+  "home.filter.applyTags": "Apply",
   "home.tab.home": "Home",
   "home.tab.splits": "Splits",
   "home.tab.settings": "Settings",
@@ -172,7 +225,8 @@ const enPlain = {
   "reminders.picker.backDate": "Back to date",
   "reminders.errors.futureOnly": "Choose a future date and time.",
   "reminders.notification.splitFallbackTitle": "Split reminder",
-  "reminders.notification.splitBody": "You asked to be reminded about this split.",
+  "reminders.notification.splitBody":
+    "You asked to be reminded about this split.",
   "reminders.notification.debtFallbackTitle": "Debt reminder",
   "reminders.notification.debtBodyNamed": "{name} still has an open amount.",
   "reminders.notification.debtBodyUnnamed":
@@ -188,10 +242,12 @@ const enPlain = {
   "flow.setup.exchangeRateUpdatedAt": "Last updated at: {date}",
   "flow.setup.exchangeRateA11y": "Exchange rate",
   "flow.setup.exchangeRatePlaceholder": "1.00",
-  "flow.setup.exchangeRateInvalid": "Enter a valid exchange rate greater than 0.",
+  "flow.setup.exchangeRateInvalid":
+    "Enter a valid exchange rate greater than 0.",
   "flow.setup.refreshExchangeRateA11y": "Refresh exchange rate",
   "flow.setup.rateConfirmTitle": "Exchange rate is 1",
-  "flow.setup.rateConfirmBody": "This is uncommon for different currencies. Confirm if this is intentional.",
+  "flow.setup.rateConfirmBody":
+    "This is uncommon for different currencies. Confirm if this is intentional.",
   "flow.setup.rateConfirmContinue": "Continue",
   "flow.setup.rateConfirmEdit": "Edit rate",
   "flow.participants.title": "Who's splitting?",
@@ -246,10 +302,8 @@ const enPlain = {
   "flow.itemDetail.save": "Save Item",
   "flow.itemDetail.saveA11y": "Save item",
   "flow.itemDetail.deleteA11y": "Delete item",
-  "flow.itemDetail.nameRequired":
-    "Add an item name before saving this item.",
-  "flow.itemDetail.priceRequired":
-    "Add a valid price before saving this item.",
+  "flow.itemDetail.nameRequired": "Add an item name before saving this item.",
+  "flow.itemDetail.priceRequired": "Add a valid price before saving this item.",
   "flow.itemDetail.saveFailed":
     "We could not save this item right now. Please try again.",
   "flow.itemDetail.duplicateItem":
@@ -299,13 +353,14 @@ const enPlain = {
   "flow.splitItem.tapToInclude": "Tap to include",
   "flow.splitItem.decreaseSharesA11y": "Decrease shares for {name}",
   "flow.splitItem.increaseSharesA11y": "Increase shares for {name}",
-  "flow.splitItem.useRemainingPercentA11y":
-    "Use remaining percent for {name}",
+  "flow.splitItem.useRemainingPercentA11y": "Use remaining percent for {name}",
   "flow.splitItem.percentA11y": "Percent for {name}",
   "flow.splitItem.percentSliderA11y": "Percent slider for {name}",
   "flow.splitItem.allocated": "Allocated: {amount}",
-  "flow.splitItem.percentFullyAllocated": "This item is already fully split. Lower someone else's percent first.",
-  "flow.splitItem.percentTooHigh": "That number is too high. Lower it or add someone else to share the rest.",
+  "flow.splitItem.percentFullyAllocated":
+    "This item is already fully split. Lower someone else's percent first.",
+  "flow.splitItem.percentTooHigh":
+    "That number is too high. Lower it or add someone else to share the rest.",
   "flow.splitItem.toggleEvenA11y": "Toggle even split for {name}",
   "flow.import.title": "Import Bill",
   "flow.import.stepOne": "Step 1 of 2",
@@ -326,19 +381,27 @@ const enPlain = {
   "flow.import.mode.replace": "Replace",
   "flow.import.pastedText": "Pasted text",
   "flow.import.copyOpenAi": "Copy Prompt & Open AI",
-  "llm.receiptPrompt.readReceipt": "Read the uploaded grocery receipt and extract only the purchased receipt items.",
+  "llm.receiptPrompt.readReceipt":
+    "Read the uploaded grocery receipt and extract only the purchased receipt items.",
   "llm.receiptPrompt.returnFormat": "Return the result in this exact format:",
   "llm.receiptPrompt.rules": "Rules:",
-  "llm.receiptPrompt.rule.plainTextCodeBlock": "- Return the result inside a plain-text code block.",
-  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine": "- Exactly one purchased item per physical line.",
-  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine": "- Do not put more than one item on the same physical line.",
+  "llm.receiptPrompt.rule.plainTextCodeBlock":
+    "- Return the result inside a plain-text code block.",
+  "llm.receiptPrompt.rule.onePurchasedItemPerPhysicalLine":
+    "- Exactly one purchased item per physical line.",
+  "llm.receiptPrompt.rule.noMultipleItemsPerPhysicalLine":
+    "- Do not put more than one item on the same physical line.",
   "llm.receiptPrompt.rule.keepItems": "- Keep only real purchasable items.",
-  "llm.receiptPrompt.rule.excludeNonItems": "- Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.",
-  "llm.receiptPrompt.rule.noCommentary": "- Do not add commentary, numbering, tables, or explanations.",
+  "llm.receiptPrompt.rule.excludeNonItems":
+    "- Exclude totals, subtotals, taxes, VAT summaries, payment lines, loyalty-card savings, discounts from another card, headers, and notes.",
+  "llm.receiptPrompt.rule.noCommentary":
+    "- Do not add commentary, numbering, tables, or explanations.",
   "llm.receiptPrompt.rule.itemNameMax":
     "- Keep the item name, including spaces and all characters, at most {max} characters.",
-  "llm.receiptPrompt.rule.plainDecimal": "- Use a plain decimal number for the price.",
-  "llm.receiptPrompt.rule.commaToDot": "- If the receipt uses comma decimals, convert them to dot decimals.",
+  "llm.receiptPrompt.rule.plainDecimal":
+    "- Use a plain decimal number for the price.",
+  "llm.receiptPrompt.rule.commaToDot":
+    "- If the receipt uses comma decimals, convert them to dot decimals.",
   "flow.import.alreadyHaveList": "I already have the item list",
   "flow.import.alreadyHaveListA11y": "I already have the item list",
   "flow.import.preview": "Import preview",
@@ -354,8 +417,7 @@ const enPlain = {
     "Imported {importedAmount} cancels existing {existingAmount}",
   "flow.import.previewAdds": "Imported {importedAmount}",
   "flow.import.addReview": "Add & Review Items",
-  "flow.import.samplePlaceholder":
-    "Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40",
+  "flow.import.samplePlaceholder": "Bananas - 2.49\nTomatoes: 1.80\nMilk 3.40",
   "flow.import.openFailedTitle": "Could not open AI import",
   "flow.import.openFailedBody":
     "We could not copy the prompt or open the selected AI tool. Please try again.",
@@ -402,8 +464,7 @@ const enPlain = {
   "flow.results.pdfDownloaded": "PDF downloaded successfully.",
   "flow.results.pdfDownloadFailed": "Could not download the PDF.",
   "flow.results.shareA11y": "Share as text",
-  "flow.results.pdfUnavailable":
-    "PDF export is not available for this split.",
+  "flow.results.pdfUnavailable": "PDF export is not available for this split.",
   "flow.results.pdfFailed": "Could not generate the PDF.",
   "flow.results.shareFailedTitle": "Share failed",
   "flow.results.shareFailedBody": "Could not open the share sheet.",
@@ -413,8 +474,7 @@ const enPlain = {
   "flow.results.revertMarkPaid": "Revert Mark as Paid",
   "flow.results.markPaidA11y": "Mark as Paid",
   "flow.results.revertMarkPaidA11y": "Revert Mark as Paid",
-  "flow.results.markPaidFailed":
-    "Could not update the bill payment status.",
+  "flow.results.markPaidFailed": "Could not update the bill payment status.",
   "flow.results.paidBy": "Paid by",
   "flow.results.breakdown": "Breakdown",
   "flow.results.contributors": "{count} Contributors",
@@ -422,8 +482,7 @@ const enPlain = {
   "flow.results.settled": "Settled",
   "flow.results.togglePaidAddBackA11y": "Add {name} back to owed",
   "flow.results.togglePaidSettleA11y": "Mark {name} as paid",
-  "flow.results.togglePaidFailed":
-    "Could not update {name}'s payment status.",
+  "flow.results.togglePaidFailed": "Could not update {name}'s payment status.",
   "pasteImport.ignoredLines.one":
     "Ignored {count} pasted line that did not match the expected format.",
   "pasteImport.ignoredLines.other":
@@ -433,10 +492,12 @@ const enPlain = {
   "pasteImport.ignoreReason.header": "Header row",
   "pasteImport.ignoreReason.summary": "Looks like a total or payment summary",
   "pasteImport.ignoreReason.missingName": "Missing item name",
-  "pasteImport.ignoreReason.nameTooLong": "Item name is longer than {max} characters",
+  "pasteImport.ignoreReason.nameTooLong":
+    "Item name is longer than {max} characters",
   "pasteImport.ignoreReason.missingPrice": "Missing item price",
   "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
-  "pasteImport.ignoreReason.format": "Use one item per line with a name and price",
+  "pasteImport.ignoreReason.format":
+    "Use one item per line with a name and price",
   "pasteImport.invalidMergeAmountTooHigh":
     "Could not merge {item} because the combined amount is too high.",
   "flow.category.general": "General",
@@ -476,7 +537,8 @@ const enPlain = {
   "validation.participantNameMax":
     "Keep participant names under {max} characters.",
   "validation.participantNameUnique": "Participant names must be unique.",
-  "validation.participantsMin": "Add at least two participants, including the payer.",
+  "validation.participantsMin":
+    "Add at least two participants, including the payer.",
   "validation.payerRequired": "Choose who paid the bill.",
   "validation.payerMustExist":
     "The selected payer must be one of the participants.",
@@ -488,7 +550,8 @@ const enPlain = {
   "validation.itemAmountTooHigh": "Maximum is 1 000 000",
   "validation.itemDuplicate":
     "This item already exists. Change the name, price, or category.",
-  "validation.splitEvenMin": "Choose at least one participant for an even split.",
+  "validation.splitEvenMin":
+    "Choose at least one participant for an even split.",
   "validation.sharesTotalMin": "Total shares must be greater than zero.",
   "validation.sharesNonNegative": "Shares must be zero or more.",
   "validation.percentNonNegative": "Percent must be zero or more.",
@@ -504,10 +567,8 @@ const enPlain = {
   "clipboard.title.default": "Split Bill",
   "clipboard.title.named": "Split Bill - {splitName}",
   "clipboard.payer.paidOnly": "{name}: paid {amount}.",
-  "clipboard.payer.getBack":
-    "{name}: paid {amount} and should get back {net}.",
-  "clipboard.payer.stillOwes":
-    "{name}: paid {amount} and still owes {net}.",
+  "clipboard.payer.getBack": "{name}: paid {amount} and should get back {net}.",
+  "clipboard.payer.stillOwes": "{name}: paid {amount} and still owes {net}.",
   "clipboard.person.owes": "{name}: owes {amount}.",
   "clipboard.person.getsBack": "{name}: gets back {amount}.",
   "pdf.title.default": "Split Bill summary",
@@ -553,9 +614,6 @@ const enSassy: Partial<Record<keyof typeof enPlain, string>> = {
 
   "settings.trackPayments.title": "Track who’s broke",
   "settings.balanceHelper.title": "Debt watcher",
-  "settings.confirmSave.title": "Saving or just clicking around?",
-  "settings.confirmSave.confirm": "Fine, save it",
-  "settings.confirmSave.discard": "Yeah, lose it",
 
   "home.startSplit": "Start something you’ll regret",
   "home.noSplitsTitle": "Empty. Like your wallet soon.",
@@ -617,13 +675,14 @@ const enSassy: Partial<Record<keyof typeof enPlain, string>> = {
   "clipboard.payer.stillOwes": "{name}: paid {amount}, still owes {net}.",
   "clipboard.person.owes": "{name}: owes {amount}",
   "clipboard.person.getsBack": "{name}: gets back {amount}",
-  "reminders.notification.splitBody": "Nudge: this split still needs attention.",
+  "reminders.notification.splitBody":
+    "Nudge: this split still needs attention.",
   "reminders.notification.debtBodyNamed":
     "{name} still has an open amount. Time to poke them.",
   "reminders.notification.debtBodyUnnamed":
     "Someone still has an open amount. Go poke them.",
 
-  "pdf.invalid": "No PDF. Fix your split first."
+  "pdf.invalid": "No PDF. Fix your split first.",
 };
 
 const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
@@ -636,9 +695,6 @@ const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
   "settings.defaultCurrencyRequired": "Pick a currency. This isn’t Monopoly.",
   "settings.trackPayments.title": "Track the freeloaders",
   "settings.balanceHelper.title": "Debt scoreboard",
-  "settings.confirmSave.title": "Commit or run away?",
-  "settings.confirmSave.confirm": "Fine. Save it.",
-  "settings.confirmSave.discard": "Yeah, panic and leave",
   "home.startSplit": "Start financial drama",
   "home.noSplitsTitle": "Nothing here. Suspicious.",
   "home.noSplitsDescription": "Don’t worry, chaos is coming.",
@@ -661,8 +717,7 @@ const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
   "flow.itemDetail.nameRequired": "Name it. It’s not invisible.",
   "flow.itemDetail.priceRequired": "Numbers. We need numbers.",
   "flow.itemDetail.confirmDiscard.title": "Rage quit?",
-  "flow.itemDetail.confirmDelete.title":
-    "Delete and pretend it never existed?",
+  "flow.itemDetail.confirmDelete.title": "Delete and pretend it never existed?",
   "flow.splitItem.title": "Who’s paying for this nonsense?",
   "flow.splitItem.confirmNext": "Lock it and move on",
   "flow.splitItem.confirmReview": "Lock it and judge",

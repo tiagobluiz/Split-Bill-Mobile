@@ -43,14 +43,16 @@ jest.mock("expo-linear-gradient", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {
-    LinearGradient: ({ children, ...props }: any) => React.createElement(View, props, children),
+    LinearGradient: ({ children, ...props }: any) =>
+      React.createElement(View, props, children),
   };
 });
 
 jest.mock("tamagui", () => {
   const React = require("react");
   const { Text, View } = require("react-native");
-  const passthrough = ({ children, ...props }: any) => React.createElement(View, props, children);
+  const passthrough = ({ children, ...props }: any) =>
+    React.createElement(View, props, children);
 
   return {
     Paragraph: Text,
@@ -61,6 +63,46 @@ jest.mock("tamagui", () => {
     TamaguiProvider: ({ children }: any) => children,
     Theme: ({ children }: any) => children,
   };
+});
+
+jest.mock("react-native-system-emoji-picker", () => {
+  const React = require("react");
+  const { Pressable } = require("react-native");
+
+  return {
+    SystemEmojiPicker: React.forwardRef((props: any, ref: any) => {
+      React.useImperativeHandle(ref, () => ({
+        open: jest.fn(),
+        dismiss: jest.fn(),
+      }));
+      return React.createElement(Pressable, {
+        accessibilityLabel: "Mock system emoji picker",
+        onPress: () => props.onEmojiSelected?.("💳"),
+      });
+    }),
+    useEmojiKeyboard: () => {
+      const ref = React.useRef(null);
+      return {
+        ref,
+        open: () => ref.current?.open?.(),
+        dismiss: () => ref.current?.dismiss?.(),
+      };
+    },
+  };
+});
+
+jest.mock("react-native-wheel-color-picker", () => {
+  const React = require("react");
+  const { Pressable } = require("react-native");
+
+  return ({ onColorChange, onColorChangeComplete }: any) =>
+    React.createElement(Pressable, {
+      accessibilityLabel: "Mock color picker",
+      onPress: () => {
+        onColorChange?.("#3366cc");
+        onColorChangeComplete?.("#3366cc");
+      },
+    });
 });
 
 jest.mock("lucide-react-native", () => {
@@ -74,6 +116,7 @@ jest.mock("lucide-react-native", () => {
     ArrowLeft: Icon,
     ArrowRight: Icon,
     Bell: Icon,
+    Briefcase: Icon,
     Bot: Icon,
     Camera: Icon,
     Check: Icon,
@@ -85,21 +128,27 @@ jest.mock("lucide-react-native", () => {
     FileJson: Icon,
     Filter: Icon,
     Hash: Icon,
+    Heart: Icon,
     Home: Icon,
     Info: Icon,
     Merge: Icon,
     MessageCircle: Icon,
     Minus: Icon,
     Pencil: Icon,
+    Plane: Icon,
     Plus: Icon,
+    Receipt: Icon,
     ReceiptText: Icon,
     RotateCcw: Icon,
     Settings: Icon,
     Share2: Icon,
+    ShoppingCart: Icon,
     Sparkles: Icon,
     Trash2: Icon,
     Users: Icon,
+    Utensils: Icon,
     Wallet: Icon,
+    Wine: Icon,
     X: Icon,
   };
 });
@@ -127,13 +176,14 @@ jest.mock("react-native-gesture-handler", () => {
   const { View } = require("react-native");
 
   return {
-    GestureHandlerRootView: ({ children, ...props }: any) => React.createElement(View, props, children),
+    GestureHandlerRootView: ({ children, ...props }: any) =>
+      React.createElement(View, props, children),
     Swipeable: ({ children, renderRightActions, ...props }: any) =>
       React.createElement(
         View,
         props,
         children,
-        typeof renderRightActions === "function" ? renderRightActions() : null
+        typeof renderRightActions === "function" ? renderRightActions() : null,
       ),
   };
 });
@@ -142,7 +192,8 @@ jest.mock("@react-native-community/slider", () => {
   const React = require("react");
   const { View } = require("react-native");
 
-  return ({ children, ...props }: any) => React.createElement(View, props, children);
+  return ({ children, ...props }: any) =>
+    React.createElement(View, props, children);
 });
 
 jest.mock("@react-native-community/datetimepicker", () => {

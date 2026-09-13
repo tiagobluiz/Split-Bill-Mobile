@@ -66,13 +66,22 @@ export function ModePills({
   active,
   options,
   onChange,
+  variant = "default",
 }: {
   active: string;
   options: Array<{ key: string; label: string }>;
   onChange: (value: string) => void;
+  variant?: "default" | "segmented";
 }) {
+  const segmented = variant === "segmented";
   return (
-    <View style={screenStyles.modePillShell}>
+    <View
+      style={
+        segmented
+          ? screenStyles.modePillSegmentedShell
+          : screenStyles.modePillShell
+      }
+    >
       {options.map((option) => {
         const selected = option.key === active;
         return (
@@ -81,13 +90,29 @@ export function ModePills({
             accessibilityRole="button"
             accessibilityLabel={option.label}
             accessibilityState={{ selected }}
-            style={[screenStyles.modePillButton, selected ? screenStyles.modePillButtonActive : null]}
+            style={[
+              segmented
+                ? screenStyles.modePillSegmentedButton
+                : screenStyles.modePillButton,
+              selected
+                ? segmented
+                  ? screenStyles.modePillSegmentedButtonActive
+                  : screenStyles.modePillButtonActive
+                : null,
+            ]}
             onPress={() => onChange(option.key)}
           >
             <Text
               fontFamily={selected ? FONTS.bodyBold : FONTS.bodyMedium}
-              fontSize={14}
-              color={selected ? PALETTE.primary : PALETTE.onSurfaceVariant}
+              fontSize={segmented ? 12 : 14}
+              color={
+                selected
+                  ? PALETTE.primary
+                  : segmented
+                    ? PALETTE.onSurface
+                    : PALETTE.onSurfaceVariant
+              }
+              textAlign="center"
             >
               {option.label}
             </Text>
@@ -107,7 +132,12 @@ export function ErrorList({ messages }: { messages: string[] }) {
     <View style={screenStyles.errorPanel}>
       <SectionEyebrow>Not there yet...</SectionEyebrow>
       {messages.map((message, index) => (
-        <Paragraph key={`${message}-${index}`} color={PALETTE.danger} fontFamily={FONTS.bodyMedium} fontSize={13}>
+        <Paragraph
+          key={`${message}-${index}`}
+          color={PALETTE.danger}
+          fontFamily={FONTS.bodyMedium}
+          fontSize={13}
+        >
           {message}
         </Paragraph>
       ))}
@@ -141,7 +171,10 @@ export function ModeToggle({
               mode: option.label,
             })}
             accessibilityState={{ selected }}
-            style={[screenStyles.togglePill, selected ? screenStyles.modePillButtonActive : null]}
+            style={[
+              screenStyles.togglePill,
+              selected ? screenStyles.modePillButtonActive : null,
+            ]}
             onPress={() => onChange(option.key)}
           >
             <Text

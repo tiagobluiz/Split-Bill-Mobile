@@ -1,7 +1,26 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Alert, BackHandler, Keyboard, Share, StyleSheet, TextInput } from "react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
+import {
+  Alert,
+  BackHandler,
+  Keyboard,
+  Share,
+  StyleSheet,
+  TextInput,
+} from "react-native";
 import * as domain from "../../domain";
-import { applyDefaultStorePreviews, buildRecordFixture, buildStoreFixture, createRouterMocks } from "./integrationTestUtils";
+import {
+  applyDefaultStorePreviews,
+  buildRecordFixture,
+  buildStoreFixture,
+  createRouterMocks,
+} from "./integrationTestUtils";
 
 import {
   AssignItemScreen,
@@ -21,10 +40,20 @@ const { mockPush, mockBack, mockReplace } = createRouterMocks();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
-const mockRequestCameraPermissionsAsync = jest.fn(async () => ({ granted: true }));
-const mockRequestMediaLibraryPermissionsAsync = jest.fn(async () => ({ granted: true }));
-const mockLaunchCameraAsync = jest.fn(async () => ({ canceled: true, assets: [] }));
-const mockLaunchImageLibraryAsync = jest.fn(async () => ({ canceled: true, assets: [] }));
+const mockRequestCameraPermissionsAsync = jest.fn(async () => ({
+  granted: true,
+}));
+const mockRequestMediaLibraryPermissionsAsync = jest.fn(async () => ({
+  granted: true,
+}));
+const mockLaunchCameraAsync = jest.fn(async () => ({
+  canceled: true,
+  assets: [],
+}));
+const mockLaunchImageLibraryAsync = jest.fn(async () => ({
+  canceled: true,
+  assets: [],
+}));
 
 let mockStoreState: any;
 
@@ -43,7 +72,8 @@ jest.mock("expo-clipboard", () => ({
 
 jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: () => mockRequestCameraPermissionsAsync(),
-  requestMediaLibraryPermissionsAsync: () => mockRequestMediaLibraryPermissionsAsync(),
+  requestMediaLibraryPermissionsAsync: () =>
+    mockRequestMediaLibraryPermissionsAsync(),
   launchCameraAsync: () => mockLaunchCameraAsync(),
   launchImageLibraryAsync: () => mockLaunchImageLibraryAsync(),
 }));
@@ -79,19 +109,44 @@ jest.mock("./store", () => ({
               },
             ],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 900, consumedCents: 300, netCents: 600 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
-              { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 900,
+                consumedCents: 300,
+                netCents: 600,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 300,
+                netCents: -300,
+              },
+              {
+                participantId: "zoe",
+                name: "Zoe",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 300,
+                netCents: -300,
+              },
             ],
             transfers: [],
           },
         }
-      : null
+      : null,
   ),
   getClipboardSummaryPreview: jest.fn((record: any) =>
-    record ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00." : null
+    record
+      ? "Split Bill - Groceries\nAna: paid EUR 9.00 and should get back EUR 6.00."
+      : null,
   ),
-  getPdfExportPreview: jest.fn((record: any) => (record ? { fileName: "split-bill-2026-03-09.pdf" } : null)),
+  getPdfExportPreview: jest.fn((record: any) =>
+    record ? { fileName: "split-bill-2026-03-09.pdf" } : null,
+  ),
 }));
 
 const buildRecord = buildRecordFixture;
@@ -110,12 +165,19 @@ describe("split screens", () => {
     mockLaunchCameraAsync.mockReset();
     mockLaunchImageLibraryAsync.mockReset();
     mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: true });
-    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true });
-    mockLaunchCameraAsync.mockResolvedValue({ canceled: true, assets: [] });
-    mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
-    jest.spyOn(Alert, "alert").mockImplementation((title?: string, message?: string, buttons?: any) => {
-      mockAlert(title, message, buttons);
+    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({
+      granted: true,
     });
+    mockLaunchCameraAsync.mockResolvedValue({ canceled: true, assets: [] });
+    mockLaunchImageLibraryAsync.mockResolvedValue({
+      canceled: true,
+      assets: [],
+    });
+    jest
+      .spyOn(Alert, "alert")
+      .mockImplementation((title?: string, message?: string, buttons?: any) => {
+        mockAlert(title, message, buttons);
+      });
     jest.spyOn(Keyboard, "dismiss").mockImplementation(() => undefined);
     jest.spyOn(Share, "share").mockImplementation(async (value: any) => {
       mockShare(value);
@@ -156,9 +218,30 @@ describe("split screens", () => {
             totalCents: 8400,
             itemBreakdown: [],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 8400, consumedCents: 0, netCents: 8400 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 4200, netCents: -4200 },
-              { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 4200, netCents: -4200 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 8400,
+                consumedCents: 0,
+                netCents: 8400,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 4200,
+                netCents: -4200,
+              },
+              {
+                participantId: "zoe",
+                name: "Zoe",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 4200,
+                netCents: -4200,
+              },
             ],
             transfers: [],
           },
@@ -173,8 +256,22 @@ describe("split screens", () => {
             totalCents: 4550,
             itemBreakdown: [],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 0, consumedCents: 4550, netCents: -4550 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 4550, consumedCents: 0, netCents: 4550 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 0,
+                consumedCents: 4550,
+                netCents: -4550,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 4550,
+                consumedCents: 0,
+                netCents: 4550,
+              },
             ],
             transfers: [],
           },
@@ -189,7 +286,14 @@ describe("split screens", () => {
             totalCents: 0,
             itemBreakdown: [],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: false, paidCents: 0, consumedCents: 0, netCents: 0 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 0,
+                netCents: 0,
+              },
             ],
             transfers: [],
           },
@@ -203,7 +307,12 @@ describe("split screens", () => {
       buildRecord({
         id: "completed-owed",
         status: "completed",
-        values: { ...buildRecord().values, items: [{ ...buildRecord().values.items[0], name: "Balthazar Dinner" }] },
+        values: {
+          ...buildRecord().values,
+          items: [
+            { ...buildRecord().values.items[0], name: "Balthazar Dinner" },
+          ],
+        },
       }),
       buildRecord({
         id: "pending-owe",
@@ -220,7 +329,10 @@ describe("split screens", () => {
       buildRecord({
         id: "movie-night",
         step: 5,
-        values: { ...buildRecord().values, items: [{ ...buildRecord().values.items[0], name: "Movie Night" }] },
+        values: {
+          ...buildRecord().values,
+          items: [{ ...buildRecord().values.items[0], name: "Movie Night" }],
+        },
       }),
       buildRecord({
         id: "draft-no-payer",
@@ -300,8 +412,22 @@ describe("split screens", () => {
             totalCents: 4550,
             itemBreakdown: [],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 4550, consumedCents: 0, netCents: 4550 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 4550, netCents: -4550 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 4550,
+                consumedCents: 0,
+                netCents: 4550,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 4550,
+                netCents: -4550,
+              },
             ],
             transfers: [],
           },
@@ -315,8 +441,22 @@ describe("split screens", () => {
           totalCents: 1200,
           itemBreakdown: [],
           people: [
-            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1200, consumedCents: 0, netCents: 1200 },
-            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 1200, netCents: -1200 },
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 1200,
+              consumedCents: 0,
+              netCents: 1200,
+            },
+            {
+              participantId: "zoe",
+              name: "Zoe",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 1200,
+              netCents: -1200,
+            },
           ],
           transfers: [],
         },
@@ -358,9 +498,30 @@ describe("split screens", () => {
           totalCents: 600,
           itemBreakdown: [],
           people: [
-            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 600, consumedCents: 300, netCents: 300 },
-            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
-            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 0, netCents: 0 },
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 600,
+              consumedCents: 300,
+              netCents: 300,
+            },
+            {
+              participantId: "bruno",
+              name: "Bruno",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 300,
+              netCents: -300,
+            },
+            {
+              participantId: "zoe",
+              name: "Zoe",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 0,
+              netCents: 0,
+            },
           ],
           transfers: [],
         },
@@ -382,7 +543,9 @@ describe("split screens", () => {
     ];
     const { rerender } = render(<HomeScreen />);
     expect(screen.getByText("You owe")).toBeTruthy();
-    expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
+    ).toBeGreaterThan(0);
 
     mockStoreState.settings = {
       ownerName: "Zoe",
@@ -396,7 +559,9 @@ describe("split screens", () => {
       }),
     ];
     rerender(<HomeScreen />);
-    expect(screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders combined and user-paid split row displays from the shared setting", () => {
@@ -412,7 +577,9 @@ describe("split screens", () => {
     expect(screen.getByText("Total")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
     expect(screen.getByText(/9,00|EUR 9.00|9.00/)).toBeTruthy();
-    expect(screen.getAllByText(/6,00|€6.00|EUR 6.00|6.00/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/6,00|€6.00|EUR 6.00|6.00/).length,
+    ).toBeGreaterThan(0);
 
     mockStoreState.settings = {
       ownerName: "Tiago",
@@ -420,11 +587,15 @@ describe("split screens", () => {
       defaultCurrency: "EUR",
       splitListAmountDisplay: "userPaid",
     };
-    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+    mockStoreState.records = [
+      buildRecord({ id: "owner-missing", status: "completed" }),
+    ];
     rerender(<HomeScreen />);
 
     expect(screen.getByText("You consumed")).toBeTruthy();
-    expect(screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows only nothing due on the outstanding side in total + outstanding mode", () => {
@@ -434,7 +605,9 @@ describe("split screens", () => {
       defaultCurrency: "EUR",
       splitListAmountDisplay: "totalAndRemaining",
     };
-    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+    mockStoreState.records = [
+      buildRecord({ id: "owner-missing", status: "completed" }),
+    ];
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
@@ -454,7 +627,9 @@ describe("split screens", () => {
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
     };
-    mockStoreState.records = [buildRecord({ id: "owner-missing", status: "completed" })];
+    mockStoreState.records = [
+      buildRecord({ id: "owner-missing", status: "completed" }),
+    ];
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
@@ -476,7 +651,9 @@ describe("split screens", () => {
     render(<HomeScreen />);
 
     expect(screen.getByText("You consumed")).toBeTruthy();
-    expect(screen.getAllByText(/3,00|€3.00|EUR 3.00|3.00/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/3,00|€3.00|EUR 3.00|3.00/).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/9,00|€9.00|EUR 9.00/)).toBeNull();
   });
 
@@ -494,9 +671,30 @@ describe("split screens", () => {
           totalCents: 200,
           itemBreakdown: [],
           people: [
-            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
-            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
-            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 200,
+              consumedCents: 350,
+              netCents: -150,
+            },
+            {
+              participantId: "bruno",
+              name: "Bruno",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: -50,
+              netCents: 50,
+            },
+            {
+              participantId: "zoe",
+              name: "Zoe",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 150,
+              netCents: 100,
+            },
           ],
           transfers: [],
         },
@@ -530,9 +728,30 @@ describe("split screens", () => {
           totalCents: 200,
           itemBreakdown: [],
           people: [
-            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 200, consumedCents: 350, netCents: -150 },
-            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: -50, netCents: 50 },
-            { participantId: "zoe", name: "Zoe", isPayer: false, paidCents: 0, consumedCents: 150, netCents: 100 },
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 200,
+              consumedCents: 350,
+              netCents: -150,
+            },
+            {
+              participantId: "bruno",
+              name: "Bruno",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: -50,
+              netCents: 50,
+            },
+            {
+              participantId: "zoe",
+              name: "Zoe",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 150,
+              netCents: 100,
+            },
           ],
           transfers: [],
         },
@@ -567,8 +786,22 @@ describe("split screens", () => {
             totalCents: 1200,
             itemBreakdown: [],
             people: [
-              { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1200, consumedCents: 0, netCents: 1200 },
-              { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 1200, netCents: -1200 },
+              {
+                participantId: "ana",
+                name: "Ana",
+                isPayer: true,
+                paidCents: 1200,
+                consumedCents: 0,
+                netCents: 1200,
+              },
+              {
+                participantId: "bruno",
+                name: "Bruno",
+                isPayer: false,
+                paidCents: 0,
+                consumedCents: 1200,
+                netCents: -1200,
+              },
             ],
             transfers: [],
           },
@@ -582,8 +815,22 @@ describe("split screens", () => {
           totalCents: 300,
           itemBreakdown: [],
           people: [
-            { participantId: "ana", name: "Ana", isPayer: true, paidCents: 300, consumedCents: 0, netCents: 300 },
-            { participantId: "bruno", name: "Bruno", isPayer: false, paidCents: 0, consumedCents: 300, netCents: -300 },
+            {
+              participantId: "ana",
+              name: "Ana",
+              isPayer: true,
+              paidCents: 300,
+              consumedCents: 0,
+              netCents: 300,
+            },
+            {
+              participantId: "bruno",
+              name: "Bruno",
+              isPayer: false,
+              paidCents: 0,
+              consumedCents: 300,
+              netCents: -300,
+            },
           ],
           transfers: [],
         },
@@ -597,7 +844,10 @@ describe("split screens", () => {
       customCurrencies: [],
     };
     mockStoreState.records = [
-      buildRecord({ id: "usd-record", values: { ...buildRecord().values, currency: "USD" } }),
+      buildRecord({
+        id: "usd-record",
+        values: { ...buildRecord().values, currency: "USD" },
+      }),
       buildRecord({ id: "eur-record" }),
     ];
 
@@ -607,10 +857,13 @@ describe("split screens", () => {
   });
 
   it("covers denied camera/library permissions and custom currency collision fallbacks", async () => {
-    const collisionCodes = ["CUR", ...Array.from({ length: 999 }, (_, index) => {
-      const suffix = String(index + 1);
-      return `${"CUR".slice(0, Math.max(0, 3 - suffix.length))}${suffix}`;
-    })];
+    const collisionCodes = [
+      "CUR",
+      ...Array.from({ length: 999 }, (_, index) => {
+        const suffix = String(index + 1);
+        return `${"CUR".slice(0, Math.max(0, 3 - suffix.length))}${suffix}`;
+      }),
+    ];
 
     mockStoreState.settings = {
       ownerName: "Tiago",
@@ -623,7 +876,9 @@ describe("split screens", () => {
         symbol: `$${index}`,
       })),
     };
-    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false });
+    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({
+      granted: false,
+    });
     mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: false });
     const createIdSpy = jest.spyOn(domain, "createId").mockReturnValue("!!!");
 
@@ -633,14 +888,20 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Upload photo"));
     });
-    expect(screen.getByText("Please allow photo access to choose a profile picture.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Please allow photo access to choose a profile picture.",
+      ),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     fireEvent.press(screen.getByLabelText("Profile picture options"));
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Take photo"));
     });
-    expect(screen.getByText("Please allow camera access to take a profile picture.")).toBeTruthy();
+    expect(
+      screen.getByText("Please allow camera access to take a profile picture."),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     await act(async () => {
@@ -721,7 +982,9 @@ describe("split screens", () => {
         status: "completed",
         values: {
           ...buildRecord().values,
-          items: [{ ...buildRecord().values.items[0], name: "Completed direct" }],
+          items: [
+            { ...buildRecord().values.items[0], name: "Completed direct" },
+          ],
         },
       }),
     ];
@@ -756,7 +1019,9 @@ describe("split screens", () => {
     expect(screen.getByText("Split deleted")).toBeTruthy();
     expect(screen.queryByLabelText("Delete split Delete Me")).toBeNull();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalledWith("/split/draft-delete-me/overview");
+    expect(mockPush).not.toHaveBeenCalledWith(
+      "/split/draft-delete-me/overview",
+    );
 
     fireEvent.press(screen.getByLabelText("Undo delete"));
     expect(screen.queryByText("Split deleted")).toBeNull();
@@ -775,7 +1040,9 @@ describe("split screens", () => {
       jest.advanceTimersByTime(4000);
     });
     expect(mockStoreState.removeRecord).toHaveBeenCalledTimes(2);
-    expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-delete-next");
+    expect(mockStoreState.removeRecord).toHaveBeenCalledWith(
+      "draft-delete-next",
+    );
     jest.useRealTimers();
   });
 
@@ -801,7 +1068,9 @@ describe("split screens", () => {
       await Promise.resolve();
     });
 
-    expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-expire-delete");
+    expect(mockStoreState.removeRecord).toHaveBeenCalledWith(
+      "draft-expire-delete",
+    );
     expect(screen.queryByText("Split deleted")).toBeNull();
     jest.useRealTimers();
   });
@@ -823,7 +1092,9 @@ describe("split screens", () => {
     expect(screen.getByText("Pending: Participants")).toBeTruthy();
 
     fireEvent.press(screen.getByText("Groceries"));
-    expect(mockPush).toHaveBeenCalledWith("/split/draft-stale-payer/participants");
+    expect(mockPush).toHaveBeenCalledWith(
+      "/split/draft-stale-payer/participants",
+    );
   });
 
   it("keeps a valid-but-not-advanced draft on participants from home until the user reaches payer", () => {
@@ -952,9 +1223,11 @@ describe("split screens", () => {
         updatedAt: `2026-04-${String(22 - index).padStart(2, "0")}T10:00:00.000Z`,
         values: {
           ...buildRecord().values,
-          items: [{ ...buildRecord().values.items[0], name: `Split ${index + 1}` }],
+          items: [
+            { ...buildRecord().values.items[0], name: `Split ${index + 1}` },
+          ],
         },
-      })
+      }),
     );
     mockStoreState.records = splitRecords;
 
@@ -966,7 +1239,9 @@ describe("split screens", () => {
     expect(screen.getByText("Split 1")).toBeTruthy();
     expect(screen.queryByText("Split 21")).toBeNull();
 
-    let list = view.UNSAFE_root.find((node: any) => typeof node.props.onScroll === "function");
+    let list = view.UNSAFE_root.find(
+      (node: any) => typeof node.props.onScroll === "function",
+    );
     act(() => {
       list.props.onScroll({
         nativeEvent: {
@@ -996,7 +1271,9 @@ describe("split screens", () => {
         },
       });
     });
-    list = view.UNSAFE_root.find((node: any) => typeof node.props.onScroll === "function");
+    list = view.UNSAFE_root.find(
+      (node: any) => typeof node.props.onScroll === "function",
+    );
     expect(list).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Show filters"));
@@ -1032,7 +1309,198 @@ describe("split screens", () => {
     expect(screen.getByText("No splits here")).toBeTruthy();
   });
 
-  it("renders settings drafts, opens profile actions, and saves everything together", async () => {
+  it("applies tag filters only after confirming the tag picker and supports all or any matching", () => {
+    mockStoreState.records = [
+      buildRecord({
+        id: "split-restaurant",
+        updatedAt: "2026-04-03T10:00:00.000Z",
+        values: {
+          ...buildRecord().values,
+          splitName: "Dinner",
+          tagIds: ["tag-restaurant"],
+          items: [{ ...buildRecord().values.items[0], name: "Dinner" }],
+        },
+      }),
+      buildRecord({
+        id: "split-groceries",
+        updatedAt: "2026-04-02T10:00:00.000Z",
+        values: {
+          ...buildRecord().values,
+          splitName: "Market",
+          tagIds: ["tag-groceries"],
+          items: [{ ...buildRecord().values.items[0], name: "Market" }],
+        },
+      }),
+      buildRecord({
+        id: "split-both",
+        updatedAt: "2026-04-01T10:00:00.000Z",
+        values: {
+          ...buildRecord().values,
+          splitName: "Dinner supplies",
+          tagIds: ["tag-restaurant", "tag-groceries"],
+          items: [
+            { ...buildRecord().values.items[0], name: "Dinner supplies" },
+          ],
+        },
+      }),
+    ];
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    fireEvent.press(screen.getByLabelText("Show filters"));
+    fireEvent.press(screen.getByLabelText("Choose tag filters"));
+    fireEvent.press(screen.getByLabelText("Restaurant"));
+    fireEvent.press(screen.getByLabelText("Cancel"));
+
+    expect(screen.getByText("Dinner")).toBeTruthy();
+    expect(screen.getByText("Market")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Choose tag filters"));
+    fireEvent.press(screen.getByLabelText("Restaurant"));
+    fireEvent.press(screen.getByLabelText("Groceries"));
+    fireEvent.press(screen.getByLabelText("Apply"));
+
+    expect(screen.getByText("2 tags selected")).toBeTruthy();
+    expect(screen.queryByText("Dinner")).toBeNull();
+    expect(screen.queryByText("Market")).toBeNull();
+    expect(screen.getByText("Dinner supplies")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Choose tag filters"));
+    fireEvent.press(screen.getByLabelText("Any of"));
+    fireEvent.press(screen.getByLabelText("Apply"));
+
+    expect(screen.getByText("Dinner")).toBeTruthy();
+    expect(screen.getByText("Market")).toBeTruthy();
+    expect(screen.getByText("Dinner supplies")).toBeTruthy();
+  });
+
+  it("does not show a settings save button and still hides navigation while the tag editor is open", () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+
+    expect(screen.queryByText("Save Settings")).toBeNull();
+    expect(screen.getByLabelText("Open Home")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Add tag"));
+
+    expect(screen.getByText("Create New Tag")).toBeTruthy();
+    expect(screen.queryByText("Save Settings")).toBeNull();
+    expect(screen.queryByLabelText("Open Home")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("Cancel"));
+
+    expect(screen.queryByText("Create New Tag")).toBeNull();
+    expect(screen.queryByText("Save Settings")).toBeNull();
+    expect(screen.getByLabelText("Open Home")).toBeTruthy();
+  });
+
+  it("creates a custom tag without an icon from settings", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Add tag"));
+    fireEvent.press(screen.getByLabelText("No icon"));
+    fireEvent.press(screen.getByLabelText("Select clay color"));
+    fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Utilities");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(mockStoreState.addTag).toHaveBeenCalledWith(
+      "Utilities",
+      null,
+      "clay",
+    );
+  });
+
+  it("shows a specific error when a tag name is missing", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Add tag"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(screen.getByText("Tag name is missing.")).toBeTruthy();
+    expect(mockStoreState.addTag).not.toHaveBeenCalled();
+  });
+
+  it("shows a specific error when a tag name already exists", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Add tag"));
+    fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Restaurant");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(
+      screen.getByText("A tag with that name already exists."),
+    ).toBeTruthy();
+    expect(mockStoreState.addTag).not.toHaveBeenCalled();
+  });
+
+  it("creates a custom tag with a user-defined icon and color from settings", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Add tag"));
+    fireEvent.press(screen.getByLabelText("Add custom icon"));
+    fireEvent.press(screen.getByLabelText("Mock system emoji picker"));
+    fireEvent.press(screen.getByLabelText("Add custom color"));
+    fireEvent.press(screen.getByLabelText("Mock color picker"));
+    fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Fees");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Create Tag"));
+    });
+
+    expect(mockStoreState.addTag).toHaveBeenCalledWith(
+      "Fees",
+      "custom:💳",
+      "#3366cc",
+    );
+  });
+
+  it("shows how many splits use a tag before deleting it", () => {
+    mockStoreState.records = [
+      buildRecord({
+        id: "split-with-groceries",
+        values: {
+          ...buildRecord().values,
+          tagIds: ["tag-groceries"],
+        },
+      }),
+      buildRecord({
+        id: "split-with-both-tags",
+        values: {
+          ...buildRecord().values,
+          tagIds: ["tag-groceries", "tag-restaurant"],
+        },
+      }),
+      buildRecord({
+        id: "split-with-restaurant",
+        values: {
+          ...buildRecord().values,
+          tagIds: ["tag-restaurant"],
+        },
+      }),
+    ];
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
+
+    expect(screen.getByText("Delete tag?")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This will remove Groceries from Settings and any existing splits that use it. Currently 2 splits use this tag.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("auto-saves profile and feature changes from settings", async () => {
     mockLaunchCameraAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: "file:///camera-profile.png" }] as any,
@@ -1047,30 +1515,37 @@ describe("split screens", () => {
     expect(screen.getByText("Balance helper")).toBeTruthy();
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ ownerName: "Tiago" }),
+      );
+    });
     fireEvent.press(screen.getByLabelText("Profile picture options"));
     expect(screen.getByText("Profile picture")).toBeTruthy();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Take photo"));
     });
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "file:///camera-profile.png",
+        }),
+      );
+    });
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
-    expect(mockStoreState.updateSettings).not.toHaveBeenCalledWith({
-      balanceFeatureEnabled: false,
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "file:///camera-profile.png",
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "EUR",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "total",
-      customCurrencies: [],
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerName: "Tiago",
+          ownerProfileImageUri: "file:///camera-profile.png",
+          balanceFeatureEnabled: false,
+          trackPaymentsFeatureEnabled: true,
+          splitListAmountDisplay: "total",
+        }),
+      );
     });
   });
 
@@ -1078,30 +1553,41 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     fireEvent.press(screen.getByLabelText("Choose split row amount"));
-    expect(screen.getByLabelText("Outstanding balance").props.accessibilityState.disabled).toBeFalsy();
-    fireEvent.press(screen.getByLabelText("Total + outstanding"));
+    expect(
+      screen.getByLabelText("Outstanding balance").props.accessibilityState
+        .disabled,
+    ).toBeFalsy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Total + outstanding"));
+    });
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
 
-    expect(screen.getByText("Total bill")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Choose split row amount"));
-    expect(screen.getByLabelText("Outstanding balance").props.accessibilityState.disabled).toBe(true);
-    expect(screen.getByLabelText("Total + outstanding").props.accessibilityState.disabled).toBe(true);
-
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
+    await waitFor(() => {
+      expect(screen.getByText("Total bill")).toBeTruthy();
     });
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(
+      screen.getByLabelText("Outstanding balance").props.accessibilityState
+        .disabled,
+    ).toBe(true);
+    expect(
+      screen.getByLabelText("Total + outstanding").props.accessibilityState
+        .disabled,
+    ).toBe(true);
 
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        balanceFeatureEnabled: false,
-        splitListAmountDisplay: "total",
-      }),
-    );
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          balanceFeatureEnabled: false,
+          splitListAmountDisplay: "total",
+        }),
+      );
+    });
   });
 
-  it("saves the split row amount display preference", async () => {
+  it("auto-saves the split row amount display preference", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     fireEvent.press(screen.getByLabelText("Choose split row amount"));
@@ -1109,27 +1595,19 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Total + outstanding"));
 
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
-      ownerName: "Ana",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "EUR",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "totalAndRemaining",
-      customCurrencies: [],
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          splitListAmountDisplay: "totalAndRemaining",
+        }),
+      );
     });
   });
 
-  it("keeps the split rows popup interactive above the settings footer actions", async () => {
+  it("keeps the split rows popup interactive without footer save actions", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    expect(screen.getByText("Save Settings")).toBeTruthy();
+    expect(screen.queryByText("Save Settings")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Choose split row amount"));
     expect(screen.getByText("Choose what split rows show")).toBeTruthy();
@@ -1139,18 +1617,16 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose split row amount"));
     fireEvent.press(screen.getByLabelText("Total bill"));
 
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          splitListAmountDisplay: "total",
+        }),
+      );
     });
-
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        splitListAmountDisplay: "total",
-      }),
-    );
   });
 
-  it("shows settings validation popups and supports custom/default currency updates", async () => {
+  it("shows settings validation popups and auto-saves custom/default currency updates", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
@@ -1159,17 +1635,18 @@ describe("split screens", () => {
       defaultCurrency: "",
       customCurrencies: [{ code: "POI", name: "Points", symbol: "P" }],
     };
-    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false });
+    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({
+      granted: false,
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-    expect(screen.getByText("Please choose a default currency first.")).toBeTruthy();
+    expect(
+      screen.getByText("Please choose a default currency first."),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
@@ -1177,7 +1654,11 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Upload photo"));
     });
-    expect(screen.getByText("Please allow photo access to choose a profile picture.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Please allow photo access to choose a profile picture.",
+      ),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: false });
@@ -1185,62 +1666,101 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Take photo"));
     });
-    expect(screen.getByText("Please allow camera access to take a profile picture.")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-    expect(screen.getByText("Please choose a default currency first.")).toBeTruthy();
+    expect(
+      screen.getByText("Please allow camera access to take a profile picture."),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
-    fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Points");
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Currency name"),
+      "Points",
+    );
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "P");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Save"));
     });
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "PO2",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "total",
-      customCurrencies: [
-        { code: "POI", name: "Points", symbol: "P" },
-        { code: "PO2", name: "Points", symbol: "P" },
-      ],
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+        ownerName: "Tiago",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: false,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "PO2",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "total",
+        customCurrencies: [
+          { code: "POI", name: "Points", symbol: "P" },
+          { code: "PO2", name: "Points", symbol: "P" },
+        ],
       });
     });
+  });
 
-    it("shows a simple popup for a missing profile name and ignores canceled image picking", async () => {
-      mockStoreState.settings = {
-        ownerName: "You",
+  it("blocks leaving settings while the default currency is missing", async () => {
+    mockStoreState.settings = {
+      ownerName: "Tiago",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      splitListAmountDisplay: "remaining",
+      defaultCurrency: "",
+      customCurrencies: [],
+    };
+
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Open Home"));
+
+    expect(screen.queryByText("Save your changes?")).toBeNull();
+    expect(
+      screen.getByText("Please choose a default currency first."),
+    ).toBeTruthy();
+    expect(screen.getByText("User profile")).toBeTruthy();
+  });
+
+  it("shows a simple popup for a missing profile name and ignores canceled image picking", async () => {
+    mockStoreState.settings = {
+      ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: [],
     };
-    mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
+    mockLaunchImageLibraryAsync.mockResolvedValue({
+      canceled: true,
+      assets: [],
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "   ");
+    const ownerNameInput = screen.getByPlaceholderText("e.g. Tiago");
+    fireEvent.changeText(ownerNameInput, "   ");
 
     await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
+      await new Promise((resolve) => setTimeout(resolve, 550));
     });
-    expect(screen.getByText("Please choose a short name for yourself.")).toBeTruthy();
+    expect(
+      screen.queryByText("Please choose a short name for yourself."),
+    ).toBeNull();
+
+    fireEvent(ownerNameInput, "blur");
+    expect(
+      screen.getByText("Please choose a short name for yourself."),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+
+    fireEvent.press(screen.getByLabelText("Open Home"));
+    expect(screen.queryByText("Save your changes?")).toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.getByText("Please choose a short name for yourself."),
+      ).toBeTruthy();
+    });
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
     fireEvent.press(screen.getByLabelText("Profile picture options"));
@@ -1248,11 +1768,11 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Upload photo"));
     });
     expect(mockStoreState.updateSettings).not.toHaveBeenCalledWith(
-      expect.objectContaining({ ownerProfileImageUri: expect.any(String) })
+      expect.objectContaining({ ownerProfileImageUri: expect.any(String) }),
     );
   });
 
-  it("builds a fallback custom currency code, removes photos, and prompts to save or discard", async () => {
+  it("builds a fallback custom currency code, removes photos, and leaves settings without save prompts", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
@@ -1270,9 +1790,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
     fireEvent.press(screen.getByLabelText("Open Splits"));
-    expect(screen.getByText("Save your changes?")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Discard changes"));
-    expect(screen.queryByText("You are owed")).toBeNull();
+    expect(screen.queryByText("Save your changes?")).toBeNull();
     fireEvent.press(screen.getByLabelText("Open Settings"));
 
     fireEvent.press(screen.getByLabelText("Profile picture options"));
@@ -1291,20 +1809,19 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
     fireEvent.press(screen.getByLabelText("Open Home"));
-    expect(screen.getByText("Save your changes?")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save changes"));
-    });
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "CUR",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "total",
-      customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
+    expect(screen.queryByText("Save your changes?")).toBeNull();
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+        ownerName: "Tiago",
+        ownerProfileImageUri: "",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "CUR",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "total",
+        customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
+      });
     });
   });
 
@@ -1327,19 +1844,18 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByText("US Dollar ($)"));
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
-    expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "file:///existing.png",
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-      defaultCurrency: "USD",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
-      customCurrencies: [],
+    await waitFor(() => {
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+        ownerName: "Tiago",
+        ownerProfileImageUri: "file:///existing.png",
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "USD",
+        language: "en",
+        humour: "plain",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      });
     });
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
@@ -1348,7 +1864,7 @@ describe("split screens", () => {
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
   });
 
-  it("keeps the user on settings when they choose to stay and shows the custom-currency validation popup", async () => {
+  it("leaves settings without prompting and shows the custom-currency validation popup", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
@@ -1363,9 +1879,6 @@ describe("split screens", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago!");
     fireEvent.press(screen.getByLabelText("Open Home"));
-    expect(screen.getByText("Save your changes?")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Discard changes"));
-    expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
     expect(screen.queryByText("Save your changes?")).toBeNull();
   });
 
@@ -1412,7 +1925,10 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose other currency"));
 
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Token");
-    fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "ABCD");
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Currency symbol"),
+      "ABCD",
+    );
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Save"));
@@ -1420,11 +1936,8 @@ describe("split screens", () => {
 
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
 
-    await act(async () => {
-      fireEvent.press(screen.getByText("Save Settings"));
-    });
     await waitFor(() => {
-      expect(mockStoreState.updateSettings).toHaveBeenLastCalledWith({
+      expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Ana",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
@@ -1486,7 +1999,8 @@ describe("split screens", () => {
     expect(hardwareBackHandlers.length).toBeGreaterThan(0);
 
     act(() => {
-      const consumed = hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
+      const consumed =
+        hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
       expect(consumed).toBe(true);
     });
 
@@ -1519,7 +2033,8 @@ describe("split screens", () => {
     expect(hardwareBackHandlers.length).toBeGreaterThan(0);
 
     act(() => {
-      const consumed = hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
+      const consumed =
+        hardwareBackHandlers[hardwareBackHandlers.length - 1]?.();
       expect(consumed).toBe(true);
     });
 
@@ -1529,7 +2044,7 @@ describe("split screens", () => {
     });
   });
 
-  it("falls back to blank-safe settings defaults and keeps the leave modal open when save fails", async () => {
+  it("falls back to blank-safe settings defaults and blocks leaving while settings are invalid", async () => {
     mockStoreState.settings = {
       ownerName: undefined,
       ownerProfileImageUri: undefined,
@@ -1546,13 +2061,14 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
     fireEvent.press(screen.getByLabelText("Open Home"));
-    expect(screen.getByText("Save your changes?")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save changes"));
+    expect(screen.queryByText("Save your changes?")).toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.getByText("Please choose a short name for yourself."),
+      ).toBeTruthy();
     });
-    expect(screen.getByText("Please choose a short name for yourself.")).toBeTruthy();
-    expect(screen.getByText("Save your changes?")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Discard changes"));
+    expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
+    expect(screen.getByText("User profile")).toBeTruthy();
     expect(screen.queryByText("Save your changes?")).toBeNull();
   });
 
@@ -1567,12 +2083,19 @@ describe("split screens", () => {
               totalCents: 1234,
               itemBreakdown: [],
               people: [
-                { participantId: "ana", name: "Ana", isPayer: true, paidCents: 1234, consumedCents: 0, netCents: 1234 },
+                {
+                  participantId: "ana",
+                  name: "Ana",
+                  isPayer: true,
+                  paidCents: 1234,
+                  consumedCents: 0,
+                  netCents: 1234,
+                },
               ],
               transfers: [],
             },
           }
-        : null
+        : null,
     );
     mockStoreState.settings = {
       ownerName: "Ana",
@@ -1581,7 +2104,9 @@ describe("split screens", () => {
       defaultCurrency: "PTS",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "P" }],
     };
-    mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, currency: "PTS" } })];
+    mockStoreState.records = [
+      buildRecord({ values: { ...buildRecord().values, currency: "PTS" } }),
+    ];
 
     render(<HomeScreen />);
     expect(screen.getAllByText("P0.00").length).toBeGreaterThan(0);
@@ -1643,6 +2168,69 @@ describe("split screens", () => {
     );
   });
 
+  it("quick edits split details from row actions without navigating through setup", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        id: "quick-edit-record",
+        values: {
+          ...buildRecord().values,
+          splitName: "Old Dinner",
+          currency: "USD",
+          tagIds: ["tag-groceries"],
+          items: [{ ...buildRecord().values.items[0], name: "Old Dinner" }],
+        },
+      }),
+    ];
+    mockStoreState.updateRecordDetails = jest.fn(async (recordId, details) => {
+      mockStoreState.records = mockStoreState.records.map((record: any) =>
+        record.id === recordId
+          ? {
+              ...record,
+              values: {
+                ...record.values,
+                splitName: details.splitName,
+                tagIds: details.tagIds,
+              },
+            }
+          : record,
+      );
+    });
+
+    render(<HomeScreen />);
+
+    fireEvent(screen.getByLabelText("Open split Old Dinner"), "onLongPress");
+    expect(screen.getByText("Edit details")).toBeTruthy();
+    fireEvent.press(screen.getByText("Edit details"));
+
+    expect(screen.getByText("Edit split details")).toBeTruthy();
+    expect(screen.queryByText("Currency")).toBeNull();
+
+    const nameInput = screen.getByDisplayValue("Old Dinner");
+    fireEvent.changeText(nameInput, "");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+    expect(screen.getByText("Split name is missing.")).toBeTruthy();
+    expect(mockStoreState.updateRecordDetails).not.toHaveBeenCalled();
+
+    fireEvent.changeText(nameInput, "Portugal Trip");
+    fireEvent.press(screen.getByText("Restaurant"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(mockStoreState.updateRecordDetails).toHaveBeenCalledWith(
+      "quick-edit-record",
+      {
+        splitName: "Portugal Trip",
+        tagIds: ["tag-groceries", "tag-restaurant"],
+      },
+    );
+    expect(mockPush).not.toHaveBeenCalledWith(
+      "/split/quick-edit-record/participants",
+    );
+  });
+
   it("does not render expired split reminder labels on rows", () => {
     mockStoreState.records = [
       buildRecord({
@@ -1661,6 +2249,4 @@ describe("split screens", () => {
     render(<HomeScreen />);
     expect(screen.queryByText(/Reminder:/i)).toBeNull();
   });
-
 });
-

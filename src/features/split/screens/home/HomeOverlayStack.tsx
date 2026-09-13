@@ -1,18 +1,13 @@
 import type { RefObject } from "react";
 import { Pressable, TextInput, View } from "react-native";
-import { Bell, Trash2 } from "lucide-react-native";
-import {
-  Text as TamaguiText,
-  YStack as TamaguiYStack,
-} from "tamagui";
+import { Bell, Pencil, Trash2 } from "lucide-react-native";
+import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import type { HomeTabKey } from "../shared/homeParts";
 import {
   ActionIconGridModal,
   ActionSheetModal,
-  ConfirmChoiceModal,
   ReminderDateTimeModal,
   SplitNoticeModal,
   ToastNotice,
@@ -23,6 +18,8 @@ import type {
   SelectableSplitListAmountDisplayOption,
 } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
+import { SplitDetailsQuickEditModal } from "./SplitDetailsQuickEditModal";
+import type { SplitTag, SplitTagColor, SplitTagIcon } from "../../tags";
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
@@ -39,7 +36,13 @@ export function HomeOverlayStack({
   selectedRecordActionTarget,
   onDismissRecordActionTarget,
   onRecordActionReminder,
+  onRecordActionEditDetails,
   onRecordActionDelete,
+  quickEditRecord,
+  tags,
+  onCancelQuickEdit,
+  onSaveQuickEdit,
+  onAddQuickEditTag,
   splitReminderPickerRecord,
   splitReminderPickerHasExisting,
   splitReminderErrorMessage,
@@ -83,9 +86,6 @@ export function HomeOverlayStack({
   customCurrencySymbolInputRef,
   addCustomCurrency,
   closeCustomCurrencyModal,
-  pendingTabChange,
-  onConfirmPendingTabChange,
-  onDiscardPendingTabChange,
 }: {
   settingsNoticeTitle: string;
   settingsNoticeMessages: string[];
@@ -93,7 +93,20 @@ export function HomeOverlayStack({
   selectedRecordActionTarget: RecordActionTarget | null;
   onDismissRecordActionTarget: () => void;
   onRecordActionReminder: () => void;
+  onRecordActionEditDetails: () => void;
   onRecordActionDelete: () => void;
+  quickEditRecord: HomeRecord | undefined;
+  tags: SplitTag[];
+  onCancelQuickEdit: () => void;
+  onSaveQuickEdit: (details: {
+    splitName: string;
+    tagIds: string[];
+  }) => Promise<void>;
+  onAddQuickEditTag: (
+    label: string,
+    icon?: SplitTagIcon | null,
+    color?: SplitTagColor,
+  ) => Promise<boolean>;
   splitReminderPickerRecord: HomeRecord | undefined;
   splitReminderPickerHasExisting: boolean;
   splitReminderErrorMessage: string;
@@ -150,9 +163,6 @@ export function HomeOverlayStack({
   customCurrencySymbolInputRef: RefObject<TextInput | null>;
   addCustomCurrency: () => Promise<void>;
   closeCustomCurrencyModal: () => void;
-  pendingTabChange: HomeTabKey | null;
-  onConfirmPendingTabChange: () => void;
-  onDiscardPendingTabChange: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -167,6 +177,14 @@ export function HomeOverlayStack({
         <ActionIconGridModal
           title={t("home.rowActions.title")}
           options={[
+            {
+              label: t("home.rowActions.editDetails"),
+              accessibilityLabel: t("home.rowActions.editDetailsA11y", {
+                title: selectedRecordActionTarget.title,
+              }),
+              icon: <Pencil color={PALETTE.primary} size={18} />,
+              onPress: onRecordActionEditDetails,
+            },
             {
               label: t("reminders.actionsTitle"),
               icon: <Bell color={PALETTE.primary} size={18} />,
@@ -185,10 +203,22 @@ export function HomeOverlayStack({
           onDismiss={onDismissRecordActionTarget}
         />
       ) : null}
+      {quickEditRecord ? (
+        <SplitDetailsQuickEditModal
+          record={quickEditRecord}
+          tags={tags}
+          onCancel={onCancelQuickEdit}
+          onSave={onSaveQuickEdit}
+          onAddTag={onAddQuickEditTag}
+        />
+      ) : null}
       {splitReminderPickerRecord ? (
         <ReminderDateTimeModal
           title={t("reminders.picker.title")}
-          initialIso={splitReminderPickerRecord.reminderState?.splitReminder?.scheduledForIso}
+          initialIso={
+            splitReminderPickerRecord.reminderState?.splitReminder
+              ?.scheduledForIso
+          }
           saveLabel={
             splitReminderPickerHasExisting
               ? t("reminders.update")
@@ -197,7 +227,9 @@ export function HomeOverlayStack({
           errorMessage={splitReminderErrorMessage}
           onClearError={onClearSplitReminderError}
           onCancel={onCancelSplitReminder}
-          onRemove={splitReminderPickerHasExisting ? onRemoveSplitReminder : undefined}
+          onRemove={
+            splitReminderPickerHasExisting ? onRemoveSplitReminder : undefined
+          }
           onSave={onSaveSplitReminder}
         />
       ) : null}
@@ -434,16 +466,6 @@ export function HomeOverlayStack({
             </YStack>
           </View>
         </View>
-      ) : null}
-      {pendingTabChange ? (
-        <ConfirmChoiceModal
-          title={t("settings.confirmSave.title")}
-          body={t("settings.confirmSave.body")}
-          confirmLabel={t("settings.confirmSave.confirm")}
-          discardLabel={t("settings.confirmSave.discard")}
-          onConfirm={onConfirmPendingTabChange}
-          onDiscard={onDiscardPendingTabChange}
-        />
       ) : null}
     </>
   );
