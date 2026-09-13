@@ -128,16 +128,6 @@ export function HomeSplitsTabContent({
   return (
     <YStack flex={1}>
       <HomeMainHeader topInset={topInset} />
-      {(settings.balanceFeatureEnabled ?? true) ? (
-        <YStack gap="$4" paddingHorizontal={20} paddingBottom="$4">
-          <HomeBalanceCards
-            balances={balances}
-            locale={locale}
-            settings={settings}
-            showSeparator
-          />
-        </YStack>
-      ) : null}
       <ScrollView
         testID="splits-tab-scroll"
         style={screenStyles.flex}
@@ -162,6 +152,14 @@ export function HomeSplitsTabContent({
         ]}
       >
         <YStack gap="$5">
+          {(settings.balanceFeatureEnabled ?? true) ? (
+            <HomeBalanceCards
+              balances={balances}
+              locale={locale}
+              settings={settings}
+              showSeparator
+            />
+          ) : null}
           <XStack justifyContent="flex-end">
             <Pressable
               accessibilityRole="button"
