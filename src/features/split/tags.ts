@@ -1,4 +1,5 @@
 import { createId, trimName } from "../../domain";
+import { translationCatalog } from "../../i18n/catalog";
 
 export type SplitTag = {
   id: string;
@@ -117,6 +118,24 @@ export function getSplitTagDisplayLabel(
 ) {
   const labelKey = getSplitTagLabelKey(tag);
   return labelKey && translate ? translate(labelKey) : tag.label;
+}
+
+function getBuiltInTagLabels() {
+  const labels = new Set<string>();
+  DEFAULT_SPLIT_TAGS.forEach((tag) => {
+    labels.add(tag.label.trim().toLowerCase());
+    const labelKey = getSplitTagLabelKey(tag);
+    if (!labelKey) {
+      return;
+    }
+    Object.values(translationCatalog).forEach((catalog) => {
+      const label = catalog.plain[labelKey];
+      if (label) {
+        labels.add(label.trim().toLowerCase());
+      }
+    });
+  });
+  return labels;
 }
 
 export function normalizeCustomTagIcon(value: string) {
@@ -271,7 +290,11 @@ export function createCustomTag(
   const existingLabels = new Set(
     existingTags.map((tag) => tag.label.trim().toLowerCase()),
   );
-  if (existingLabels.has(normalizedLabel.toLowerCase())) {
+  const normalizedLabelKey = normalizedLabel.toLowerCase();
+  if (
+    existingLabels.has(normalizedLabelKey) ||
+    getBuiltInTagLabels().has(normalizedLabelKey)
+  ) {
     return null;
   }
   return {

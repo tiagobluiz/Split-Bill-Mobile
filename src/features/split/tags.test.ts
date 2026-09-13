@@ -33,10 +33,21 @@ describe("split tags", () => {
         { id: "", label: "No id" },
         { id: "blank", label: "   " },
         { id: "tag-groceries", label: "Groceries" },
-        { id: "custom", label: "  Travel  ", icon: "custom:🇵🇹", color: "#AA00CC" },
+        {
+          id: "custom",
+          label: "  Travel  ",
+          icon: "custom:🇵🇹",
+          color: "#AA00CC",
+        },
         { id: "duplicate", label: "travel" },
         { id: "unknown-icon", label: "Unknown", icon: "bogus", color: "bogus" },
-        { id: "explicit-built-in", label: "Built", icon: null, color: "mint", builtIn: true },
+        {
+          id: "explicit-built-in",
+          label: "Built",
+          icon: null,
+          color: "mint",
+          builtIn: true,
+        },
       ]),
     ).toEqual([
       expect.objectContaining({
@@ -99,7 +110,12 @@ describe("split tags", () => {
     const restaurant = DEFAULT_SPLIT_TAGS.find(
       (tag) => tag.id === "tag-restaurant",
     )!;
-    const custom = { id: "custom", label: "Beach", icon: null, color: "mint" } as const;
+    const custom = {
+      id: "custom",
+      label: "Beach",
+      icon: null,
+      color: "mint",
+    } as const;
 
     expect(getSplitTagLabelKey(restaurant)).toBe("tags.defaults.restaurant");
     expect(getSplitTagDisplayLabel(restaurant, () => "Restaurante")).toBe(
@@ -111,6 +127,7 @@ describe("split tags", () => {
   it("creates custom tags only when names are unique", () => {
     expect(createCustomTag("   ", [])).toBeNull();
     expect(createCustomTag(" restaurant ", DEFAULT_SPLIT_TAGS)).toBeNull();
+    expect(createCustomTag(" Supermercado ", [])).toBeNull();
     expect(createCustomTag("Beach", [], null, "clay")).toEqual(
       expect.objectContaining({
         label: "Beach",

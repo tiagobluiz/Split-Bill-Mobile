@@ -529,6 +529,17 @@ async function withRecordById(
 
 let settingsPersistenceQueue = Promise.resolve();
 
+function enqueueSettingsPersistence(job: () => Promise<void>) {
+  const persistSnapshot = settingsPersistenceQueue
+    .catch(() => undefined)
+    .then(job);
+  settingsPersistenceQueue = persistSnapshot.then(
+    () => undefined,
+    () => undefined,
+  );
+  return persistSnapshot;
+}
+
 export const useSplitStore = create<SplitStore>((set, get) => ({
   ready: false,
   records: [],
@@ -677,16 +688,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       settings: nextSettings,
       records: nextRecords,
     });
-    const persistSnapshot = settingsPersistenceQueue
-      .catch(() => undefined)
-      .then(async () => {
-        await Promise.all(nextRecords.map((record) => saveRecord(record)));
-        await saveAppSettings(nextSettings);
-      });
-    settingsPersistenceQueue = persistSnapshot.then(
-      () => undefined,
-      () => undefined,
-    );
+    const ownerNameChanged =
+      normalizeOwnerName(previousOwnerName) !==
+      normalizeOwnerName(nextOwnerName);
+    const persistSnapshot = enqueueSettingsPersistence(async () => {
+      if (ownerNameChanged) {
+        await Promise.all(get().records.map((record) => saveRecord(record)));
+      }
+      await saveAppSettings(nextSettings);
+    });
     await persistSnapshot;
   },
   async addTag(label, icon, color) {
@@ -704,7 +714,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       tags: [...normalizeTags(get().settings.tags), nextTag],
     };
     set({ settings: nextSettings });
-    await saveAppSettings(nextSettings);
+    await enqueueSettingsPersistence(() => saveAppSettings(nextSettings));
     void trackCustomTagCreated({
       iconType: nextTag.icon
         ? nextTag.icon.startsWith("custom:")
@@ -741,12 +751,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       };
     });
     set({ settings: nextSettings, records: nextRecords });
-    await Promise.all([
-      saveAppSettings(nextSettings),
-      ...nextRecords
-        .filter((record) => changedRecordIds.has(record.id))
-        .map((record) => saveRecord(record)),
-    ]);
+    await enqueueSettingsPersistence(() =>
+      Promise.all([
+        saveAppSettings(nextSettings),
+        ...nextRecords
+          .filter((record) => changedRecordIds.has(record.id))
+          .map((record) => saveRecord(record)),
+      ]).then(() => undefined),
+    );
     if (removedTag && isDefaultSplitTag(removedTag)) {
       void trackDefaultTagRemoved();
     }

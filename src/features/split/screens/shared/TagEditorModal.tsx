@@ -414,7 +414,7 @@ export function TagEditorModal({
                         setError(t("tags.validation"));
                       }
                     } catch {
-                      setError(t("tags.validation"));
+                      setError(t("common.couldNotSaveSettings"));
                     } finally {
                       setSaving(false);
                     }

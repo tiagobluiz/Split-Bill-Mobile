@@ -488,6 +488,143 @@ describe("split store", () => {
     await secondUpdate;
   });
 
+  it("serializes tag additions behind pending settings saves", async () => {
+    const { storeModule, storageMocks } = await loadStore();
+    const firstSave = createDeferred<void>();
+    storageMocks.saveAppSettings.mockImplementationOnce(
+      () => firstSave.promise,
+    );
+
+    await storeModule.useSplitStore.getState().bootstrap();
+    const settingsUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ ownerName: "Tiago" });
+    const tagAdd = storeModule.useSplitStore
+      .getState()
+      .addTag("Work", null, "clay");
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ ownerName: "Tiago" }),
+    );
+
+    firstSave.resolve();
+    await settingsUpdate;
+    await tagAdd;
+
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(2);
+    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        tags: expect.arrayContaining([
+          expect.objectContaining({ label: "Work", icon: null, color: "clay" }),
+        ]),
+      }),
+    );
+  });
+
+  it("serializes tag removals behind pending settings saves", async () => {
+    const record = createRecord({
+      values: {
+        ...createValues(),
+        tagIds: ["tag-groceries"],
+      },
+    });
+    const { storeModule, storageMocks } = await loadStore({
+      listRecords: [record],
+    });
+    const firstSave = createDeferred<void>();
+    storageMocks.saveAppSettings.mockImplementationOnce(
+      () => firstSave.promise,
+    );
+
+    await storeModule.useSplitStore.getState().bootstrap();
+    const settingsUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ ownerName: "Tiago" });
+    const tagRemove = storeModule.useSplitStore
+      .getState()
+      .removeTag("tag-groceries");
+
+    firstSave.resolve();
+    await settingsUpdate;
+    await tagRemove;
+
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(2);
+    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        tags: expect.not.arrayContaining([
+          expect.objectContaining({ id: "tag-groceries" }),
+        ]),
+      }),
+    );
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({ tagIds: [] }),
+      }),
+    );
+  });
+
+  it("persists current records when a delayed owner-name settings save starts", async () => {
+    const record = createRecord({
+      values: {
+        ...createValues(),
+        participants: [
+          { id: "owner", name: "You" },
+          { id: "bruno", name: "Bruno" },
+        ],
+        payerParticipantId: "owner",
+      },
+    });
+    const { storeModule, storageMocks } = await loadStore({
+      listRecords: [record],
+    });
+    const firstSave = createDeferred<void>();
+    storageMocks.saveAppSettings.mockImplementationOnce(
+      () => firstSave.promise,
+    );
+
+    await storeModule.useSplitStore.getState().bootstrap();
+    const firstUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ defaultCurrency: "USD" });
+    const ownerUpdate = storeModule.useSplitStore
+      .getState()
+      .updateSettings({ ownerName: "Tiago" });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await storeModule.useSplitStore.getState().updateRecordDetails(record.id, {
+      splitName: "Edited while queued",
+      tagIds: ["tag-restaurant"],
+    });
+
+    firstSave.resolve();
+    await firstUpdate;
+    await ownerUpdate;
+
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: record.id,
+        values: expect.objectContaining({
+          splitName: "Edited while queued",
+          tagIds: ["tag-restaurant"],
+          participants: [
+            { id: "owner", name: "Tiago" },
+            { id: "bruno", name: "Bruno" },
+          ],
+        }),
+      }),
+    );
+  });
+
   it("renames owner references in stored records when the profile name changes", async () => {
     const record = createRecord({
       values: {
@@ -599,12 +736,7 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().records[0]).toMatchObject(
       record,
     );
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: record.id,
-        values: expect.objectContaining(record.values),
-      }),
-    );
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
   });
 
   it("handles missing owner settings and rename passes with no owner aliases in records", async () => {
@@ -775,13 +907,12 @@ describe("split store", () => {
       },
     });
 
-    await storeModule.useSplitStore.getState().updateRecordDetails(
-      "details-record",
-      {
+    await storeModule.useSplitStore
+      .getState()
+      .updateRecordDetails("details-record", {
         splitName: "Updated dinner",
         tagIds: ["tag-restaurant", "missing"],
-      },
-    );
+      });
 
     const updated = storeModule.useSplitStore
       .getState()

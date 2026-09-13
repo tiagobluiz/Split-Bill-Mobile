@@ -36,9 +36,7 @@ describe("TagEditorModal", () => {
       await save.promise.catch(() => undefined);
     });
 
-    expect(
-      screen.getByText("Use a unique tag name up to 24 characters."),
-    ).toBeTruthy();
+    expect(screen.getByText("Could not save settings")).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Create Tag"));
@@ -67,7 +65,10 @@ describe("TagEditorModal", () => {
       </LocalizationProvider>,
     );
 
-    fireEvent.changeText(screen.getByPlaceholderText("Nome da tag"), "Restaurante");
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Nome da tag"),
+      "Restaurante",
+    );
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Criar tag"));
     });
