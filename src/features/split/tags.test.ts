@@ -2,6 +2,8 @@ import {
   DEFAULT_SPLIT_TAGS,
   createCustomTag,
   createCustomTagIcon,
+  getSplitTagDisplayLabel,
+  getSplitTagLabelKey,
   isDefaultSplitTag,
   normalizeCustomTagIcon,
   normalizeTagIds,
@@ -91,6 +93,19 @@ describe("split tags", () => {
       "Beach 2",
       "Beach 10",
     ]);
+  });
+
+  it("resolves built-in display labels through translation keys", () => {
+    const restaurant = DEFAULT_SPLIT_TAGS.find(
+      (tag) => tag.id === "tag-restaurant",
+    )!;
+    const custom = { id: "custom", label: "Beach", icon: null, color: "mint" } as const;
+
+    expect(getSplitTagLabelKey(restaurant)).toBe("tags.defaults.restaurant");
+    expect(getSplitTagDisplayLabel(restaurant, () => "Restaurante")).toBe(
+      "Restaurante",
+    );
+    expect(getSplitTagDisplayLabel(custom, () => "Ignored")).toBe("Beach");
   });
 
   it("creates custom tags only when names are unique", () => {

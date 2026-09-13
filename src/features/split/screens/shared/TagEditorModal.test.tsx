@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 
+import { LocalizationProvider } from "../../../../i18n/provider";
 import { TagEditorModal } from "./TagEditorModal";
 
 function createDeferred<T = boolean>() {
@@ -44,5 +45,34 @@ describe("TagEditorModal", () => {
     });
 
     expect(onSave).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates duplicate built-in tag names in the active language", async () => {
+    const onSave = jest.fn(async () => true);
+    render(
+      <LocalizationProvider language="pt" humour="plain">
+        <TagEditorModal
+          existingTags={[
+            {
+              id: "tag-restaurant",
+              label: "Restaurant",
+              icon: "utensils",
+              color: "orange",
+              builtIn: true,
+            },
+          ]}
+          onSave={onSave}
+          onCancel={jest.fn()}
+        />
+      </LocalizationProvider>,
+    );
+
+    fireEvent.changeText(screen.getByPlaceholderText("Nome da tag"), "Restaurante");
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Criar tag"));
+    });
+
+    expect(screen.getByText("Já existe uma tag com esse nome.")).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

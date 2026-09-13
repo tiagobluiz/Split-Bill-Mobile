@@ -12,6 +12,7 @@ import {
 } from "lucide-react-native";
 import { Text as TamaguiText, XStack as TamaguiXStack } from "tamagui";
 
+import { getSplitTagDisplayLabel } from "../../tags";
 import type {
   BuiltInSplitTagColor,
   BuiltInSplitTagIcon,
@@ -20,6 +21,7 @@ import type {
   SplitTagIcon,
 } from "../../tags";
 import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
 import { screenStyles } from "./styles";
 
 const Text = TamaguiText as any;
@@ -106,9 +108,11 @@ export function TagChip({
   muted?: boolean;
   selected?: boolean;
 }) {
+  const { t } = useTranslation();
   const colors = tag ? getTagColorStyle(tag.color) : TAG_COLORS.gray;
   const Icon = tag ? getTagIcon(tag.icon) : null;
   const customIconLabel = tag ? getCustomTagIconLabel(tag.icon) : "";
+  const displayLabel = label ?? (tag ? getSplitTagDisplayLabel(tag, t) : "");
   return (
     <View
       style={[
@@ -138,7 +142,7 @@ export function TagChip({
         color={muted ? PALETTE.onSurfaceVariant : colors.foreground}
         numberOfLines={1}
       >
-        {label ?? tag?.label}
+        {displayLabel}
       </Text>
     </View>
   );

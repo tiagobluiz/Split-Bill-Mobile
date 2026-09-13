@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { LocalizationProvider } from "../../../../i18n/provider";
 import { TagChip, TagChipRow } from "./TagChips";
 
 describe("TagChipRow", () => {
@@ -68,6 +69,25 @@ describe("TagChipRow", () => {
 
     expect(screen.getAllByText("%").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Fees").length).toBeGreaterThan(0);
+  });
+
+  it("renders built-in tag labels in the active language", () => {
+    render(
+      <LocalizationProvider language="pt" humour="plain">
+        <TagChip
+          tag={{
+            id: "tag-restaurant",
+            label: "Restaurant",
+            icon: "utensils",
+            color: "orange",
+            builtIn: true,
+          }}
+        />
+      </LocalizationProvider>,
+    );
+
+    expect(screen.getByText("Restaurante")).toBeTruthy();
+    expect(screen.queryByText("Restaurant")).toBeNull();
   });
 
   it("renders an explicit label and selected chip state", () => {

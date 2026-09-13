@@ -11,6 +11,7 @@ import { SPLIT_NAME_MAX_LENGTH, trimName } from "../../../../domain";
 import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
+  getSplitTagDisplayLabel,
   normalizeTagName,
   sortTagsAlphabetically,
   type SplitTag,
@@ -64,7 +65,10 @@ export function SplitDetailsQuickEditModal({
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [pendingCreatedTagLabel, setPendingCreatedTagLabel] = useState("");
   const [saving, setSaving] = useState(false);
-  const orderedTags = useMemo(() => sortTagsAlphabetically(tags), [tags]);
+  const orderedTags = useMemo(
+    () => sortTagsAlphabetically(tags, (tag) => getSplitTagDisplayLabel(tag, t)),
+    [tags, t],
+  );
   const previousRecordIdRef = useRef(record.id);
 
   useEffect(() => {
@@ -88,7 +92,7 @@ export function SplitDetailsQuickEditModal({
     }
     const createdTag = tags.find(
       (tag) =>
-        tag.label.trim().toLowerCase() ===
+        getSplitTagDisplayLabel(tag, t).trim().toLowerCase() ===
         pendingCreatedTagLabel.trim().toLowerCase(),
     );
     if (!createdTag) {
@@ -199,7 +203,7 @@ export function SplitDetailsQuickEditModal({
                       <Pressable
                         key={tag.id}
                         accessibilityRole="button"
-                        accessibilityLabel={tag.label}
+                        accessibilityLabel={getSplitTagDisplayLabel(tag, t)}
                         accessibilityState={{ selected }}
                         style={screenStyles.tagFilterOption}
                         onPress={() =>

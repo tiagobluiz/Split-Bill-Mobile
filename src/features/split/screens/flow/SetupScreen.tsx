@@ -92,7 +92,11 @@ import {
   getSettlementPreview,
   useSplitStore,
 } from "../../store";
-import { isDefaultSplitTag, sortTagsAlphabetically } from "../../tags";
+import {
+  getSplitTagDisplayLabel,
+  isDefaultSplitTag,
+  sortTagsAlphabetically,
+} from "../../tags";
 import {
   getAvatarTone,
   getCurrencyOptionLabel,
@@ -303,8 +307,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       : []),
   ];
   const orderedTags = useMemo(
-    () => sortTagsAlphabetically(settings.tags ?? []),
-    [settings.tags],
+    () =>
+      sortTagsAlphabetically(settings.tags ?? [], (tag) =>
+        getSplitTagDisplayLabel(tag, t),
+      ),
+    [settings.tags, t],
   );
   const normalizedCurrency = currency.trim().toUpperCase();
   const normalizedTargetCurrency = settings.defaultCurrency
@@ -752,7 +759,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                     <Pressable
                       key={tag.id}
                       accessibilityRole="button"
-                      accessibilityLabel={tag.label}
+                      accessibilityLabel={getSplitTagDisplayLabel(tag, t)}
                       accessibilityState={{ selected }}
                       style={screenStyles.tagFilterOption}
                       onPress={() => {

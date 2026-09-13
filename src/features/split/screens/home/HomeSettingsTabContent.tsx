@@ -10,6 +10,7 @@ import {
 import { FieldLabel, SectionEyebrow } from "../../../../components/ui";
 import type { AppSettings } from "../../../../storage/settings";
 import {
+  getSplitTagDisplayLabel,
   sortTagsAlphabetically,
   type SplitTag,
   type SplitTagColor,
@@ -116,8 +117,14 @@ export function HomeSettingsTabContent({
   onConfirmDeleteTag: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
-  const orderedTags = useMemo(() => sortTagsAlphabetically(tags), [tags]);
+  const orderedTags = useMemo(
+    () => sortTagsAlphabetically(tags, (tag) => getSplitTagDisplayLabel(tag, t)),
+    [tags, t],
+  );
   const pendingDeleteTag = tags.find((tag) => tag.id === pendingTagDeleteId);
+  const pendingDeleteTagLabel = pendingDeleteTag
+    ? getSplitTagDisplayLabel(pendingDeleteTag, t)
+    : "";
   const pendingDeleteTagUsageCount = pendingDeleteTag
     ? getTagUsageCount(pendingDeleteTag.id)
     : 0;
@@ -219,7 +226,7 @@ export function HomeSettingsTabContent({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("tags.deleteA11y", {
-                      tag: tag.label,
+                      tag: getSplitTagDisplayLabel(tag, t),
                     })}
                     onPress={() => setPendingTagDeleteId(tag.id)}
                   >
@@ -523,7 +530,7 @@ export function HomeSettingsTabContent({
         <ConfirmChoiceModal
           title={t("tags.confirmDeleteTitle")}
           body={t("tags.confirmDeleteBody", {
-            tag: pendingDeleteTag.label,
+            tag: pendingDeleteTagLabel,
             usage: t(
               pendingDeleteTagUsageCount === 1
                 ? "tags.confirmDeleteUsageSingular"

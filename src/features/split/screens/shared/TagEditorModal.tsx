@@ -26,6 +26,7 @@ import {
 import {
   TAG_NAME_MAX_LENGTH,
   createCustomTagIcon,
+  getSplitTagDisplayLabel,
   normalizeTagName,
   type SplitTag,
   type SplitTagColor,
@@ -134,7 +135,8 @@ export function TagEditorModal({
     if (
       existingTags.some(
         (tag) =>
-          tag.label.trim().toLowerCase() === normalizedLabel.toLowerCase(),
+          getSplitTagDisplayLabel(tag, t).trim().toLowerCase() ===
+          normalizedLabel.toLowerCase(),
       )
     ) {
       return t("tags.validationDuplicateName");

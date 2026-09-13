@@ -16,7 +16,7 @@ import {
 import type { AppSettings } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { sortTagsAlphabetically } from "../../tags";
+import { getSplitTagDisplayLabel, sortTagsAlphabetically } from "../../tags";
 import { ModePills } from "../shared/components";
 import { RecordRow } from "../shared/homeParts";
 import { TagChip } from "../shared/TagChips";
@@ -96,8 +96,11 @@ export function HomeSplitsTabContent({
   const [draftTagFilterMode, setDraftTagFilterMode] =
     useState<ActivityTagFilterMode>("all");
   const orderedTags = useMemo(
-    () => sortTagsAlphabetically(settings.tags ?? []),
-    [settings.tags],
+    () =>
+      sortTagsAlphabetically(settings.tags ?? [], (tag) =>
+        getSplitTagDisplayLabel(tag, t),
+      ),
+    [settings.tags, t],
   );
   const availableTagIds = useMemo(
     () => new Set((settings.tags ?? []).map((tag) => tag.id)),
@@ -105,7 +108,7 @@ export function HomeSplitsTabContent({
   );
   const selectedTagLabels = (settings.tags ?? [])
     .filter((tag) => activityTagFilterIds.includes(tag.id))
-    .map((tag) => tag.label);
+    .map((tag) => getSplitTagDisplayLabel(tag, t));
 
   useEffect(() => {
     if (activityTagFilterIds.some((tagId) => !availableTagIds.has(tagId))) {
@@ -316,7 +319,7 @@ export function HomeSplitsTabContent({
                     <Pressable
                       key={tag.id}
                       accessibilityRole="button"
-                      accessibilityLabel={tag.label}
+                      accessibilityLabel={getSplitTagDisplayLabel(tag, t)}
                       accessibilityState={{ selected }}
                       style={screenStyles.tagFilterOption}
                       onPress={() => {

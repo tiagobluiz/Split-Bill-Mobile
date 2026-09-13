@@ -23,6 +23,26 @@ export type CustomSplitTagIcon = `custom:${string}`;
 export type SplitTagIcon = BuiltInSplitTagIcon | CustomSplitTagIcon;
 export type BuiltInSplitTagColor = "orange" | "mint" | "clay" | "gray";
 export type SplitTagColor = BuiltInSplitTagColor | `#${string}`;
+export type BuiltInSplitTagLabelKey =
+  | "tags.defaults.restaurant"
+  | "tags.defaults.groceries"
+  | "tags.defaults.drinks"
+  | "tags.defaults.travel"
+  | "tags.defaults.rent"
+  | "tags.defaults.utilities"
+  | "tags.defaults.activities"
+  | "tags.defaults.other";
+
+const DEFAULT_TAG_LABEL_KEYS: Record<string, BuiltInSplitTagLabelKey> = {
+  "tag-restaurant": "tags.defaults.restaurant",
+  "tag-groceries": "tags.defaults.groceries",
+  "tag-drinks": "tags.defaults.drinks",
+  "tag-travel": "tags.defaults.travel",
+  "tag-rent": "tags.defaults.rent",
+  "tag-utilities": "tags.defaults.utilities",
+  "tag-activities": "tags.defaults.activities",
+  "tag-other": "tags.defaults.other",
+};
 
 export const DEFAULT_SPLIT_TAGS: SplitTag[] = [
   {
@@ -85,6 +105,20 @@ export function isDefaultSplitTag(tag: Pick<SplitTag, "id" | "builtIn">) {
   return tag.builtIn === true || DEFAULT_TAG_BY_ID.has(tag.id);
 }
 
+export function getSplitTagLabelKey(
+  tag: Pick<SplitTag, "id">,
+): BuiltInSplitTagLabelKey | null {
+  return DEFAULT_TAG_LABEL_KEYS[tag.id] ?? null;
+}
+
+export function getSplitTagDisplayLabel(
+  tag: SplitTag,
+  translate?: (key: BuiltInSplitTagLabelKey) => string,
+) {
+  const labelKey = getSplitTagLabelKey(tag);
+  return labelKey && translate ? translate(labelKey) : tag.label;
+}
+
 export function normalizeCustomTagIcon(value: string) {
   const normalized = trimName(value);
   if (!normalized) {
@@ -140,9 +174,12 @@ export function normalizeTagName(value: string) {
   return trimName(value).slice(0, TAG_NAME_MAX_LENGTH);
 }
 
-export function sortTagsAlphabetically(tags: SplitTag[]) {
+export function sortTagsAlphabetically(
+  tags: SplitTag[],
+  getLabel: (tag: SplitTag) => string = (tag) => tag.label,
+) {
   return [...tags].sort((left, right) =>
-    left.label.localeCompare(right.label, undefined, {
+    getLabel(left).localeCompare(getLabel(right), undefined, {
       sensitivity: "base",
       numeric: true,
     }),
