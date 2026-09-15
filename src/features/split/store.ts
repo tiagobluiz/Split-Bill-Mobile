@@ -540,6 +540,32 @@ function enqueueSettingsPersistence(job: () => Promise<void>) {
   return persistSnapshot;
 }
 
+function logBootstrapStep(message: string, details?: Record<string, unknown>) {
+  console.info(
+    `[Split Bill bootstrap] ${message}`,
+    details ? JSON.stringify(details) : "",
+  );
+}
+
+function logBootstrapFailure(
+  stage: string,
+  error: unknown,
+  details?: Record<string, unknown>,
+) {
+  console.error(
+    `[Split Bill bootstrap] failed during ${stage}`,
+    details ? JSON.stringify(details) : "",
+    error,
+  );
+}
+
+function createBootstrapError(stage: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`Bootstrap failed during ${stage}: ${message}`, {
+    cause: error,
+  });
+}
+
 export const useSplitStore = create<SplitStore>((set, get) => ({
   ready: false,
   records: [],
@@ -556,43 +582,76 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     customCurrencies: [],
   },
   async bootstrap() {
-    await initializeSettingsStorage();
-    await initializeRecordsStorage();
-    const [rawRecords, settings] = await Promise.all([
-      listRecords(),
-      getAppSettings(),
-    ]);
-    const normalizedSettings = {
-      ...settings,
-      tags: normalizeTags(settings.tags),
-    };
-    const validTagIds = new Set(normalizedSettings.tags.map((tag) => tag.id));
-    const taggedRecords = rawRecords.map((record) => ({
-      ...record,
-      values: {
-        ...record.values,
-        tagIds: normalizeTagIds(record.values.tagIds, normalizedSettings.tags),
-      },
-    }));
-    const { records, changed } =
-      await reconcileScheduledReminders(taggedRecords);
-    if (changed) {
-      await Promise.all(records.map((record) => saveRecord(record)));
-    }
-    set({
-      ready: true,
-      records: records.map((record) => ({
+    let stage = "initialize storage";
+    const details: Record<string, unknown> = {};
+    try {
+      logBootstrapStep("start");
+      await initializeSettingsStorage();
+      await initializeRecordsStorage();
+
+      stage = "load persisted data";
+      const [rawRecords, settings] = await Promise.all([
+        listRecords(),
+        getAppSettings(),
+      ]);
+      details.rawRecordCount = rawRecords.length;
+      details.settingsTagCount = settings.tags?.length ?? null;
+      logBootstrapStep("loaded persisted data", details);
+
+      stage = "normalize settings tags";
+      const normalizedSettings = {
+        ...settings,
+        tags: normalizeTags(settings.tags),
+      };
+      const validTagIds = new Set(normalizedSettings.tags.map((tag) => tag.id));
+      details.normalizedSettingsTagCount = normalizedSettings.tags.length;
+
+      stage = "normalize record tags";
+      const taggedRecords = rawRecords.map((record) => ({
         ...record,
         values: {
           ...record.values,
-          tagIds: (record.values.tagIds ?? []).filter((tagId) =>
-            validTagIds.has(tagId),
+          tagIds: normalizeTagIds(
+            record.values.tagIds,
+            normalizedSettings.tags,
           ),
         },
-      })),
-      settings: normalizedSettings,
-      activeRecordId: records[0]?.id ?? null,
-    });
+      }));
+
+      stage = "reconcile reminders";
+      const { records, changed } =
+        await reconcileScheduledReminders(taggedRecords);
+      details.reconciledRecordCount = records.length;
+      details.remindersChanged = changed;
+
+      stage = "persist reconciled reminders";
+      if (changed) {
+        await Promise.all(records.map((record) => saveRecord(record)));
+      }
+
+      stage = "commit store state";
+      set({
+        ready: true,
+        records: records.map((record) => ({
+          ...record,
+          values: {
+            ...record.values,
+            tagIds: (record.values.tagIds ?? []).filter((tagId) =>
+              validTagIds.has(tagId),
+            ),
+          },
+        })),
+        settings: normalizedSettings,
+        activeRecordId: records[0]?.id ?? null,
+      });
+      logBootstrapStep("complete", {
+        recordCount: records.length,
+        activeRecordId: records[0]?.id ?? null,
+      });
+    } catch (error) {
+      logBootstrapFailure(stage, error, details);
+      throw createBootstrapError(stage, error);
+    }
   },
   async createDraft() {
     const draft = createDraftRecord(get().settings.defaultCurrency);
