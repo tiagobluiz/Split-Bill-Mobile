@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 const mockUseFonts = jest.fn();
 const mockListeners = new Set<() => void>();
 const mockRouterPush = jest.fn();
+const mockRecordError = jest.fn();
 const mockStack = jest.fn((_props: any) => {
   const { Text } = require("react-native");
   return <Text>stack</Text>;
@@ -87,6 +88,11 @@ jest.mock("../../lib/device", () => ({
   getDeviceLocale: () => "en-US",
 }));
 
+jest.mock("../../lib/telemetry", () => ({
+  initializeTelemetry: jest.fn(async () => undefined),
+  recordError: (...args: any[]) => mockRecordError(...args),
+}));
+
 import RootLayout from "../../../app/_layout";
 
 describe("root layout", () => {
@@ -95,6 +101,7 @@ describe("root layout", () => {
     splashScreen.hideAsync.mockReset();
     mockUseFonts.mockReset();
     mockRouterPush.mockReset();
+    mockRecordError.mockReset();
     mockStack.mockClear();
     mockRemoveNotificationSubscription.mockReset();
     mockGetLastNotificationResponseAsync.mockReset();
@@ -243,6 +250,15 @@ describe("root layout", () => {
     await waitFor(() => {
       expect(screen.getByText("We couldn't open Split Bill")).toBeTruthy();
     });
+    expect(screen.getByText("Diagnostic: boom")).toBeTruthy();
+    expect(mockRecordError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        area: "bootstrap",
+        attempt: "initial",
+        message: "boom",
+      }),
+    );
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Retry app bootstrap"));
@@ -269,5 +285,31 @@ describe("root layout", () => {
     });
 
     expect(screen.getByText("We couldn't open Split Bill")).toBeTruthy();
+    expect(mockRecordError).toHaveBeenLastCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        area: "bootstrap",
+        attempt: "retry",
+        message: "boom",
+      }),
+    );
+  });
+
+  it("normalizes non-error bootstrap failures into a diagnostic message", async () => {
+    mockUseFonts.mockReturnValue([true]);
+    mockStoreState.bootstrap.mockRejectedValueOnce("string failure");
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Diagnostic: string failure")).toBeTruthy();
+    });
+    expect(mockRecordError).toHaveBeenCalledWith(
+      "string failure",
+      expect.objectContaining({
+        attempt: "initial",
+        message: "string failure",
+      }),
+    );
   });
 });

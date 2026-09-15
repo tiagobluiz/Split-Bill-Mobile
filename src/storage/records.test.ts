@@ -547,6 +547,41 @@ describe("records storage", () => {
     expect(warnSpy).toHaveBeenCalledWith("Failed to parse record payload for record broken-one.");
   });
 
+  it("logs safe row metadata when a parsed record cannot be mapped", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const { recordsModule } = await loadModule({
+      rows: [
+        {
+          id: "broken-mapping",
+          status: "draft",
+          step: 1,
+          payload: JSON.stringify({
+            values: null,
+          }),
+          created_at: "2026-04-04T09:00:00.000Z",
+          updated_at: "2026-04-04T10:00:00.000Z",
+          completed_at: null,
+        },
+      ],
+    });
+
+    await recordsModule.initializeRecordsStorage();
+    await expect(recordsModule.listRecords()).rejects.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[Split Bill storage] failed to map split record",
+      JSON.stringify({
+        id: "broken-mapping",
+        status: "draft",
+        step: 1,
+        createdAt: "2026-04-04T09:00:00.000Z",
+        updatedAt: "2026-04-04T10:00:00.000Z",
+        payloadShape: "values",
+        payloadLength: JSON.stringify({ values: null }).length,
+      }),
+      expect.any(TypeError),
+    );
+  });
+
   it("retries opening the records database after an earlier open failure", async () => {
     jest.resetModules();
     const database = {

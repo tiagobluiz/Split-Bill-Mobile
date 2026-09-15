@@ -15,7 +15,7 @@ import { getDefaultTranslationSettings, t, translateWithSettings } from "../src/
 import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
 import { normalizeInternalRoute } from "../src/lib/internalRoute";
-import { initializeTelemetry } from "../src/lib/telemetry";
+import { initializeTelemetry, recordError } from "../src/lib/telemetry";
 
 void SplashScreen.preventAutoHideAsync();
 Notifications.setNotificationHandler({
@@ -26,6 +26,27 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return "Unknown bootstrap error";
+}
+
+function reportBootstrapFailure(error: unknown, attempt: "initial" | "retry") {
+  const message = getErrorMessage(error);
+  console.error(`Split Bill bootstrap ${attempt} failed: ${message}`, error);
+  recordError(error, {
+    area: "bootstrap",
+    attempt,
+    message,
+  });
+  return message;
+}
 
 function useNotificationObserver(onReminderSignal?: () => Promise<void> | void) {
   useEffect(() => {
@@ -84,6 +105,9 @@ export default function RootLayout() {
   const ready = useSplitStore((state) => state.ready);
   const settings = useSplitStore((state) => state.settings);
   const [bootstrapFailed, setBootstrapFailed] = useState(false);
+  const [bootstrapErrorMessage, setBootstrapErrorMessage] = useState<
+    string | null
+  >(null);
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -95,7 +119,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     void initializeTelemetry();
-    void Promise.resolve(bootstrap()).catch(() => {
+    void Promise.resolve(bootstrap()).catch((error) => {
+      setBootstrapErrorMessage(reportBootstrapFailure(error, "initial"));
       setBootstrapFailed(true);
     });
   }, [bootstrap]);
@@ -138,6 +163,14 @@ export default function RootLayout() {
                 <Text style={{ fontSize: 15, lineHeight: 22, color: PALETTE.onSurfaceVariant }}>
                   {translateFallback("app.error.openDescription")}
                 </Text>
+                {bootstrapErrorMessage ? (
+                  <Text
+                    selectable
+                    style={{ fontSize: 12, lineHeight: 18, color: PALETTE.onSurfaceVariant }}
+                  >
+                    Diagnostic: {bootstrapErrorMessage}
+                  </Text>
+                ) : null}
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -151,7 +184,11 @@ export default function RootLayout() {
                 }}
                 onPress={() => {
                   setBootstrapFailed(false);
-                  void Promise.resolve(bootstrap()).catch(() => {
+                  setBootstrapErrorMessage(null);
+                  void Promise.resolve(bootstrap()).catch((error) => {
+                    setBootstrapErrorMessage(
+                      reportBootstrapFailure(error, "retry"),
+                    );
                     setBootstrapFailed(true);
                   });
                 }}

@@ -71,6 +71,39 @@ function getDefaultReminderState() {
   return createEmptyReminderState();
 }
 
+function describePayloadShape(value: unknown) {
+  if (value === null) {
+    return "null";
+  }
+  if (Array.isArray(value)) {
+    return "array";
+  }
+  if (typeof value !== "object") {
+    return typeof value;
+  }
+  return Object.keys(value as Record<string, unknown>).join(",");
+}
+
+function logRecordMappingFailure(
+  row: DatabaseRow,
+  error: unknown,
+  parsedPayload?: unknown,
+) {
+  console.error(
+    "[Split Bill storage] failed to map split record",
+    JSON.stringify({
+      id: row.id,
+      status: row.status,
+      step: row.step,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      payloadShape: describePayloadShape(parsedPayload),
+      payloadLength: row.payload.length,
+    }),
+    error,
+  );
+}
+
 function mapRow(row: DatabaseRow): DraftRecord | null {
   let parsedPayload:
     | SplitFormValues
@@ -85,42 +118,47 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
     console.warn(`Failed to parse record payload for record ${row.id}.`);
     return null;
   }
-  const values =
-    parsedPayload && typeof parsedPayload === "object" && "values" in parsedPayload
-      ? (parsedPayload.values as SplitFormValues)
-      : (parsedPayload as SplitFormValues);
-  const items = Array.isArray(values.items) ? values.items.filter((item) => !isLegacyPlaceholderItem(item)) : [];
-  const settlementState =
-    parsedPayload &&
-    typeof parsedPayload === "object" &&
-    "settlementState" in parsedPayload &&
-    parsedPayload.settlementState &&
-    Array.isArray(parsedPayload.settlementState.settledParticipantIds)
-      ? { settledParticipantIds: parsedPayload.settlementState.settledParticipantIds.filter((value) => typeof value === "string") }
-      : getDefaultSettlementState();
-  const reminderState =
-    parsedPayload &&
-    typeof parsedPayload === "object" &&
-    "reminderState" in parsedPayload
-      ? normalizeReminderState(parsedPayload.reminderState)
-      : getDefaultReminderState();
+  try {
+    const values =
+      parsedPayload && typeof parsedPayload === "object" && "values" in parsedPayload
+        ? (parsedPayload.values as SplitFormValues)
+        : (parsedPayload as SplitFormValues);
+    const items = Array.isArray(values.items) ? values.items.filter((item) => !isLegacyPlaceholderItem(item)) : [];
+    const settlementState =
+      parsedPayload &&
+      typeof parsedPayload === "object" &&
+      "settlementState" in parsedPayload &&
+      parsedPayload.settlementState &&
+      Array.isArray(parsedPayload.settlementState.settledParticipantIds)
+        ? { settledParticipantIds: parsedPayload.settlementState.settledParticipantIds.filter((value) => typeof value === "string") }
+        : getDefaultSettlementState();
+    const reminderState =
+      parsedPayload &&
+      typeof parsedPayload === "object" &&
+      "reminderState" in parsedPayload
+        ? normalizeReminderState(parsedPayload.reminderState)
+        : getDefaultReminderState();
 
-  return {
-    id: row.id,
-    status: row.status,
-    step: row.step,
-    values: {
-      ...values,
-      splitName: typeof values.splitName === "string" ? values.splitName : "",
-      tagIds: normalizeTagIds((values as { tagIds?: unknown }).tagIds),
-      items,
-    },
-    settlementState,
-    reminderState,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    completedAt: row.completed_at,
-  };
+    return {
+      id: row.id,
+      status: row.status,
+      step: row.step,
+      values: {
+        ...values,
+        splitName: typeof values.splitName === "string" ? values.splitName : "",
+        tagIds: normalizeTagIds((values as { tagIds?: unknown }).tagIds),
+        items,
+      },
+      settlementState,
+      reminderState,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      completedAt: row.completed_at,
+    };
+  } catch (error) {
+    logRecordMappingFailure(row, error, parsedPayload);
+    throw error;
+  }
 }
 
 export async function listRecords() {
