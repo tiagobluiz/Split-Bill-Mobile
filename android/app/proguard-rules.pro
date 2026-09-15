@@ -11,4 +11,10 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Expo SQLite reflects Kotlin Record option classes when constructing native
+# database handles. R8 can otherwise strip or rewrite the internal option class
+# enough for the bridge cast to fail in release builds.
+-keep class expo.modules.sqlite.** { *; }
+-keepattributes RuntimeVisibleAnnotations,RuntimeInvisibleAnnotations,Signature,InnerClasses,EnclosingMethod
+
 # Add any project specific keep options here:
