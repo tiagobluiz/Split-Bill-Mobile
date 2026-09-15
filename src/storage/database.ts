@@ -2,12 +2,21 @@ import * as SQLite from "expo-sqlite";
 
 const DATABASE_NAME = "split-bill-mobile.db";
 const MAX_RETRY_ATTEMPTS = 2;
+const DATABASE_OPEN_OPTIONS: SQLite.SQLiteOpenOptions = {
+  enableChangeListener: false,
+  finalizeUnusedStatementsBeforeClosing: true,
+  libSQLOptions: undefined,
+  useNewConnection: false,
+};
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getAppDatabase() {
   if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME).catch((error) => {
+    databasePromise = SQLite.openDatabaseAsync(
+      DATABASE_NAME,
+      DATABASE_OPEN_OPTIONS,
+    ).catch((error) => {
       databasePromise = null;
       throw error;
     });

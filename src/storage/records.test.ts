@@ -77,6 +77,12 @@ describe("records storage", () => {
     await recordsModule.deleteRecord("draft-2");
 
     expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    expect(openDatabaseAsync).toHaveBeenCalledWith("split-bill-mobile.db", {
+      enableChangeListener: false,
+      finalizeUnusedStatementsBeforeClosing: true,
+      libSQLOptions: undefined,
+      useNewConnection: false,
+    });
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS split_records"));
     expect(database.getAllAsync).toHaveBeenCalledWith(
       "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
