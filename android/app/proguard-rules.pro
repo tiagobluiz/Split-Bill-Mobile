@@ -11,4 +11,13 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Expo SQLite reflects Kotlin Record option classes when constructing native
+# database handles. R8 can otherwise strip the metadata/annotations used by
+# expo-modules-core to map ReadableMap values into OpenDatabaseOptions.
+-keep class expo.modules.sqlite.** { *; }
+-keep class expo.modules.kotlin.records.** { *; }
+-keep class * implements expo.modules.kotlin.records.Record { *; }
+-keep class kotlin.Metadata { *; }
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
 # Add any project specific keep options here:
