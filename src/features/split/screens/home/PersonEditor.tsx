@@ -14,6 +14,7 @@ import { screenStyles } from "../shared/styles";
 import { GroupAvatar } from "../shared/GroupAvatar";
 import { getTagColorStyle } from "../shared/TagChips";
 import { getAvatarTone } from "../shared/participantUtils";
+import { ActionSheetModal } from "../shared/modals";
 import { discardTemporaryPersonPhoto, persistPersonPhoto, removePersonPhoto } from "../../personPhotos";
 import type { PersonSaveDetails, SavePersonResult } from "../../store";
 import type { DraftRecord } from "../../../../storage/records";
@@ -173,6 +174,7 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
   const { t } = useTranslation();
   const [customColor, setCustomColor] = useState<`#${string}`>(() => person?.color?.startsWith("#") ? person.color as `#${string}` : "#ef476f");
   const [customColorOpen, setCustomColorOpen] = useState(false);
+  const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
   const name = normalizePersonName(draft.name);
 
   const choosePhoto = async (camera: boolean) => {
@@ -191,19 +193,15 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
     setUsedContactPhoto(false);
   };
 
-  const showPhotoOptions = () => Alert.alert(t("people.photoOptions"), "", [
-    { text: t("settings.profilePictureUpload"), onPress: () => void choosePhoto(false) },
-    { text: t("settings.profilePictureTake"), onPress: () => void choosePhoto(true) },
-    ...(draft.photoUri ? [{ text: t("groups.removePhoto"), style: "destructive" as const, onPress: () => {
+  const removePhoto = () => {
       if (draft.photoUri !== person?.photoUri) void discardTemporaryPersonPhoto(draft.photoUri);
       setDraft((current) => ({ ...current, photoUri: null }));
       setUsedContactPhoto(false);
-    } }] : []),
-    { text: t("common.cancel"), style: "cancel" as const },
-  ]);
+  };
 
-  return <View style={screenStyles.groupIdentityPanel}>
-    <Pressable accessibilityRole="button" accessibilityLabel={t("people.choosePhoto")} onPress={showPhotoOptions}>
+  return <>
+    <View style={screenStyles.groupIdentityPanel}>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("people.choosePhoto")} onPress={() => setPhotoOptionsOpen(true)}>
       <View style={screenStyles.groupLargeAvatar}>
         {draft.photoUri ? <Image source={{ uri: draft.photoUri }} style={screenStyles.groupLargeAvatarImage} /> : <View style={[screenStyles.groupLargeAvatar, { width: 104, height: 104, backgroundColor: getTagColorStyle(draft.color).background }]}><Text fontFamily={FONTS.bodyBold} fontSize={38} color={getTagColorStyle(draft.color).foreground}>{name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?"}</Text></View>}
         <View style={screenStyles.groupCameraBadge}><Camera size={17} color={PALETTE.onPrimary} /></View>
@@ -215,7 +213,18 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
       <View style={screenStyles.groupIdentityColorRow}>{COLORS.map(([color, swatch]) => <Pressable key={color} accessibilityRole="button" accessibilityLabel={t("people.selectColorA11y", { color: color.startsWith("#") ? color : t(`groups.colors.${color}` as any) })} accessibilityState={{ selected: draft.color === color }} style={[screenStyles.groupColorSwatch, { backgroundColor: swatch }, draft.color === color && screenStyles.groupColorSelected]} onPress={() => { setCustomColorOpen(false); setDraft((current) => ({ ...current, color })); }}>{draft.color === color ? <Check size={15} color={getTagColorStyle(color).foreground} /> : null}</Pressable>)}<Pressable accessibilityRole="button" accessibilityLabel={t("tags.addCustomColor")} style={[screenStyles.groupCustomColorButton, draft.color.startsWith("#") && screenStyles.tagEditorColorButtonSelected]} onPress={() => { const next = draft.color.startsWith("#") ? draft.color : customColor; setCustomColor(next as `#${string}`); setDraft((current) => ({ ...current, color: next })); setCustomColorOpen((open) => !open); }}><Text color={PALETTE.primary} fontSize={20}>+</Text></Pressable></View>
       {customColorOpen ? <View style={[screenStyles.tagColorPickerPanel, { maxWidth: 360, width: "100%", alignSelf: "center" }]}><ColorPicker color={customColor} onColorChange={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} onColorChangeComplete={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} thumbSize={28} sliderSize={22} noSnap row={false} swatches={false} useNativeDriver={false} useNativeLayout /></View> : null}
     </> : null}
-  </View>;
+    </View>
+    {photoOptionsOpen ? <ActionSheetModal
+      title={t("people.photoOptions")}
+      onDismiss={() => setPhotoOptionsOpen(false)}
+      options={[
+        { label: t("settings.profilePictureUpload"), onPress: () => { setPhotoOptionsOpen(false); void choosePhoto(false); } },
+        { label: t("settings.profilePictureTake"), onPress: () => { setPhotoOptionsOpen(false); void choosePhoto(true); } },
+        ...(draft.photoUri ? [{ label: t("groups.removePhoto"), tone: "danger" as const, onPress: () => { setPhotoOptionsOpen(false); removePhoto(); } }] : []),
+        { label: t("common.cancel"), onPress: () => setPhotoOptionsOpen(false) },
+      ]}
+    /> : null}
+  </>;
 }
 
 function PersonGroupsSection({ person, groups, groupIds, setDraft }: {

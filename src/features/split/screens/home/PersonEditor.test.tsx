@@ -169,45 +169,37 @@ describe("PersonEditor", () => {
 
   it("offers replacement and removal actions for a saved photo", () => {
     const ImagePicker = require("expo-image-picker");
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     renderEditor({ person: { ...existing, photoUri: "file:///owned/ana.jpg" } });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    expect(options.map((option) => option.text)).toEqual(["Upload photo", "Take photo", "Remove photo", "Cancel"]);
+    expect(screen.getByText("Person photo options")).toBeTruthy();
+    expect(screen.getByLabelText("Upload photo")).toBeTruthy();
+    expect(screen.getByLabelText("Take photo")).toBeTruthy();
+    expect(screen.getByLabelText("Remove photo")).toBeTruthy();
+    expect(screen.getByLabelText("Cancel")).toBeTruthy();
     expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
-    alert.mockRestore();
   });
 
   it("copies a picked photo into owned storage before saving and hides color choices", async () => {
     const ImagePicker = require("expo-image-picker");
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     const onSave = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
     renderEditor({ onSave });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Upload photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
     await waitFor(() => expect(screen.queryByText("Background color")).toBeNull());
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({ allowsEditing: true, aspect: [1, 1] }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoUri: "file:///owned/person.jpg" }));
-    alert.mockRestore();
   });
 
   it("removes a saved photo and returns to the initials and color appearance", async () => {
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     const onSave = jest.fn(async () => ({ ok: true as const, personId: existing.id }));
     renderEditor({ person: { ...existing, photoUri: "file:///owned/ana.jpg" }, people: [existing], onSave });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    act(() => options.find((option) => option.text === "Remove photo")?.onPress?.());
+    fireEvent.press(screen.getByLabelText("Remove photo"));
     expect(screen.getByText("Background color")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ personId: existing.id, photoUri: null }));
-    alert.mockRestore();
   });
 
   it("restores an archived person only when the prefilled editor is saved", async () => {
@@ -319,22 +311,18 @@ describe("PersonEditor", () => {
     renderEditor();
 
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    let options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Upload photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
     expect(alert).toHaveBeenLastCalledWith("Please allow photo access to choose a profile picture.", "", expect.any(Array));
     expect(screen.getByText("Background color")).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Take photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Take photo")); });
     expect(alert).toHaveBeenLastCalledWith("Please allow camera access to take a profile picture.", "", expect.any(Array));
 
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Upload photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Take photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Take photo")); });
     expect(screen.getByText("Background color")).toBeTruthy();
     expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
     expect(ImagePicker.launchCameraAsync).toHaveBeenCalledTimes(1);
@@ -342,14 +330,11 @@ describe("PersonEditor", () => {
   });
 
   it("cleans an owned photo copy after a rejected save and keeps the draft retryable", async () => {
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     const { removePersonPhoto } = require("../../personPhotos");
     const onSave = jest.fn().mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValue({ ok: true, personId: "person-new" });
     renderEditor({ onSave });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Upload photo")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
 
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
@@ -359,7 +344,6 @@ describe("PersonEditor", () => {
 
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(onSave).toHaveBeenCalledTimes(2);
-    alert.mockRestore();
   });
 
   it("maps duplicate save results to the existing identity and retries persistence errors", async () => {
