@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
-import { ArrowLeft, Camera, Check, ImagePlus, Search, Users } from "lucide-react-native";
+import { Alert, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { ArrowLeft, Camera, Check, ChevronRight, ImagePlus, Search, Trash2, Users } from "lucide-react-native";
 import ColorPicker from "react-native-wheel-color-picker";
 import { Text as TText, XStack as TXStack, YStack as TYStack } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +14,6 @@ import { screenStyles } from "../shared/styles";
 import { GroupAvatar } from "../shared/GroupAvatar";
 import { getTagColorStyle } from "../shared/TagChips";
 import { getAvatarTone } from "../shared/participantUtils";
-import { ActionSheetModal } from "../shared/modals";
 import { discardTemporaryPersonPhoto, persistPersonPhoto, removePersonPhoto } from "../../personPhotos";
 import type { PersonSaveDetails, SavePersonResult } from "../../store";
 import type { DraftRecord } from "../../../../storage/records";
@@ -172,6 +171,7 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
   setUsedContactPhoto: Dispatch<SetStateAction<boolean>>;
 }) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [customColor, setCustomColor] = useState<`#${string}`>(() => person?.color?.startsWith("#") ? person.color as `#${string}` : "#ef476f");
   const [customColorOpen, setCustomColorOpen] = useState(false);
   const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
@@ -214,17 +214,62 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
       {customColorOpen ? <View style={[screenStyles.tagColorPickerPanel, { maxWidth: 360, width: "100%", alignSelf: "center" }]}><ColorPicker color={customColor} onColorChange={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} onColorChangeComplete={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} thumbSize={28} sliderSize={22} noSnap row={false} swatches={false} useNativeDriver={false} useNativeLayout /></View> : null}
     </> : null}
     </View>
-    {photoOptionsOpen ? <ActionSheetModal
+    {photoOptionsOpen ? <PersonPhotoOptionsSheet
       title={t("people.photoOptions")}
+      cancelLabel={t("common.cancel")}
+      uploadLabel={t("settings.profilePictureUpload")}
+      cameraLabel={t("settings.profilePictureTake")}
+      removeLabel={t("groups.removePhoto")}
+      bottomInset={insets.bottom}
+      hasPhoto={Boolean(draft.photoUri)}
       onDismiss={() => setPhotoOptionsOpen(false)}
-      options={[
-        { label: t("settings.profilePictureUpload"), onPress: () => { setPhotoOptionsOpen(false); void choosePhoto(false); } },
-        { label: t("settings.profilePictureTake"), onPress: () => { setPhotoOptionsOpen(false); void choosePhoto(true); } },
-        ...(draft.photoUri ? [{ label: t("groups.removePhoto"), tone: "danger" as const, onPress: () => { setPhotoOptionsOpen(false); removePhoto(); } }] : []),
-        { label: t("common.cancel"), onPress: () => setPhotoOptionsOpen(false) },
-      ]}
+      onUpload={() => { setPhotoOptionsOpen(false); void choosePhoto(false); }}
+      onTakePhoto={() => { setPhotoOptionsOpen(false); void choosePhoto(true); }}
+      onRemove={() => { setPhotoOptionsOpen(false); removePhoto(); }}
     /> : null}
   </>;
+}
+
+function PersonPhotoOptionsSheet({ title, cancelLabel, uploadLabel, cameraLabel, removeLabel, bottomInset, hasPhoto, onDismiss, onUpload, onTakePhoto, onRemove }: {
+  title: string;
+  cancelLabel: string;
+  uploadLabel: string;
+  cameraLabel: string;
+  removeLabel: string;
+  bottomInset: number;
+  hasPhoto: boolean;
+  onDismiss: () => void;
+  onUpload: () => void;
+  onTakePhoto: () => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const rows = [
+    { label: uploadLabel, Icon: ImagePlus, onPress: onUpload, danger: false },
+    { label: cameraLabel, Icon: Camera, onPress: onTakePhoto, danger: false },
+    ...(hasPhoto ? [{ label: removeLabel, Icon: Trash2, onPress: onRemove, danger: true }] : []),
+  ];
+
+  return <Modal transparent visible animationType="slide" statusBarTranslucent onRequestClose={onDismiss}>
+    <View style={screenStyles.personPhotoSheetOverlay}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.personPhotoSheetBackdrop} onPress={onDismiss} />
+      <View style={[screenStyles.personPhotoSheet, { paddingBottom: Math.max(bottomInset, 16) }]}>
+        <View style={screenStyles.personPhotoSheetHandle} />
+        <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>{title}</Text>
+        <YStack gap="$2">
+          {rows.map(({ label, Icon, onPress, danger }) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[screenStyles.personPhotoSheetRow, danger && screenStyles.personPhotoSheetDangerRow]}>
+            <Icon size={25} color={danger ? PALETTE.danger : PALETTE.primary} />
+            <Text flex={1} fontFamily={FONTS.bodySemiBold} fontSize={17} color={danger ? PALETTE.danger : PALETTE.onSurface}>{label}</Text>
+            <ChevronRight size={21} color={danger ? PALETTE.danger : PALETTE.onSurfaceVariant} />
+          </Pressable>)}
+        </YStack>
+        <View style={screenStyles.personPhotoSheetDivider} />
+        <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={onDismiss} style={screenStyles.personPhotoSheetCancel}>
+          <Text fontFamily={FONTS.bodySemiBold} fontSize={17} color={PALETTE.onSurface}>{cancelLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  </Modal>;
 }
 
 function PersonGroupsSection({ person, groups, groupIds, setDraft }: {
