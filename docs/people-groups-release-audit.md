@@ -203,7 +203,8 @@ Date: 2026-10-19.
   visibility. Contacts permission was already granted on that emulator, so the
   runtime grant/denial prompt was not exercised there. The flow does not yet
   cover selected-contact import, photo picking, or adding a group member to a
-  split. The CI Maestro job is configured but has not yet run on GitHub Actions.
+  split. These were local emulator checks; the CI Maestro job and flow files
+  were later removed to keep routine pull-request builds lean.
 - The isolated emulator's retained `1.1.3`/versionCode `11` install accepted
   an in-place `2.0.0`/versionCode `12` update without clearing app data. This
   package-update check used the app-generated draft-only database described
@@ -315,7 +316,9 @@ No Android READY seal is issued while any of these gates is open.
   the explicitly selected clean disposable API 36 AVD (`emulator-5558`). This
   covers group creation, contact import empty state, person archival and
   archived-name restoration, group-member split addition, and selecting/saving
-  a seeded Android contact name. A manual Android Photo Picker smoke test
+  a seeded Android contact name. The temporary flow files were removed
+  afterward; this is historical QA evidence, not a currently replayable CI
+  suite. A manual Android Photo Picker smoke test
   selected a library image, completed square cropping, hid color controls for
   the photo-backed draft, saved the person, and showed it in the directory.
   Contact-photo import remains unverified. The CI workflow now builds the
