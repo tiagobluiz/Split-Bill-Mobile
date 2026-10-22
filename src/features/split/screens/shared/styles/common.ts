@@ -195,7 +195,7 @@ export const commonStyles = {
   personPhotoSheetCancel: {
     minHeight: 60,
     borderRadius: 20,
-    backgroundColor: PALETTE.surfaceContainerLow,
+    backgroundColor: "#eeeeee",
     alignItems: "center",
     justifyContent: "center",
   },
