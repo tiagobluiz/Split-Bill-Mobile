@@ -9,8 +9,11 @@ describe("settings storage", () => {
 
     const database = {
       execAsync: jest.fn(async () => undefined),
+      getAllAsync: jest.fn(async () => []),
       getFirstAsync: jest.fn(async () => options?.row ?? null),
       runAsync: jest.fn(async () => undefined),
+      closeAsync: jest.fn(async () => undefined),
+      withExclusiveTransactionAsync: jest.fn(async (operation: any): Promise<any> => operation(database)),
     };
 
     const openDatabaseAsync = jest.fn(async () => database);
@@ -68,7 +71,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -86,7 +89,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
     expect(database.runAsync).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT OR REPLACE INTO app_settings"),
+      expect.stringContaining("INSERT INTO app_settings"),
       [
         "app-settings",
         JSON.stringify({

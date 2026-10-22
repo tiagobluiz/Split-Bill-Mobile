@@ -447,6 +447,11 @@ export const commonStyles = {
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  confirmChoiceDangerButton: {
+    backgroundColor: PALETTE.dangerSurface,
+    borderWidth: 1,
+    borderColor: PALETTE.danger,
+  },
   selectRow: {
     minHeight: 78,
     backgroundColor: PALETTE.surfaceContainerLow,

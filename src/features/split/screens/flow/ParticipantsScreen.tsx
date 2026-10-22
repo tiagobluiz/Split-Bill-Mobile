@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   ChevronDown,
   Camera,
-  Check,
   ClipboardCopy,
   Equal,
   FileJson,
@@ -36,6 +35,7 @@ import {
   Settings,
   Share2,
   Trash2,
+  Users,
   X,
 } from "lucide-react-native";
 import {
@@ -87,11 +87,10 @@ import {
   getSettlementPreview,
   useSplitStore,
 } from "../../store";
+import { ParticipantSuggestions } from "./ParticipantSuggestions";
 import {
-  getAvatarTone,
   getCurrencyOptionLabel,
   getCurrencyOptions,
-  getFrequentFriends,
   getInitials,
   getParticipantDisplayName,
   getParticipantsStepErrors,
@@ -171,12 +170,19 @@ const ITEM_CATEGORY_OPTIONS = [
 export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { records, updateParticipants, setStep, settings } = useSplitStore(
+  const {
+    records,
+    updateParticipants,
+    setStep,
+    settings,
+    addParticipantsFromGroup,
+  } = useSplitStore(
     useShallow((state) => ({
       records: state.records,
       updateParticipants: state.updateParticipants,
       setStep: state.setStep,
       settings: state.settings,
+      addParticipantsFromGroup: state.addParticipantsFromGroup,
     })),
   );
   const [name, setName] = useState("");
@@ -206,22 +212,10 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     ...new Set(participantsStepErrors.map((error) => error.message)),
   ];
   const isParticipantsStepReady = participantsStepErrors.length === 0;
-  const activeParticipantNames = new Set(
-    record.values.participants
-      .map((participant) => participant.name.trim().toLowerCase())
-      .filter(Boolean),
-  );
   const sortedParticipants = sortParticipantsByName(record.values.participants);
-  const frequentFriends = getFrequentFriends(
-    records,
-    draftId,
-    settings.ownerName,
-  ).filter(
-    (friend) => !activeParticipantNames.has(friend.name.trim().toLowerCase()),
-  );
   const addParticipant = async (
     rawName: string,
-    options?: { keepKeyboardOpen?: boolean },
+    options?: { keepKeyboardOpen?: boolean; personId?: string },
   ) => {
     const trimmed = rawName.trim();
     if (!trimmed) {
@@ -238,7 +232,14 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         ) {
           return participants;
         }
-        return [...participants, { id: createId(), name: trimmed }];
+        return [
+          ...participants,
+          {
+            id: createId(),
+            name: trimmed,
+            ...(options?.personId ? { personId: options.personId } : {}),
+          },
+        ];
       });
     } catch (error) {
       console.warn("Failed to add participant", error);
@@ -257,14 +258,26 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       Keyboard.dismiss();
     }
   };
+  const peopleById = new Map((settings.people ?? []).map((person) => [person.id, person]));
+  const addGroupPeople = async (groupId: string, personIds?: string[]) => {
+    try {
+      await addParticipantsFromGroup(groupId, personIds);
+      setParticipantsNoticeMessages([]);
+    } catch (error) {
+      console.warn("Failed to add group participant", error);
+      setParticipantsNoticeMessages([t("flow.participants.addFailed")]);
+    }
+  };
   return (
     <AppScreen
       scroll={false}
       overlay={(
+        <>
         <SplitNoticeModal
           messages={participantsNoticeMessages}
           onDismiss={() => setParticipantsNoticeMessages([])}
         />
+        </>
       )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
@@ -316,66 +329,11 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <YStack gap="$5">
-          {frequentFriends.length > 0 ? (
-            <YStack gap="$4">
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={11}
-                color={PALETTE.onSurfaceVariant}
-                textTransform="uppercase"
-                letterSpacing={2.4}
-              >
-                {t("flow.participants.frequent")}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={screenStyles.frequentFriendsRow}
-              >
-                {frequentFriends.map((friend) => (
-                  <Pressable
-                    key={friend.name}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add frequent friend ${friend.name}`}
-                    style={screenStyles.frequentFriendItem}
-                    onPress={() =>
-                      void addParticipant(friend.name, {
-                        keepKeyboardOpen: false,
-                      })
-                    }
-                  >
-                    <View
-                      style={[
-                        screenStyles.frequentFriendFrame,
-                        friend.selected
-                          ? screenStyles.frequentFriendFrameSelected
-                          : null,
-                      ]}
-                    >
-                      <ParticipantAvatar
-                        name={friend.name}
-                        ownerName={settings.ownerName}
-                        ownerProfileImageUri={settings.ownerProfileImageUri}
-                        style={[
-                          screenStyles.frequentFriendAvatar,
-                          { backgroundColor: friend.background },
-                        ]}
-                        label={`Frequent friend avatar ${friend.name}`}
-                        textSize={18}
-                      />
-                    </View>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={12}
-                      color={PALETTE.onSurface}
-                    >
-                      {friend.name}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </YStack>
-          ) : null}
+          <ParticipantSuggestions
+            records={records} record={record} settings={settings}
+            onAddFriend={(name, personId) => { void addParticipant(name, { keepKeyboardOpen: false, personId }); }}
+            onAddGroup={addGroupPeople}
+          />
           <View style={screenStyles.participantInputShell}>
             <TextInput
               ref={participantInputRef}
@@ -427,6 +385,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                     participant={participant}
                     ownerName={settings.ownerName}
                     ownerProfileImageUri={settings.ownerProfileImageUri}
+                    person={participant.personId ? peopleById.get(participant.personId) : undefined}
                     onRemove={() => {
                       void updateParticipants((participants) =>
                         participants.filter(

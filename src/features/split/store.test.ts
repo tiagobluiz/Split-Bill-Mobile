@@ -9,6 +9,8 @@ type LoadedStore = {
     initializeSettingsStorage: jest.Mock;
     getAppSettings: jest.Mock;
     saveAppSettings: jest.Mock;
+    savePersonAndLinkedRecords: jest.Mock;
+    saveParticipantGroup: jest.Mock;
   };
   domainMocks: {
     buildClipboardSummary: jest.Mock;
@@ -160,7 +162,7 @@ async function loadStore(options?: {
         ? options.recordById
         : null,
     ),
-    saveRecord: jest.fn(async () => undefined),
+    saveRecord: jest.fn(async (_record?: any) => undefined),
     deleteRecord: jest.fn(async () => undefined),
     initializeSettingsStorage: jest.fn(async () => undefined),
     getAppSettings: jest.fn(async () => ({
@@ -172,7 +174,64 @@ async function loadStore(options?: {
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
     })),
-    saveAppSettings: jest.fn(async () => undefined),
+    saveAppSettings: jest.fn(async (_settings?: any) => undefined),
+    saveRecordsAndSettings: jest.fn(async (records: any[], settings: any): Promise<any> => {
+      await storageMocks.saveAppSettings(settings);
+      for (const record of records) await storageMocks.saveRecord(record);
+      return { records, settings };
+    }),
+    savePersonAndLinkedRecords: jest.fn(async (person: any, groupIds: string[], _requireExisting: boolean) => {
+      const current = storeModule!.useSplitStore.getState().settings;
+      const people = current.people ?? [];
+      const groups = current.participantGroups ?? [];
+      return {
+        settings: {
+          ...current,
+          people: people.some((entry: any) => entry.id === person.id)
+            ? people.map((entry: any) => entry.id === person.id ? person : entry)
+            : [...people, person],
+          participantGroups: groups.map((group: any) => ({
+            ...group,
+            memberPersonIds: groupIds.includes(group.id)
+              ? [...new Set([...group.memberPersonIds, person.id])]
+              : group.memberPersonIds.filter((id: string) => id !== person.id),
+          })),
+        },
+        records: [],
+      };
+    }),
+    saveParticipantGroup: jest.fn(async (groupId: string | null, input: any) => {
+      const current = storeModule!.useSplitStore.getState().settings;
+      const people = [...(current.people ?? [])];
+      const restoredPersonIds: string[] = [];
+      const createdPeople: any[] = [];
+      const memberPersonIds = new Set<string>(input.memberPersonIds);
+      for (const rawName of input.newPersonNames ?? []) {
+        const name = rawName.trim().replace(/\s+/g, " ");
+        let person = people.find((entry: any) => entry.name.toLowerCase() === name.toLowerCase());
+        if (!person) {
+          person = { id: `mock-person-${name.toLowerCase()}`, name, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+          people.push(person);
+          createdPeople.push(person);
+        } else if (person.archivedAt) {
+          const restored = { ...person, archivedAt: null, updatedAt: "2026-01-02" };
+          const index = people.findIndex((entry: any) => entry.id === restored.id);
+          people[index] = restored;
+          person = restored;
+          restoredPersonIds.push(restored.id);
+        }
+        memberPersonIds.add(person.id);
+      }
+      const previous = (current.participantGroups ?? []).find((entry) => entry.id === groupId);
+      const group = previous
+        ? { ...previous, ...input, id: previous.id, memberPersonIds: [...memberPersonIds], newPersonNames: undefined, usageCount: previous.usageCount, createdAt: previous.createdAt, updatedAt: "2026-01-02" }
+        : { ...input, id: "mock-group", name: input.name, memberPersonIds: [...memberPersonIds], usageCount: 0, createdAt: "2026-01-02", updatedAt: "2026-01-02", newPersonNames: undefined };
+      const participantGroups = previous
+        ? (current.participantGroups ?? []).map((entry) => entry.id === group.id ? group : entry)
+        : [...(current.participantGroups ?? []), group];
+      const settings = { ...current, people, participantGroups };
+      return { settings, group, restoredPersonIds, createdPeople };
+    }),
   };
 
   const actualDomain = jest.requireActual("../../domain");
@@ -257,6 +316,18 @@ async function loadStore(options?: {
   };
 
   jest.doMock("../../storage/records", () => storageMocks);
+  jest.doMock("../../storage/personIdentityMigration", () => ({ migratePersonIdentity: jest.fn(async () => undefined) }));
+  jest.doMock("../../storage/personDeletion", () => ({ deleteSavedPerson: async (personId: string) => {
+    const state = storeModule!.useSplitStore.getState();
+    const person = state.settings.people?.find((entry: any) => entry.id === personId);
+    if (!person) return { result: "missing" };
+    const used = state.getPersonDeletionImpact(personId).used;
+    const people = used ? (state.settings.people ?? []).map((entry: any) => entry.id === personId ? { ...entry, archivedAt: "now" } : entry)
+      : (state.settings.people ?? []).filter((entry: any) => entry.id !== personId);
+    const settings = { ...state.settings, people };
+    await storageMocks.saveAppSettings(settings);
+    return { result: used ? "archived" : "deleted", settings, photoUri: used ? null : person.photoUri };
+  } }));
   jest.doMock("../../storage/settings", () => ({
     ...jest.requireActual("../../storage/settings"),
     initializeSettingsStorage: storageMocks.initializeSettingsStorage,
@@ -325,6 +396,95 @@ async function loadReadyStore(options?: {
 }
 
 describe("split store", () => {
+  it("saves new group people and group metadata together", async () => {
+    const { storeModule, storageMocks } = await loadStore();
+    storeModule.useSplitStore.setState({
+      settings: {
+        ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR",
+        splitListAmountDisplay: "remaining", customCurrencies: [], people: [],
+      },
+    } as any);
+    const saved = await storeModule.useSplitStore.getState().addParticipantGroup(
+      "Roomies", [], { description: "Shared home", icon: "home", color: "mint" }, ["Ana", "Bruno"],
+    );
+    const settings = storeModule.useSplitStore.getState().settings;
+    expect(saved).toBe(true);
+    expect(settings.people?.map((person) => person.name)).toEqual(["Ana", "Bruno"]);
+    expect(settings.participantGroups?.[0]).toMatchObject({
+      name: "Roomies", description: "Shared home", icon: "home", color: "mint",
+      memberPersonIds: settings.people?.map((person) => person.id),
+    });
+    expect(storageMocks.saveParticipantGroup).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ name: "Roomies", newPersonNames: ["Ana", "Bruno"] }),
+    );
+  });
+
+  it("saves person appearance and memberships while preserving the linked participant identity", async () => {
+    const record = createRecord({
+      id: "person-linked-record",
+      values: { ...createValues(), participants: [
+        { id: "ana-local", name: "Ana", personId: "person-ana" },
+        { id: "bruno-local", name: "Bruno" },
+      ] },
+    });
+    const { storeModule, storageMocks } = await loadStore({ listRecords: [record] });
+    const person = { id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01", photoUri: null, color: "mint" as const };
+    storeModule.useSplitStore.setState({
+      ready: true,
+      records: [record],
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people: [person], participantGroups: [] },
+    } as any);
+
+    const result = await storeModule.useSplitStore.getState().savePerson({ personId: person.id, name: "Ana Maria", photoUri: "file:///ana.jpg", color: "#12abef", groupIds: [] });
+
+    expect(result).toEqual({ ok: true, personId: person.id });
+    expect(storeModule.useSplitStore.getState().settings.people?.[0]).toMatchObject({ name: "Ana Maria", photoUri: "file:///ana.jpg", color: "#12abef" });
+    const updated = storeModule.useSplitStore.getState().records[0]!;
+    expect(updated.values.participants[0]).toMatchObject({ id: "ana-local", name: "Ana Maria", personId: person.id });
+    expect(updated.values.participants[1]).toEqual(record.values.participants[1]);
+    expect(storageMocks.savePersonAndLinkedRecords).toHaveBeenCalledWith(expect.objectContaining({ id: person.id, name: "Ana Maria" }), [], true);
+  });
+
+  it("returns an existing-person match and blocks split participant rename collisions", async () => {
+    const record = createRecord({ values: { ...createValues(), participants: [
+      { id: "ana-local", name: "Ana", personId: "person-ana" },
+      { id: "bruno-local", name: "Bruno" },
+    ] } });
+    const { storeModule } = await loadStore({ listRecords: [record] });
+    const people = [
+      { id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+      { id: "person-old", name: "Carla", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" },
+    ];
+    storeModule.useSplitStore.setState({
+      ready: true, records: [record],
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people, participantGroups: [] },
+    } as any);
+
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "  CARLA ", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "duplicate", personId: "person-old" });
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: "person-ana", name: "Bruno", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "split-name-conflict", recordId: record.id });
+    expect(storeModule.useSplitStore.getState().records[0]?.values.participants[0]?.name).toBe("Ana");
+  });
+
+  it("archives people referenced by groups and permanently deletes unused people", async () => {
+    const { storeModule } = await loadStore({ listRecords: [] });
+    const used = { id: "used", name: "Ana", photoUri: "file:///ana.jpg", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const unused = { id: "unused", name: "Bruno", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const free = { id: "free", name: "Carla", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const group = { id: "g1", name: "Roomies", memberPersonIds: ["used", "unused"], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({
+      ready: true, records: [],
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people: [used, unused, free], participantGroups: [group] },
+    } as any);
+
+    await expect(storeModule.useSplitStore.getState().removePerson("used")).resolves.toBe("archived");
+    expect(storeModule.useSplitStore.getState().settings.participantGroups?.[0]?.memberPersonIds).toEqual(["used", "unused"]);
+    await expect(storeModule.useSplitStore.getState().removePerson("unused")).resolves.toBe("archived");
+    await expect(storeModule.useSplitStore.getState().removePerson("free")).resolves.toBe("deleted");
+    expect(storeModule.useSplitStore.getState().settings.people?.map((person) => person.id)).not.toContain("free");
+  });
+
   it("bootstraps, creates drafts, opens records, and removes records", async () => {
     const existing = createRecord({
       id: "draft-existing",
@@ -1218,7 +1378,7 @@ describe("split store", () => {
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values
         .participants,
-    ).toEqual([{ id: "solo", name: "Solo" }]);
+    ).toEqual([expect.objectContaining({ id: "solo", name: "Solo", personId: expect.any(String) })]);
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values
         .payerParticipantId,
@@ -1257,6 +1417,18 @@ describe("split store", () => {
         }),
       }),
     );
+  });
+
+  it("publishes a new participant only with a global identity before persistence resolves", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore({ record: createRecord({ values: { ...createValues(), participants: [], payerParticipantId: "" } }) });
+    const saveDeferred = createDeferred();
+    storageMocks.saveRecord.mockImplementationOnce(() => saveDeferred.promise);
+    const updatePromise = storeModule.useSplitStore.getState().updateParticipants([{ id: "new-local", name: "New Person" }]);
+    const participant = storeModule.useSplitStore.getState().getActiveRecord()!.values.participants[0];
+    expect(participant).toMatchObject({ id: "new-local", name: "New Person", personId: expect.any(String) });
+    expect(storeModule.useSplitStore.getState().settings.people ?? []).toEqual([]);
+    saveDeferred.resolve(undefined);
+    await updatePromise;
   });
 
   it("rolls back optimistic payer selection when persistence fails", async () => {
@@ -1566,9 +1738,9 @@ describe("split store", () => {
       storeModule.useSplitStore.getState().getActiveRecord()?.values
         .participants,
     ).toEqual([
-      { id: "zara", name: "Zara" },
-      { id: "ana", name: "Ana" },
-      { id: "mike", name: "mike" },
+      expect.objectContaining({ id: "zara", name: "Zara", personId: expect.any(String) }),
+      expect.objectContaining({ id: "ana", name: "Ana", personId: expect.any(String) }),
+      expect.objectContaining({ id: "mike", name: "mike", personId: expect.any(String) }),
     ]);
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values

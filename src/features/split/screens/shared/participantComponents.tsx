@@ -1,4 +1,5 @@
-import { Image, Pressable, View } from "react-native";
+import { Image, Pressable, Text as NativeText, View } from "react-native";
+import { useEffect, useState } from "react";
 import type { ImageStyle, StyleProp, ViewStyle } from "react-native";
 import { X } from "lucide-react-native";
 import {
@@ -10,6 +11,8 @@ import {
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { getAvatarTone, getInitials, getParticipantDisplayName, isOwnerReference } from "./participantUtils";
 import { screenStyles } from "./styles";
+import { getTagColorStyle } from "./TagChips";
+import type { SavedPerson } from "../../people";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
@@ -22,6 +25,7 @@ export function ParticipantAvatar({
   style,
   label,
   textSize = 15,
+  person,
 }: {
   name: string;
   ownerName: string;
@@ -29,7 +33,10 @@ export function ParticipantAvatar({
   style: StyleProp<ViewStyle | ImageStyle>;
   label: string;
   textSize?: number;
+  person?: Pick<SavedPerson, "photoUri" | "color">;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [person?.photoUri]);
   const imageUri = ownerProfileImageUri?.trim();
   if (isOwnerReference(name, ownerName) && imageUri) {
     return (
@@ -41,12 +48,28 @@ export function ParticipantAvatar({
     );
   }
 
+  if (person?.photoUri && !imageFailed) {
+    return <Image accessibilityLabel={label} source={{ uri: person.photoUri }} onError={() => setImageFailed(true)} style={[style as StyleProp<ImageStyle>, screenStyles.avatarImage]} />;
+  }
+
   const tone = getAvatarTone(name);
+  const personTone = person?.color ? getTagColorStyle(person.color) : tone;
   return (
-    <View accessibilityLabel={label} style={[style, { backgroundColor: tone.background }]}>
-      <Text fontFamily={FONTS.bodyBold} fontSize={textSize} color={tone.foreground}>
+    <View accessibilityLabel={label} style={[style, { backgroundColor: personTone.background }]}>
+      <NativeText
+        style={{
+          width: "100%",
+          color: personTone.foreground,
+          fontFamily: FONTS.bodyBold,
+          fontSize: textSize,
+          lineHeight: textSize + 2,
+          includeFontPadding: false,
+          textAlign: "center",
+          textAlignVertical: "center",
+        }}
+      >
         {getInitials(name)}
-      </Text>
+      </NativeText>
     </View>
   );
 }
@@ -55,12 +78,18 @@ export function ParticipantRow({
   participant,
   ownerName,
   ownerProfileImageUri,
+  subtitle,
+  removeLabel,
   onRemove,
+  person,
 }: {
   participant: { name: string };
   ownerName: string;
   ownerProfileImageUri?: string;
+  subtitle?: string;
+  removeLabel?: string;
   onRemove: () => void;
+  person?: Pick<SavedPerson, "photoUri" | "color">;
 }) {
   const displayName = getParticipantDisplayName(participant.name, ownerName);
 
@@ -73,6 +102,7 @@ export function ParticipantRow({
           ownerProfileImageUri={ownerProfileImageUri}
           style={screenStyles.participantAvatar}
           label={`Participant avatar ${participant.name.trim() || "unknown"}`}
+          person={person}
         />
         <YStack flex={1}>
           <Text
@@ -83,13 +113,14 @@ export function ParticipantRow({
           >
             {displayName}
           </Text>
+          {subtitle ? <Text fontFamily={FONTS.bodyMedium} fontSize={12} color={PALETTE.onSurfaceVariant}>{subtitle}</Text> : null}
         </YStack>
       </XStack>
       <Pressable
         onPress={onRemove}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`Remove participant ${participant.name}`}
+        accessibilityLabel={removeLabel ?? `Remove participant ${participant.name}`}
         style={screenStyles.participantRemoveButton}
       >
         <X color={PALETTE.onSurfaceVariant} size={20} />

@@ -3,7 +3,7 @@
     "name": "Split Bill",
     "slug": "split-bill-mobile",
     "scheme": "split-bill-mobile",
-    "version": "1.1.3",
+    "version": "2.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,8 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "versionCode": 11,
+      "versionCode": 12,
+      "permissions": ["android.permission.READ_CONTACTS"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#A54206"
@@ -44,6 +45,12 @@
         }
       ],
       "expo-router",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Split Bill to import a contact's name and photo as a person."
+        }
+      ],
       "@react-native-firebase/crashlytics",
       "expo-font",
       "expo-sqlite",

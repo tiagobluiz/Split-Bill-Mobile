@@ -1,4 +1,5 @@
-import { withAppDatabaseRetry } from "./database";
+import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
+import { assertPersonRegistry } from "./personIdentity";
 import {
   getDefaultTranslationSettings,
   normalizeHumour,
@@ -8,9 +9,16 @@ import {
 } from "../i18n";
 import { getDeviceLocale } from "../lib/device";
 import { normalizeTags, type SplitTag } from "../features/split/tags";
+import {
+  normalizeGroups,
+  normalizePeople,
+  type ParticipantGroup,
+  type SavedPerson,
+} from "../features/split/people";
 
 export type AppSettings = {
   ownerName: string;
+  ownerPersonId?: string;
   ownerProfileImageUri: string;
   balanceFeatureEnabled: boolean;
   trackPaymentsFeatureEnabled: boolean;
@@ -20,6 +28,8 @@ export type AppSettings = {
   humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
   tags?: SplitTag[];
+  people?: SavedPerson[];
+  participantGroups?: ParticipantGroup[];
   customCurrencies: Array<{
     code: string;
     name: string;
@@ -82,6 +92,8 @@ function getDefaultSettings(): AppSettings {
     humour: translationDefaults.humour,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
     tags: normalizeTags(undefined),
+    people: [],
+    participantGroups: [],
     customCurrencies: [],
   };
 }
@@ -137,8 +149,12 @@ export async function getAppSettings() {
       ? parsed.pdfDownloadDirectoryUri.trim()
       : undefined;
 
+  const people = normalizePeople(parsed.people);
+  const participantGroups = normalizeGroups(parsed.participantGroups, people);
+
   return {
     ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
+    ...(typeof parsed.ownerPersonId === "string" ? { ownerPersonId: parsed.ownerPersonId } : {}),
     ownerProfileImageUri:
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
     balanceFeatureEnabled: normalizedFlags.balanceFeatureEnabled,
@@ -162,6 +178,8 @@ export async function getAppSettings() {
       parsed.splitListAmountDisplay,
     ),
     tags: normalizeTags(parsed.tags),
+    people,
+    participantGroups,
     customCurrencies: Array.isArray(parsed.customCurrencies)
       ? parsed.customCurrencies
           .filter(
@@ -182,7 +200,7 @@ export async function getAppSettings() {
   };
 }
 
-export async function saveAppSettings(settings: AppSettings) {
+export function buildSettingsPayload(settings: AppSettings): AppSettings {
   const normalizedFlags = normalizeFeatureFlags({
     balanceFeatureEnabled: settings.balanceFeatureEnabled,
     trackPaymentsFeatureEnabled: settings.trackPaymentsFeatureEnabled,
@@ -194,12 +212,32 @@ export async function saveAppSettings(settings: AppSettings) {
       settings.splitListAmountDisplay,
     ),
     ...(settings.tags ? { tags: normalizeTags(settings.tags) } : {}),
+    ...(settings.people ? { people: normalizePeople(settings.people) } : {}),
+    ...(settings.participantGroups
+      ? {
+          participantGroups: normalizeGroups(
+            settings.participantGroups,
+            normalizePeople(settings.people),
+          ),
+        }
+      : {}),
   };
-  await withAppDatabaseRetry((db) =>
-    db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, payload)
-       VALUES (?, ?)`,
+  return payload;
+}
+
+export async function saveAppSettings(settings: AppSettings) {
+  assertPersonRegistry(settings);
+  const payload = buildSettingsPayload(settings);
+  await withDatabaseTransaction(async (db) => {
+    const references = await db.getAllAsync<{ person_id: string }>("SELECT DISTINCT person_id FROM split_person_memberships");
+    const ids = new Set((payload.people ?? []).map((person) => person.id));
+    if (references.some((reference) => !ids.has(reference.person_id)) || (payload.ownerPersonId && !ids.has(payload.ownerPersonId))) {
+      throw new Error("Cannot remove a referenced person");
+    }
+    await db.runAsync(
+      `INSERT INTO app_settings (key, payload)
+       VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload`,
       [SETTINGS_KEY, JSON.stringify(payload)]
-    )
-  );
+    );
+  });
 }

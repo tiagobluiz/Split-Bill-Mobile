@@ -87,6 +87,17 @@ describe("HomeBalanceCards", () => {
     }
   });
 
+  it("ignores unchanged widths and layout events without a measurable line", () => {
+    renderBalances(12_500, 2_000);
+    const owedContent = screen.getByTestId("home-balance-owed-content");
+    fireEvent(owedContent, "layout", { nativeEvent: { layout: { width: 180 } } });
+    fireEvent(owedContent, "layout", { nativeEvent: { layout: { width: 180 } } });
+    fireEvent(screen.getByTestId("home-balance-owed-measure"), "textLayout", {
+      nativeEvent: { lines: [] },
+    });
+    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(27);
+  });
+
   it("applies one shared font size based on the wider formatted amount", () => {
     renderBalances(2_750_000, 0);
 

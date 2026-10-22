@@ -196,6 +196,7 @@ export function ConfirmChoiceModal({
   body,
   confirmLabel,
   discardLabel,
+  confirmButtonVariant = "default",
   discardButtonVariant = "default",
   onConfirm,
   onDiscard,
@@ -204,6 +205,7 @@ export function ConfirmChoiceModal({
   body: string;
   confirmLabel: string;
   discardLabel: string;
+  confirmButtonVariant?: "default" | "danger";
   discardButtonVariant?: "default" | "secondaryPill";
   onConfirm: () => void;
   onDiscard: () => void;
@@ -220,8 +222,8 @@ export function ConfirmChoiceModal({
             {body}
           </Text>
           <YStack gap="$2">
-            <Pressable accessibilityRole="button" accessibilityLabel={confirmLabel} style={screenStyles.splitNoticeButton} onPress={onConfirm}>
-              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
+            <Pressable accessibilityRole="button" accessibilityLabel={confirmLabel} style={[screenStyles.splitNoticeButton, confirmButtonVariant === "danger" ? screenStyles.confirmChoiceDangerButton : null]} onPress={onConfirm}>
+              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={confirmButtonVariant === "danger" ? PALETTE.danger : PALETTE.onPrimary}>
                 {confirmLabel}
               </Text>
             </Pressable>
