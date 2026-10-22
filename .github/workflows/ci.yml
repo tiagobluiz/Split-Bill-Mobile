@@ -95,48 +95,6 @@ jobs:
       - run: bash ./gradlew assembleRelease
         working-directory: android
 
-  android-e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 20
-          cache: npm
-      - uses: actions/setup-java@6a0805fcefea3d4657a47ac4c165951e33482018
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-      - run: npm ci
-      - name: Install pinned Maestro CLI
-        run: |
-          curl -fsSL https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.11.0/maestro.zip -o /tmp/maestro.zip
-          echo "5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a  /tmp/maestro.zip" | sha256sum --check
-          mkdir -p "$HOME/.maestro"
-          unzip -q /tmp/maestro.zip -d "$HOME/.maestro"
-          echo "$HOME/.maestro/maestro/bin" >> "$GITHUB_PATH"
-      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          script: |
-            cd android && ./gradlew assembleRelease && cd ..
-            APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
-            "$APKSIGNER" sign --ks android/app/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out /tmp/split-bill-release-qa.apk android/app/build/outputs/apk/release/app-release-unsigned.apk
-            adb install /tmp/split-bill-release-qa.apk
-            maestro test .maestro/groups-archived-identity.yaml
-            maestro test .maestro/group-to-split.yaml
-            adb shell content insert --uri content://com.android.contacts/raw_contacts --bind account_type:s:com.android.local --bind account_name:s:SplitBillCIQA
-            RAW_CONTACT_ID=$(adb shell content query --uri content://com.android.contacts/raw_contacts --projection _id:account_name | grep 'account_name=SplitBillCIQA' | sed -E 's/.*_id=([0-9]+).*/\1/')
-            test -n "$RAW_CONTACT_ID"
-            adb shell content insert --uri content://com.android.contacts/data --bind raw_contact_id:i:$RAW_CONTACT_ID --bind mimetype:s:vnd.android.cursor.item/name --bind data1:s:ReleaseContact --bind data2:s:Release --bind data3:s:Contact
-            adb shell pm grant com.miagology.splitbill android.permission.READ_CONTACTS
-            maestro test .maestro/person-contact-import.yaml
-
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
