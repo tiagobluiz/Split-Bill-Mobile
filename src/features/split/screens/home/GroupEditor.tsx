@@ -12,6 +12,7 @@ import { useTranslation } from "../../../../i18n/provider";
 import { normalizeGroupName, normalizePersonName, sortPeopleByName, type ParticipantGroup, type SavedPerson } from "../../people";
 import { createCustomTagIcon, type SplitTagColor, type SplitTagIcon } from "../../tags";
 import { screenStyles } from "../shared/styles";
+import { PhotoOptionsSheet } from "../shared/PhotoOptionsSheet";
 import { GroupAvatar } from "../shared/GroupAvatar";
 import { discardTemporaryGroupPhoto, persistGroupPhoto, removeGroupPhoto } from "../../groupPhotos";
 import { getTagIcon } from "../shared/TagChips";
@@ -30,6 +31,9 @@ function findArchivedNameMatch(people: SavedPerson[], value: string) {
   const normalized = normalizePersonName(value).toLowerCase();
   return people.find((person) => person.archivedAt && normalizePersonName(person.name).toLowerCase() === normalized);
 }
+function discardGroupPhotoDraft(photoUri: string | null, savedPhotoUri?: string | null) {
+  if (photoUri !== savedPhotoUri) void discardTemporaryGroupPhoto(photoUri);
+}
 export function GroupEditor({ group, initialStep = 1, people, allPeople, groups, ownerName = "", ownerProfileImageUri, onCancel, onSave, onBusyChange }: { group: ParticipantGroup | null; initialStep?: 1 | 2; people: SavedPerson[]; allPeople: SavedPerson[]; groups: ParticipantGroup[]; ownerName?: string; ownerProfileImageUri?: string; onCancel: () => void; onSave: (draft: Draft) => Promise<boolean>; onBusyChange?: (busy: boolean) => void }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -37,6 +41,7 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
   const [draft, setDraft] = useState<Draft>({ name: group?.name ?? "", description: group?.description ?? "", photoUri: group?.photoUri ?? null, icon: group?.icon ?? "home", color: group?.color ?? "orange", memberPersonIds: group?.memberPersonIds ?? [], newPersonNames: [] });
   const [customColor, setCustomColor] = useState<`#${string}`>(() => group?.color && group.color.startsWith("#") ? group.color as `#${string}` : "#ef476f");
   const [customColorOpen, setCustomColorOpen] = useState(false);
+  const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
   const [query, setQuery] = useState(""); const [contactQuery, setContactQuery] = useState("");
   const [contacts, setContacts] = useState<Array<{ id: string; name: string }>>([]); const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [contactOpen, setContactOpen] = useState(false); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
@@ -107,17 +112,30 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
         {step === 1 ? <>
           <YStack gap="$1"><Text fontFamily={FONTS.headlineBlack} fontSize={28}>{t("groups.detailsTitle")}</Text><Text color={PALETTE.onSurfaceVariant} fontFamily={FONTS.bodyMedium}>{t("groups.detailsDescription")}</Text></YStack>
           <View style={screenStyles.groupIdentityPanel}>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("groups.choosePhoto")} onPress={() => Alert.alert(t("groups.choosePhoto"), "", [
-              { text: t("groups.photoLibrary"), onPress: () => void pickPhoto(false) },
-              { text: t("groups.photoCamera"), onPress: () => void pickPhoto(true) },
-              ...(draft.photoUri ? [{ text: t("groups.removePhoto"), style: "destructive" as const, onPress: () => { if (draft.photoUri !== group?.photoUri) void discardTemporaryGroupPhoto(draft.photoUri); setDraft((d) => ({ ...d, photoUri: null })); } }] : []),
-              { text: t("common.cancel"), style: "cancel" },
-            ])}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("groups.choosePhoto")} onPress={() => setPhotoOptionsOpen(true)}>
               <View style={screenStyles.groupLargeAvatar}>
                 {draft.photoUri ? <Image source={{ uri: draft.photoUri }} style={screenStyles.groupLargeAvatarImage} /> : <GroupAvatar group={draft} size={104} />}
                 <View style={screenStyles.groupCameraBadge}><Camera size={17} color={PALETTE.onPrimary} /></View>
               </View>
             </Pressable>
+            <PhotoOptionsSheet
+              visible={photoOptionsOpen}
+              title={t("groups.choosePhoto")}
+              cancelLabel={t("common.cancel")}
+              uploadLabel={t("groups.photoLibrary")}
+              cameraLabel={t("groups.photoCamera")}
+              removeLabel={t("groups.removePhoto")}
+              bottomInset={insets.bottom}
+              hasPhoto={Boolean(draft.photoUri)}
+              onDismiss={() => setPhotoOptionsOpen(false)}
+              onUpload={() => { setPhotoOptionsOpen(false); void pickPhoto(false); }}
+              onTakePhoto={() => { setPhotoOptionsOpen(false); void pickPhoto(true); }}
+              onRemove={() => {
+                setPhotoOptionsOpen(false);
+                discardGroupPhotoDraft(draft.photoUri, group?.photoUri);
+                setDraft((current) => ({ ...current, photoUri: null }));
+              }}
+            />
             {!draft.photoUri ? <>
               <FieldLabel>{t("groups.chooseIcon")}</FieldLabel>
               <View style={screenStyles.groupIdentityOptionsRow}>

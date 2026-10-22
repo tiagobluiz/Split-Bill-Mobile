@@ -315,19 +315,15 @@ describe("GroupEditor", () => {
 
   it("replaces a group icon with a picked photo and restores appearance controls when removed", async () => {
     const ImagePicker = require("expo-image-picker");
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     const onSave = jest.fn(async () => true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Choose group photo"));
-    const photoOptions = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { photoOptions.find((option) => option.text === "Photo library")?.onPress?.(); await Promise.resolve(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
     await waitFor(() => expect(screen.queryByText("Choose an icon")).toBeNull());
     expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({ allowsEditing: true, aspect: [1, 1] }));
 
     fireEvent.press(screen.getByLabelText("Choose group photo"));
-    const replacementOptions = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    act(() => replacementOptions.find((option) => option.text === "Remove photo")?.onPress?.());
+    fireEvent.press(screen.getByLabelText("Remove photo"));
     expect(screen.getByText("Choose an icon")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Roomies");
     fireEvent.press(screen.getByText("Continue to members"));
@@ -335,27 +331,20 @@ describe("GroupEditor", () => {
     fireEvent.press(screen.getByText("Add “Maya”"));
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoUri: null }));
-    alert.mockRestore();
   });
 
   it("leaves the group draft unchanged when photo access is denied", async () => {
     const ImagePicker = require("expo-image-picker");
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     ImagePicker.launchImageLibraryAsync.mockClear();
     ImagePicker.requestMediaLibraryPermissionsAsync.mockImplementationOnce(async () => ({ granted: false }));
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Choose group photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Photo library")?.onPress?.(); await Promise.resolve(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
     expect(screen.getByText("Choose an icon")).toBeTruthy();
     expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
-    alert.mockRestore();
   });
 
   it("cleans only a replacement photo copy after save failure and removes the old photo after retry succeeds", async () => {
-    const Alert = require("react-native").Alert;
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     const { removeGroupPhoto } = require("../../groupPhotos");
     const member = { id: "p1", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const group = { id: "g1", name: "Roomies", memberPersonIds: [member.id], usageCount: 2, createdAt: "2025-01-01", updatedAt: "2026-01-01", photoUri: "file:///owned/previous.jpg" };
@@ -363,8 +352,7 @@ describe("GroupEditor", () => {
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[member]} allPeople={[member]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
 
     fireEvent.press(screen.getByLabelText("Choose group photo"));
-    const options = alert.mock.calls.at(-1)?.[2] as Array<{ text: string; onPress?: () => void }>;
-    await act(async () => { options.find((option) => option.text === "Photo library")?.onPress?.(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); });
     fireEvent.press(screen.getByText("Continue to members"));
 
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
@@ -375,6 +363,5 @@ describe("GroupEditor", () => {
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
     expect(onSave).toHaveBeenCalledTimes(2);
     expect(removeGroupPhoto).toHaveBeenCalledWith(group.photoUri);
-    alert.mockRestore();
   });
 });
