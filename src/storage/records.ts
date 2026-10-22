@@ -10,7 +10,7 @@ import {
   type ReminderState,
 } from "../features/split/reminders";
 import { normalizeTagIds } from "../features/split/tags";
-import { createGroup, createPerson, normalizeGroupName, normalizePersonName, normalizePeople, normalizeGroups, type SavedPerson, type ParticipantGroup } from "../features/split/people";
+import { createGroup, createPerson, mergePeopleRegistry, normalizeGroupName, normalizePersonName, normalizePeople, normalizeGroups, type SavedPerson, type ParticipantGroup } from "../features/split/people";
 
 export type RecordStatus = "draft" | "completed";
 
@@ -198,7 +198,13 @@ function toRawRow(record: DraftRecord): RawSplitRow {
 async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], suppliedSettings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = []) {
   const settingsRow = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
   const original = settingsRow ? parseObject(settingsRow.payload, "settings") : {};
-  const proposed = suppliedSettings ? { ...original, ...suppliedSettings } : original;
+  const proposed = suppliedSettings ? {
+    ...original,
+    ...suppliedSettings,
+    ...(original.people !== undefined || suppliedSettings.people !== undefined
+      ? { people: mergePeopleRegistry(original.people, suppliedSettings.people) }
+      : {}),
+  } : original;
   if (restorePersonIds.length) {
     const restoreIds = new Set(restorePersonIds);
     proposed.people = (Array.isArray(proposed.people) ? proposed.people : []).map((person: SavedPerson) =>

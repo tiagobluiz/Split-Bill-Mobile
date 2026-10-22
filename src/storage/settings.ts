@@ -1,5 +1,5 @@
 import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
-import { assertPersonRegistry } from "./personIdentity";
+import { assertPersonRegistry, parseObject } from "./personIdentity";
 import {
   getDefaultTranslationSettings,
   normalizeHumour,
@@ -12,6 +12,7 @@ import { normalizeTags, type SplitTag } from "../features/split/tags";
 import {
   normalizeGroups,
   normalizePeople,
+  mergePeopleRegistry,
   type ParticipantGroup,
   type SavedPerson,
 } from "../features/split/people";
@@ -226,9 +227,20 @@ export function buildSettingsPayload(settings: AppSettings): AppSettings {
 }
 
 export async function saveAppSettings(settings: AppSettings) {
-  assertPersonRegistry(settings);
-  const payload = buildSettingsPayload(settings);
   await withDatabaseTransaction(async (db) => {
+    const currentRow = await db.getFirstAsync<{ payload: string }>(
+      "SELECT payload FROM app_settings WHERE key = ?",
+      [SETTINGS_KEY],
+    );
+    const current = currentRow ? parseObject(currentRow.payload, "settings") : {};
+    const mergedSettings = {
+      ...settings,
+      ...(current.people !== undefined || settings.people !== undefined
+        ? { people: mergePeopleRegistry(current.people, settings.people) }
+        : {}),
+    };
+    const payload = buildSettingsPayload(mergedSettings);
+    assertPersonRegistry(payload);
     const references = await db.getAllAsync<{ person_id: string }>("SELECT DISTINCT person_id FROM split_person_memberships");
     const ids = new Set((payload.people ?? []).map((person) => person.id));
     if (references.some((reference) => !ids.has(reference.person_id)) || (payload.ownerPersonId && !ids.has(payload.ownerPersonId))) {

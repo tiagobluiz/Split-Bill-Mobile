@@ -83,6 +83,20 @@ export function normalizePeople(value: unknown): SavedPerson[] {
     .filter((entry): entry is SavedPerson => Boolean(entry));
 }
 
+export function mergePeopleRegistry(currentValue: unknown, requestedValue: unknown): SavedPerson[] {
+  const current = normalizePeople(currentValue);
+  const requested = normalizePeople(requestedValue);
+  const requestedById = new Map(requested.map((person) => [person.id, person]));
+  const merged = current.map((person) => {
+    const update = requestedById.get(person.id);
+    if (!update) return person;
+    requestedById.delete(person.id);
+    return update.updatedAt > person.updatedAt ? update : person;
+  });
+  merged.push(...requestedById.values());
+  return normalizePeople(merged);
+}
+
 export function normalizeGroups(
   value: unknown,
   people: SavedPerson[] = [],

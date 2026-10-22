@@ -100,6 +100,16 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("Delete group")).toBeTruthy();
   });
 
+  it("clears the long-press guard when the group action sheet is dismissed", () => {
+    renderDirectory();
+    const groupTile = screen.getByLabelText("Roomies");
+    fireEvent(groupTile, "longPress");
+    fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
+    fireEvent.press(groupTile);
+
+    expect(screen.getByText("Group details")).toBeTruthy();
+  });
+
   it("confirms deletion and removes only the selected group", () => {
     const onRemoveGroup = jest.fn(async () => undefined);
     renderDirectory(onRemoveGroup);
@@ -202,6 +212,11 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("Delete group?")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByLabelText("Delete group")); });
     expect(onRemoveGroup).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/Could not save settings/)).toBeNull();
+    fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
+    fireEvent.press(screen.getByText("Delete group"));
+    expect(screen.queryByText(/Could not save settings/)).toBeNull();
+    fireEvent.press(screen.getByLabelText("Cancel"));
   });
 
   it("filters archived people and allows deleting an unused person permanently", async () => {

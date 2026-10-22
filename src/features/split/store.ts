@@ -246,6 +246,9 @@ const recordWriteStates = new Map<string, {
 function resolveParticipantPerson(participant: ParticipantsValue[number], settings: AppSettings) {
   if (participant.personId) return { participant, created: null as SavedPerson | null, restorePersonId: null as string | null };
   const normalized = normalizePersonName(participant.name);
+  if (settings.ownerPersonId && isOwnerAlias(normalized, settings.ownerName)) {
+    return { participant: { ...participant, personId: settings.ownerPersonId }, created: null, restorePersonId: null };
+  }
   const existing = findPersonByName(settings.people ?? [], normalized);
   if (existing) return { participant: { ...participant, name: existing.name, personId: existing.id }, created: null, restorePersonId: existing.archivedAt ? existing.id : null };
   const key = normalized.toLowerCase();
@@ -1368,7 +1371,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       draft.values = ensureItemsAligned(draft.values);
     }, { recomputeStatusOnValueChange: true });
     set({ records: nextRecords(get().records, nextRecord) });
+    const nextReminderIds = listReminderNotificationIds(nextRecord.reminderState);
+    const removedReminderIds = [...listReminderNotificationIds(target.reminderState)].filter((id) => !nextReminderIds.has(id));
     await persistRecord(nextRecord, [...pending.values()], target, [...restorePersonIds]);
+    await Promise.allSettled(removedReminderIds.map((notificationId) => cancelReminder(notificationId)));
   },
   async setPayer(participantId) {
     await withOptimisticActiveRecord(set, get, (record) =>

@@ -2,13 +2,14 @@ describe("records storage", () => {
   async function loadModule(options?: {
     rows?: any[];
     row?: any | null;
+    settingsRow?: any | null;
   }) {
     jest.resetModules();
 
     const database = {
       execAsync: jest.fn(async () => undefined),
       getAllAsync: jest.fn(async (sql: string) => sql.includes("SELECT DISTINCT person_id") ? [] : options?.rows ?? []),
-      getFirstAsync: jest.fn(async (sql: string) => sql.includes("FROM app_settings") ? null : options?.row ?? null),
+      getFirstAsync: jest.fn(async (sql: string) => sql.includes("FROM app_settings") ? options?.settingsRow ?? null : options?.row ?? null),
       runAsync: jest.fn(async (..._args: any[]) => undefined),
       closeAsync: jest.fn(async () => undefined),
       withExclusiveTransactionAsync: jest.fn(async (operation: any): Promise<any> => operation(database)),
@@ -149,6 +150,27 @@ describe("records storage", () => {
     );
     expect(database.runAsync).toHaveBeenCalledWith("DELETE FROM split_records WHERE id = ?", ["draft-2"]);
     expect(database.runAsync).toHaveBeenCalledWith("INSERT INTO split_person_memberships (split_id, participant_id, person_id) VALUES (?, ?, ?)", ["draft-2", "payer", personId]);
+  });
+
+  it("keeps registry people that are absent from a stale settings snapshot during record writes", async () => {
+    const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+    const { database, recordsModule } = await loadModule({
+      settingsRow: { payload: JSON.stringify({ ownerName: "You", people: [person] }) },
+    });
+    const record = {
+      id: "draft-bruno", status: "draft", step: 1,
+      values: { splitName: "", currency: "EUR", payerParticipantId: "bruno-local", participants: [{ id: "bruno-local", name: "Bruno", personId: person.id }], items: [] },
+      settlementState: { settledParticipantIds: [] }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", completedAt: null,
+    };
+
+    await recordsModule.saveRecordsAndSettings([record] as any, {
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en",
+      humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [],
+    } as any);
+
+    const settingsWrite = database.runAsync.mock.calls.find((call: any[]) => call[0].includes("INSERT INTO app_settings"))!;
+    expect(JSON.parse(settingsWrite[1][1]).people).toContainEqual(person);
   });
 
   it("returns null when a requested record does not exist", async () => {

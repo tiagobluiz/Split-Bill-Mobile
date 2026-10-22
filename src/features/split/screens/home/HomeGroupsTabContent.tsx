@@ -56,6 +56,14 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
   const filteredPeople = allPeople.filter((p) => (peopleFilter === "archived") === Boolean(p.archivedAt) && p.name.toLowerCase().includes(search.trim().toLowerCase()));
 
   useEffect(() => {
+    if (!groupActionMenu) longPressedGroupId.current = null;
+  }, [groupActionMenu]);
+
+  useEffect(() => {
+    if (!personActionMenu) longPressedPersonId.current = null;
+  }, [personActionMenu]);
+
+  useEffect(() => {
     if (!groupActionMenu) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       setGroupActionMenu(null);
@@ -144,8 +152,8 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
       { label: t("people.editPersonAction"), accessibilityLabel: t("people.editPersonA11y", { person: personActionMenu.name }), icon: <Pencil size={18} color={PALETTE.primary} />, onPress: () => { setEditingPerson(personActionMenu); setPersonActionMenu(null); longPressedPersonId.current = null; } },
       { label: t("people.deletePersonAction"), accessibilityLabel: t("people.deletePersonA11y", { person: personActionMenu.name }), icon: <Trash2 size={18} color={PALETTE.danger} />, tone: "danger", onPress: () => { setPendingDeletePerson(personActionMenu); setPersonActionMenu(null); longPressedPersonId.current = null; } },
     ]} /> : null}
-    {pendingDeletePerson ? <ConfirmChoiceModal title={t("people.deletePersonTitle")} body={`${(() => { const impact = onGetPersonDeletionImpact(pendingDeletePerson.id); return t(impact.used ? "people.deletePersonArchivePrompt" : "people.deletePersonPermanentPrompt", { person: pendingDeletePerson.name }); })()}${deletionError ? `\n${t("common.couldNotSaveSettings")}` : ""}`} confirmLabel={t("people.deletePersonAction")} confirmButtonVariant="danger" discardLabel={t("common.cancel")} onConfirm={() => { void onRemovePerson(pendingDeletePerson.id).then(() => setPendingDeletePerson(null)).catch(() => setDeletionError(true)); }} onDiscard={() => { setPendingDeletePerson(null); setDeletionError(false); }} /> : null}
-    {groupActionMenu ? <ActionIconGridModal title={t("groups.actionsTitle", { group: groupActionMenu.name })} onDismiss={() => setGroupActionMenu(null)} options={[
+    {pendingDeletePerson ? <ConfirmChoiceModal title={t("people.deletePersonTitle")} body={`${(() => { const impact = onGetPersonDeletionImpact(pendingDeletePerson.id); return t(impact.used ? "people.deletePersonArchivePrompt" : "people.deletePersonPermanentPrompt", { person: pendingDeletePerson.name }); })()}${deletionError ? `\n${t("common.couldNotSaveSettings")}` : ""}`} confirmLabel={t("people.deletePersonAction")} confirmButtonVariant="danger" discardLabel={t("common.cancel")} onConfirm={() => { setDeletionError(false); void onRemovePerson(pendingDeletePerson.id).then(() => { setDeletionError(false); setPendingDeletePerson(null); }).catch(() => setDeletionError(true)); }} onDiscard={() => { setPendingDeletePerson(null); setDeletionError(false); }} /> : null}
+    {groupActionMenu ? <ActionIconGridModal title={t("groups.actionsTitle", { group: groupActionMenu.name })} onDismiss={() => { setGroupActionMenu(null); longPressedGroupId.current = null; }} options={[
       { label: t("groups.editDetails"), accessibilityLabel: t("groups.openDetailsA11y", { group: groupActionMenu.name }), icon: <Pencil color={PALETTE.primary} size={18} />, onPress: () => { setGroupActionMenu(null); openGroupEditor(groupActionMenu, 1); } },
       { label: t("groups.editMembers"), accessibilityLabel: t("groups.openMembersA11y", { group: groupActionMenu.name }), icon: <Users color={PALETTE.primary} size={18} />, onPress: () => { setGroupActionMenu(null); openGroupEditor(groupActionMenu, 2); } },
       { label: t("groups.deleteAction"), accessibilityLabel: t("people.deleteGroupA11y", { group: groupActionMenu.name }), icon: <Trash2 color={PALETTE.danger} size={18} />, tone: "danger", onPress: () => {
@@ -160,7 +168,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
       confirmLabel={t("groups.deleteAction")}
       confirmButtonVariant="danger"
       discardLabel={t("common.cancel")}
-      onConfirm={() => { void onRemoveGroup(pendingDeleteGroup.id).then(() => setPendingDeleteGroup(null)).catch(() => setDeletionError(true)); }}
+      onConfirm={() => { setDeletionError(false); void onRemoveGroup(pendingDeleteGroup.id).then(() => { setDeletionError(false); setPendingDeleteGroup(null); }).catch(() => setDeletionError(true)); }}
       onDiscard={() => { setPendingDeleteGroup(null); setDeletionError(false); }}
     /> : null}
   </YStack>;
@@ -174,7 +182,7 @@ function GroupMemberAvatars({ members, ownerName, ownerProfileImageUri, onPress,
   const [width, setWidth] = useState(0);
   const diameter = 32;
   const overlap = 9;
-  const capacity = width > 0 ? Math.max(1, Math.floor((width + overlap) / (diameter - overlap))) : 3;
+  const capacity = width > 0 ? Math.max(1, Math.floor((width - overlap) / (diameter - overlap))) : 3;
   const visibleCount = members.length > capacity ? Math.max(0, capacity - 1) : capacity;
   const visibleMembers = members.slice(0, visibleCount);
   const overflow = members.length - visibleMembers.length;

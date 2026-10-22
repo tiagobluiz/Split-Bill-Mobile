@@ -1394,6 +1394,19 @@ describe("split store", () => {
     ).toBe("solo");
   });
 
+  it("links the reserved You alias to the configured owner identity", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore({ record: createRecord({ values: { ...createValues(), participants: [], payerParticipantId: "" } }) });
+    const owner = { id: "owner-id", name: "Alice", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, ownerName: "Alice", ownerPersonId: owner.id, people: [owner] } }));
+
+    await storeModule.useSplitStore.getState().updateParticipants([{ id: "owner-local", name: "You" }]);
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.values.participants).toEqual([
+      { id: "owner-local", name: "You", personId: owner.id },
+    ]);
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(expect.objectContaining({ values: expect.objectContaining({ participants: [{ id: "owner-local", name: "You", personId: owner.id }] }) }));
+  });
+
   it("optimistically updates payer selection before persistence finishes", async () => {
     const { storeModule, storageMocks } = await loadReadyStore();
     const saveDeferred = createDeferred();
@@ -2103,6 +2116,18 @@ describe("split store", () => {
     expect(reminderMocks.cancelReminder).toHaveBeenCalledWith(
       "reminder-notification",
     );
+  });
+
+  it("cancels a participant reminder when updateParticipants removes that participant", async () => {
+    const record = createRecord({ reminderState: { participantDebtReminders: {
+      bruno: { notificationId: "bruno-reminder", scheduledForIso: "2099-01-01T10:00:00.000Z", createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+    } } });
+    const { storeModule, reminderMocks, domainMocks } = await loadReadyStore({ record });
+    domainMocks.computeSettlement.mockReturnValue({ ok: true, data: { people: [] } });
+
+    await storeModule.useSplitStore.getState().updateParticipants([{ id: "ana", name: "Ana" }]);
+
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("bruno-reminder");
   });
 
   it("clears split and participant reminders when the bill is marked as paid", async () => {

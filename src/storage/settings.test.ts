@@ -4,12 +4,13 @@ describe("settings storage", () => {
   async function loadModule(options?: {
     row?: any | null;
     locale?: string;
+    references?: Array<{ person_id: string }>;
   }) {
     jest.resetModules();
 
     const database = {
       execAsync: jest.fn(async () => undefined),
-      getAllAsync: jest.fn(async () => []),
+      getAllAsync: jest.fn(async () => options?.references ?? []),
       getFirstAsync: jest.fn(async () => options?.row ?? null),
       runAsync: jest.fn(async () => undefined),
       closeAsync: jest.fn(async () => undefined),
@@ -105,6 +106,47 @@ describe("settings storage", () => {
         }),
       ]
     );
+  });
+
+  it("preserves people committed after a settings snapshot was read", async () => {
+    const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [person] }) },
+      references: [{ person_id: person.id }],
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "You",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: "en",
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    expect(JSON.parse(saveArgs[1][1]).people).toEqual([person]);
+  });
+
+  it("does not re-archive a person from an older settings snapshot", async () => {
+    const active = { id: "person-ana", name: "Ana", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-02-02T00:00:00.000Z" };
+    const staleArchived = { ...active, archivedAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [active] }) },
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en",
+      humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [],
+      people: [staleArchived],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    expect(JSON.parse(saveArgs[1][1]).people).toEqual([active]);
   });
 
   it("normalizes feature flags before saving settings payloads", async () => {

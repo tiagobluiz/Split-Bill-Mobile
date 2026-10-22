@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
 import type { ParticipantGroup, SavedPerson } from "../../people";
+import { getAvatarTone } from "../shared/participantUtils";
 import { PersonEditor } from "./PersonEditor";
 
 jest.mock("expo-image-picker", () => ({
@@ -102,8 +103,18 @@ describe("PersonEditor", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       personId: null,
       name: "Carla",
+      color: getAvatarTone("Carla").background,
       groupIds: [group.id],
     }));
+  });
+
+  it("derives a new person's default avatar color from the entered name", async () => {
+    const onSave = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
+    renderEditor({ onSave });
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ color: getAvatarTone("Carla").background }));
   });
 
   it("keeps a last group member selected and allows joining other groups", async () => {
@@ -256,7 +267,7 @@ describe("PersonEditor", () => {
     fireEvent.press(screen.getByText("Import from contacts"));
     await waitFor(() => expect(alert).toHaveBeenCalledWith("Could not load contacts", "Try again or add people by name.", expect.any(Array)));
     const actions = alert.mock.calls.at(-1)?.[2] as Array<{ text: string }>;
-    expect(actions.map((action) => action.text)).toEqual(["Please try again.", "Cancel"]);
+    expect(actions.map((action) => action.text)).toEqual(["Try again", "Cancel"]);
     alert.mockRestore();
   });
 

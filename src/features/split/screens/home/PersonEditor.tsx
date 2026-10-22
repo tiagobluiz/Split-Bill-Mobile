@@ -31,7 +31,7 @@ function normalizePickedColor(value: string): `#${string}` | null {
 }
 
 type ContactOption = { id: string; name: string; photoUri: string | null };
-type Draft = { name: string; photoUri: string | null; color: SplitTagColor; groupIds: string[] };
+type Draft = { name: string; photoUri: string | null; color: SplitTagColor | null; groupIds: string[] };
 
 export function PersonEditor({ person, people, groups, records, suggestedContactPhoto, onCancel, onOpenExisting, onSave, onBusyChange }: {
   person: SavedPerson | null;
@@ -49,7 +49,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
   const [draft, setDraft] = useState<Draft>({
     name: person?.name ?? "",
     photoUri: person?.photoUri ?? null,
-    color: person?.color ?? getAvatarTone(person?.name ?? "").background as `#${string}`,
+    color: person?.color ?? null,
     groupIds: groups.filter((group) => group.memberPersonIds.includes(person?.id ?? "")).map((group) => group.id),
   });
   const [error, setError] = useState("");
@@ -92,7 +92,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
       setSelectedContact(null);
       setContactOpen(true);
     } catch {
-      Alert.alert(t("groups.contactsError"), t("groups.contactsErrorDescription"), [{ text: t("common.tryAgain"), onPress: () => void importContact() }, { text: t("common.cancel"), style: "cancel" }]);
+      Alert.alert(t("groups.contactsError"), t("groups.contactsErrorDescription"), [{ text: t("app.error.retry"), onPress: () => void importContact() }, { text: t("common.cancel"), style: "cancel" }]);
     }
   };
 
@@ -141,7 +141,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
             copiedPhoto = persisted !== photoUri;
             photoUri = persisted;
           }
-      const result = await onSave({ personId: person?.id ?? null, name: normalizedName, photoUri, color: draft.color, groupIds: draft.groupIds, restore: Boolean(person?.archivedAt) });
+      const result = await onSave({ personId: person?.id ?? null, name: normalizedName, photoUri, color: draft.color ?? getAvatarTone(normalizedName).background as `#${string}`, groupIds: draft.groupIds, restore: Boolean(person?.archivedAt) });
           if (!result.ok) {
             if (copiedPhoto) await removePersonPhoto(photoUri);
             if (result.reason === "split-name-conflict") setError(t("people.splitNameConflict", { split: records.find((record) => record.id === result.recordId)?.values.splitName || t("people.unnamedSplit") }));
@@ -177,6 +177,7 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
   const [customColorOpen, setCustomColorOpen] = useState(false);
   const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
   const name = normalizePersonName(draft.name);
+  const color = draft.color ?? getAvatarTone(name).background as `#${string}`;
 
   const choosePhoto = async (camera: boolean) => {
     const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -204,14 +205,14 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
     <View style={screenStyles.groupIdentityPanel}>
     <Pressable accessibilityRole="button" accessibilityLabel={t("people.choosePhoto")} onPress={() => setPhotoOptionsOpen(true)}>
       <View style={screenStyles.groupLargeAvatar}>
-        {draft.photoUri ? <Image source={{ uri: draft.photoUri }} style={screenStyles.groupLargeAvatarImage} /> : <View style={[screenStyles.groupLargeAvatar, { width: 104, height: 104, backgroundColor: getTagColorStyle(draft.color).background }]}><Text fontFamily={FONTS.bodyBold} fontSize={38} color={getTagColorStyle(draft.color).foreground}>{name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?"}</Text></View>}
+        {draft.photoUri ? <Image source={{ uri: draft.photoUri }} style={screenStyles.groupLargeAvatarImage} /> : <View style={[screenStyles.groupLargeAvatar, { width: 104, height: 104, backgroundColor: getTagColorStyle(color).background }]}><Text fontFamily={FONTS.bodyBold} fontSize={38} color={getTagColorStyle(color).foreground}>{name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?"}</Text></View>}
         <View style={screenStyles.groupCameraBadge}><Camera size={17} color={PALETTE.onPrimary} /></View>
       </View>
     </Pressable>
     {suggestedContactPhoto && person && suggestedContactPhoto !== person.photoUri && draft.photoUri !== suggestedContactPhoto ? <Pressable onPress={() => { setDraft((current) => ({ ...current, photoUri: suggestedContactPhoto })); setUsedContactPhoto(true); }}><Text color={PALETTE.primary} fontFamily={FONTS.bodyBold}>{t("people.useContactPhoto")}</Text></Pressable> : null}
     {!draft.photoUri ? <>
       <FieldLabel>{t("groups.backgroundColor")}</FieldLabel>
-      <View style={screenStyles.groupIdentityColorRow}>{COLORS.map(([color, swatch]) => <Pressable key={color} accessibilityRole="button" accessibilityLabel={t("people.selectColorA11y", { color: color.startsWith("#") ? color : t(`groups.colors.${color}` as any) })} accessibilityState={{ selected: draft.color === color }} style={[screenStyles.groupColorSwatch, { backgroundColor: swatch }, draft.color === color && screenStyles.groupColorSelected]} onPress={() => { setCustomColorOpen(false); setDraft((current) => ({ ...current, color })); }}>{draft.color === color ? <Check size={15} color={getTagColorStyle(color).foreground} /> : null}</Pressable>)}<Pressable accessibilityRole="button" accessibilityLabel={t("tags.addCustomColor")} style={[screenStyles.groupCustomColorButton, draft.color.startsWith("#") && screenStyles.tagEditorColorButtonSelected]} onPress={() => { const next = draft.color.startsWith("#") ? draft.color : customColor; setCustomColor(next as `#${string}`); setDraft((current) => ({ ...current, color: next })); setCustomColorOpen((open) => !open); }}><Text color={PALETTE.primary} fontSize={20}>+</Text></Pressable></View>
+      <View style={screenStyles.groupIdentityColorRow}>{COLORS.map(([swatchName, swatch]) => <Pressable key={swatchName} accessibilityRole="button" accessibilityLabel={t("people.selectColorA11y", { color: swatchName.startsWith("#") ? swatchName : t(`groups.colors.${swatchName}` as any) })} accessibilityState={{ selected: color === swatchName }} style={[screenStyles.groupColorSwatch, { backgroundColor: swatch }, color === swatchName && screenStyles.groupColorSelected]} onPress={() => { setCustomColorOpen(false); setDraft((current) => ({ ...current, color: swatchName })); }}>{color === swatchName ? <Check size={15} color={getTagColorStyle(swatchName).foreground} /> : null}</Pressable>)}<Pressable accessibilityRole="button" accessibilityLabel={t("tags.addCustomColor")} style={[screenStyles.groupCustomColorButton, color.startsWith("#") && screenStyles.tagEditorColorButtonSelected]} onPress={() => { const next = color.startsWith("#") ? color : customColor; setCustomColor(next as `#${string}`); setDraft((current) => ({ ...current, color: next })); setCustomColorOpen((open) => !open); }}><Text color={PALETTE.primary} fontSize={20}>+</Text></Pressable></View>
       {customColorOpen ? <View style={[screenStyles.tagColorPickerPanel, { maxWidth: 360, width: "100%", alignSelf: "center" }]}><ColorPicker color={customColor} onColorChange={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} onColorChangeComplete={(value) => { const next = normalizePickedColor(value); if (next) { setCustomColor(next); setDraft((current) => ({ ...current, color: next })); } }} thumbSize={28} sliderSize={22} noSnap row={false} swatches={false} useNativeDriver={false} useNativeLayout /></View> : null}
     </> : null}
     </View>
