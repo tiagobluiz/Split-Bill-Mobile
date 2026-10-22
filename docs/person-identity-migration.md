@@ -58,7 +58,3 @@ Run `npm run typecheck`, `npm run lint`, and `npm test -- --runInBand`.
 The SQLite integration tests require Node 24 (also configured for the coverage
 CI job), and exercise the real SQLite engine, backup verification, transaction
 rollback, retry, index query plans, foreign keys, deletion, and reassignment.
-
-Android emulator rehearsal verified three existing splits and seven participant
-entries against the retained pre-migration backup, preserving financial payloads
-and timestamps. iOS native rehearsal remains a release verification step.
