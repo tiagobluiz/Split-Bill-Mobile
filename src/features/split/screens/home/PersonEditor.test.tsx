@@ -182,7 +182,7 @@ describe("PersonEditor", () => {
     const ImagePicker = require("expo-image-picker");
     renderEditor({ person: { ...existing, photoUri: "file:///owned/ana.jpg" } });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    expect(screen.getByText("Person photo options")).toBeTruthy();
+    expect(screen.getByText("Person photo")).toBeTruthy();
     expect(screen.getByLabelText("Upload photo")).toBeTruthy();
     expect(screen.getByLabelText("Take photo")).toBeTruthy();
     expect(screen.getByLabelText("Remove photo")).toBeTruthy();

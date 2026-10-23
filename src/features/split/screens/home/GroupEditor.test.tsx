@@ -317,12 +317,12 @@ describe("GroupEditor", () => {
     const ImagePicker = require("expo-image-picker");
     const onSave = jest.fn(async () => true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
-    fireEvent.press(screen.getByLabelText("Choose group photo"));
+    fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
     await waitFor(() => expect(screen.queryByText("Choose an icon")).toBeNull());
     expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({ allowsEditing: true, aspect: [1, 1] }));
 
-    fireEvent.press(screen.getByLabelText("Choose group photo"));
+    fireEvent.press(screen.getByLabelText("Group photo"));
     fireEvent.press(screen.getByLabelText("Remove photo"));
     expect(screen.getByText("Choose an icon")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Roomies");
@@ -338,7 +338,7 @@ describe("GroupEditor", () => {
     ImagePicker.launchImageLibraryAsync.mockClear();
     ImagePicker.requestMediaLibraryPermissionsAsync.mockImplementationOnce(async () => ({ granted: false }));
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
-    fireEvent.press(screen.getByLabelText("Choose group photo"));
+    fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
     expect(screen.getByText("Choose an icon")).toBeTruthy();
     expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
@@ -351,7 +351,7 @@ describe("GroupEditor", () => {
     const onSave = jest.fn().mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValue(true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[member]} allPeople={[member]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
 
-    fireEvent.press(screen.getByLabelText("Choose group photo"));
+    fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); });
     fireEvent.press(screen.getByText("Continue to members"));
 

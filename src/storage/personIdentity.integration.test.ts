@@ -335,6 +335,46 @@ describe("person identity SQLite migration and membership persistence", () => {
     await memberships.verifyPersonMemberships(database);
   });
 
+  it("commits group participant additions and usage together", async () => {
+    await seed();
+    await migration.migratePersonIdentity();
+    const store = await loadPersistedStore();
+    const anaId = store.getState().records[0].values.participants[0].personId!;
+    await store.getState().addParticipantGroup("Roomies", [], {}, ["Bruno"]);
+    const group = store.getState().settings.participantGroups![0];
+    const before = await records.getRecordById(store.getState().activeRecordId!);
+
+    failSql = "INSERT INTO app_settings";
+    await expect(store.getState().addParticipantsFromGroup(group.id)).rejects.toThrow("injected persistence failure");
+    failSql = null;
+
+    const afterFailure = await records.getRecordById(before!.id);
+    expect(afterFailure!.values.participants).toEqual(before!.values.participants);
+    expect((await require("./settings").getAppSettings()).participantGroups[0].usageCount).toBe(0);
+
+    await store.getState().addParticipantsFromGroup(group.id);
+    const persistedRecord = await records.getRecordById(before!.id);
+    const persistedSettings = await require("./settings").getAppSettings();
+    expect(persistedRecord!.values.participants).toHaveLength(2);
+    expect(persistedRecord!.values.participants[0]).toMatchObject({ id: "old-local", personId: anaId });
+    expect(persistedSettings.participantGroups[0].usageCount).toBe(1);
+    expect(store.getState().settings.participantGroups![0].usageCount).toBe(1);
+    await memberships.verifyPersonMemberships(database);
+  });
+
+  it("rejects reserved owner aliases entered as inline group members", async () => {
+    await seed();
+    await migration.migratePersonIdentity();
+    const store = await loadPersistedStore();
+    const before = await require("./settings").getAppSettings();
+
+    await expect(store.getState().addParticipantGroup("Roomies", [], {}, ["You"]))
+      .resolves.toBe(false);
+
+    expect(await require("./settings").getAppSettings()).toEqual(before);
+    expect(store.getState().settings.participantGroups).toEqual(before.participantGroups);
+  });
+
   it("publishes a new split participant with global identity and saves person, split, and membership together", async () => {
     await seed();
     await migration.migratePersonIdentity();

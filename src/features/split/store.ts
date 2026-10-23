@@ -90,7 +90,7 @@ type ParticipantsUpdater =
 
 export type SavePersonResult =
   | { ok: true; personId: string }
-  | { ok: false; reason: "invalid-name" | "duplicate" | "split-name-conflict" | "last-group-member" | "missing" | "persistence"; personId?: string; recordId?: string };
+  | { ok: false; reason: "invalid-name" | "duplicate" | "owner-alias" | "split-name-conflict" | "last-group-member" | "missing" | "persistence"; personId?: string; recordId?: string };
 export type PersonSaveDetails = {
   personId: string | null;
   name: string;
@@ -265,7 +265,7 @@ function resolveParticipantPerson(participant: ParticipantsValue[number], settin
     : { participant, created: null, restorePersonId: null };
 }
 
-async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] = [], rollbackRecord: DraftRecord = record, restorePersonIds: string[] = []) {
+async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] = [], rollbackRecord: DraftRecord = record, restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
   let writeState = recordWriteStates.get(record.id);
   if (!writeState) {
     writeState = { nextSequence: 0, outstanding: 0, confirmedSequence: 0, confirmedRecord: rollbackRecord };
@@ -286,10 +286,12 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
   }
   try {
     const saved = restorePersonIds.length
-      ? await saveRecord(record, referencedPending, restorePersonIds)
-      : referencedPending.length
-        ? await saveRecord(record, referencedPending)
-        : await saveRecord(record);
+      ? await saveRecord(record, referencedPending, restorePersonIds, incrementGroupUsageId)
+      : incrementGroupUsageId
+        ? await saveRecord(record, referencedPending, [], incrementGroupUsageId)
+        : referencedPending.length
+          ? await saveRecord(record, referencedPending)
+          : await saveRecord(record);
     writeState = recordWriteStates.get(record.id)!;
     if (sequence >= writeState.confirmedSequence) {
       writeState.confirmedSequence = sequence;
@@ -309,10 +311,15 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
           const current = currentById.get(personId);
           if (persisted && current) currentById.set(personId, { ...current, archivedAt: null, updatedAt: persisted.updatedAt });
         }
+        const persistedGroup = saved.settings.participantGroups?.find((group) => group.id === incrementGroupUsageId);
+        const currentGroups = state.settings.participantGroups ?? [];
         return {
           settings: {
             ...state.settings,
             people: [...currentById.values()],
+            ...(persistedGroup ? { participantGroups: currentGroups.map((group) => group.id === persistedGroup.id && persistedGroup.usageCount > group.usageCount
+              ? { ...group, usageCount: persistedGroup.usageCount, updatedAt: persistedGroup.updatedAt }
+              : group) } : {}),
             ownerPersonId: state.settings.ownerPersonId ?? saved.settings.ownerPersonId,
           },
           ...(isCurrentMutation ? { records: state.records.map((entry) => entry.id === record.id ? saved.record : entry) } : {}),
@@ -997,6 +1004,14 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeOwnerName(nextOwnerName);
     if (ownerNameChanged) {
       await saveRecordsAndSettings(nextRecords, nextSettings);
+      const persistedOwner = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId);
+      if (persistedOwner) {
+        set((current) => normalizeOwnerName(current.settings.ownerName || "") === normalizeOwnerName(nextOwnerName)
+          ? { settings: { ...current.settings, people: (current.settings.people ?? []).map((person) => person.id === persistedOwner.id
+            ? { ...person, name: persistedOwner.name, updatedAt: persistedOwner.updatedAt }
+            : person) } }
+          : {});
+      }
       confirmedOwnerName = nextOwnerName;
       confirmedOwnerPerson = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId) ?? null;
     } else await saveAppSettings(nextSettings);
@@ -1064,6 +1079,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       ? people.find((person) => person.id === details.personId)
       : undefined;
     if (details.personId && !current) return { ok: false, reason: "missing" };
+    const isOwnerIdentity = Boolean(state.settings.ownerPersonId && details.personId === state.settings.ownerPersonId);
+    const isCurrentOwnerName = normalizePersonName(normalizedName).toLowerCase() === normalizePersonName(state.settings.ownerName || "").toLowerCase();
+    if (isOwnerAlias(normalizedName, state.settings.ownerName) && (!isOwnerIdentity || !isCurrentOwnerName)) {
+      return { ok: false, reason: "owner-alias", ...(state.settings.ownerPersonId ? { personId: state.settings.ownerPersonId } : {}) };
+    }
     const duplicate = people.find((person) =>
       person.id !== details.personId &&
       normalizePersonName(person.name).toLowerCase() === normalizedName.toLowerCase(),
@@ -1231,14 +1251,12 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     }
     const before = get().records.find((record) => record.id === get().activeRecordId);
     if (!before || peopleToAdd.every((person) => getLinkedParticipant(before.values.participants, person))) return;
-    await withActiveRecord(set, get, (record) =>
+    const mutation = getActiveRecordMutation(get, (record) =>
       normalizeActiveRecordMutation(
         record,
         (draft) => {
           peopleToAdd.forEach((person) => {
-            if (getLinkedParticipant(draft.values.participants, person)) {
-              return;
-            }
+            if (getLinkedParticipant(draft.values.participants, person)) return;
             draft.values.participants.push(createParticipantFromPerson(person));
           });
           draft.values = ensureItemsAligned(draft.values);
@@ -1246,13 +1264,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         { recomputeStatusOnValueChange: true },
       ),
     );
-    await enqueueSettingsPersistence(async () => {
-      const settingsNow = get().settings;
-      const timestamp = nowIso();
-      const nextSettings = { ...settingsNow, participantGroups: (settingsNow.participantGroups ?? []).map((entry) => entry.id === groupId ? { ...entry, usageCount: entry.usageCount + 1, updatedAt: timestamp } : entry) };
-      await saveAppSettings(nextSettings);
-      set({ settings: nextSettings });
-    });
+    if (!mutation || mutation.active.id !== before.id) return;
+    set({ activeRecordId: mutation.nextRecord.id, records: nextRecords(get().records, mutation.nextRecord) });
+    await persistRecord(mutation.nextRecord, [], before, [], groupId);
   },
   async addTag(label, icon, color) {
     const nextTag = await enqueueSettingsPersistence(async () => {

@@ -467,6 +467,24 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().records[0]?.values.participants[0]?.name).toBe("Ana");
   });
 
+  it("rejects new saved people that use the owner name or reserved You alias", async () => {
+    const { storeModule } = await loadStore();
+    const owner = { id: "owner-person", name: "Alice", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({
+      settings: {
+        ...storeModule.useSplitStore.getState().settings,
+        ownerName: "Alice",
+        ownerPersonId: owner.id,
+        people: [owner],
+      },
+    });
+
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "You", photoUri: null, color: "orange", groupIds: [] }))
+      .resolves.toEqual({ ok: false, reason: "owner-alias", personId: owner.id });
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: " Alice ", photoUri: null, color: "orange", groupIds: [] }))
+      .resolves.toEqual({ ok: false, reason: "owner-alias", personId: owner.id });
+  });
+
   it("archives people referenced by groups and permanently deletes unused people", async () => {
     const { storeModule } = await loadStore({ listRecords: [] });
     const used = { id: "used", name: "Ana", photoUri: "file:///ana.jpg", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
@@ -601,6 +619,27 @@ describe("split store", () => {
         customCurrencies: [],
       }),
     );
+  });
+
+  it("publishes the renamed owner identity after the owner-name transaction commits", async () => {
+    const { storeModule } = await loadStore();
+    const owner = { id: "owner-person", name: "Alice", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({
+      settings: {
+        ...storeModule.useSplitStore.getState().settings,
+        ownerName: "Alice",
+        ownerPersonId: owner.id,
+        people: [owner],
+        participantGroups: [],
+      },
+    });
+
+    await storeModule.useSplitStore.getState().updateSettings({ ownerName: "Alicia" });
+
+    expect(storeModule.useSplitStore.getState().settings.ownerName).toBe("Alicia");
+    expect(storeModule.useSplitStore.getState().settings.people).toEqual([
+      expect.objectContaining({ id: owner.id, name: "Alicia" }),
+    ]);
   });
 
   it("serializes settings persistence so older snapshots cannot overwrite newer ones", async () => {

@@ -146,6 +146,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
             if (copiedPhoto) await removePersonPhoto(photoUri);
             if (result.reason === "split-name-conflict") setError(t("people.splitNameConflict", { split: records.find((record) => record.id === result.recordId)?.values.splitName || t("people.unnamedSplit") }));
             else if (result.reason === "last-group-member") setError(t("people.lastGroupMemberError"));
+            else if (result.reason === "owner-alias") setError(t("people.ownerAliasReserved"));
             else if (result.reason === "duplicate") setError(t(result.personId && people.find((entry) => entry.id === result.personId)?.archivedAt ? "people.archivedDuplicate" : "people.activeDuplicate", { person: people.find((entry) => entry.id === result.personId)?.name ?? normalizedName }));
             else if (result.reason === "persistence") setError(t("common.couldNotSaveSettings"));
             else setError(t("people.validationPerson"));

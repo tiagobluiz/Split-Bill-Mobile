@@ -195,7 +195,7 @@ function toRawRow(record: DraftRecord): RawSplitRow {
     created_at: record.createdAt, updated_at: record.updatedAt, completed_at: record.completedAt ?? null };
 }
 
-async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], suppliedSettings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = []) {
+async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], suppliedSettings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
   const settingsRow = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
   const original = settingsRow ? parseObject(settingsRow.payload, "settings") : {};
   const proposed = suppliedSettings ? {
@@ -217,6 +217,14 @@ async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], supplied
     const people = Array.isArray(proposed.people) ? proposed.people : [];
     const knownIds = new Set(people.map((person: { id: string }) => person.id));
     proposed.people = [...people, ...pendingPeople.filter((person) => !knownIds.has(person.id))];
+  }
+  if (incrementGroupUsageId) {
+    const groups = normalizeGroups(proposed.participantGroups, proposed.people);
+    const group = groups.find((entry) => entry.id === incrementGroupUsageId);
+    if (!group) throw new Error("Cannot increment usage for a missing group");
+    proposed.participantGroups = groups.map((entry) => entry.id === group.id
+      ? { ...entry, usageCount: entry.usageCount + 1, updatedAt: new Date().toISOString() }
+      : entry);
   }
   const validIds = new Set((proposed.people ?? []).map((person: { id: string }) => person.id));
   for (const record of records) for (const participant of record.values.participants) {
@@ -305,12 +313,12 @@ export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGr
   });
 }
 
-export async function saveRecordsAndSettings(records: DraftRecord[], settings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = []) {
-  return withDatabaseTransaction((tx) => writeRecords(tx, records, settings, pendingPeople, restorePersonIds));
+export async function saveRecordsAndSettings(records: DraftRecord[], settings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
+  return withDatabaseTransaction((tx) => writeRecords(tx, records, settings, pendingPeople, restorePersonIds, incrementGroupUsageId));
 }
 
-export async function saveRecord(record: DraftRecord, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = []) {
-  const saved = await saveRecordsAndSettings([record], undefined, pendingPeople, restorePersonIds);
+export async function saveRecord(record: DraftRecord, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
+  const saved = await saveRecordsAndSettings([record], undefined, pendingPeople, restorePersonIds, incrementGroupUsageId);
   return { record: saved.records[0], settings: saved.settings };
 }
 
@@ -327,6 +335,12 @@ export async function saveParticipantGroup(
     if (!name || groups.some((group) => group.id !== groupId && normalizeGroupName(group.name).toLowerCase() === name.toLowerCase())) return null;
     const existingGroup = groupId ? groups.find((group) => group.id === groupId) : undefined;
     if (groupId && !existingGroup) return null;
+
+    const ownerName = normalizePersonName(String(stored.ownerName ?? "You")).toLowerCase();
+    if ((input.newPersonNames ?? []).some((rawName) => {
+      const candidate = normalizePersonName(rawName).toLowerCase();
+      return candidate && (candidate === ownerName || candidate === "you");
+    })) return null;
 
     const nextPeople = [...people];
     const memberIds = new Set(input.memberPersonIds.map((id) => id.trim()).filter(Boolean));

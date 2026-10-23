@@ -186,6 +186,7 @@ const enPlain = {
   "people.personDetailsDescription": "Choose a name and appearance for this person.",
   "people.choosePhoto": "Choose person photo",
   "people.photoOptions": "Person photo",
+  "people.ownerAliasReserved": "That name is reserved for your profile. Choose another name.",
   "people.importContact": "Import from contacts",
   "people.importContactTitle": "Choose a contact",
   "people.searchContacts": "Search contacts",
