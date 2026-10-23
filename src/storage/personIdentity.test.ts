@@ -99,6 +99,39 @@ describe("person identity migration planner", () => {
     expect(result.settings.unrelated).toBe("keep");
   });
 
+  it("preserves repeated whitespace in the configured owner name through migration and later record normalization", () => {
+    const ownerName = "Alice  Smith";
+    const source = [row("owner-split", [{ id: "owner-local", name: ownerName }])];
+    const migrated = plan({ ownerName }, source);
+    const owner = migrated.settings.people.find((entry) => entry.id === migrated.settings.ownerPersonId);
+
+    expect(owner?.name).toBe(ownerName);
+    expect(migrated.settings.ownerName).toBe(ownerName);
+
+    const nextSave = planPersonIdentity(
+      migrated.settings,
+      migrated.rows,
+      () => "unused",
+      timestamp,
+      true,
+    );
+    const savedParticipant = JSON.parse(nextSave.rows[0].payload).values.participants[0];
+    expect(savedParticipant).toMatchObject({ id: "owner-local", name: ownerName, personId: migrated.settings.ownerPersonId });
+    expect(nextSave.settings.people.find((entry) => entry.id === nextSave.settings.ownerPersonId)?.name).toBe(ownerName);
+  });
+
+  it("rejects an owner spelling that would collide with another global person", () => {
+    const settings = {
+      ownerName: "Alicia",
+      ownerPersonId: "owner",
+      people: [person("owner", "Alice"), person("other", "Alicia")],
+    };
+
+    expect(() => planPersonIdentity(settings, [], () => "unused", timestamp)).toThrow(
+      "Owner name conflicts with another person",
+    );
+  });
+
   it("preserves saved and archived identity and appearance, even after a previous rename", () => {
     const saved = person("ana", "Ana Maria", {
       archivedAt: timestamp,

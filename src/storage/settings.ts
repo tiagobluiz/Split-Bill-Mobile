@@ -99,6 +99,15 @@ function getDefaultSettings(): AppSettings {
   };
 }
 
+function normalizePeopleWithOwnerName(value: unknown, ownerPersonId?: string, ownerName?: string) {
+  const people = normalizePeople(value);
+  const configuredName = typeof ownerName === "string" ? ownerName.trim() : "";
+  if (!ownerPersonId || !configuredName) return people;
+  return people.map((person) => person.id === ownerPersonId
+    ? { ...person, name: configuredName }
+    : person);
+}
+
 export async function initializeSettingsStorage() {
   await withAppDatabaseRetry(async (db) => {
     await db.execAsync(`
@@ -150,11 +159,12 @@ export async function getAppSettings() {
       ? parsed.pdfDownloadDirectoryUri.trim()
       : undefined;
 
-  const people = normalizePeople(parsed.people);
+  const ownerName = typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You";
+  const people = normalizePeopleWithOwnerName(parsed.people, parsed.ownerPersonId, ownerName);
   const participantGroups = normalizeGroups(parsed.participantGroups, people);
 
   return {
-    ownerName: typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You",
+    ownerName,
     ...(typeof parsed.ownerPersonId === "string" ? { ownerPersonId: parsed.ownerPersonId } : {}),
     ownerProfileImageUri:
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
@@ -206,6 +216,7 @@ export function buildSettingsPayload(settings: AppSettings): AppSettings {
     balanceFeatureEnabled: settings.balanceFeatureEnabled,
     trackPaymentsFeatureEnabled: settings.trackPaymentsFeatureEnabled,
   });
+  const people = normalizePeopleWithOwnerName(settings.people, settings.ownerPersonId, settings.ownerName);
   const payload: AppSettings = {
     ...settings,
     ...normalizedFlags,
@@ -213,12 +224,12 @@ export function buildSettingsPayload(settings: AppSettings): AppSettings {
       settings.splitListAmountDisplay,
     ),
     ...(settings.tags ? { tags: normalizeTags(settings.tags) } : {}),
-    ...(settings.people ? { people: normalizePeople(settings.people) } : {}),
+    ...(settings.people ? { people } : {}),
     ...(settings.participantGroups
       ? {
           participantGroups: normalizeGroups(
             settings.participantGroups,
-            normalizePeople(settings.people),
+            people,
           ),
         }
       : {}),

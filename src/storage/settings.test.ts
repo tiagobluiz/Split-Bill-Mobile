@@ -149,6 +149,22 @@ describe("settings storage", () => {
     expect(JSON.parse(saveArgs[1][1]).people).toEqual([active]);
   });
 
+  it("preserves the configured owner spelling when loading and saving people", async () => {
+    const owner = { id: "owner-person", name: "Alice Smith", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Alice  Smith", ownerPersonId: owner.id, people: [owner] }) },
+    });
+
+    const loaded = await settingsModule.getAppSettings();
+    expect(loaded.people?.find((person) => person.id === owner.id)?.name).toBe("Alice  Smith");
+
+    await settingsModule.saveAppSettings(loaded);
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    const saved = JSON.parse(saveArgs[1][1]);
+    expect(saved.ownerName).toBe("Alice  Smith");
+    expect(saved.people.find((person: any) => person.id === owner.id)?.name).toBe("Alice  Smith");
+  });
+
   it("normalizes feature flags before saving settings payloads", async () => {
     const { database, settingsModule } = await loadModule({ row: null });
 

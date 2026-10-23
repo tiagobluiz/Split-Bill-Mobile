@@ -159,7 +159,7 @@ export function planPersonIdentity(
         throw new Error("Dangling person ID has inconsistent names");
       recoveredNames.set(participant.personId, key);
     }
-  const add = (name: string, preferredId?: string) => {
+  const add = (name: string, preferredId?: string, preserveDisplayName = false) => {
     let id = preferredId;
     for (let attempt = 0; !id || byId.has(id); attempt++) {
       if (attempt >= 10)
@@ -168,7 +168,7 @@ export function planPersonIdentity(
     }
     const person: SavedPerson = {
       id,
-      name: name.trim().replace(/\s+/g, " "),
+      name: preserveDisplayName ? name.trim() : name.trim().replace(/\s+/g, " "),
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -197,7 +197,19 @@ export function planPersonIdentity(
   if (settings.ownerPersonId && !owner)
     throw new Error("Missing owner identity");
   if (!owner)
-    owner = byName.get(ownerKey) ?? byName.get("you") ?? add(ownerName);
+    owner = byName.get(ownerKey) ?? byName.get("you") ?? add(ownerName, undefined, true);
+  if (owner.name !== ownerName.trim()) {
+    const nameCollision = byName.get(ownerKey);
+    if (nameCollision && nameCollision.id !== owner.id)
+      throw new Error("Owner name conflicts with another person");
+    const previousOwnerKey = identityName(owner.name);
+    owner = { ...owner, name: ownerName.trim(), updatedAt: timestamp };
+    const ownerIndex = people.findIndex((person) => person.id === owner!.id);
+    if (ownerIndex >= 0) people[ownerIndex] = owner;
+    byId.set(owner.id, owner);
+    if (byName.get(previousOwnerKey)?.id === owner.id) byName.delete(previousOwnerKey);
+    byName.set(ownerKey, owner);
+  }
   if (owner.archivedAt) throw new Error("Owner identity is archived");
   const memberships: PersonMembership[] = [];
   const plannedRows = parsed.map(({ row, payload, participants }) => {
