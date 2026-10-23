@@ -1267,6 +1267,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (!mutation || mutation.active.id !== before.id) return;
     set({ activeRecordId: mutation.nextRecord.id, records: nextRecords(get().records, mutation.nextRecord) });
     await persistRecord(mutation.nextRecord, [], before, [], groupId);
+    await Promise.allSettled(mutation.removedNotificationIds.map((notificationId) => cancelReminder(notificationId)));
   },
   async addTag(label, icon, color) {
     const nextTag = await enqueueSettingsPersistence(async () => {

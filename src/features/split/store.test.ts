@@ -2169,6 +2169,50 @@ describe("split store", () => {
     expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("bruno-reminder");
   });
 
+  it("cancels reminders pruned by a group addition after the split save succeeds", async () => {
+    const record = createRecord({ reminderState: { participantDebtReminders: {
+      bruno: { notificationId: "bruno-reminder", scheduledForIso: "2099-01-01T10:00:00.000Z", createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+    } } });
+    const { storeModule, reminderMocks, domainMocks } = await loadReadyStore({ record });
+    const person = { id: "person-cara", name: "Cara", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({ settings: {
+      ...storeModule.useSplitStore.getState().settings,
+      people: [person],
+      participantGroups: [{ id: "group-roomies", name: "Roomies", memberPersonIds: [person.id], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+    } });
+    domainMocks.computeSettlement.mockReturnValue({ ok: true, data: { people: [
+      { participantId: "ana", name: "Ana", isPayer: true, netCents: 100 },
+      { participantId: "generated-1", name: "Cara", isPayer: false, netCents: -100 },
+    ] } });
+
+    await storeModule.useSplitStore.getState().addParticipantsFromGroup("group-roomies");
+
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.reminderState?.participantDebtReminders.bruno).toBeUndefined();
+    expect(reminderMocks.cancelReminder).toHaveBeenCalledWith("bruno-reminder");
+  });
+
+  it("does not cancel reminders pruned by a group addition when the split save fails", async () => {
+    const record = createRecord({ reminderState: { participantDebtReminders: {
+      bruno: { notificationId: "bruno-reminder", scheduledForIso: "2099-01-01T10:00:00.000Z", createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+    } } });
+    const { storeModule, storageMocks, reminderMocks, domainMocks } = await loadReadyStore({ record });
+    const person = { id: "person-cara", name: "Cara", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({ settings: {
+      ...storeModule.useSplitStore.getState().settings,
+      people: [person],
+      participantGroups: [{ id: "group-roomies", name: "Roomies", memberPersonIds: [person.id], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+    } });
+    domainMocks.computeSettlement.mockReturnValue({ ok: true, data: { people: [
+      { participantId: "ana", name: "Ana", isPayer: true, netCents: 100 },
+      { participantId: "generated-1", name: "Cara", isPayer: false, netCents: -100 },
+    ] } });
+    storageMocks.saveRecord.mockRejectedValueOnce(new Error("split save failed"));
+
+    await expect(storeModule.useSplitStore.getState().addParticipantsFromGroup("group-roomies")).rejects.toThrow("split save failed");
+
+    expect(reminderMocks.cancelReminder).not.toHaveBeenCalledWith("bruno-reminder");
+  });
+
   it("clears split and participant reminders when the bill is marked as paid", async () => {
     const record = createRecord();
     const { storeModule, reminderMocks } = await loadReadyStore({ record });
