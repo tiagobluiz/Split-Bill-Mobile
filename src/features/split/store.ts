@@ -33,8 +33,13 @@ import {
   initializeRecordsStorage,
   listRecords,
   saveRecord,
+  saveRecordsAndSettings,
+  savePersonAndLinkedRecords,
+  saveParticipantGroup,
   type DraftRecord,
 } from "../../storage/records";
+import { migratePersonIdentity } from "../../storage/personIdentityMigration";
+import { deleteSavedPerson } from "../../storage/personDeletion";
 import {
   getAppSettings,
   initializeSettingsStorage,
@@ -50,6 +55,18 @@ import {
   type SplitTagColor,
   type SplitTagIcon,
 } from "./tags";
+import {
+  createPerson,
+  findPersonByName,
+  normalizeGroupName,
+  normalizeGroups,
+  normalizePeople,
+  normalizePersonName,
+  type ParticipantGroup,
+  type SavedPerson,
+} from "./people";
+import { removeGroupPhoto } from "./groupPhotos";
+import { removePersonPhoto } from "./personPhotos";
 import { getDefaultTranslationSettings, t } from "../../i18n";
 import {
   cancelReminder,
@@ -71,6 +88,18 @@ type ParticipantsUpdater =
   | ParticipantsValue
   | ((participants: ParticipantsValue) => ParticipantsValue);
 
+export type SavePersonResult =
+  | { ok: true; personId: string }
+  | { ok: false; reason: "invalid-name" | "duplicate" | "owner-alias" | "split-name-conflict" | "last-group-member" | "missing" | "persistence"; personId?: string; recordId?: string };
+export type PersonSaveDetails = {
+  personId: string | null;
+  name: string;
+  photoUri: string | null;
+  color: SplitTagColor;
+  groupIds: string[];
+  restore?: boolean;
+};
+
 type SplitStore = {
   ready: boolean;
   records: DraftRecord[];
@@ -81,6 +110,26 @@ type SplitStore = {
   openRecord: (id: string) => Promise<DraftRecord | null>;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  upsertPerson: (name: string) => Promise<string | null>;
+  updatePerson: (personId: string, name: string) => Promise<boolean>;
+  savePerson: (details: PersonSaveDetails) => Promise<SavePersonResult>;
+  getPersonDeletionImpact: (personId: string) => { used: boolean; splitCount: number; groupCount: number };
+  removePerson: (personId: string) => Promise<"deleted" | "archived" | "missing">;
+  addParticipantGroup: (
+    name: string,
+    memberPersonIds: string[],
+    details?: Partial<Pick<ParticipantGroup, "description" | "photoUri" | "icon" | "color">>,
+    newPersonNames?: string[],
+  ) => Promise<boolean>;
+  updateParticipantGroup: (
+    groupId: string,
+    details: Partial<ParticipantGroup> & { name: string; memberPersonIds: string[]; newPersonNames?: string[] },
+  ) => Promise<boolean>;
+  removeParticipantGroup: (groupId: string) => Promise<void>;
+  addParticipantsFromGroup: (
+    groupId: string,
+    personIds?: string[],
+  ) => Promise<void>;
   addTag: (
     label: string,
     icon?: SplitTagIcon | null,
@@ -185,8 +234,123 @@ function createDraftRecord(defaultCurrency: string): DraftRecord {
   };
 }
 
-async function persistRecord(record: DraftRecord) {
-  await saveRecord(record);
+const pendingPeopleByName = new Map<string, SavedPerson>();
+const pendingPeopleById = new Map<string, { person: SavedPerson; references: number }>();
+const recordWriteStates = new Map<string, {
+  nextSequence: number;
+  outstanding: number;
+  confirmedSequence: number;
+  confirmedRecord: DraftRecord;
+}>();
+
+function resolveParticipantPerson(participant: ParticipantsValue[number], settings: AppSettings) {
+  if (participant.personId) return { participant, created: null as SavedPerson | null, restorePersonId: null as string | null };
+  const normalized = normalizePersonName(participant.name);
+  if (settings.ownerPersonId && isOwnerAlias(normalized, settings.ownerName)) {
+    return { participant: { ...participant, personId: settings.ownerPersonId }, created: null, restorePersonId: null };
+  }
+  const existing = findPersonByName(settings.people ?? [], normalized);
+  if (existing) return { participant: { ...participant, name: existing.name, personId: existing.id }, created: null, restorePersonId: existing.archivedAt ? existing.id : null };
+  const key = normalized.toLowerCase();
+  let person = pendingPeopleByName.get(key);
+  if (!person) {
+    person = createPerson(normalized) ?? undefined;
+    if (person) {
+      pendingPeopleByName.set(key, person);
+      pendingPeopleById.set(person.id, { person, references: 0 });
+    }
+  }
+  return person
+    ? { participant: { ...participant, name: person.name, personId: person.id }, created: person, restorePersonId: null }
+    : { participant, created: null, restorePersonId: null };
+}
+
+async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] = [], rollbackRecord: DraftRecord = record, restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
+  let writeState = recordWriteStates.get(record.id);
+  if (!writeState) {
+    writeState = { nextSequence: 0, outstanding: 0, confirmedSequence: 0, confirmedRecord: rollbackRecord };
+    recordWriteStates.set(record.id, writeState);
+  }
+  const sequence = ++writeState.nextSequence;
+  writeState.outstanding += 1;
+  const referencedPending = [...pendingPeople];
+  const pendingIds = new Set(referencedPending.map((person) => person.id));
+  for (const participant of record.values.participants) {
+    if (!participant.personId || pendingIds.has(participant.personId)) continue;
+    const pending = pendingPeopleById.get(participant.personId)?.person;
+    if (pending) { referencedPending.push(pending); pendingIds.add(pending.id); }
+  }
+  for (const person of referencedPending) {
+    const pending = pendingPeopleById.get(person.id);
+    if (pending) pending.references += 1;
+  }
+  try {
+    const saved = restorePersonIds.length
+      ? await saveRecord(record, referencedPending, restorePersonIds, incrementGroupUsageId)
+      : incrementGroupUsageId
+        ? await saveRecord(record, referencedPending, [], incrementGroupUsageId)
+        : referencedPending.length
+          ? await saveRecord(record, referencedPending)
+          : await saveRecord(record);
+    writeState = recordWriteStates.get(record.id)!;
+    if (sequence >= writeState.confirmedSequence) {
+      writeState.confirmedSequence = sequence;
+      writeState.confirmedRecord = saved?.record ?? record;
+    }
+    if (saved) {
+      useSplitStore.setState((state) => {
+        const current = state.records.find((entry) => entry.id === record.id);
+        const isCurrentMutation = current === record;
+        const currentPeople = state.settings.people ?? [];
+        const currentById = new Map(currentPeople.map((person) => [person.id, person]));
+        for (const person of saved.settings.people ?? []) {
+          if (!currentById.has(person.id)) currentById.set(person.id, person);
+        }
+        for (const personId of restorePersonIds) {
+          const persisted = saved.settings.people?.find((person) => person.id === personId);
+          const current = currentById.get(personId);
+          if (persisted && current) currentById.set(personId, { ...current, archivedAt: null, updatedAt: persisted.updatedAt });
+        }
+        const persistedGroup = saved.settings.participantGroups?.find((group) => group.id === incrementGroupUsageId);
+        const currentGroups = state.settings.participantGroups ?? [];
+        return {
+          settings: {
+            ...state.settings,
+            people: [...currentById.values()],
+            ...(persistedGroup ? { participantGroups: currentGroups.map((group) => group.id === persistedGroup.id && persistedGroup.usageCount > group.usageCount
+              ? { ...group, usageCount: persistedGroup.usageCount, updatedAt: persistedGroup.updatedAt }
+              : group) } : {}),
+            ownerPersonId: state.settings.ownerPersonId ?? saved.settings.ownerPersonId,
+          },
+          ...(isCurrentMutation ? { records: state.records.map((entry) => entry.id === record.id ? saved.record : entry) } : {}),
+        };
+      });
+    }
+    return saved?.record ?? record;
+  } finally {
+    writeState = recordWriteStates.get(record.id);
+    if (writeState) {
+      writeState.outstanding -= 1;
+      if (writeState.outstanding === 0) {
+        const current = useSplitStore.getState().records.find((entry) => entry.id === record.id);
+        const latestWriteFailed = current && writeState.confirmedSequence < writeState.nextSequence;
+        if (latestWriteFailed) {
+          useSplitStore.setState((state) => ({ records: nextRecords(state.records, writeState!.confirmedRecord) }));
+        }
+        recordWriteStates.delete(record.id);
+      }
+    }
+    for (const person of referencedPending) {
+      const pending = pendingPeopleById.get(person.id);
+      if (!pending) continue;
+      pending.references -= 1;
+      if (pending.references === 0) {
+        pendingPeopleById.delete(person.id);
+        const key = normalizePersonName(person.name).toLowerCase();
+        if (pendingPeopleByName.get(key)?.id === person.id) pendingPeopleByName.delete(key);
+      }
+    }
+  }
 }
 
 function nextRecords(records: DraftRecord[], record: DraftRecord) {
@@ -194,6 +358,35 @@ function nextRecords(records: DraftRecord[], record: DraftRecord) {
   return [record, ...otherRecords].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
+}
+
+function publishGroupSave(
+  set: (partial: Partial<SplitStore> | ((state: SplitStore) => Partial<SplitStore>)) => void,
+  saved: NonNullable<Awaited<ReturnType<typeof saveParticipantGroup>>>,
+) {
+  set((state) => {
+    const peopleById = new Map((state.settings.people ?? []).map((person) => [person.id, person]));
+    for (const person of saved.createdPeople) {
+      if (!peopleById.has(person.id)) peopleById.set(person.id, person);
+    }
+    for (const personId of saved.restoredPersonIds) {
+      const current = peopleById.get(personId);
+      const persisted = saved.settings.people?.find((person) => person.id === personId);
+      if (current && persisted) peopleById.set(personId, { ...current, archivedAt: null, updatedAt: persisted.updatedAt });
+    }
+    const currentGroups = state.settings.participantGroups ?? [];
+    const currentGroup = currentGroups.find((group) => group.id === saved.group.id);
+    const group = currentGroup ? { ...saved.group, usageCount: currentGroup.usageCount } : saved.group;
+    return {
+      settings: {
+        ...state.settings,
+        people: [...peopleById.values()],
+        participantGroups: currentGroup
+          ? currentGroups.map((entry) => entry.id === group.id ? group : entry)
+          : [...currentGroups, group],
+      },
+    };
+  });
 }
 
 function getSettledDebtorIds(values: DraftRecord["values"]) {
@@ -372,7 +565,7 @@ function removeImportMergeTarget(
 }
 
 function normalizeOwnerName(value: string) {
-  return value.trim().toLowerCase();
+  return (value ?? "").trim().toLowerCase();
 }
 
 function isOwnerAlias(name: string, ownerName: string) {
@@ -384,10 +577,31 @@ function isOwnerAlias(name: string, ownerName: string) {
   return normalized === normalizeOwnerName(ownerName) || normalized === "you";
 }
 
+function getLinkedParticipant(
+  participants: ParticipantsValue,
+  person: SavedPerson,
+) {
+  const normalizedName = normalizePersonName(person.name).toLowerCase();
+  return participants.find(
+    (participant) =>
+      participant.personId === person.id ||
+      (!participant.personId && normalizePersonName(participant.name).toLowerCase() === normalizedName),
+  );
+}
+
+function createParticipantFromPerson(person: SavedPerson) {
+  return {
+    id: createId(),
+    name: person.name,
+    personId: person.id,
+  };
+}
+
 function renameOwnerReferences(
   record: DraftRecord,
   previousOwnerName: string,
   nextOwnerName: string,
+  ownerPersonId?: string,
 ) {
   if (!nextOwnerName.trim()) {
     return record;
@@ -397,7 +611,7 @@ function renameOwnerReferences(
   let changed = false;
   nextRecord.values.participants = nextRecord.values.participants.map(
     (participant) => {
-      if (!isOwnerAlias(participant.name, previousOwnerName)) {
+      if (ownerPersonId ? participant.personId !== ownerPersonId : !isOwnerAlias(participant.name, previousOwnerName)) {
         return participant;
       }
 
@@ -447,18 +661,14 @@ async function withActiveRecord(
     return null;
   }
 
-  const { nextRecord, removedNotificationIds } = mutation;
-  await Promise.allSettled(
-    removedNotificationIds.map((notificationId) =>
-      cancelReminder(notificationId),
-    ),
-  );
+  const { active, nextRecord, removedNotificationIds } = mutation;
   set({
     activeRecordId: nextRecord.id,
     records: nextRecords(get().records, nextRecord),
   });
-  await persistRecord(nextRecord);
-  return nextRecord;
+  const saved = await persistRecord(nextRecord, [], active);
+  await Promise.allSettled(removedNotificationIds.map((notificationId) => cancelReminder(notificationId)));
+  return saved;
 }
 
 async function withOptimisticActiveRecord(
@@ -472,28 +682,16 @@ async function withOptimisticActiveRecord(
   }
 
   const { active, nextRecord, removedNotificationIds } = mutation;
-  const nextRecordUpdatedAt = nextRecord.updatedAt;
-
   set({
     records: nextRecords(get().records, nextRecord),
   });
 
-  try {
-    await persistRecord(nextRecord);
-    await Promise.allSettled(
-      removedNotificationIds.map((notificationId) =>
-        cancelReminder(notificationId),
-      ),
-    );
-  } catch (error) {
-    const current = get().records.find((record) => record.id === nextRecord.id);
-    if (current?.updatedAt === nextRecordUpdatedAt) {
-      set({
-        records: nextRecords(get().records, active),
-      });
-    }
-    throw error;
-  }
+  await persistRecord(nextRecord, [], active);
+  await Promise.allSettled(
+    removedNotificationIds.map((notificationId) =>
+      cancelReminder(notificationId),
+    ),
+  );
 
   return nextRecord;
 }
@@ -513,9 +711,6 @@ async function withRecordById(
   const currentIds = listReminderNotificationIds(existing.reminderState);
   const nextIds = listReminderNotificationIds(nextRecord.reminderState);
   const removedIds = [...currentIds].filter((id) => !nextIds.has(id));
-  await Promise.allSettled(
-    removedIds.map((notificationId) => cancelReminder(notificationId)),
-  );
 
   const updatedRecords = nextRecords(get().records, nextRecord);
   set({
@@ -523,13 +718,21 @@ async function withRecordById(
     activeRecordId:
       get().activeRecordId === recordId ? recordId : get().activeRecordId,
   });
-  await persistRecord(nextRecord);
-  return nextRecord;
+  try {
+    const saved = await persistRecord(nextRecord, [], existing);
+    await Promise.allSettled(removedIds.map((notificationId) => cancelReminder(notificationId)));
+    return saved;
+  } catch (error) {
+    throw error;
+  }
 }
 
 let settingsPersistenceQueue = Promise.resolve();
+let bootstrapPromise: Promise<void> | null = null;
+let confirmedOwnerName: string | null = null;
+let confirmedOwnerPerson: SavedPerson | null = null;
 
-function enqueueSettingsPersistence(job: () => Promise<void>) {
+function enqueueSettingsPersistence<T>(job: () => Promise<T>) {
   const persistSnapshot = settingsPersistenceQueue
     .catch(() => undefined)
     .then(job);
@@ -579,15 +782,21 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     defaultCurrency: "EUR",
     splitListAmountDisplay: "remaining",
     tags: normalizeTags(undefined),
+    people: [],
+    participantGroups: [],
     customCurrencies: [],
   },
   async bootstrap() {
+    if (bootstrapPromise) return bootstrapPromise;
+    bootstrapPromise = (async () => {
     let stage = "initialize storage";
     const details: Record<string, unknown> = {};
     try {
       logBootstrapStep("start");
       await initializeSettingsStorage();
       await initializeRecordsStorage();
+      stage = "migrate person identity";
+      await migratePersonIdentity();
 
       stage = "load persisted data";
       const [rawRecords, settings] = await Promise.all([
@@ -598,10 +807,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       details.settingsTagCount = settings.tags?.length ?? null;
       logBootstrapStep("loaded persisted data", details);
 
-      stage = "normalize settings tags";
+      stage = "normalize settings collections";
       const normalizedSettings = {
         ...settings,
         tags: normalizeTags(settings.tags),
+        people: normalizePeople(settings.people),
+        participantGroups: normalizeGroups(
+          settings.participantGroups,
+          normalizePeople(settings.people),
+        ),
       };
       const validTagIds = new Set(normalizedSettings.tags.map((tag) => tag.id));
       details.normalizedSettingsTagCount = normalizedSettings.tags.length;
@@ -629,10 +843,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         await Promise.all(records.map((record) => saveRecord(record)));
       }
 
-      stage = "commit store state";
-      set({
-        ready: true,
-        records: records.map((record) => ({
+      stage = "prepare migrated records";
+      const taggedRecordsForState = records.map((record) => ({
           ...record,
           values: {
             ...record.values,
@@ -640,8 +852,16 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               validTagIds.has(tagId),
             ),
           },
-        })),
-        settings: normalizedSettings,
+        }));
+      const finalSettings = normalizedSettings;
+
+      stage = "commit store state";
+      confirmedOwnerName = finalSettings.ownerName;
+      confirmedOwnerPerson = finalSettings.people?.find((person) => person.id === finalSettings.ownerPersonId) ?? null;
+      set({
+        ready: true,
+        records: taggedRecordsForState,
+        settings: finalSettings,
         activeRecordId: records[0]?.id ?? null,
       });
       logBootstrapStep("complete", {
@@ -652,6 +872,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       logBootstrapFailure(stage, error, details);
       throw createBootstrapError(stage, error);
     }
+    })();
+    try { await bootstrapPromise; } finally { bootstrapPromise = null; }
   },
   async createDraft() {
     const draft = createDraftRecord(get().settings.defaultCurrency);
@@ -720,11 +942,32 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     });
   },
   async updateSettings(partial) {
-    const previousOwnerName = get().settings.ownerName || "";
-    const mergedSettings = {
-      ...get().settings,
-      ...partial,
+    const before = get();
+    const optimisticSettings = { ...before.settings, ...partial };
+    const normalizedOptimisticPeople = normalizePeople(optimisticSettings.people);
+    const normalizedOptimistic = {
+      ...optimisticSettings,
+      ...normalizeFeatureFlags(optimisticSettings),
+      tags: normalizeTags(optimisticSettings.tags),
+      people: normalizedOptimisticPeople,
+      participantGroups: normalizeGroups(optimisticSettings.participantGroups, normalizedOptimisticPeople),
     };
+    const optimisticOwnerName = normalizedOptimistic.ownerName || "";
+    const optimisticOwnerChanged = normalizeOwnerName(before.settings.ownerName || "") !== normalizeOwnerName(optimisticOwnerName);
+    if (optimisticOwnerChanged && confirmedOwnerName === null) {
+      confirmedOwnerName = before.settings.ownerName || "You";
+      confirmedOwnerPerson = before.settings.people?.find((person) => person.id === before.settings.ownerPersonId) ?? null;
+    }
+    if (optimisticOwnerChanged && normalizedOptimistic.ownerPersonId && normalizedOptimistic.people.some((person) =>
+      person.id !== normalizedOptimistic.ownerPersonId && normalizePersonName(person.name).toLowerCase() === normalizePersonName(optimisticOwnerName).toLowerCase(),
+    )) throw new Error("Owner name conflicts with a saved person");
+    const optimisticRecords = optimisticOwnerChanged ? before.records.map((record) => renameOwnerReferences(record, before.settings.ownerName, optimisticOwnerName, normalizedOptimistic.ownerPersonId)) : before.records;
+    set({ settings: normalizedOptimistic, records: optimisticRecords });
+    try {
+      await enqueueSettingsPersistence(async () => {
+    const latest = get();
+    const previousOwnerName = before.settings.ownerName || "";
+    const mergedSettings = { ...latest.settings, ...partial };
     const normalizedFlags = normalizeFeatureFlags({
       balanceFeatureEnabled: mergedSettings.balanceFeatureEnabled,
       trackPaymentsFeatureEnabled: mergedSettings.trackPaymentsFeatureEnabled,
@@ -733,47 +976,310 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       ...mergedSettings,
       ...normalizedFlags,
       tags: normalizeTags(mergedSettings.tags),
+      people: normalizePeople(mergedSettings.people),
+      participantGroups: normalizeGroups(
+        mergedSettings.participantGroups,
+        normalizePeople(mergedSettings.people),
+      ),
     };
     const nextOwnerName = nextSettings.ownerName || "";
+    if (nextSettings.ownerPersonId) {
+      if (nextSettings.people.some((person) => person.id !== nextSettings.ownerPersonId &&
+        normalizePersonName(person.name).toLowerCase() === normalizePersonName(nextOwnerName).toLowerCase())) {
+        throw new Error("Owner name conflicts with a saved person");
+      }
+      nextSettings.people = nextSettings.people.map((person) => person.id === nextSettings.ownerPersonId
+        ? { ...person, name: nextOwnerName, updatedAt: nowIso() } : person);
+    }
     const nextRecords =
       normalizeOwnerName(previousOwnerName) !==
       normalizeOwnerName(nextOwnerName)
-        ? get().records.map((record) =>
-            renameOwnerReferences(record, previousOwnerName, nextOwnerName),
+        ? latest.records.map((record) =>
+            renameOwnerReferences(record, previousOwnerName, nextOwnerName, nextSettings.ownerPersonId),
           )
         : get().records;
 
-    set({
-      settings: nextSettings,
-      records: nextRecords,
-    });
-    const ownerNameChanged =
+    const ownerNameChanged = Object.prototype.hasOwnProperty.call(partial, "ownerName") &&
       normalizeOwnerName(previousOwnerName) !==
       normalizeOwnerName(nextOwnerName);
-    const persistSnapshot = enqueueSettingsPersistence(async () => {
-      if (ownerNameChanged) {
-        await Promise.all(get().records.map((record) => saveRecord(record)));
+    if (ownerNameChanged) {
+      await saveRecordsAndSettings(nextRecords, nextSettings);
+      const persistedOwner = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId);
+      if (persistedOwner) {
+        set((current) => normalizeOwnerName(current.settings.ownerName || "") === normalizeOwnerName(nextOwnerName)
+          ? { settings: { ...current.settings, people: (current.settings.people ?? []).map((person) => person.id === persistedOwner.id
+            ? { ...person, name: persistedOwner.name, updatedAt: persistedOwner.updatedAt }
+            : person) } }
+          : {});
       }
-      await saveAppSettings(nextSettings);
+      confirmedOwnerName = nextOwnerName;
+      confirmedOwnerPerson = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId) ?? null;
+    } else await saveAppSettings(nextSettings);
     });
-    await persistSnapshot;
+    } catch (error) {
+      if (optimisticOwnerChanged) {
+        set((latest) => {
+          if (normalizeOwnerName(latest.settings.ownerName || "") !== normalizeOwnerName(optimisticOwnerName)) return {};
+          const restoredOwnerName = confirmedOwnerName ?? before.settings.ownerName;
+          const restoredOwner = confirmedOwnerPerson ?? before.settings.people?.find((person) => person.id === before.settings.ownerPersonId);
+          return {
+            settings: {
+              ...latest.settings,
+              ownerName: restoredOwnerName,
+              ...(restoredOwner && { people: (latest.settings.people ?? []).map((person) => person.id === restoredOwner.id ? restoredOwner : person) }),
+            },
+            records: latest.records.map((record) => renameOwnerReferences(record, optimisticOwnerName, restoredOwnerName, before.settings.ownerPersonId)),
+          };
+        });
+      }
+      throw error;
+    }
+  },
+  async upsertPerson(name) {
+    const normalizedName = normalizePersonName(name);
+    if (!normalizedName) {
+      return null;
+    }
+    return enqueueSettingsPersistence(async () => {
+      const settings = get().settings;
+      if (isOwnerAlias(normalizedName, settings.ownerName) && settings.ownerPersonId) return settings.ownerPersonId;
+      const people = settings.people ?? [];
+      const existing = findPersonByName(people, normalizedName);
+      if (existing && !existing.archivedAt) return existing.id;
+      const person = existing ? { ...existing, archivedAt: null, updatedAt: nowIso() } : createPerson(normalizedName);
+      if (!person) return null;
+      const nextSettings = { ...settings, people: existing ? people.map((entry) => entry.id === person.id ? person : entry) : [...people, person] };
+      await saveAppSettings(nextSettings);
+      set({ settings: nextSettings });
+      return person.id;
+    });
+  },
+  async updatePerson(personId, name) {
+    const person = (get().settings.people ?? []).find((entry) => entry.id === personId);
+    if (!person) return false;
+    const result = await get().savePerson({
+      personId,
+      name,
+      photoUri: person.photoUri ?? null,
+      color: person.color ?? "orange",
+      groupIds: (get().settings.participantGroups ?? [])
+        .filter((group) => group.memberPersonIds.includes(personId))
+        .map((group) => group.id),
+    });
+    return result.ok;
+  },
+  async savePerson(details) {
+    const normalizedName = normalizePersonName(details.name);
+    if (!normalizedName) return { ok: false, reason: "invalid-name" };
+    try {
+      return await enqueueSettingsPersistence(async () => {
+    const state = get();
+    const people = state.settings.people ?? [];
+    const current = details.personId
+      ? people.find((person) => person.id === details.personId)
+      : undefined;
+    if (details.personId && !current) return { ok: false, reason: "missing" };
+    const isOwnerIdentity = Boolean(state.settings.ownerPersonId && details.personId === state.settings.ownerPersonId);
+    const isCurrentOwnerName = normalizePersonName(normalizedName).toLowerCase() === normalizePersonName(state.settings.ownerName || "").toLowerCase();
+    if (isOwnerAlias(normalizedName, state.settings.ownerName) && (!isOwnerIdentity || !isCurrentOwnerName)) {
+      return { ok: false, reason: "owner-alias", ...(state.settings.ownerPersonId ? { personId: state.settings.ownerPersonId } : {}) };
+    }
+    const duplicate = people.find((person) =>
+      person.id !== details.personId &&
+      normalizePersonName(person.name).toLowerCase() === normalizedName.toLowerCase(),
+    );
+    if (duplicate) return { ok: false, reason: "duplicate", personId: duplicate.id };
+    const renaming = Boolean(current && normalizePersonName(current.name).toLowerCase() !== normalizedName.toLowerCase());
+    if (renaming && isOwnerAlias(normalizedName, state.settings.ownerName)) {
+      const conflict = state.records.find((record) => record.values.participants.some((participant) =>
+        participant.personId !== details.personId && isOwnerAlias(participant.name, state.settings.ownerName),
+      ));
+      if (conflict) return { ok: false, reason: "split-name-conflict", recordId: conflict.id };
+    }
+    const nameKey = normalizedName.toLowerCase();
+    const conflictRecord = (renaming || !current) ? state.records.find((record) => record.values.participants.some((participant) =>
+      participant.personId !== details.personId && normalizePersonName(participant.name).toLowerCase() === nameKey,
+    )) : undefined;
+    if (conflictRecord) return { ok: false, reason: "split-name-conflict", recordId: conflictRecord.id };
+
+    const groups = state.settings.participantGroups ?? [];
+    const groupIds = new Set(details.groupIds);
+    for (const group of groups) {
+      const wasMember = group.memberPersonIds.includes(details.personId ?? "");
+      if (wasMember && !groupIds.has(group.id) && group.memberPersonIds.length <= 1) {
+        return { ok: false, reason: "last-group-member" };
+      }
+    }
+
+    const timestamp = nowIso();
+    const person: SavedPerson = current
+      ? {
+          ...current,
+          name: normalizedName,
+          photoUri: details.photoUri,
+          color: details.color,
+          archivedAt: details.restore ? null : current.archivedAt,
+          updatedAt: timestamp,
+        }
+      : {
+          id: createPerson(normalizedName)!.id,
+          name: normalizedName,
+          photoUri: details.photoUri,
+          color: details.color,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+    const persisted = await savePersonAndLinkedRecords(person, [...groupIds], Boolean(current));
+    set((latest) => {
+      const latestPeople = latest.settings.people ?? [];
+      const latestGroups = latest.settings.participantGroups ?? [];
+      const persistedGroups = new Map((persisted.settings.participantGroups ?? []).map((group) => [group.id, group]));
+      const records = current && current.name !== normalizedName
+        ? latest.records.map((record) => {
+            let changed = false;
+            const participants = record.values.participants.map((participant) => {
+              if (participant.personId !== current.id || participant.name === normalizedName) return participant;
+              changed = true;
+              return { ...participant, name: normalizedName };
+            });
+            return changed ? { ...record, values: { ...record.values, participants }, updatedAt: timestamp } : record;
+          })
+        : latest.records;
+      return {
+        settings: {
+          ...latest.settings,
+          people: latestPeople.some((entry) => entry.id === person.id)
+            ? latestPeople.map((entry) => entry.id === person.id ? person : entry)
+            : [...latestPeople, person],
+          participantGroups: latestGroups.map((group) => {
+            const persistedGroup = persistedGroups.get(group.id);
+            if (!persistedGroup) return group;
+            const hasPerson = group.memberPersonIds.includes(person.id);
+            const shouldHavePerson = persistedGroup.memberPersonIds.includes(person.id);
+            if (hasPerson === shouldHavePerson) return group;
+            return {
+              ...group,
+              memberPersonIds: shouldHavePerson ? [...group.memberPersonIds, person.id] : group.memberPersonIds.filter((id) => id !== person.id),
+              updatedAt: persistedGroup.updatedAt,
+            };
+          }),
+        },
+        records,
+      };
+    });
+    if (current?.photoUri && current.photoUri !== person.photoUri) await removePersonPhoto(current.photoUri);
+    return { ok: true, personId: person.id };
+      });
+    } catch {
+      return { ok: false, reason: "persistence" };
+    }
+  },
+  getPersonDeletionImpact(personId) {
+    const state = get();
+    const person = (state.settings.people ?? []).find((entry) => entry.id === personId);
+    if (!person) return { used: false, splitCount: 0, groupCount: 0 };
+    const nameKey = normalizePersonName(person.name).toLowerCase();
+    const splitCount = state.records.filter((record) => record.values.participants.some((participant) =>
+      participant.personId === personId || (!participant.personId && !isOwnerAlias(participant.name, state.settings.ownerName) && normalizePersonName(participant.name).toLowerCase() === nameKey),
+    )).length;
+    const groupCount = (state.settings.participantGroups ?? []).filter((group) => group.memberPersonIds.includes(personId)).length;
+    return { used: splitCount > 0 || groupCount > 0, splitCount, groupCount };
+  },
+  async removePerson(personId) {
+    if (personId === get().settings.ownerPersonId) return "missing";
+    const deleted = await enqueueSettingsPersistence(async () => {
+      const result = await deleteSavedPerson(personId);
+      if (result.settings) set({ settings: { ...get().settings, ...result.settings } });
+      return result;
+    });
+    if (deleted.result === "deleted") await removePersonPhoto(deleted.photoUri);
+    return deleted.result;
+  },
+  async addParticipantGroup(name, memberPersonIds, details = {}, newPersonNames = []) {
+    const normalizedName = normalizeGroupName(name);
+    return enqueueSettingsPersistence(async () => {
+      const settings = get().settings;
+      const groups = settings.participantGroups ?? [];
+      if (!normalizedName || groups.some((entry) => entry.name.trim().toLowerCase() === normalizedName.toLowerCase())) return false;
+      const saved = await saveParticipantGroup(null, { ...details, name: normalizedName, memberPersonIds, newPersonNames });
+      if (!saved) return false;
+      publishGroupSave(set, saved);
+      return true;
+    });
+  },
+  async updateParticipantGroup(groupId, details) {
+    const name = normalizeGroupName(details.name);
+    return enqueueSettingsPersistence(async () => {
+      const settings = get().settings;
+      const groups = settings.participantGroups ?? [];
+      if (!name || !groups.some((group) => group.id === groupId)) return false;
+      if (groups.some((group) => group.id !== groupId && group.name.trim().toLowerCase() === name.toLowerCase())) return false;
+      const previousPhoto = groups.find((group) => group.id === groupId)?.photoUri;
+      const saved = await saveParticipantGroup(groupId, { ...details, name, memberPersonIds: details.memberPersonIds, newPersonNames: details.newPersonNames });
+      if (!saved) return false;
+      publishGroupSave(set, saved);
+      if (previousPhoto && previousPhoto !== details.photoUri) await removeGroupPhoto(previousPhoto);
+      return true;
+    });
+  },
+  async removeParticipantGroup(groupId) {
+    await enqueueSettingsPersistence(async () => {
+      const settings = get().settings;
+      const groups = settings.participantGroups ?? [];
+      const removedPhoto = groups.find((group) => group.id === groupId)?.photoUri;
+      if (!groups.some((group) => group.id === groupId)) return;
+      const nextSettings = { ...settings, participantGroups: groups.filter((group) => group.id !== groupId) };
+      await saveAppSettings(nextSettings);
+      set({ settings: nextSettings });
+      await removeGroupPhoto(removedPhoto);
+    });
+  },
+  async addParticipantsFromGroup(groupId, personIds) {
+    const settings = get().settings;
+    const groups = settings.participantGroups ?? [];
+    const people = settings.people ?? [];
+    const group = groups.find((entry) => entry.id === groupId);
+    if (!group) {
+      return;
+    }
+    const requestedIds = new Set((personIds ?? group.memberPersonIds).filter((id) => group.memberPersonIds.includes(id)));
+    const peopleToAdd = people.filter(
+      (person) => requestedIds.has(person.id) && !person.archivedAt,
+    );
+    if (peopleToAdd.length === 0) {
+      return;
+    }
+    const before = get().records.find((record) => record.id === get().activeRecordId);
+    if (!before || peopleToAdd.every((person) => getLinkedParticipant(before.values.participants, person))) return;
+    const mutation = getActiveRecordMutation(get, (record) =>
+      normalizeActiveRecordMutation(
+        record,
+        (draft) => {
+          peopleToAdd.forEach((person) => {
+            if (getLinkedParticipant(draft.values.participants, person)) return;
+            draft.values.participants.push(createParticipantFromPerson(person));
+          });
+          draft.values = ensureItemsAligned(draft.values);
+        },
+        { recomputeStatusOnValueChange: true },
+      ),
+    );
+    if (!mutation || mutation.active.id !== before.id) return;
+    set({ activeRecordId: mutation.nextRecord.id, records: nextRecords(get().records, mutation.nextRecord) });
+    await persistRecord(mutation.nextRecord, [], before, [], groupId);
+    await Promise.allSettled(mutation.removedNotificationIds.map((notificationId) => cancelReminder(notificationId)));
   },
   async addTag(label, icon, color) {
-    const nextTag = createCustomTag(
-      label,
-      get().settings.tags ?? [],
-      icon,
-      color,
-    );
-    if (!nextTag) {
-      return false;
-    }
-    const nextSettings = {
-      ...get().settings,
-      tags: [...normalizeTags(get().settings.tags), nextTag],
-    };
-    set({ settings: nextSettings });
-    await enqueueSettingsPersistence(() => saveAppSettings(nextSettings));
+    const nextTag = await enqueueSettingsPersistence(async () => {
+      const settings = get().settings;
+      const tag = createCustomTag(label, settings.tags ?? [], icon, color);
+      if (!tag) return null;
+      const nextSettings = { ...settings, tags: [...normalizeTags(settings.tags), tag] };
+      await saveAppSettings(nextSettings);
+      set({ settings: nextSettings });
+      return tag;
+    });
+    if (!nextTag) return false;
     void trackCustomTagCreated({
       iconType: nextTag.icon
         ? nextTag.icon.startsWith("custom:")
@@ -784,22 +1290,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return true;
   },
   async removeTag(tagId) {
-    const previousRecords = get().records;
-    const removedTag = normalizeTags(get().settings.tags).find(
-      (tag) => tag.id === tagId,
-    );
-    const nextSettings = {
-      ...get().settings,
-      tags: normalizeTags(get().settings.tags).filter(
-        (tag) => tag.id !== tagId,
-      ),
-    };
-    const changedRecordIds = new Set<string>();
+    const removedTag = await enqueueSettingsPersistence(async () => {
+    const currentState = get();
+    const previousRecords = currentState.records;
+    const removed = normalizeTags(currentState.settings.tags).find((tag) => tag.id === tagId);
+    const nextSettings = { ...currentState.settings, tags: normalizeTags(currentState.settings.tags).filter((tag) => tag.id !== tagId) };
     const nextRecords = previousRecords.map((record) => {
       const hadTag = (record.values.tagIds ?? []).includes(tagId);
-      if (hadTag) {
-        changedRecordIds.add(record.id);
-      }
       return {
         ...record,
         values: {
@@ -809,15 +1306,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         updatedAt: hadTag ? nowIso() : record.updatedAt,
       };
     });
+    const changedRecords = nextRecords.filter((record, index) => record !== previousRecords[index]);
+    await saveRecordsAndSettings(changedRecords, nextSettings);
     set({ settings: nextSettings, records: nextRecords });
-    await enqueueSettingsPersistence(() =>
-      Promise.all([
-        saveAppSettings(nextSettings),
-        ...nextRecords
-          .filter((record) => changedRecordIds.has(record.id))
-          .map((record) => saveRecord(record)),
-      ]).then(() => undefined),
-    );
+    return removed;
+    });
     if (removedTag && isDefaultSplitTag(removedTag)) {
       void trackDefaultTagRemoved();
     }
@@ -870,35 +1363,33 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async updateParticipants(participants) {
-    await withActiveRecord(set, get, (record) =>
-      normalizeActiveRecordMutation(
-        record,
-        (draft) => {
-          const nextParticipants =
-            typeof participants === "function"
-              ? participants(draft.values.participants)
-              : participants;
-          draft.values.participants = nextParticipants;
-          if (
-            !draft.values.participants.some(
-              (participant) =>
-                participant.id === draft.values.payerParticipantId,
-            )
-          ) {
-            draft.values.payerParticipantId = "";
-          }
-          draft.settlementState.settledParticipantIds =
-            draft.settlementState.settledParticipantIds.filter(
-              (participantId) =>
-                draft.values.participants.some(
-                  (participant) => participant.id === participantId,
-                ),
-            );
-          draft.values = ensureItemsAligned(draft.values);
-        },
-        { recomputeStatusOnValueChange: true },
-      ),
-    );
+    const target = get().getActiveRecord();
+    if (!target) return;
+    const currentParticipants = target.values.participants;
+    const requested = typeof participants === "function" ? participants(currentParticipants) : participants;
+    const currentById = new Map(currentParticipants.map((participant) => [participant.id, participant]));
+    const pending = new Map<string, SavedPerson>();
+    const restorePersonIds = new Set<string>();
+    const identifiedParticipants = requested.map((participant) => {
+      const prior = currentById.get(participant.id);
+      if (prior && !prior.personId) return participant;
+      if (prior?.personId && !participant.personId) return { ...participant, personId: prior.personId };
+      const resolved = resolveParticipantPerson(participant, get().settings);
+      if (resolved.created) pending.set(resolved.created.id, resolved.created);
+      if (resolved.restorePersonId) restorePersonIds.add(resolved.restorePersonId);
+      return resolved.participant;
+    });
+    const nextRecord = normalizeActiveRecordMutation(target, (draft) => {
+      draft.values.participants = identifiedParticipants;
+      if (!draft.values.participants.some((participant) => participant.id === draft.values.payerParticipantId)) draft.values.payerParticipantId = "";
+      draft.settlementState.settledParticipantIds = draft.settlementState.settledParticipantIds.filter((id) => draft.values.participants.some((participant) => participant.id === id));
+      draft.values = ensureItemsAligned(draft.values);
+    }, { recomputeStatusOnValueChange: true });
+    set({ records: nextRecords(get().records, nextRecord) });
+    const nextReminderIds = listReminderNotificationIds(nextRecord.reminderState);
+    const removedReminderIds = [...listReminderNotificationIds(target.reminderState)].filter((id) => !nextReminderIds.has(id));
+    await persistRecord(nextRecord, [...pending.values()], target, [...restorePersonIds]);
+    await Promise.allSettled(removedReminderIds.map((notificationId) => cancelReminder(notificationId)));
   },
   async setPayer(participantId) {
     await withOptimisticActiveRecord(set, get, (record) =>
@@ -1454,6 +1945,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async reconcileReminders() {
+    if (!get().ready) return;
     const currentRecords = get().records;
     const { records: reconciledRecords, changed } =
       await reconcileScheduledReminders(currentRecords);

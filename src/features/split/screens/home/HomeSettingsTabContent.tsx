@@ -193,7 +193,6 @@ export function HomeSettingsTabContent({
               </YStack>
             </XStack>
           </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
           <YStack gap="$4">
             <SectionEyebrow>{t("tags.settingsTitle")}</SectionEyebrow>
             <Text

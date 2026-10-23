@@ -2,14 +2,17 @@ describe("records storage", () => {
   async function loadModule(options?: {
     rows?: any[];
     row?: any | null;
+    settingsRow?: any | null;
   }) {
     jest.resetModules();
 
     const database = {
       execAsync: jest.fn(async () => undefined),
-      getAllAsync: jest.fn(async () => options?.rows ?? []),
-      getFirstAsync: jest.fn(async () => options?.row ?? null),
-      runAsync: jest.fn(async () => undefined),
+      getAllAsync: jest.fn(async (sql: string) => sql.includes("SELECT DISTINCT person_id") ? [] : options?.rows ?? []),
+      getFirstAsync: jest.fn(async (sql: string) => sql.includes("FROM app_settings") ? options?.settingsRow ?? null : options?.row ?? null),
+      runAsync: jest.fn(async (..._args: any[]) => undefined),
+      closeAsync: jest.fn(async () => undefined),
+      withExclusiveTransactionAsync: jest.fn(async (operation: any): Promise<any> => operation(database)),
     };
 
     const openDatabaseAsync = jest.fn(async () => database);
@@ -17,6 +20,7 @@ describe("records storage", () => {
     jest.doMock("expo-sqlite", () => ({
       openDatabaseAsync,
     }));
+    jest.doMock("expo-modules-core", () => ({ ...jest.requireActual("expo-modules-core"), uuid: { v4: () => require("node:crypto").randomUUID() } }));
 
     let recordsModule: typeof import("./records");
     jest.isolateModules(() => {
@@ -76,7 +80,7 @@ describe("records storage", () => {
     });
     await recordsModule.deleteRecord("draft-2");
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
     expect(openDatabaseAsync).toHaveBeenCalledWith("split-bill-mobile.db", {
       enableChangeListener: false,
       finalizeUnusedStatementsBeforeClosing: true,
@@ -115,9 +119,11 @@ describe("records storage", () => {
       },
     ]);
     expect(loaded).toEqual(listed[0]);
-    expect(database.runAsync).toHaveBeenNthCalledWith(
-      1,
-      expect.stringContaining("INSERT OR REPLACE INTO split_records"),
+    const stored = database.runAsync.mock.calls.find((call: any[]) => call[0].includes("INSERT INTO split_records"))!;
+    const personId = JSON.parse(stored[1][3]).values.participants[0].personId;
+    expect(personId).toEqual(expect.any(String));
+    expect(database.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO split_records"),
       [
         "draft-2",
         "draft",
@@ -127,7 +133,7 @@ describe("records storage", () => {
             splitName: "",
             currency: "USD",
             payerParticipantId: "payer",
-            participants: [{ id: "payer", name: "Payer" }],
+            participants: [{ id: "payer", name: "Payer", personId }],
             items: [],
           },
           settlementState: {
@@ -142,7 +148,29 @@ describe("records storage", () => {
         null,
       ]
     );
-    expect(database.runAsync).toHaveBeenNthCalledWith(2, "DELETE FROM split_records WHERE id = ?", ["draft-2"]);
+    expect(database.runAsync).toHaveBeenCalledWith("DELETE FROM split_records WHERE id = ?", ["draft-2"]);
+    expect(database.runAsync).toHaveBeenCalledWith("INSERT INTO split_person_memberships (split_id, participant_id, person_id) VALUES (?, ?, ?)", ["draft-2", "payer", personId]);
+  });
+
+  it("keeps registry people that are absent from a stale settings snapshot during record writes", async () => {
+    const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+    const { database, recordsModule } = await loadModule({
+      settingsRow: { payload: JSON.stringify({ ownerName: "You", people: [person] }) },
+    });
+    const record = {
+      id: "draft-bruno", status: "draft", step: 1,
+      values: { splitName: "", currency: "EUR", payerParticipantId: "bruno-local", participants: [{ id: "bruno-local", name: "Bruno", personId: person.id }], items: [] },
+      settlementState: { settledParticipantIds: [] }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", completedAt: null,
+    };
+
+    await recordsModule.saveRecordsAndSettings([record] as any, {
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en",
+      humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [],
+    } as any);
+
+    const settingsWrite = database.runAsync.mock.calls.find((call: any[]) => call[0].includes("INSERT INTO app_settings"))!;
+    expect(JSON.parse(settingsWrite[1][1]).people).toContainEqual(person);
   });
 
   it("returns null when a requested record does not exist", async () => {
@@ -176,7 +204,7 @@ describe("records storage", () => {
     } as any);
 
     expect(database.runAsync).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT OR REPLACE INTO split_records"),
+      expect.stringContaining("INSERT INTO split_records"),
       expect.arrayContaining([
         "legacy-save",
         "draft",
@@ -513,7 +541,7 @@ describe("records storage", () => {
     );
   });
 
-  it("skips malformed JSON rows instead of crashing the record list", async () => {
+  it("reports malformed JSON rows without silently dropping split history", async () => {
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const { recordsModule } = await loadModule({
       rows: [
@@ -530,11 +558,10 @@ describe("records storage", () => {
     });
 
     await recordsModule.initializeRecordsStorage();
-    await expect(recordsModule.listRecords()).resolves.toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith("Failed to parse record payload for record broken.");
+    await expect(recordsModule.listRecords()).rejects.toThrow("Invalid split record payload (broken)");
   });
 
-  it("returns null for a malformed single-record payload", async () => {
+  it("reports a malformed single-record payload", async () => {
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const { recordsModule } = await loadModule({
       row: {
@@ -549,8 +576,7 @@ describe("records storage", () => {
     });
 
     await recordsModule.initializeRecordsStorage();
-    await expect(recordsModule.getRecordById("broken-one")).resolves.toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith("Failed to parse record payload for record broken-one.");
+    await expect(recordsModule.getRecordById("broken-one")).rejects.toThrow("Invalid split record payload (broken-one)");
   });
 
   it("logs safe row metadata when a parsed record cannot be mapped", async () => {

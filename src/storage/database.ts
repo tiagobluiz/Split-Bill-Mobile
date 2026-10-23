@@ -16,13 +16,48 @@ export async function getAppDatabase() {
     databasePromise = SQLite.openDatabaseAsync(
       DATABASE_NAME,
       DATABASE_OPEN_OPTIONS,
-    ).catch((error) => {
+    ).then(async (db) => {
+      await db.execAsync("PRAGMA foreign_keys = ON");
+      return db;
+    }).catch((error) => {
       databasePromise = null;
       throw error;
     });
   }
 
   return databasePromise;
+}
+
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+/** Serialize app writes; retry complete transactions, never individual statements. */
+export function withDatabaseWrite<T>(operation: (db: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  const pending = writeQueue.catch(() => undefined).then(() => withAppDatabaseRetry(operation));
+  writeQueue = pending.catch(() => undefined);
+  return pending;
+}
+
+export function withDatabaseTransaction<T>(operation: (tx: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  return withDatabaseWrite(() => runIsolatedTransaction(operation));
+}
+
+/** Foreign keys must be enabled on the transaction's own connection, before BEGIN. */
+export async function runIsolatedTransaction<T>(operation: (tx: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  const tx = await SQLite.openDatabaseAsync(DATABASE_NAME, { ...DATABASE_OPEN_OPTIONS, useNewConnection: true });
+  try {
+    await tx.execAsync("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
+    try {
+      const result = await operation(tx);
+      await tx.execAsync("COMMIT");
+      return result;
+    } catch (error) {
+      await tx.execAsync("ROLLBACK").catch(() => undefined);
+      throw error;
+    }
+  } finally {
+    // A cleanup failure must not turn a committed write into a failed save/retry.
+    await tx.closeAsync().catch(() => console.warn("[SQLite] Could not close transaction connection"));
+  }
 }
 
 function isRetryableSqliteHandleError(error: unknown) {

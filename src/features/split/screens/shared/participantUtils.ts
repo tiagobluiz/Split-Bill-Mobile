@@ -1,5 +1,11 @@
 import { validateStepOne } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
+import {
+  FREQUENT_ENTRY_LIMIT,
+  sortGroupsForFrequent,
+  type ParticipantGroup,
+  type SavedPerson,
+} from "../../people";
 
 const FREQUENT_FRIEND_COLORS = [
   { background: "#f6d6cd", foreground: "#8d3e18" },
@@ -15,8 +21,6 @@ const CURRENCY_OPTIONS = [
   { code: "GBP", label: "British Pound (£)" },
   { code: "BRL", label: "Brazilian Real (R$)" },
 ] as const;
-
-const FREQUENT_FRIEND_LIMIT = 15;
 
 function normalizeName(value = "") {
   return value.trim().toLowerCase();
@@ -104,9 +108,16 @@ export function getCurrencyOptionLabel(
   return getCurrencyOptions(settings).find((option) => option.code === normalized)?.label ?? normalized;
 }
 
-export function getFrequentFriends(records: DraftRecord[], activeDraftId: string, ownerName: string) {
+export function getFrequentFriends(
+  records: DraftRecord[],
+  activeDraftId: string,
+  ownerName: string,
+  options?: { people?: SavedPerson[]; limit?: number; ownerPersonId?: string },
+) {
   const candidates = new Map<string, {
     name: string;
+    personId?: string;
+    person?: Pick<SavedPerson, "photoUri" | "color">;
     count: number;
     background: string;
     foreground: string;
@@ -114,7 +125,10 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
 
   for (const record of records.filter((entry) => entry.id !== activeDraftId)) {
     const seenInRecord = new Set<string>();
-    for (const participant of record.values.participants as Array<{ name: string }>) {
+    for (const participant of record.values.participants as Array<{
+      name: string;
+      personId?: string;
+    }>) {
       const trimmed = participant.name.trim();
       const key = trimmed.toLowerCase();
       if (!trimmed || seenInRecord.has(key)) {
@@ -126,12 +140,24 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
         continue;
       }
 
+      if (participant.personId && options?.people?.some(
+        (person) => person.id === participant.personId && person.archivedAt,
+      )) {
+        seenInRecord.add(key);
+        continue;
+      }
+
       const existing = candidates.get(key);
       if (existing) {
         existing.count += 1;
       } else {
+        const person = participant.personId
+          ? options?.people?.find((entry) => entry.id === participant.personId)
+          : undefined;
         candidates.set(key, {
-          name: trimmed,
+          name: person?.name ?? trimmed,
+          ...(person?.id ? { personId: person.id } : {}),
+          ...(person ? { person } : {}),
           count: 1,
           background: "",
           foreground: "",
@@ -150,11 +176,13 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
 
       return left.name.localeCompare(right.name);
     })
-    .slice(0, FREQUENT_FRIEND_LIMIT)
+    .slice(0, options?.limit ?? FREQUENT_ENTRY_LIMIT)
     .map((entry) => {
       const color = getAvatarTone(entry.name);
       return {
         name: entry.name,
+        personId: entry.personId,
+        person: entry.person,
         background: color.background,
         foreground: color.foreground,
         selected: false,
@@ -169,6 +197,8 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
   const ownerColor = getAvatarTone(trimmedOwnerName);
   const ownerEntry = {
     name: trimmedOwnerName,
+    personId: options?.ownerPersonId,
+    person: undefined,
     background: ownerColor.background,
     foreground: ownerColor.foreground,
     selected: true,
@@ -178,5 +208,24 @@ export function getFrequentFriends(records: DraftRecord[], activeDraftId: string
     .filter((entry) => !isOwnerReference(entry.name, trimmedOwnerName))
     .map((entry) => ({ ...entry, selected: false }));
 
-  return [ownerEntry, ...withoutOwner].slice(0, FREQUENT_FRIEND_LIMIT);
+  return [ownerEntry, ...withoutOwner].slice(0, options?.limit ?? FREQUENT_ENTRY_LIMIT);
+}
+
+export function getFrequentGroups(
+  groups: ParticipantGroup[],
+  people: SavedPerson[],
+  limit = FREQUENT_ENTRY_LIMIT,
+) {
+  const activePeople = new Set(
+    people.filter((person) => !person.archivedAt).map((person) => person.id),
+  );
+  return sortGroupsForFrequent(groups)
+    .map((group) => ({
+      ...group,
+      memberPersonIds: group.memberPersonIds.filter((personId) =>
+        activePeople.has(personId),
+      ),
+    }))
+    .filter((group) => group.memberPersonIds.length > 0)
+    .slice(0, limit);
 }

@@ -5,6 +5,7 @@ export type SplitMode = "even" | "shares" | "percent";
 export type ParticipantFormValue = {
   id: string;
   name: string;
+  personId?: string;
 };
 
 export type AllocationFormValue = {

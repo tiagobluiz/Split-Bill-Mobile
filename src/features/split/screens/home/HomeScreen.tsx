@@ -24,6 +24,7 @@ import {
 } from "../shared/settlementUtils";
 import { HomeTabBar, type HomeTabKey } from "../shared/homeParts";
 import { HomeHomeTabContent } from "./HomeHomeTabContent";
+import { HomeGroupsTabContent } from "./HomeGroupsTabContent";
 import { HomeOverlayStack } from "./HomeOverlayStack";
 import { HomeSettingsTabContent } from "./HomeSettingsTabContent";
 import { HomeSplitsTabContent } from "./HomeSplitsTabContent";
@@ -59,6 +60,12 @@ export function HomeScreenView() {
     clearSplitReminder,
     addTag,
     removeTag,
+    savePerson,
+    getPersonDeletionImpact,
+    removePerson,
+    addParticipantGroup,
+    updateParticipantGroup,
+    removeParticipantGroup,
   } = useSplitStore(
     useShallow((state) => ({
       records: state.records,
@@ -71,6 +78,12 @@ export function HomeScreenView() {
       clearSplitReminder: state.clearSplitReminder,
       addTag: state.addTag,
       removeTag: state.removeTag,
+      savePerson: state.savePerson,
+      getPersonDeletionImpact: state.getPersonDeletionImpact,
+      removePerson: state.removePerson,
+      addParticipantGroup: state.addParticipantGroup,
+      updateParticipantGroup: state.updateParticipantGroup,
+      removeParticipantGroup: state.removeParticipantGroup,
     })),
   );
 
@@ -626,6 +639,20 @@ export function HomeScreenView() {
           pagedSplitRecords={pagedSplitRecords}
           getSplitReminderLabel={getSplitReminderLabel}
           onOpenActions={(target) => setSelectedRecordActionTarget(target)}
+        />
+      ) : null}
+      {activeTab === "groups" ? (
+        <HomeGroupsTabContent
+          topInset={insets.top}
+          footerInsetBottom={footerInsetBottom}
+          settings={settings}
+          records={records}
+          onSavePerson={savePerson}
+          onGetPersonDeletionImpact={getPersonDeletionImpact}
+          onRemovePerson={removePerson}
+          onAddGroup={addParticipantGroup}
+          onUpdateGroup={updateParticipantGroup}
+          onRemoveGroup={removeParticipantGroup}
         />
       ) : null}
       {activeTab === "settings" ? (

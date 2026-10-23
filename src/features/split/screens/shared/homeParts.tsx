@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { Bell, Home, ReceiptText, Settings } from "lucide-react-native";
+import { Bell, Home, ReceiptText, Settings, Users } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -26,6 +26,7 @@ const YStack = TamaguiYStack as any;
 const HOME_TABS = [
   { key: "home", labelKey: "home.tab.home", icon: Home },
   { key: "splits", labelKey: "home.tab.splits", icon: ReceiptText },
+  { key: "groups", labelKey: "home.tab.groups", icon: Users },
   { key: "settings", labelKey: "home.tab.settings", icon: Settings },
 ] as const;
 
@@ -55,18 +56,22 @@ export function HomeTabBar({
                   ? "home.openHome"
                   : tab.key === "splits"
                     ? "home.openSplits"
-                    : "home.openSettings",
+                    : tab.key === "groups"
+                      ? "home.openGroups"
+                      : "home.openSettings",
               )}
               accessibilityState={{ selected: isActive }}
               onPress={() => onChange(tab.key)}
               style={[screenStyles.homeTabButton, isActive ? screenStyles.homeTabButtonActive : null]}
             >
-              <YStack alignItems="center" gap="$1.5">
+              <YStack width="100%" alignItems="center" gap="$1.5">
                 <Icon color={isActive ? PALETTE.primary : "#b1aba7"} size={20} />
                 <Text
+                  width="100%"
                   fontFamily={FONTS.bodyBold}
                   fontSize={10}
                   textTransform="uppercase"
+                  textAlign="center"
                   letterSpacing={1.5}
                   color={isActive ? PALETTE.primary : "#b1aba7"}
                 >

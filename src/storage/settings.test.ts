@@ -4,13 +4,17 @@ describe("settings storage", () => {
   async function loadModule(options?: {
     row?: any | null;
     locale?: string;
+    references?: Array<{ person_id: string }>;
   }) {
     jest.resetModules();
 
     const database = {
       execAsync: jest.fn(async () => undefined),
+      getAllAsync: jest.fn(async () => options?.references ?? []),
       getFirstAsync: jest.fn(async () => options?.row ?? null),
       runAsync: jest.fn(async () => undefined),
+      closeAsync: jest.fn(async () => undefined),
+      withExclusiveTransactionAsync: jest.fn(async (operation: any): Promise<any> => operation(database)),
     };
 
     const openDatabaseAsync = jest.fn(async () => database);
@@ -68,7 +72,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -86,7 +90,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
     expect(database.runAsync).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT OR REPLACE INTO app_settings"),
+      expect.stringContaining("INSERT INTO app_settings"),
       [
         "app-settings",
         JSON.stringify({
@@ -102,6 +106,63 @@ describe("settings storage", () => {
         }),
       ]
     );
+  });
+
+  it("preserves people committed after a settings snapshot was read", async () => {
+    const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [person] }) },
+      references: [{ person_id: person.id }],
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "You",
+      ownerProfileImageUri: "",
+      balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true,
+      defaultCurrency: "EUR",
+      language: "en",
+      humour: "plain",
+      splitListAmountDisplay: "remaining",
+      customCurrencies: [],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    expect(JSON.parse(saveArgs[1][1]).people).toEqual([person]);
+  });
+
+  it("does not re-archive a person from an older settings snapshot", async () => {
+    const active = { id: "person-ana", name: "Ana", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-02-02T00:00:00.000Z" };
+    const staleArchived = { ...active, archivedAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [active] }) },
+    });
+
+    await settingsModule.saveAppSettings({
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en",
+      humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [],
+      people: [staleArchived],
+    });
+
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    expect(JSON.parse(saveArgs[1][1]).people).toEqual([active]);
+  });
+
+  it("preserves the configured owner spelling when loading and saving people", async () => {
+    const owner = { id: "owner-person", name: "Alice Smith", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Alice  Smith", ownerPersonId: owner.id, people: [owner] }) },
+    });
+
+    const loaded = await settingsModule.getAppSettings();
+    expect(loaded.people?.find((person) => person.id === owner.id)?.name).toBe("Alice  Smith");
+
+    await settingsModule.saveAppSettings(loaded);
+    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    const saved = JSON.parse(saveArgs[1][1]);
+    expect(saved.ownerName).toBe("Alice  Smith");
+    expect(saved.people.find((person: any) => person.id === owner.id)?.name).toBe("Alice  Smith");
   });
 
   it("normalizes feature flags before saving settings payloads", async () => {
