@@ -1620,7 +1620,6 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
-        ownerProfileImageUri: "",
         balanceFeatureEnabled: false,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "PO2",
@@ -1681,7 +1680,7 @@ describe("split screens", () => {
     expect(screen.getByText("Account")).toBeTruthy();
   });
 
-  it("builds a fallback custom currency code, removes photos, and leaves settings without save prompts", async () => {
+  it("builds a fallback custom currency code and leaves settings without save prompts", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
@@ -1719,7 +1718,6 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
-        ownerProfileImageUri: "file:///existing.png",
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "CUR",
@@ -1749,7 +1747,6 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
-        ownerProfileImageUri: "file:///existing.png",
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "USD",
@@ -1840,7 +1837,6 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Ana",
-        ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "TOK",
@@ -2023,7 +2019,6 @@ describe("split screens", () => {
 
       mockStoreState.settings = {
         ownerName: "Ana",
-        ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
         defaultCurrency: "EUR",
         customCurrencies: [],
