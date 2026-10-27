@@ -328,13 +328,14 @@ describe("HomeGroupsTabContent group actions", () => {
   });
 
   it("shows the owner first and opens a profile-only editor", async () => {
-    const owner = { id: "owner", name: "Alice", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const owner = { id: "owner", name: "Alice", color: "#123456", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const other = { id: "person-other", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const onUpdateSettings = jest.fn(async () => undefined);
     renderDirectory(undefined, { ...settings, ownerName: "Alice", ownerPersonId: owner.id, people: [owner, other] }, undefined, { onUpdateSettings });
     fireEvent.press(screen.getByText("People (2)"));
     expect(screen.getByText("Your profile")).toBeTruthy();
     expect(screen.getByText("Alice")).toBeTruthy();
+    expect(screen.getByLabelText("Alice avatar").props.style).toEqual(expect.arrayContaining([expect.objectContaining({ backgroundColor: "#123456" })]));
     const labels = screen.getAllByRole("button").map((button: any) => button.props.accessibilityLabel);
     expect(labels.indexOf("Your profile")).toBeLessThan(labels.indexOf("Edit person Ana"));
     fireEvent.press(screen.getByLabelText("Your profile"));
