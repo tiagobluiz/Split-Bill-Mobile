@@ -19,6 +19,7 @@ import {
 
 export type AppSettings = {
   ownerName: string;
+  profileSetupCompleted?: boolean;
   ownerPersonId?: string;
   ownerProfileImageUri: string;
   balanceFeatureEnabled: boolean;
@@ -85,6 +86,7 @@ function getDefaultSettings(): AppSettings {
   const translationDefaults = getDefaultTranslationSettings(getDeviceLocale());
   return {
     ownerName: "You",
+    profileSetupCompleted: false,
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
@@ -160,11 +162,15 @@ export async function getAppSettings() {
       : undefined;
 
   const ownerName = typeof parsed.ownerName === "string" && parsed.ownerName.trim() ? parsed.ownerName.trim() : "You";
+  const profileSetupCompleted = typeof parsed.profileSetupCompleted === "boolean"
+    ? parsed.profileSetupCompleted
+    : ownerName.toLocaleLowerCase() !== "you";
   const people = normalizePeopleWithOwnerName(parsed.people, parsed.ownerPersonId, ownerName);
   const participantGroups = normalizeGroups(parsed.participantGroups, people);
 
-  return {
+  const settings: AppSettings = {
     ownerName,
+    profileSetupCompleted,
     ...(typeof parsed.ownerPersonId === "string" ? { ownerPersonId: parsed.ownerPersonId } : {}),
     ownerProfileImageUri:
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
@@ -209,6 +215,10 @@ export async function getAppSettings() {
           }))
       : [],
   };
+  if (typeof parsed.profileSetupCompleted !== "boolean" && profileSetupCompleted) {
+    await saveAppSettings(settings);
+  }
+  return settings;
 }
 
 export function buildSettingsPayload(settings: AppSettings): AppSettings {
@@ -246,6 +256,13 @@ export async function saveAppSettings(settings: AppSettings) {
     const current = currentRow ? parseObject(currentRow.payload, "settings") : {};
     const mergedSettings = {
       ...settings,
+      profileSetupCompleted: current.profileSetupCompleted === true || settings.profileSetupCompleted === true
+        ? true
+        : typeof settings.profileSetupCompleted === "boolean"
+          ? false
+          : typeof current.profileSetupCompleted === "boolean"
+            ? current.profileSetupCompleted
+            : String(settings.ownerName ?? current.ownerName ?? "You").trim().toLowerCase() !== "you",
       ...(current.people !== undefined || settings.people !== undefined
         ? { people: mergePeopleRegistry(current.people, settings.people) }
         : {}),

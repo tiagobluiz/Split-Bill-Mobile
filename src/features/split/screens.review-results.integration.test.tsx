@@ -1207,21 +1207,11 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
     expect(screen.getAllByText("On")).toHaveLength(2);
-    fireEvent.changeText(
-      screen.getByPlaceholderText("e.g. Tiago"),
-      "Ana Maria",
-    );
+    expect(screen.getByLabelText(/Edit your profile$/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
-    await waitFor(() => {
-      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerName: "Ana Maria" }),
-      );
-    });
     fireEvent.press(screen.getByText("Settings"));
-    expect(screen.getByPlaceholderText("e.g. Tiago").props.value).toBe(
-      "Ana Maria",
-    );
+    expect(screen.getByLabelText(/Edit your profile$/)).toBeTruthy();
     expect(screen.getAllByText("On")).toHaveLength(2);
   });
 

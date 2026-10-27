@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FieldLabel } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { normalizePersonName, sortPeopleByName, type ParticipantGroup, type SavedPerson } from "../../people";
+import { getPersonNameValidationMessage, normalizePersonName, normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, sortPeopleByName, validatePersonName, type ParticipantGroup, type SavedPerson } from "../../people";
 import type { SplitTagColor } from "../../tags";
 import { screenStyles } from "../shared/styles";
 import { PhotoOptionsSheet } from "../shared/PhotoOptionsSheet";
@@ -67,10 +67,9 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
     if (draftRef.current.photoUri !== person?.photoUri) void discardTemporaryPersonPhoto(draftRef.current.photoUri);
   }, [person?.photoUri]);
 
-  const normalizedName = normalizePersonName(draft.name);
-  const duplicate = useMemo(() => normalizedName
-    ? people.find((entry) => entry.id !== person?.id && normalizePersonName(entry.name).toLowerCase() === normalizedName.toLowerCase())
-    : undefined, [normalizedName, people, person?.id]);
+  const normalizedName = normalizePersonNameInput(draft.name);
+  const nameValidation = useMemo(() => validatePersonName(draft.name, people, person?.id), [draft.name, people, person?.id]);
+  const duplicate = nameValidation?.reason === "duplicate" ? nameValidation.person : undefined;
 
   const importContact = async () => {
     try {
@@ -122,7 +121,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
         <PersonAppearancePanel person={person} draft={draft} setDraft={setDraft} suggestedContactPhoto={suggestedContactPhoto} setUsedContactPhoto={setUsedContactPhoto} />
         <YStack gap="$2" style={screenStyles.groupFormPanel}>
           <FieldLabel>{t("people.personName")}</FieldLabel>
-          <View style={screenStyles.assignInputShell}><TextInput value={draft.name} onChangeText={(name) => { setDraft((current) => ({ ...current, name })); setError(""); }} placeholder={t("people.personPlaceholder")} maxLength={25} autoCapitalize="words" style={screenStyles.assignInput} /></View>
+          <View style={screenStyles.assignInputShell}><TextInput value={draft.name} onChangeText={(name) => { setDraft((current) => ({ ...current, name })); setError(""); }} placeholder={t("people.personPlaceholder")} maxLength={PERSON_NAME_MAX_LENGTH} autoCapitalize="words" style={screenStyles.assignInput} /></View>
           {duplicate ? <YStack gap="$2" paddingTop="$1"><Text color={PALETTE.danger} fontFamily={FONTS.bodyMedium}>{t(duplicate.archivedAt ? "people.archivedDuplicate" : "people.activeDuplicate", { person: duplicate.name })}</Text><Pressable accessibilityRole="button" onPress={() => onOpenExisting(duplicate, usedContactPhoto ? draft.photoUri : null)} style={screenStyles.groupsImportButton}><Users size={17} color={PALETTE.primary} /><Text color={PALETTE.primary} fontFamily={FONTS.bodyBold}>{t(duplicate.archivedAt ? "people.restoreAndEdit" : "people.editExisting")}</Text></Pressable></YStack> : null}
           {usedContactPhoto && draft.photoUri ? <Pressable onPress={() => setUsedContactPhoto(false)}><Text color={PALETTE.onSurfaceVariant} fontFamily={FONTS.bodyMedium}>{t("people.contactPhotoImported")}</Text></Pressable> : null}
         </YStack>
@@ -131,7 +130,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
       </ScrollView>
       <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy || Boolean(duplicate)} style={[screenStyles.splitNoticeButton, (busy || duplicate) && { opacity: .55 }]} onPress={async () => {
         setError("");
-        if (!normalizedName || duplicate) { setError(t(duplicate ? "people.activeDuplicate" : "people.validationPerson", duplicate ? { person: duplicate.name } : undefined)); return; }
+        if (nameValidation) { setError(getPersonNameValidationMessage(nameValidation, t, "people.validationPerson")); return; }
         changeBusy(true);
         let photoUri = draft.photoUri;
         let copiedPhoto = false;

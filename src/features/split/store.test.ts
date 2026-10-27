@@ -862,7 +862,7 @@ describe("split store", () => {
     );
   });
 
-  it("keeps records untouched when the next owner name is blank or the participant name is blank", async () => {
+  it("rejects a blank owner name before changing settings or records", async () => {
     const record = createRecord({
       values: {
         ...createValues(),
@@ -877,19 +877,35 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
-    await storeModule.useSplitStore.getState().updateSettings({
+    await expect(storeModule.useSplitStore.getState().updateSettings({
       ownerName: "   ",
-    });
+    })).rejects.toThrow("Invalid person name: required");
 
     expect(storeModule.useSplitStore.getState().records[0]).toMatchObject(
       record,
     );
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: record.id,
-        values: expect.objectContaining(record.values),
-      }),
-    );
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
+  });
+
+  it.each(["   ", "A".repeat(26), " yOu "])("rejects the same invalid name in profile and People saves: %j", async (name) => {
+    const { storeModule } = await loadStore();
+    await storeModule.useSplitStore.getState().bootstrap();
+    const before = storeModule.useSplitStore.getState().settings;
+    await expect(storeModule.useSplitStore.getState().updateSettings({ ownerName: name, profileSetupCompleted: true })).rejects.toThrow();
+    expect(storeModule.useSplitStore.getState().settings).toEqual(before);
+    const result = await storeModule.useSplitStore.getState().savePerson({ personId: null, name, photoUri: null, color: "orange", groupIds: [] });
+    expect(result.ok).toBe(false);
+    expect(storeModule.useSplitStore.getState().settings).toEqual(before);
+  });
+
+  it("checks archived-name collisions in both profile and People saves", async () => {
+    const { storeModule } = await loadStore();
+    await storeModule.useSplitStore.getState().bootstrap();
+    const state = storeModule.useSplitStore.getState();
+    const archived = { id: "archived-ana", name: "Ana Silva", archivedAt: "2026-01-01", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({ settings: { ...state.settings, people: [...(state.settings.people ?? []), archived] } });
+    await expect(storeModule.useSplitStore.getState().updateSettings({ ownerName: "  ANA   SILVA " })).rejects.toThrow("Owner name conflicts with a saved person");
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "  ANA   SILVA ", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "duplicate", personId: archived.id });
   });
 
   it("ignores blank participant names while still renaming owner aliases", async () => {

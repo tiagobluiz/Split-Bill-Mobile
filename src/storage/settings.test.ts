@@ -72,7 +72,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -80,6 +80,7 @@ describe("settings storage", () => {
     );
     expect(loaded).toMatchObject({
       ownerName: "Tiago",
+      profileSetupCompleted: true,
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
       trackPaymentsFeatureEnabled: false,
@@ -103,9 +104,33 @@ describe("settings storage", () => {
           humour: "plain",
           splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
+          profileSetupCompleted: true,
         }),
       ]
     );
+  });
+
+  it("marks legacy custom-name profiles complete and keeps the default name eligible", async () => {
+    const custom = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "  Ana  " }) } });
+    const loadedCustom = await custom.settingsModule.getAppSettings();
+    expect(loadedCustom).toMatchObject({ ownerName: "Ana", profileSetupCompleted: true });
+    expect(custom.database.runAsync).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO app_settings"), expect.arrayContaining(["app-settings", expect.stringContaining('"profileSetupCompleted":true')]));
+
+    const pending = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: " You " }) } });
+    const loadedPending = await pending.settingsModule.getAppSettings();
+    expect(loadedPending).toMatchObject({ ownerName: "You", profileSetupCompleted: false });
+    expect(pending.database.runAsync).not.toHaveBeenCalled();
+  });
+
+  it("never clears a committed profile setup flag", async () => {
+    const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana", profileSetupCompleted: true }) } });
+    await settingsModule.saveAppSettings({
+      ownerName: "Ana", profileSetupCompleted: false, ownerProfileImageUri: "", balanceFeatureEnabled: true,
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain",
+      splitListAmountDisplay: "remaining", customCurrencies: [],
+    });
+    const savedCall = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    expect(JSON.parse(savedCall[1][1]).profileSetupCompleted).toBe(true);
   });
 
   it("preserves people committed after a settings snapshot was read", async () => {

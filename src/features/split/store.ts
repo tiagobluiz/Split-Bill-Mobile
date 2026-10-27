@@ -62,6 +62,8 @@ import {
   normalizeGroups,
   normalizePeople,
   normalizePersonName,
+  normalizePersonNameInput,
+  validatePersonName,
   type ParticipantGroup,
   type SavedPerson,
 } from "./people";
@@ -245,7 +247,11 @@ const recordWriteStates = new Map<string, {
 
 function resolveParticipantPerson(participant: ParticipantsValue[number], settings: AppSettings) {
   if (participant.personId) return { participant, created: null as SavedPerson | null, restorePersonId: null as string | null };
-  const normalized = normalizePersonName(participant.name);
+  const normalized = normalizePersonNameInput(participant.name);
+  if (validatePersonName(normalized, [], undefined, { allowOwnerPlaceholder: true })) {
+    // Invalid split drafts remain visible to step validation, without creating registry entries.
+    return { participant: { ...participant, name: normalized }, created: null as SavedPerson | null, restorePersonId: null as string | null };
+  }
   if (settings.ownerPersonId && isOwnerAlias(normalized, settings.ownerName)) {
     return { participant: { ...participant, personId: settings.ownerPersonId }, created: null, restorePersonId: null };
   }
@@ -776,6 +782,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   settings: {
     ...getDefaultTranslationSettings(getDeviceLocale()),
     ownerName: "You",
+    profileSetupCompleted: false,
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
@@ -943,10 +950,19 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateSettings(partial) {
     const before = get();
+    if (partial.ownerName !== undefined) {
+      const name = normalizePersonNameInput(partial.ownerName);
+      const validation = validatePersonName(name, before.settings.people, before.settings.ownerPersonId, {
+        allowOwnerPlaceholder: name === before.settings.ownerName && partial.profileSetupCompleted !== true,
+      });
+      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : `Invalid person name: ${validation.reason}`);
+      partial = { ...partial, ownerName: name };
+    }
     const optimisticSettings = { ...before.settings, ...partial };
     const normalizedOptimisticPeople = normalizePeople(optimisticSettings.people);
     const normalizedOptimistic = {
       ...optimisticSettings,
+      profileSetupCompleted: before.settings.profileSetupCompleted === true || optimisticSettings.profileSetupCompleted === true,
       ...normalizeFeatureFlags(optimisticSettings),
       tags: normalizeTags(optimisticSettings.tags),
       people: normalizedOptimisticPeople,
@@ -958,9 +974,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       confirmedOwnerName = before.settings.ownerName || "You";
       confirmedOwnerPerson = before.settings.people?.find((person) => person.id === before.settings.ownerPersonId) ?? null;
     }
-    if (optimisticOwnerChanged && normalizedOptimistic.ownerPersonId && normalizedOptimistic.people.some((person) =>
-      person.id !== normalizedOptimistic.ownerPersonId && normalizePersonName(person.name).toLowerCase() === normalizePersonName(optimisticOwnerName).toLowerCase(),
-    )) throw new Error("Owner name conflicts with a saved person");
     const optimisticRecords = optimisticOwnerChanged ? before.records.map((record) => renameOwnerReferences(record, before.settings.ownerName, optimisticOwnerName, normalizedOptimistic.ownerPersonId)) : before.records;
     set({ settings: normalizedOptimistic, records: optimisticRecords });
     try {
@@ -974,6 +987,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     });
     const nextSettings = {
       ...mergedSettings,
+      profileSetupCompleted: latest.settings.profileSetupCompleted === true || mergedSettings.profileSetupCompleted === true,
       ...normalizedFlags,
       tags: normalizeTags(mergedSettings.tags),
       people: normalizePeople(mergedSettings.people),
@@ -983,11 +997,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       ),
     };
     const nextOwnerName = nextSettings.ownerName || "";
+    if (partial.ownerName !== undefined) {
+      const validation = validatePersonName(nextOwnerName, nextSettings.people, nextSettings.ownerPersonId, {
+        allowOwnerPlaceholder: nextOwnerName === before.settings.ownerName && partial.profileSetupCompleted !== true,
+      });
+      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : `Invalid person name: ${validation.reason}`);
+    }
     if (nextSettings.ownerPersonId) {
-      if (nextSettings.people.some((person) => person.id !== nextSettings.ownerPersonId &&
-        normalizePersonName(person.name).toLowerCase() === normalizePersonName(nextOwnerName).toLowerCase())) {
-        throw new Error("Owner name conflicts with a saved person");
-      }
       nextSettings.people = nextSettings.people.map((person) => person.id === nextSettings.ownerPersonId
         ? { ...person, name: nextOwnerName, updatedAt: nowIso() } : person);
     }
@@ -1026,11 +1042,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             settings: {
               ...latest.settings,
               ownerName: restoredOwnerName,
+              profileSetupCompleted: before.settings.profileSetupCompleted,
               ...(restoredOwner && { people: (latest.settings.people ?? []).map((person) => person.id === restoredOwner.id ? restoredOwner : person) }),
             },
             records: latest.records.map((record) => renameOwnerReferences(record, optimisticOwnerName, restoredOwnerName, before.settings.ownerPersonId)),
           };
         });
+      }
+      if (!optimisticOwnerChanged && Object.prototype.hasOwnProperty.call(partial, "profileSetupCompleted")) {
+        set((latest) => latest.settings.profileSetupCompleted === normalizedOptimistic.profileSetupCompleted
+          ? { settings: { ...latest.settings, profileSetupCompleted: before.settings.profileSetupCompleted } }
+          : {});
       }
       throw error;
     }
@@ -1069,8 +1091,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return result.ok;
   },
   async savePerson(details) {
-    const normalizedName = normalizePersonName(details.name);
-    if (!normalizedName) return { ok: false, reason: "invalid-name" };
+    if (validatePersonName(details.name, [], undefined, { allowOwnerPlaceholder: true })) return { ok: false, reason: "invalid-name" };
+    const normalizedName = normalizePersonNameInput(details.name);
     try {
       return await enqueueSettingsPersistence(async () => {
     const state = get();
@@ -1084,11 +1106,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (isOwnerAlias(normalizedName, state.settings.ownerName) && (!isOwnerIdentity || !isCurrentOwnerName)) {
       return { ok: false, reason: "owner-alias", ...(state.settings.ownerPersonId ? { personId: state.settings.ownerPersonId } : {}) };
     }
-    const duplicate = people.find((person) =>
-      person.id !== details.personId &&
-      normalizePersonName(person.name).toLowerCase() === normalizedName.toLowerCase(),
-    );
-    if (duplicate) return { ok: false, reason: "duplicate", personId: duplicate.id };
+    const nameValidation = validatePersonName(details.name, people, details.personId ?? undefined, { allowOwnerPlaceholder: isOwnerIdentity && isCurrentOwnerName });
+    if (nameValidation?.reason === "duplicate") return { ok: false, reason: "duplicate", personId: nameValidation.person.id };
+    if (nameValidation) return { ok: false, reason: "invalid-name" };
     const renaming = Boolean(current && normalizePersonName(current.name).toLowerCase() !== normalizedName.toLowerCase());
     if (renaming && isOwnerAlias(normalizedName, state.settings.ownerName)) {
       const conflict = state.records.find((record) => record.values.participants.some((participant) =>

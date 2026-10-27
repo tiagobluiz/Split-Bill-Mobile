@@ -1,4 +1,5 @@
-import { createId, trimName } from "../../domain";
+import { createId, normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, trimName, type PersonNameValidationError } from "../../domain";
+export { normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, personNameKey, validatePersonName } from "../../domain";
 import { uuid } from "expo-modules-core";
 import type { DraftRecord } from "../../storage/records";
 import type { SplitTagColor, SplitTagIcon } from "./tags";
@@ -26,7 +27,6 @@ export type ParticipantGroup = {
   updatedAt: string;
 };
 
-export const PERSON_NAME_MAX_LENGTH = 25;
 export const GROUP_NAME_MAX_LENGTH = 32;
 export const FREQUENT_ENTRY_LIMIT = 15;
 
@@ -165,7 +165,15 @@ export function normalizeGroups(
 }
 
 export function normalizePersonName(value: string) {
-  return trimName(value).slice(0, PERSON_NAME_MAX_LENGTH);
+  // Bound imported/legacy registry data; validate raw editor input before normalizing it.
+  return normalizePersonNameInput(value).slice(0, PERSON_NAME_MAX_LENGTH);
+}
+
+export function getPersonNameValidationMessage(error: PersonNameValidationError<{ name: string; archivedAt?: string | null }> | null, translate: typeof import("../../i18n").t, requiredKey: "settings.ownerNameRequired" | "people.validationPerson" = "settings.ownerNameRequired") {
+  if (!error) return "";
+  if (error.reason === "duplicate") return translate(error.person.archivedAt ? "people.archivedDuplicate" : "people.activeDuplicate", { person: error.person.name });
+  if (error.reason === "max") return translate("validation.participantNameMax", { max: error.max });
+  return translate(error.reason === "reserved" ? "settings.ownerNameReserved" : requiredKey);
 }
 
 export function normalizeGroupName(value: string) {

@@ -876,34 +876,10 @@ describe("split screens", () => {
         symbol: `$${index}`,
       })),
     };
-    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({
-      granted: false,
-    });
-    mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: false });
     const createIdSpy = jest.spyOn(domain, "createId").mockReturnValue("!!!");
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Upload photo"));
-    });
-    expect(
-      screen.getByText(
-        "Please allow photo access to choose a profile picture.",
-      ),
-    ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Take photo"));
-    });
-    expect(
-      screen.getByText("Please allow camera access to take a profile picture."),
-    ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
@@ -1501,46 +1477,29 @@ describe("split screens", () => {
   });
 
   it("auto-saves profile and feature changes from settings", async () => {
-    mockLaunchCameraAsync.mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: "file:///camera-profile.png" }] as any,
-    });
-
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    expect(screen.getByText("User profile")).toBeTruthy();
+    expect(screen.getByText("Account")).toBeTruthy();
     expect(screen.getByText("Default currency")).toBeTruthy();
     expect(screen.getByText("Split rows")).toBeTruthy();
     expect(screen.getByText("Outstanding balance")).toBeTruthy();
     expect(screen.getByText("Balance helper")).toBeTruthy();
 
-    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
-    await waitFor(() => {
-      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerName: "Tiago" }),
-      );
-    });
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    expect(screen.getByText("Profile picture")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Take photo"));
-    });
-    await waitFor(() => {
-      expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "file:///camera-profile.png",
-        }),
-      );
-    });
+    fireEvent.press(screen.getByLabelText(/Edit your profile$/));
+    expect(screen.getByText("Edit person")).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Alex");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+    await waitFor(() => expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerName: "Alex" }),
+    ));
+    fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Toggle balance helper"));
     });
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "file:///camera-profile.png",
+          ownerName: "Ana",
           balanceFeatureEnabled: false,
           trackPaymentsFeatureEnabled: true,
           splitListAmountDisplay: "total",
@@ -1635,9 +1594,6 @@ describe("split screens", () => {
       defaultCurrency: "",
       customCurrencies: [{ code: "POI", name: "Points", symbol: "P" }],
     };
-    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({
-      granted: false,
-    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -1646,28 +1602,6 @@ describe("split screens", () => {
     });
     expect(
       screen.getByText("Please choose a default currency first."),
-    ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago");
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Upload photo"));
-    });
-    expect(
-      screen.getByText(
-        "Please allow photo access to choose a profile picture.",
-      ),
-    ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    mockRequestCameraPermissionsAsync.mockResolvedValue({ granted: false });
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Take photo"));
-    });
-    expect(
-      screen.getByText("Please allow camera access to take a profile picture."),
     ).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
@@ -1719,10 +1653,21 @@ describe("split screens", () => {
     expect(
       screen.getByText("Please choose a default currency first."),
     ).toBeTruthy();
-    expect(screen.getByText("User profile")).toBeTruthy();
+    expect(screen.getByText("Account")).toBeTruthy();
   });
 
-  it("shows a simple popup for a missing profile name and ignores canceled image picking", async () => {
+  it("opens the owner editor directly from the compact Settings profile row", async () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText(/Edit your profile$/));
+    expect(screen.getByText("Edit person")).toBeTruthy();
+    expect(screen.getByPlaceholderText("e.g. Marcus").props.value).toBe("Ana");
+    expect(screen.queryByText("People (1)")).toBeNull();
+    fireEvent.press(screen.getByText("Cancel"));
+    expect(screen.getByText("People (1)")).toBeTruthy();
+  });
+
+  it("allows settings to open the profile editor for a placeholder name", async () => {
     mockStoreState.settings = {
       ownerName: "You",
       ownerProfileImageUri: "",
@@ -1731,45 +1676,9 @@ describe("split screens", () => {
       defaultCurrency: "EUR",
       customCurrencies: [],
     };
-    mockLaunchImageLibraryAsync.mockResolvedValue({
-      canceled: true,
-      assets: [],
-    });
-
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    const ownerNameInput = screen.getByPlaceholderText("e.g. Tiago");
-    fireEvent.changeText(ownerNameInput, "   ");
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 550));
-    });
-    expect(
-      screen.queryByText("Please choose a short name for yourself."),
-    ).toBeNull();
-
-    fireEvent(ownerNameInput, "blur");
-    expect(
-      screen.getByText("Please choose a short name for yourself."),
-    ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    fireEvent.press(screen.getByLabelText("Open Home"));
-    expect(screen.queryByText("Save your changes?")).toBeNull();
-    await waitFor(() => {
-      expect(
-        screen.getByText("Please choose a short name for yourself."),
-      ).toBeTruthy();
-    });
-    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
-
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Upload photo"));
-    });
-    expect(mockStoreState.updateSettings).not.toHaveBeenCalledWith(
-      expect.objectContaining({ ownerProfileImageUri: expect.any(String) }),
-    );
+    expect(screen.getByText("Account")).toBeTruthy();
   });
 
   it("builds a fallback custom currency code, removes photos, and leaves settings without save prompts", async () => {
@@ -1793,9 +1702,6 @@ describe("split screens", () => {
     expect(screen.queryByText("Save your changes?")).toBeNull();
     fireEvent.press(screen.getByLabelText("Open Settings"));
 
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    fireEvent.press(screen.getByLabelText("Remove photo"));
-
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
@@ -1813,7 +1719,7 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
-        ownerProfileImageUri: "",
+        ownerProfileImageUri: "file:///existing.png",
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "CUR",
@@ -1825,7 +1731,7 @@ describe("split screens", () => {
     });
   });
 
-  it("lets settings choose preset currencies, cancel profile actions, and Cancel creation", async () => {
+  it("lets settings choose preset currencies and Cancel creation", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
@@ -1837,10 +1743,6 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    fireEvent.press(screen.getByLabelText("Cancel"));
-    expect(screen.queryByText("Profile picture")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByText("US Dollar ($)"));
@@ -1877,7 +1779,6 @@ describe("split screens", () => {
     expect(screen.getByText("Please add a currency name first.")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Dismiss split notice"));
 
-    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Tiago!");
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
   });
@@ -1951,13 +1852,13 @@ describe("split screens", () => {
     });
   });
 
-  it("dismisses the profile action sheet from the backdrop", () => {
+  it("opens and cancels the profile editor from Settings", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    fireEvent.press(screen.getByLabelText("Profile picture options"));
-    expect(screen.getByText("Profile picture")).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
-    expect(screen.queryByText("Profile picture")).toBeNull();
+    fireEvent.press(screen.getByLabelText(/Edit your profile$/));
+    expect(screen.getByText("Edit person")).toBeTruthy();
+    fireEvent.press(screen.getByText("Cancel"));
+    expect(screen.getByText("People (1)")).toBeTruthy();
   });
 
   it("keeps the custom currency modal open when tapping outside", async () => {
@@ -2044,7 +1945,7 @@ describe("split screens", () => {
     });
   });
 
-  it("falls back to blank-safe settings defaults and blocks leaving while settings are invalid", async () => {
+  it("renders fallback settings when profile name is blank", async () => {
     mockStoreState.settings = {
       ownerName: undefined,
       ownerProfileImageUri: undefined,
@@ -2055,21 +1956,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "");
-    expect(screen.getByText("?")).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
-    });
-    fireEvent.press(screen.getByLabelText("Open Home"));
-    expect(screen.queryByText("Save your changes?")).toBeNull();
-    await waitFor(() => {
-      expect(
-        screen.getByText("Please choose a short name for yourself."),
-      ).toBeTruthy();
-    });
-    expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
-    expect(screen.getByText("User profile")).toBeTruthy();
-    expect(screen.queryByText("Save your changes?")).toBeNull();
+    expect(screen.getByText("Account")).toBeTruthy();
   });
 
   it("formats custom-currency home balances through the fallback symbol path", () => {

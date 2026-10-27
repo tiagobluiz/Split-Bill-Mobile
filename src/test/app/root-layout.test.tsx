@@ -84,6 +84,10 @@ jest.mock("../../features/split/store", () => {
   };
 });
 
+jest.mock("../../features/split/screens/home/ProfileSetupGate", () => ({
+  ProfileSetupGate: () => null,
+}));
+
 jest.mock("../../lib/device", () => ({
   getDeviceLocale: () => "en-US",
 }));

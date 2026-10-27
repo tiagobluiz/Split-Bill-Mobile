@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
-import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
+import { Image, Pressable, ScrollView, View } from "react-native";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -25,7 +25,6 @@ import {
 import { HomeMainHeader } from "./HomeMainHeader";
 import {
   isBalanceDependentSplitListAmountDisplay,
-  MAX_OWNER_NAME_LENGTH,
 } from "./useHomeSettingsDraftController";
 import type { SplitListAmountDisplayOption } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
@@ -41,10 +40,7 @@ export function HomeSettingsTabContent({
   topInset,
   footerInsetBottom,
   settings,
-  ownerNameDraft,
-  setOwnerNameDraft,
-  validateOwnerNameDraft,
-  ownerProfileImageUriDraft,
+  onEditProfile,
   balanceFeatureEnabledDraft,
   setBalanceFeatureEnabledDraft,
   trackPaymentsFeatureEnabledDraft,
@@ -54,7 +50,6 @@ export function HomeSettingsTabContent({
   setHumourMenuOpen,
   setCurrencyMenuOpen,
   setSplitListAmountDisplayMenuOpen,
-  setProfileActionMenuOpen,
   languageDraft,
   humourDraft,
   splitListAmountDisplayOptions,
@@ -73,10 +68,7 @@ export function HomeSettingsTabContent({
   topInset: number;
   footerInsetBottom: number;
   settings: AppSettings;
-  ownerNameDraft: string;
-  setOwnerNameDraft: (value: string) => void;
-  validateOwnerNameDraft: () => boolean;
-  ownerProfileImageUriDraft: string;
+  onEditProfile: () => void;
   balanceFeatureEnabledDraft: boolean;
   setBalanceFeatureEnabledDraft: (
     value: boolean | ((value: boolean) => boolean),
@@ -90,7 +82,6 @@ export function HomeSettingsTabContent({
   setHumourMenuOpen: (value: boolean) => void;
   setCurrencyMenuOpen: (value: boolean) => void;
   setSplitListAmountDisplayMenuOpen: (value: boolean) => void;
-  setProfileActionMenuOpen: (value: boolean) => void;
   languageDraft: "en" | "pt";
   humourDraft: "plain" | "sassy" | "unhinged";
   splitListAmountDisplayOptions: SplitListAmountDisplayOption[];
@@ -143,55 +134,27 @@ export function HomeSettingsTabContent({
         showsVerticalScrollIndicator={false}
       >
         <YStack gap="$5">
-          <YStack gap="$4">
+          <YStack gap="$3">
             <SectionEyebrow>{t("settings.userProfile")}</SectionEyebrow>
-            <XStack gap="$4" alignItems="flex-start">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("settings.profilePictureOptions")}
-                style={screenStyles.settingsAvatarWrap}
-                onPress={() => setProfileActionMenuOpen(true)}
-              >
-                {ownerProfileImageUriDraft ? (
-                  <Image
-                    source={{ uri: ownerProfileImageUriDraft }}
-                    style={screenStyles.settingsAvatarImage}
-                  />
-                ) : (
-                  <Text
-                    fontFamily={FONTS.headlineBlack}
-                    fontSize={22}
-                    color={PALETTE.primary}
-                  >
-                    {getInitials(ownerNameDraft || settings.ownerName)}
-                  </Text>
-                )}
-              </Pressable>
-              <YStack flex={1} gap="$2">
-                <FieldLabel>{t("settings.ownerNameLabel")}</FieldLabel>
-                <View style={screenStyles.assignInputShell}>
-                  <TextInput
-                    value={ownerNameDraft}
-                    onChangeText={(value) =>
-                      setOwnerNameDraft(value.slice(0, MAX_OWNER_NAME_LENGTH))
-                    }
-                    placeholder={t("settings.ownerNamePlaceholder")}
-                    placeholderTextColor={PALETTE.inputPlaceholder}
-                    style={screenStyles.assignInput}
-                    maxLength={MAX_OWNER_NAME_LENGTH}
-                    onBlur={validateOwnerNameDraft}
-                  />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${settings.ownerName}, ${t("settings.editProfile")}`}
+              onPress={onEditProfile}
+              style={{ minHeight: 88, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 22, backgroundColor: PALETTE.surfaceContainerLow, flexDirection: "row", alignItems: "center", gap: 14 }}
+            >
+              {settings.ownerProfileImageUri ? (
+                <Image source={{ uri: settings.ownerProfileImageUri }} style={{ width: 56, height: 56, borderRadius: 28 }} />
+              ) : (
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: PALETTE.brandOverlayStrong, borderWidth: 1, borderColor: PALETTE.outlineVariant, alignItems: "center", justifyContent: "center" }}>
+                  <Text fontFamily={FONTS.headlineBlack} fontSize={20} color={PALETTE.primary}>{getInitials(settings.ownerName)}</Text>
                 </View>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={14}
-                  lineHeight={21}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("settings.ownerNameHint")}
-                </Text>
+              )}
+              <YStack flex={1} gap="$0.5">
+                <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface} numberOfLines={1}>{settings.ownerName}</Text>
+                <Text fontFamily={FONTS.bodyMedium} fontSize={14} color={PALETTE.onSurfaceVariant}>{t("settings.editProfile")}</Text>
               </YStack>
-            </XStack>
+              <ChevronRight size={22} color={PALETTE.onSurfaceVariant} />
+            </Pressable>
           </YStack>
           <YStack gap="$4">
             <SectionEyebrow>{t("tags.settingsTitle")}</SectionEyebrow>

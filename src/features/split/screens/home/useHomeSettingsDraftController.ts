@@ -10,12 +10,13 @@ import type {
   SplitListAmountDisplay,
 } from "../../../../storage/settings";
 import { getCurrencyOptions } from "../shared/participantUtils";
+import { getPersonNameValidationMessage, normalizePersonNameInput, validatePersonName } from "../../people";
+import { discardTemporaryPersonPhoto, persistPersonPhoto, removePersonPhoto } from "../../personPhotos";
 import type {
   SelectableSplitListAmountDisplayOption,
   SplitListAmountDisplayOption,
 } from "./homeTypes";
 
-export const MAX_OWNER_NAME_LENGTH = 12;
 const MAX_CUSTOM_CURRENCY_SUFFIX = 999;
 const OWNER_NAME_AUTOSAVE_DELAY_MS = 450;
 
@@ -233,7 +234,7 @@ export function useHomeSettingsDraftController({
 
   const persistSettings = useCallback(
     async (overrides: Partial<PersistableSettings>) => {
-      const nextOwnerName = overrides.ownerName ?? ownerNameDraftRef.current;
+      const nextOwnerName = normalizePersonNameInput(overrides.ownerName ?? ownerNameDraftRef.current);
       const nextDefaultCurrency =
         overrides.defaultCurrency ??
         defaultCurrencyDraftRef.current.trim().toUpperCase();
@@ -248,9 +249,10 @@ export function useHomeSettingsDraftController({
           ? "total"
           : nextSplitRows;
 
-      if (!nextOwnerName.trim()) {
+      const ownerNameValidation = validatePersonName(nextOwnerName, settings.people, settings.ownerPersonId);
+      if (ownerNameValidation) {
         setSettingsNoticeTitle(t("common.almostThere"));
-        setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+        setSettingsNoticeMessages([getPersonNameValidationMessage(ownerNameValidation, t)]);
         return false;
       }
 
@@ -284,7 +286,7 @@ export function useHomeSettingsDraftController({
         return false;
       }
     },
-    [clearSettingsNotice, showSaveFailure, t, updateSettings],
+    [clearSettingsNotice, settings.ownerPersonId, settings.people, showSaveFailure, t, updateSettings],
   );
 
   useEffect(() => {
@@ -378,19 +380,45 @@ export function useHomeSettingsDraftController({
   };
 
   const validateOwnerNameDraft = () => {
-    if (ownerNameDraftRef.current.trim()) {
+    const validation = validatePersonName(ownerNameDraftRef.current, settings.people, settings.ownerPersonId);
+    if (!validation) {
       return true;
     }
     setSettingsNoticeTitle(t("common.almostThere"));
-    setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+    setSettingsNoticeMessages([getPersonNameValidationMessage(validation, t)]);
     return false;
   };
 
   const setOwnerProfileImageUriDraftAndSave = (value: string) => {
-    const nextValue = value.trim();
-    ownerProfileImageUriDraftRef.current = nextValue;
-    setOwnerProfileImageUriDraft(nextValue);
-    void persistSettings({ ownerProfileImageUri: nextValue });
+    const originalValue = value.trim();
+    const previousValue = settings.ownerProfileImageUri ?? "";
+    ownerProfileImageUriDraftRef.current = originalValue;
+    setOwnerProfileImageUriDraft(originalValue);
+    void (async () => {
+      let nextValue = originalValue;
+      let copied = false;
+      try {
+        if (nextValue && nextValue !== previousValue) {
+          const persisted = await persistPersonPhoto(nextValue);
+          copied = persisted !== nextValue;
+          nextValue = persisted ?? "";
+        }
+        const saved = await persistSettings({ ownerProfileImageUri: nextValue });
+        if (!saved) {
+          if (copied) await removePersonPhoto(nextValue);
+          return;
+        }
+        ownerProfileImageUriDraftRef.current = nextValue;
+        setOwnerProfileImageUriDraft(nextValue);
+        if (previousValue && previousValue !== nextValue) await removePersonPhoto(previousValue);
+        if (originalValue && originalValue !== nextValue && originalValue !== previousValue) {
+          await discardTemporaryPersonPhoto(originalValue);
+        }
+      } catch (error) {
+        if (copied) await removePersonPhoto(nextValue);
+        showSaveFailure(error);
+      }
+    })();
   };
 
   const setBalanceFeatureEnabledDraftAndSave = (

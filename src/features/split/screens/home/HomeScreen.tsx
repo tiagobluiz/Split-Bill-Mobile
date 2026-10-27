@@ -95,6 +95,8 @@ export function HomeScreenView() {
   const use24HourClock = prefers24HourTime();
 
   const [activeTab, setActiveTab] = useState<HomeTabKey>("home");
+  const [ownerProfileEditRequest, setOwnerProfileEditRequest] = useState(0);
+  const [ownerProfileEditorActive, setOwnerProfileEditorActive] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<RecordActionTarget | null>(
     null,
   );
@@ -322,8 +324,15 @@ export function HomeScreenView() {
     setActiveTab(nextTab);
   };
 
+  const editProfileFromSettings = () => {
+    if (!settingsController.canLeaveSettings()) return;
+    setOwnerProfileEditRequest((current) => current + 1);
+    setOwnerProfileEditorActive(true);
+    setActiveTab("groups");
+  };
+
   const hideHomeFooter =
-    (activeTab === "settings" && tagEditorOpen) || Boolean(quickEditRecord);
+    (activeTab === "settings" && tagEditorOpen) || Boolean(quickEditRecord) || ownerProfileEditorActive;
 
   const getSplitReminderLabel = (record: HomeRecord) => {
     const reminder = record.reminderState?.splitReminder;
@@ -646,8 +655,13 @@ export function HomeScreenView() {
           topInset={insets.top}
           footerInsetBottom={footerInsetBottom}
           settings={settings}
+          ownerProfileEditRequest={ownerProfileEditRequest}
+          onOwnerProfileEditRequestHandled={() => setOwnerProfileEditRequest(0)}
+          onOwnerProfileEditorOpen={() => setOwnerProfileEditorActive(true)}
+          onOwnerProfileEditorClose={() => setOwnerProfileEditorActive(false)}
           records={records}
           onSavePerson={savePerson}
+          onUpdateSettings={updateSettings}
           onGetPersonDeletionImpact={getPersonDeletionImpact}
           onRemovePerson={removePerson}
           onAddGroup={addParticipantGroup}
@@ -660,12 +674,7 @@ export function HomeScreenView() {
           topInset={insets.top}
           footerInsetBottom={footerInsetBottom}
           settings={settings}
-          ownerNameDraft={settingsController.ownerNameDraft}
-          setOwnerNameDraft={settingsController.setOwnerNameDraft}
-          validateOwnerNameDraft={settingsController.validateOwnerNameDraft}
-          ownerProfileImageUriDraft={
-            settingsController.ownerProfileImageUriDraft
-          }
+          onEditProfile={editProfileFromSettings}
           balanceFeatureEnabledDraft={
             settingsController.balanceFeatureEnabledDraft
           }
@@ -685,7 +694,6 @@ export function HomeScreenView() {
           setSplitListAmountDisplayMenuOpen={
             settingsController.setSplitListAmountDisplayMenuOpen
           }
-          setProfileActionMenuOpen={settingsController.setProfileActionMenuOpen}
           languageDraft={settingsController.languageDraft}
           humourDraft={settingsController.humourDraft}
           splitListAmountDisplayOptions={

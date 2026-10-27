@@ -16,7 +16,7 @@ describe("i18n", () => {
         { language: "en", humour: "sassy" },
         "settings.userProfile",
       ),
-    ).toBe("User profile");
+    ).toBe("Account");
   });
 
   it("falls back to plain humour when the requested variant is too long", () => {

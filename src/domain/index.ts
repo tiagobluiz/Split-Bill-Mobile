@@ -30,6 +30,7 @@ import {
   resetShareAllocations as resetShareAllocationsValue,
   syncItemAllocations as syncItemAllocationsValue,
   SPLIT_NAME_MAX_LENGTH as SPLIT_NAME_MAX_LENGTH_VALUE,
+  PARTICIPANT_NAME_MAX_LENGTH as PARTICIPANT_NAME_MAX_LENGTH_VALUE,
   ITEM_NAME_MAX_LENGTH as ITEM_NAME_MAX_LENGTH_VALUE,
   ITEM_AMOUNT_MAX_CENTS as ITEM_AMOUNT_MAX_CENTS_VALUE,
   trimName as trimNameValue,
@@ -39,6 +40,8 @@ import {
 } from "./splitter";
 
 export type { LlmProvider } from "./llmHandoff";
+export { normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, personNameKey, validatePersonName } from "./personNames";
+export type { PersonNameValidationError } from "./personNames";
 export type {
   ParsedPasteImportResult,
   PasteLineDetail,
@@ -90,6 +93,7 @@ export const formatMoneyTrailingSymbol = formatMoneyTrailingSymbolValue;
 export const getItemUniquenessKey = getItemUniquenessKeyValue;
 export const itemHasDuplicate = itemHasDuplicateValue;
 export const SPLIT_NAME_MAX_LENGTH = SPLIT_NAME_MAX_LENGTH_VALUE;
+export const PARTICIPANT_NAME_MAX_LENGTH = PARTICIPANT_NAME_MAX_LENGTH_VALUE;
 export const ITEM_NAME_MAX_LENGTH = ITEM_NAME_MAX_LENGTH_VALUE;
 export const ITEM_AMOUNT_MAX_CENTS = ITEM_AMOUNT_MAX_CENTS_VALUE;
 export const normalizeMoneyInput = normalizeMoneyInputValue;

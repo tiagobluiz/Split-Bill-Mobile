@@ -68,10 +68,13 @@ import {
   createId,
   formatMoney,
   normalizeMoneyInput,
+  normalizePersonNameInput,
+  PERSON_NAME_MAX_LENGTH,
   parseMoneyToCents,
   resetPercentAllocations,
   resetShareAllocations,
   validateStepOne,
+  validatePersonName,
   validateStepTwo,
   validateStepThree,
 } from "../../../../domain";
@@ -217,19 +220,21 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     rawName: string,
     options?: { keepKeyboardOpen?: boolean; personId?: string },
   ) => {
-    const trimmed = rawName.trim();
-    if (!trimmed) {
+    const trimmed = normalizePersonNameInput(rawName);
+    const validation = validatePersonName(rawName, record.values.participants, undefined, {
+      allowOwnerPlaceholder: Boolean(options?.personId && options.personId === settings.ownerPersonId),
+    });
+    if (validation?.reason === "required") {
       Keyboard.dismiss();
+      return;
+    }
+    if (validation?.reason === "max" || validation?.reason === "reserved") {
+      setParticipantsNoticeMessages([validation.reason === "max" ? t("validation.participantNameMax", { max: validation.max }) : t("settings.ownerNameReserved")]);
       return;
     }
     try {
       await updateParticipants((participants) => {
-        if (
-          participants.some(
-            (participant) =>
-              participant.name.toLowerCase() === trimmed.toLowerCase(),
-          )
-        ) {
+        if (validatePersonName(trimmed, participants, undefined, { allowOwnerPlaceholder: true })) {
           return participants;
         }
         return [
@@ -339,6 +344,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               ref={participantInputRef}
               accessibilityLabel={t("flow.participants.inputPlaceholder")}
               value={name}
+              maxLength={PERSON_NAME_MAX_LENGTH}
               onChangeText={(value) => {
                 participantNameRef.current = value;
                 setName(value);
