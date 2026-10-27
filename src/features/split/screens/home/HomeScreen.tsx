@@ -506,15 +506,6 @@ export function HomeScreenView() {
           }}
           reminderToastMessage={reminderToastMessage}
           footerInsetBottom={footerInsetBottom}
-          profileActionMenuOpen={settingsController.profileActionMenuOpen}
-          setProfileActionMenuOpen={settingsController.setProfileActionMenuOpen}
-          ownerProfileImageUriDraft={
-            settingsController.ownerProfileImageUriDraft
-          }
-          setOwnerProfileImageUriDraft={
-            settingsController.setOwnerProfileImageUriDraft
-          }
-          onPickProfileImage={settingsController.pickProfileImage}
           currencyMenuOpen={settingsController.currencyMenuOpen}
           setCurrencyMenuOpen={settingsController.setCurrencyMenuOpen}
           draftCurrencyOptions={settingsController.draftCurrencyOptions}

@@ -52,11 +52,6 @@ export function HomeOverlayStack({
   onSaveSplitReminder,
   reminderToastMessage,
   footerInsetBottom,
-  profileActionMenuOpen,
-  setProfileActionMenuOpen,
-  ownerProfileImageUriDraft,
-  setOwnerProfileImageUriDraft,
-  onPickProfileImage,
   currencyMenuOpen,
   setCurrencyMenuOpen,
   draftCurrencyOptions,
@@ -116,11 +111,6 @@ export function HomeOverlayStack({
   onSaveSplitReminder: (scheduledForIso: string) => void;
   reminderToastMessage: string;
   footerInsetBottom: number;
-  profileActionMenuOpen: boolean;
-  setProfileActionMenuOpen: (value: boolean) => void;
-  ownerProfileImageUriDraft: string;
-  setOwnerProfileImageUriDraft: (value: string) => void;
-  onPickProfileImage: (mode: "camera" | "library") => Promise<void>;
   currencyMenuOpen: boolean;
   setCurrencyMenuOpen: (value: boolean) => void;
   draftCurrencyOptions: CurrencyOption[];
@@ -237,38 +227,6 @@ export function HomeOverlayStack({
         message={reminderToastMessage}
         bottomOffset={footerInsetBottom + 12}
       />
-      {profileActionMenuOpen ? (
-        <ActionSheetModal
-          title={t("settings.profilePicture")}
-          onDismiss={() => setProfileActionMenuOpen(false)}
-          options={[
-            ...(ownerProfileImageUriDraft
-              ? [
-                  {
-                    label: t("settings.profilePictureRemove"),
-                    tone: "danger" as const,
-                    onPress: () => {
-                      setOwnerProfileImageUriDraft("");
-                      setProfileActionMenuOpen(false);
-                    },
-                  },
-                ]
-              : []),
-            {
-              label: t("settings.profilePictureTake"),
-              onPress: () => void onPickProfileImage("camera"),
-            },
-            {
-              label: t("settings.profilePictureUpload"),
-              onPress: () => void onPickProfileImage("library"),
-            },
-            {
-              label: t("common.cancel"),
-              onPress: () => setProfileActionMenuOpen(false),
-            },
-          ]}
-        />
-      ) : null}
       {currencyMenuOpen ? (
         <ActionSheetModal
           title={t("settings.defaultCurrency")}

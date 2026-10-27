@@ -1033,27 +1033,51 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     } else await saveAppSettings(nextSettings);
     });
     } catch (error) {
-      if (optimisticOwnerChanged) {
-        set((latest) => {
-          if (normalizeOwnerName(latest.settings.ownerName || "") !== normalizeOwnerName(optimisticOwnerName)) return {};
-          const restoredOwnerName = confirmedOwnerName ?? before.settings.ownerName;
-          const restoredOwner = confirmedOwnerPerson ?? before.settings.people?.find((person) => person.id === before.settings.ownerPersonId);
-          return {
-            settings: {
-              ...latest.settings,
+      set((latest) => {
+        const shouldRestoreOwner = optimisticOwnerChanged &&
+          normalizeOwnerName(latest.settings.ownerName || "") === normalizeOwnerName(optimisticOwnerName);
+        const restoredFields: Partial<AppSettings> = {};
+        for (const key of ["ownerProfileImageUri", "people", "participantGroups"] as const) {
+          if (
+            Object.prototype.hasOwnProperty.call(partial, key) &&
+            JSON.stringify(latest.settings[key]) === JSON.stringify(normalizedOptimistic[key])
+          ) {
+            restoredFields[key] = before.settings[key] as never;
+          }
+        }
+        const shouldRestoreSetupFlag = Object.prototype.hasOwnProperty.call(partial, "profileSetupCompleted") &&
+          latest.settings.profileSetupCompleted === normalizedOptimistic.profileSetupCompleted;
+        if (!shouldRestoreOwner && !Object.keys(restoredFields).length && !shouldRestoreSetupFlag) return {};
+
+        const restoredOwnerName = shouldRestoreOwner
+          ? confirmedOwnerName ?? before.settings.ownerName
+          : latest.settings.ownerName;
+        const restoredOwner = shouldRestoreOwner
+          ? confirmedOwnerPerson ?? before.settings.people?.find((person) => person.id === before.settings.ownerPersonId)
+          : undefined;
+        let restoredPeople = restoredFields.people;
+        if (shouldRestoreOwner && restoredOwner) {
+          const people = restoredPeople ?? latest.settings.people ?? [];
+          restoredPeople = people.map((person) => person.id === restoredOwner.id ? restoredOwner : person);
+        }
+        return {
+          settings: {
+            ...latest.settings,
+            ...restoredFields,
+            ...(restoredPeople ? { people: restoredPeople } : {}),
+            ...(shouldRestoreOwner ? {
               ownerName: restoredOwnerName,
               profileSetupCompleted: before.settings.profileSetupCompleted,
-              ...(restoredOwner && { people: (latest.settings.people ?? []).map((person) => person.id === restoredOwner.id ? restoredOwner : person) }),
-            },
+            } : {}),
+            ...(shouldRestoreSetupFlag && !shouldRestoreOwner
+              ? { profileSetupCompleted: before.settings.profileSetupCompleted }
+              : {}),
+          },
+          ...(shouldRestoreOwner ? {
             records: latest.records.map((record) => renameOwnerReferences(record, optimisticOwnerName, restoredOwnerName, before.settings.ownerPersonId)),
-          };
-        });
-      }
-      if (!optimisticOwnerChanged && Object.prototype.hasOwnProperty.call(partial, "profileSetupCompleted")) {
-        set((latest) => latest.settings.profileSetupCompleted === normalizedOptimistic.profileSetupCompleted
-          ? { settings: { ...latest.settings, profileSetupCompleted: before.settings.profileSetupCompleted } }
-          : {});
-      }
+          } : {}),
+        };
+      });
       throw error;
     }
   },

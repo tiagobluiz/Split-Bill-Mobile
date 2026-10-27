@@ -144,6 +144,7 @@ function createDeferred<T = void>() {
 }
 
 async function loadStore(options?: {
+  settings?: any;
   listRecords?: any[];
   recordById?: any | null;
   parseResult?: {
@@ -165,7 +166,7 @@ async function loadStore(options?: {
     saveRecord: jest.fn(async (_record?: any) => undefined),
     deleteRecord: jest.fn(async () => undefined),
     initializeSettingsStorage: jest.fn(async () => undefined),
-    getAppSettings: jest.fn(async () => ({
+    getAppSettings: jest.fn(async () => options?.settings ?? ({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -619,6 +620,55 @@ describe("split store", () => {
         customCurrencies: [],
       }),
     );
+  });
+
+
+  it("rolls back owner profile photo and group membership after a failed owner save", async () => {
+    const owner = {
+      id: "owner-person",
+      name: "Ana",
+      photoUri: "file:///owner-old.png",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const group = {
+      id: "group-friends",
+      name: "Friends",
+      memberPersonIds: [owner.id],
+      usageCount: 0,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const { storeModule, storageMocks } = await loadStore({
+      settings: {
+        ownerName: "Ana",
+        ownerPersonId: owner.id,
+        ownerProfileImageUri: "file:///owner-old.png",
+        people: [owner],
+        participantGroups: [group],
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+    await storeModule.useSplitStore.getState().bootstrap();
+    storageMocks.saveAppSettings.mockRejectedValueOnce(new Error("disk full"));
+
+    await expect(storeModule.useSplitStore.getState().updateSettings({
+      ownerName: "Alicia",
+      ownerProfileImageUri: "file:///owner-new.png",
+      people: [{ ...owner, name: "Alicia", photoUri: "file:///owner-new.png" }],
+      participantGroups: [{ ...group, memberPersonIds: [] }],
+    })).rejects.toThrow("disk full");
+
+    expect(storeModule.useSplitStore.getState().settings).toMatchObject({
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///owner-old.png",
+      people: [owner],
+      participantGroups: [group],
+    });
   });
 
   it("publishes the renamed owner identity after the owner-name transaction commits", async () => {

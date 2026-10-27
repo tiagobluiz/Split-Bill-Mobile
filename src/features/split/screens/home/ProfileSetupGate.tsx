@@ -53,14 +53,14 @@ export function ProfileSetupGate() {
     }
   };
 
-  const finish = async (skipPhoto = false) => {
+  const finish = async () => {
     if (invalidName || busy) {
       setError(getPersonNameValidationMessage(nameValidation, t));
       return;
     }
     setBusy(true);
     setError("");
-    let savedPhotoUri = skipPhoto ? settings.ownerProfileImageUri : photoUri;
+    let savedPhotoUri = photoUri;
     let copiedPhoto = false;
     try {
       if (savedPhotoUri && savedPhotoUri !== settings.ownerProfileImageUri) {
@@ -138,7 +138,7 @@ export function ProfileSetupGate() {
               {error ? <Text marginTop={8} color={PALETTE.danger} fontFamily={FONTS.bodyMedium} textAlign="center">{error}</Text> : null}
             </ScrollView>
             <View style={{ marginHorizontal: 24, marginTop: 8, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, flexDirection: "row", alignItems: "center", gap: 14 }}><Pencil color={PALETTE.primary} size={26} /><Text flex={1} color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={14} lineHeight={21}>{t("profileSetup.reminder")}</Text></View>
-            {photoUri ? <View style={{ paddingHorizontal: 24 }}><PrimaryButton label={busy ? t("profileSetup.saving") : t("profileSetup.finishSetup")} disabled={busy} onPress={() => void finish()} /></View> : <View style={{ paddingHorizontal: 24 }}><PrimaryButton label={busy ? t("profileSetup.saving") : t("profileSetup.skipPhoto")} disabled={busy} onPress={() => void finish(true)} /></View>}
+            {photoUri ? <View style={{ paddingHorizontal: 24 }}><PrimaryButton label={busy ? t("profileSetup.saving") : t("profileSetup.finishSetup")} disabled={busy} onPress={() => void finish()} /></View> : <View style={{ paddingHorizontal: 24 }}><PrimaryButton label={busy ? t("profileSetup.saving") : t("profileSetup.skipPhoto")} disabled={busy} onPress={() => void finish()} /></View>}
           </>}
         </>}
       </View>

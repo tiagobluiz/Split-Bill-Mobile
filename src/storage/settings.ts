@@ -216,7 +216,11 @@ export async function getAppSettings() {
       : [],
   };
   if (typeof parsed.profileSetupCompleted !== "boolean" && profileSetupCompleted) {
-    await saveAppSettings(settings);
+    try {
+      await saveAppSettings(settings);
+    } catch (error) {
+      console.warn("[Split Bill storage] Could not persist inferred profile setup state", error);
+    }
   }
   return settings;
 }

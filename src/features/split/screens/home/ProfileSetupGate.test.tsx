@@ -87,6 +87,29 @@ describe("ProfileSetupGate", () => {
     expect(screen.queryByText("Welcome!")).toBeNull();
   });
 
+
+  it("keeps an explicitly removed existing photo removed when skipping the photo step", async () => {
+    mockStoreState.settings = {
+      ownerName: "You",
+      ownerProfileImageUri: "file:///owned/old-profile.png",
+      profileSetupCompleted: false,
+      people: [],
+    };
+    renderGate();
+    fireEvent.press(screen.getByText("Let’s go"));
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Ana");
+    fireEvent.press(screen.getByText("Next"));
+    fireEvent.press(screen.getByText("Remove photo"));
+    await act(async () => { fireEvent.press(screen.getByText("Skip for now")); });
+
+    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+      ownerName: "Ana",
+      ownerProfileImageUri: "",
+      profileSetupCompleted: true,
+    });
+    expect(jest.requireMock("../../personPhotos").removePersonPhoto).toHaveBeenCalledWith("file:///owned/old-profile.png");
+  });
+
   it("rejects an over-limit name even if input bypasses the native character cap", () => {
     renderGate();
     fireEvent.press(screen.getByText("Let’s go"));

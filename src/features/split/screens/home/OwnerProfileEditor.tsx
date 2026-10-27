@@ -3,6 +3,7 @@ import type { DraftRecord } from "../../../../storage/records";
 import { PersonEditor } from "./PersonEditor";
 import type { SavedPerson } from "../../people";
 import type { SavePersonResult } from "../../store";
+import { removePersonPhoto } from "../../personPhotos";
 
 const OWNER_CREATED_AT = "1970-01-01T00:00:00.000Z";
 
@@ -49,6 +50,9 @@ export function OwnerProfileEditor({ settings, records, onSave, onClose, onBusyC
           people,
           participantGroups,
         });
+        if (owner.photoUri && owner.photoUri !== details.photoUri) {
+          await removePersonPhoto(owner.photoUri);
+        }
         return { ok: true, personId: owner.id };
       } catch {
         return { ok: false, reason: "persistence" };

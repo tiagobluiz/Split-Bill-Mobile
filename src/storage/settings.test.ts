@@ -122,6 +122,25 @@ describe("settings storage", () => {
     expect(pending.database.runAsync).not.toHaveBeenCalled();
   });
 
+
+  it("returns inferred custom-name settings when persisting the migration fails", async () => {
+    const { database, settingsModule } = await loadModule({
+      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana" }) },
+    });
+    database.runAsync.mockRejectedValueOnce(new Error("disk unavailable"));
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
+      ownerName: "Ana",
+      profileSetupCompleted: true,
+    });
+    expect(warning).toHaveBeenCalledWith(
+      "[Split Bill storage] Could not persist inferred profile setup state",
+      expect.any(Error),
+    );
+    warning.mockRestore();
+  });
+
   it("never clears a committed profile setup flag", async () => {
     const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana", profileSetupCompleted: true }) } });
     await settingsModule.saveAppSettings({
