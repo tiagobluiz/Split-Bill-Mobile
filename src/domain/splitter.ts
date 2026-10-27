@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, validatePersonName } from "./personNames";
 
 export type SplitMode = "even" | "shares" | "percent";
 
@@ -52,7 +53,7 @@ export type SplitFormValues = {
 };
 
 export const SPLIT_NAME_MAX_LENGTH = 64;
-export const PARTICIPANT_NAME_MAX_LENGTH = 25;
+export const PARTICIPANT_NAME_MAX_LENGTH = PERSON_NAME_MAX_LENGTH;
 export const ITEM_NAME_MAX_LENGTH = 64;
 export const ITEM_AMOUNT_MAX_CENTS = 100_000_000;
 export const ITEM_AMOUNT_TOO_HIGH_MESSAGE = "Maximum is 1 000 000";
@@ -170,7 +171,7 @@ export function createId() {
 }
 
 export function trimName(name: string) {
-  return name.trim().replace(/\s+/g, " ");
+  return normalizePersonNameInput(name);
 }
 
 export function detectCurrency(locale = "en-US") {
@@ -617,11 +618,10 @@ function allocationsForItem(item: ItemFormValue) {
 
 export function validateStepOne(values: SplitFormValues): StepValidationError[] {
   const errors: StepValidationError[] = [];
-  const normalizedNames = values.participants.map((participant) => trimName(participant.name));
-  const duplicates = new Set<string>();
-
-  normalizedNames.forEach((name, index) => {
-    if (!name) {
+  values.participants.forEach((participant, index) => {
+    // Existing split data may still use the legacy owner label; new-name editors reserve it.
+    const validation = validatePersonName(participant.name, values.participants.slice(0, index), undefined, { allowOwnerPlaceholder: true });
+    if (validation?.reason === "required") {
       errors.push({
         code: "participant-name-required",
         path: `participants.${index}.name`,
@@ -630,19 +630,18 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
       return;
     }
 
-    if (name.length > PARTICIPANT_NAME_MAX_LENGTH) {
+    if (validation?.reason === "max") {
       errors.push({
         code: "participant-name-max",
         path: `participants.${index}.name`,
         message: t("validation.participantNameMax", {
-          max: PARTICIPANT_NAME_MAX_LENGTH,
+          max: validation.max,
         }),
       });
       return;
     }
 
-    const normalized = name.toLowerCase();
-    if (duplicates.has(normalized)) {
+    if (validation?.reason === "duplicate") {
       errors.push({
         code: "participant-name-unique",
         path: `participants.${index}.name`,
@@ -650,8 +649,6 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
       });
       return;
     }
-
-    duplicates.add(normalized);
   });
 
   if (values.participants.length < 2) {

@@ -16,6 +16,7 @@ import { LocalizationProvider } from "../src/i18n/provider";
 import { getDeviceLocale } from "../src/lib/device";
 import { normalizeInternalRoute } from "../src/lib/internalRoute";
 import { initializeTelemetry, recordError } from "../src/lib/telemetry";
+import { ProfileSetupGate } from "../src/features/split/screens/home/ProfileSetupGate";
 
 void SplashScreen.preventAutoHideAsync();
 Notifications.setNotificationHandler({
@@ -222,6 +223,7 @@ export default function RootLayout() {
           translucent={false}
         />
         <Stack screenOptions={{ headerShown: false }} />
+        <ProfileSetupGate />
       </LocalizationProvider>
     </AppThemeProvider>
   );

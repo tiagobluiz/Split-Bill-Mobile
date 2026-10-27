@@ -144,6 +144,7 @@ function createDeferred<T = void>() {
 }
 
 async function loadStore(options?: {
+  settings?: any;
   listRecords?: any[];
   recordById?: any | null;
   parseResult?: {
@@ -165,7 +166,7 @@ async function loadStore(options?: {
     saveRecord: jest.fn(async (_record?: any) => undefined),
     deleteRecord: jest.fn(async () => undefined),
     initializeSettingsStorage: jest.fn(async () => undefined),
-    getAppSettings: jest.fn(async () => ({
+    getAppSettings: jest.fn(async () => options?.settings ?? ({
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -621,6 +622,55 @@ describe("split store", () => {
     );
   });
 
+
+  it("rolls back owner profile photo and group membership after a failed owner save", async () => {
+    const owner = {
+      id: "owner-person",
+      name: "Ana",
+      photoUri: "file:///owner-old.png",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const group = {
+      id: "group-friends",
+      name: "Friends",
+      memberPersonIds: [owner.id],
+      usageCount: 0,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const { storeModule, storageMocks } = await loadStore({
+      settings: {
+        ownerName: "Ana",
+        ownerPersonId: owner.id,
+        ownerProfileImageUri: "file:///owner-old.png",
+        people: [owner],
+        participantGroups: [group],
+        balanceFeatureEnabled: true,
+        trackPaymentsFeatureEnabled: true,
+        defaultCurrency: "EUR",
+        splitListAmountDisplay: "remaining",
+        customCurrencies: [],
+      },
+    });
+    await storeModule.useSplitStore.getState().bootstrap();
+    storageMocks.saveAppSettings.mockRejectedValueOnce(new Error("disk full"));
+
+    await expect(storeModule.useSplitStore.getState().updateSettings({
+      ownerName: "Alicia",
+      ownerProfileImageUri: "file:///owner-new.png",
+      people: [{ ...owner, name: "Alicia", photoUri: "file:///owner-new.png" }],
+      participantGroups: [{ ...group, memberPersonIds: [] }],
+    })).rejects.toThrow("disk full");
+
+    expect(storeModule.useSplitStore.getState().settings).toMatchObject({
+      ownerName: "Ana",
+      ownerProfileImageUri: "file:///owner-old.png",
+      people: [owner],
+      participantGroups: [group],
+    });
+  });
+
   it("publishes the renamed owner identity after the owner-name transaction commits", async () => {
     const { storeModule } = await loadStore();
     const owner = { id: "owner-person", name: "Alice", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
@@ -862,7 +912,7 @@ describe("split store", () => {
     );
   });
 
-  it("keeps records untouched when the next owner name is blank or the participant name is blank", async () => {
+  it("rejects a blank owner name before changing settings or records", async () => {
     const record = createRecord({
       values: {
         ...createValues(),
@@ -877,19 +927,35 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
-    await storeModule.useSplitStore.getState().updateSettings({
+    await expect(storeModule.useSplitStore.getState().updateSettings({
       ownerName: "   ",
-    });
+    })).rejects.toThrow("Invalid person name: required");
 
     expect(storeModule.useSplitStore.getState().records[0]).toMatchObject(
       record,
     );
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: record.id,
-        values: expect.objectContaining(record.values),
-      }),
-    );
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
+  });
+
+  it.each(["   ", "A".repeat(26), " yOu "])("rejects the same invalid name in profile and People saves: %j", async (name) => {
+    const { storeModule } = await loadStore();
+    await storeModule.useSplitStore.getState().bootstrap();
+    const before = storeModule.useSplitStore.getState().settings;
+    await expect(storeModule.useSplitStore.getState().updateSettings({ ownerName: name, profileSetupCompleted: true })).rejects.toThrow();
+    expect(storeModule.useSplitStore.getState().settings).toEqual(before);
+    const result = await storeModule.useSplitStore.getState().savePerson({ personId: null, name, photoUri: null, color: "orange", groupIds: [] });
+    expect(result.ok).toBe(false);
+    expect(storeModule.useSplitStore.getState().settings).toEqual(before);
+  });
+
+  it("checks archived-name collisions in both profile and People saves", async () => {
+    const { storeModule } = await loadStore();
+    await storeModule.useSplitStore.getState().bootstrap();
+    const state = storeModule.useSplitStore.getState();
+    const archived = { id: "archived-ana", name: "Ana Silva", archivedAt: "2026-01-01", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    storeModule.useSplitStore.setState({ settings: { ...state.settings, people: [...(state.settings.people ?? []), archived] } });
+    await expect(storeModule.useSplitStore.getState().updateSettings({ ownerName: "  ANA   SILVA " })).rejects.toThrow("Owner name conflicts with a saved person");
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "  ANA   SILVA ", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "duplicate", personId: archived.id });
   });
 
   it("ignores blank participant names while still renaming owner aliases", async () => {

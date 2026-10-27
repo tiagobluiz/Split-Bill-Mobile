@@ -138,6 +138,26 @@ describe("PersonEditor", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "ANA", personId: existing.id }));
   });
 
+  it.each([
+    ["A".repeat(26), "Keep participant names under 25 characters."],
+    [" yOu ", "Choose a name other than You."],
+  ])("shares profile-name validation for %j", async (name, message) => {
+    const onSave = jest.fn();
+    renderEditor({ onSave });
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), name);
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("saves a normalized 25-character name without truncation", async () => {
+    const onSave = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
+    renderEditor({ onSave });
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "  Alexandra   Catherine Smith  ");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Alexandra Catherine Smith" }));
+  });
+
   it("shows the affected split when a rename conflicts with a local participant", async () => {
     const onSave = jest.fn(async () => ({ ok: false as const, reason: "split-name-conflict" as const, recordId: "r1" }));
     render(<LocalizationProvider language="en" humour="plain"><PersonEditor person={existing} people={[existing]} groups={[]} records={[{ id: "r1", values: { splitName: "Lisbon dinner" } } as any]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);

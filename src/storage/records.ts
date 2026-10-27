@@ -1,4 +1,4 @@
-import type { SplitFormValues } from "../domain";
+import { validatePersonName, type SplitFormValues } from "../domain";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
 import { MEMBERSHIP_SCHEMA, replacePersonMemberships } from "./personMemberships";
@@ -268,10 +268,8 @@ export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGr
     const current = people.find((entry) => entry.id === person.id);
     if (requireExisting && !current) throw new Error("Person no longer exists");
     if (!current && people.some((entry) => entry.id === person.id)) throw new Error("Person ID already exists");
-    const normalizedName = normalizePersonName(person.name).toLowerCase();
-    if (people.some((entry) => entry.id !== person.id && normalizePersonName(entry.name).toLowerCase() === normalizedName)) {
-      throw new Error("Person name conflicts with another saved person");
-    }
+    const nameValidation = validatePersonName(person.name, people, person.id, { allowOwnerPlaceholder: person.id === stored.ownerPersonId && current?.name === person.name });
+    if (nameValidation) throw new Error(nameValidation.reason === "duplicate" ? "Person name conflicts with another saved person" : `Invalid person name: ${nameValidation.reason}`);
     const groups = normalizeGroups(stored.participantGroups, people);
     const selected = new Set(selectedGroupIds);
     const nextGroups = groups.map((group) => {
@@ -345,6 +343,7 @@ export async function saveParticipantGroup(
     const nextPeople = [...people];
     const memberIds = new Set(input.memberPersonIds.map((id) => id.trim()).filter(Boolean));
     for (const rawName of input.newPersonNames ?? []) {
+      if (validatePersonName(rawName)) return null;
       const personName = normalizePersonName(rawName);
       if (!personName) continue;
       const nameKey = personName.toLowerCase();

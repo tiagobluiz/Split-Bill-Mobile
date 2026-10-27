@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, TextInput } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 
 import { createId } from "../../../../domain";
 import { type AppHumour, type AppLanguage } from "../../../../i18n";
@@ -10,12 +9,12 @@ import type {
   SplitListAmountDisplay,
 } from "../../../../storage/settings";
 import { getCurrencyOptions } from "../shared/participantUtils";
+import { getPersonNameValidationMessage, normalizePersonNameInput, validatePersonName } from "../../people";
 import type {
   SelectableSplitListAmountDisplayOption,
   SplitListAmountDisplayOption,
 } from "./homeTypes";
 
-export const MAX_OWNER_NAME_LENGTH = 12;
 const MAX_CUSTOM_CURRENCY_SUFFIX = 999;
 const OWNER_NAME_AUTOSAVE_DELAY_MS = 450;
 
@@ -85,7 +84,6 @@ export function normalizeSplitListAmountDisplaySetting(
 type PersistableSettings = Pick<
   AppSettings,
   | "ownerName"
-  | "ownerProfileImageUri"
   | "balanceFeatureEnabled"
   | "trackPaymentsFeatureEnabled"
   | "defaultCurrency"
@@ -112,9 +110,6 @@ export function useHomeSettingsDraftController({
     useState("Almost there");
   const [ownerNameDraft, setOwnerNameDraft] = useState(
     settings.ownerName ?? "",
-  );
-  const [ownerProfileImageUriDraft, setOwnerProfileImageUriDraft] = useState(
-    settings.ownerProfileImageUri ?? "",
   );
   const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(
     settings.balanceFeatureEnabled ?? true,
@@ -147,7 +142,6 @@ export function useHomeSettingsDraftController({
   const [humourMenuOpen, setHumourMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
-  const [profileActionMenuOpen, setProfileActionMenuOpen] = useState(false);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [customCurrencyName, setCustomCurrencyName] = useState("");
   const [customCurrencySymbol, setCustomCurrencySymbol] = useState("");
@@ -157,7 +151,6 @@ export function useHomeSettingsDraftController({
   }>({ name: false, symbol: false });
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
   const ownerNameDraftRef = useRef(ownerNameDraft);
-  const ownerProfileImageUriDraftRef = useRef(ownerProfileImageUriDraft);
   const balanceFeatureEnabledDraftRef = useRef(balanceFeatureEnabledDraft);
   const trackPaymentsFeatureEnabledDraftRef = useRef(
     trackPaymentsFeatureEnabledDraft,
@@ -233,7 +226,7 @@ export function useHomeSettingsDraftController({
 
   const persistSettings = useCallback(
     async (overrides: Partial<PersistableSettings>) => {
-      const nextOwnerName = overrides.ownerName ?? ownerNameDraftRef.current;
+      const nextOwnerName = normalizePersonNameInput(overrides.ownerName ?? ownerNameDraftRef.current);
       const nextDefaultCurrency =
         overrides.defaultCurrency ??
         defaultCurrencyDraftRef.current.trim().toUpperCase();
@@ -248,9 +241,10 @@ export function useHomeSettingsDraftController({
           ? "total"
           : nextSplitRows;
 
-      if (!nextOwnerName.trim()) {
+      const ownerNameValidation = validatePersonName(nextOwnerName, settings.people, settings.ownerPersonId);
+      if (ownerNameValidation) {
         setSettingsNoticeTitle(t("common.almostThere"));
-        setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+        setSettingsNoticeMessages([getPersonNameValidationMessage(ownerNameValidation, t)]);
         return false;
       }
 
@@ -263,9 +257,6 @@ export function useHomeSettingsDraftController({
       try {
         await updateSettings({
           ownerName: nextOwnerName.trim(),
-          ownerProfileImageUri:
-            overrides.ownerProfileImageUri ??
-            ownerProfileImageUriDraftRef.current.trim(),
           balanceFeatureEnabled: nextBalance,
           trackPaymentsFeatureEnabled:
             overrides.trackPaymentsFeatureEnabled ??
@@ -284,14 +275,12 @@ export function useHomeSettingsDraftController({
         return false;
       }
     },
-    [clearSettingsNotice, showSaveFailure, t, updateSettings],
+    [clearSettingsNotice, settings.ownerPersonId, settings.people, showSaveFailure, t, updateSettings],
   );
 
   useEffect(() => {
     setOwnerNameDraft(settings.ownerName ?? "");
     ownerNameDraftRef.current = settings.ownerName ?? "";
-    setOwnerProfileImageUriDraft(settings.ownerProfileImageUri ?? "");
-    ownerProfileImageUriDraftRef.current = settings.ownerProfileImageUri ?? "";
     setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
     balanceFeatureEnabledDraftRef.current =
       settings.balanceFeatureEnabled ?? true;
@@ -323,7 +312,6 @@ export function useHomeSettingsDraftController({
     settings.language,
     settings.splitListAmountDisplay,
     settings.ownerName,
-    settings.ownerProfileImageUri,
   ]);
 
   useEffect(() => {
@@ -378,20 +366,15 @@ export function useHomeSettingsDraftController({
   };
 
   const validateOwnerNameDraft = () => {
-    if (ownerNameDraftRef.current.trim()) {
+    const validation = validatePersonName(ownerNameDraftRef.current, settings.people, settings.ownerPersonId);
+    if (!validation) {
       return true;
     }
     setSettingsNoticeTitle(t("common.almostThere"));
-    setSettingsNoticeMessages([t("settings.ownerNameRequired")]);
+    setSettingsNoticeMessages([getPersonNameValidationMessage(validation, t)]);
     return false;
   };
 
-  const setOwnerProfileImageUriDraftAndSave = (value: string) => {
-    const nextValue = value.trim();
-    ownerProfileImageUriDraftRef.current = nextValue;
-    setOwnerProfileImageUriDraft(nextValue);
-    void persistSettings({ ownerProfileImageUri: nextValue });
-  };
 
   const setBalanceFeatureEnabledDraftAndSave = (
     value: boolean | ((value: boolean) => boolean),
@@ -498,44 +481,6 @@ export function useHomeSettingsDraftController({
     return true;
   };
 
-  const pickProfileImage = async (mode: "camera" | "library") => {
-    setProfileActionMenuOpen(false);
-    const permission =
-      mode === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      setSettingsNoticeTitle(t("common.almostThere"));
-      setSettingsNoticeMessages([
-        mode === "camera"
-          ? t("settings.profileCameraPermission")
-          : t("settings.profileLibraryPermission"),
-      ]);
-      return;
-    }
-
-    const result =
-      mode === "camera"
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ["images"],
-            quality: 0.8,
-            allowsEditing: true,
-            aspect: [1, 1],
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ["images"],
-            quality: 0.8,
-            allowsEditing: true,
-            aspect: [1, 1],
-          });
-
-    if (result.canceled || !result.assets[0]?.uri) {
-      return;
-    }
-
-    setOwnerProfileImageUriDraftAndSave(result.assets[0].uri);
-  };
 
   const addCustomCurrency = async () => {
     const trimmedName = customCurrencyName.trim();
@@ -603,8 +548,6 @@ export function useHomeSettingsDraftController({
     ownerNameDraft,
     setOwnerNameDraft: setOwnerNameDraftAndSave,
     validateOwnerNameDraft,
-    ownerProfileImageUriDraft,
-    setOwnerProfileImageUriDraft: setOwnerProfileImageUriDraftAndSave,
     balanceFeatureEnabledDraft,
     setBalanceFeatureEnabledDraft: setBalanceFeatureEnabledDraftAndSave,
     trackPaymentsFeatureEnabledDraft,
@@ -630,8 +573,6 @@ export function useHomeSettingsDraftController({
     setHumourMenuOpen,
     splitListAmountDisplayMenuOpen,
     setSplitListAmountDisplayMenuOpen,
-    profileActionMenuOpen,
-    setProfileActionMenuOpen,
     currencyModalOpen,
     setCurrencyModalOpen,
     customCurrencyName,
@@ -645,7 +586,6 @@ export function useHomeSettingsDraftController({
     closeCustomCurrencyModal,
     clearSettingsNotice,
     canLeaveSettings,
-    pickProfileImage,
     addCustomCurrency,
   };
 }

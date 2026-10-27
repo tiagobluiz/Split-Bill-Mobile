@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FieldLabel } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { normalizeGroupName, normalizePersonName, sortPeopleByName, type ParticipantGroup, type SavedPerson } from "../../people";
+import { getPersonNameValidationMessage, normalizeGroupName, normalizePersonName, normalizePersonNameInput, sortPeopleByName, validatePersonName, type ParticipantGroup, type SavedPerson } from "../../people";
 import { createCustomTagIcon, type SplitTagColor, type SplitTagIcon } from "../../tags";
 import { screenStyles } from "../shared/styles";
 import { PhotoOptionsSheet } from "../shared/PhotoOptionsSheet";
@@ -78,7 +78,15 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
     ].sort((a, b) => a.name.localeCompare(b.name));
   }, [allPeople, draft.memberPersonIds, draft.newPersonNames, people]);
   const nameExists = (name: string) => [...people.map((p) => p.name), ...draft.newPersonNames].some((value) => normalizePersonName(value).toLowerCase() === normalizePersonName(name).toLowerCase());
-  const addName = (value: string) => { const name = normalizePersonName(value); if (!name) return; const normalizedName = normalizePersonName(name).toLowerCase(); const existing = people.find((p) => normalizePersonName(p.name).toLowerCase() === normalizedName); setDraft((d) => existing ? { ...d, memberPersonIds: [...new Set([...d.memberPersonIds, existing.id])] } : nameExists(name) ? d : { ...d, newPersonNames: [...d.newPersonNames, name] }); setQuery(""); };
+  const addName = (value: string) => {
+    const name = normalizePersonNameInput(value);
+    const existing = people.find((person) => normalizePersonNameInput(person.name).toLowerCase() === name.toLowerCase());
+    const validation = validatePersonName(value, [], undefined, { allowOwnerPlaceholder: Boolean(existing) });
+    if (validation) { setError(getPersonNameValidationMessage(validation, t, "people.validationPerson")); return; }
+    setDraft((current) => existing ? { ...current, memberPersonIds: [...new Set([...current.memberPersonIds, existing.id])] } : nameExists(name) ? current : { ...current, newPersonNames: [...current.newPersonNames, name] });
+    setError("");
+    setQuery("");
+  };
   const toggleMember = (id: string) => setDraft((d) => ({ ...d, memberPersonIds: d.memberPersonIds.includes(id) ? d.memberPersonIds.filter((current) => current !== id) : [...d.memberPersonIds, id] }));
   const pickPhoto = async (camera: boolean) => {
     const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
