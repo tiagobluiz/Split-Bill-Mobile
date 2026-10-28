@@ -29,10 +29,11 @@ it("previews and removes the current invoice photo", async () => {
 
   expect(screen.getByText("Invoice")).toBeTruthy();
   expect(screen.getByText("2.4 MB")).toBeTruthy();
-  fireEvent.press(screen.getByLabelText("Preview invoice photo"));
+  fireEvent.press(screen.getByText("Invoice"));
   expect(screen.getByLabelText("Close")).toBeTruthy();
   fireEvent.press(screen.getByLabelText("Close"));
   fireEvent.press(screen.getByLabelText("Remove photo"));
 
   expect(onChange).toHaveBeenCalledWith(null);
+  expect(screen.queryByLabelText("Close")).toBeNull();
 });

@@ -40,22 +40,27 @@ export function InvoicePhotoField({
     <View style={{ gap: 10 }}>
       <FieldLabel>{t("splitDetails.invoice")}</FieldLabel>
       {value ? (
-        <View style={{ minHeight: 104, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("splitDetails.preview")}
+          onPress={() => setPreviewOpen(true)}
+          style={{ minHeight: 104, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}
+        >
           <Image source={{ uri: value }} resizeMode="cover" style={{ width: 72, height: 78, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
-          <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.changePhoto")} onPress={() => setSourceOpen(true)} style={{ flex: 1, minHeight: 70, justifyContent: "center", gap: 8 }}>
+          <View style={{ flex: 1, minHeight: 70, justifyContent: "center", gap: 8 }}>
             <Text style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15, lineHeight: 20 }}>{t("pdf.invoice")}</Text>
             <Text style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 13 }}>{formatFileSize(fileSize, t("splitDetails.fileSizeUnknown"))}</Text>
-          </Pressable>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.preview")} onPress={() => setPreviewOpen(true)} style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
               <Eye color={PALETTE.primary} size={22} />
-            </Pressable>
+            </View>
             <View style={{ width: 1, height: 32, backgroundColor: PALETTE.outlineVariant }} />
-            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.removePhoto")} onPress={() => onChange(null)} style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.removePhoto")} onPress={(event) => { event?.stopPropagation?.(); onChange(null); }} style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
               <Trash2 color={PALETTE.primary} size={21} />
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       ) : (
         <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.addInvoicePhoto")} onPress={() => setSourceOpen(true)} style={{ minHeight: 94, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: PALETTE.secondaryContainer, alignItems: "center", justifyContent: "center" }}>
