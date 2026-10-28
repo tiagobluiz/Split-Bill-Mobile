@@ -46,6 +46,13 @@
       ],
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Split Bill to choose invoice photos from your library.",
+          "cameraPermission": "Allow Split Bill to take invoice photos."
+        }
+      ],
+      [
         "expo-contacts",
         {
           "contactsPermission": "Allow Split Bill to import a contact's name and photo as a person."

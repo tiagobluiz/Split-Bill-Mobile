@@ -9,10 +9,11 @@ export function ActionListSheet({ visible, title, cancelLabel, bottomInset, opti
   options: Array<{
     label: string;
     accessibilityLabel?: string;
-    description: string;
+    description?: string;
     icon: ReactNode;
     onPress: () => void;
     tone?: "default" | "danger";
+    disabled?: boolean;
   }>;
   onDismiss: () => void;
 }) {

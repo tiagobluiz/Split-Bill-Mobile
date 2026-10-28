@@ -168,7 +168,8 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).toContain("Grocery bill");
-    expect(html).toContain("(Mar 9, 2026)");
+    expect(html).toContain("(Split date: Mar 9, 2026)");
+    expect(html).toContain("Exported on Mar 9, 2026");
     expect(html).toContain('<html lang="en">');
     expect(html).toContain("Total receipt");
     expect(html).toContain("€12.00");
@@ -207,6 +208,23 @@ describe("mobile PDF export", () => {
     expect(html.indexOf("Person breakdown")).toBeLessThan(
       html.indexOf("Item breakdown"),
     );
+  });
+
+  it("places the embedded invoice on a final attachment page", () => {
+    const data = { ...(pdfFixture.expected as any), appName: "Split Bill", splitName: "Dinner", splitDateLabel: "Jan 2, 2026" };
+    const html = renderSettlementPdfHtml(data, "en-US", null, "data:image/png;base64,abc123");
+    expect(html).toContain("Split date: Jan 2, 2026");
+    expect(html).toContain("data:image/png;base64,abc123");
+    expect(html.indexOf("Attachments")).toBeGreaterThan(html.indexOf("Item breakdown"));
+    expect(html).toContain("page-break-before: always");
+    expect(renderSettlementPdfHtml(data, "en-US", null)).not.toContain("Attachments");
+  });
+
+  it("reports a missing invoice instead of printing an incomplete PDF", async () => {
+    mockLegacyReadAsStringAsync.mockRejectedValueOnce(new Error("missing"));
+    await expect(buildSettlementPdfFile({ ...(pdfFixture.input as any), invoicePhotoUri: "file:///missing.jpg" }, "en-US"))
+      .rejects.toMatchObject({ name: "InvoicePhotoReadError", message: expect.stringContaining("Unable to read the invoice photo") });
+    expect(Print.printToFileAsync).not.toHaveBeenCalled();
   });
 
   it("renders FX metadata bubbles when exchange rate is provided", () => {

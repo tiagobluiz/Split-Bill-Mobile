@@ -44,6 +44,7 @@ import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
 import { getParticipantDisplayName } from "../shared/participantUtils";
 import { ParticipantAvatar } from "../shared/participantComponents";
+import { ActionListSheet } from "../shared/ActionListSheet";
 import {
   getOwingPeople,
   getSettledParticipantIds,
@@ -52,7 +53,6 @@ import {
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
 import {
-  ActionIconGridModal,
   ReminderDateTimeModal,
   ToastNotice,
 } from "../shared/modals";
@@ -371,7 +371,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           console.warn("Failed to download split PDF", error);
           setPdfNotice({
             title: undefined,
-            messages: [t("flow.results.pdfDownloadFailed")],
+            messages: [t(error instanceof Error && error.name === "InvoicePhotoReadError" ? "flow.results.pdfInvoiceUnavailable" : "flow.results.pdfDownloadFailed")],
           });
         } finally {
           setExportPdfPending(false);
@@ -402,7 +402,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             console.warn("Failed to export split PDF", error);
             setPdfNotice({
               title: undefined,
-              messages: [t("flow.results.pdfFailed")],
+              messages: [t(error instanceof Error && error.name === "InvoicePhotoReadError" ? "flow.results.pdfInvoiceUnavailable" : "flow.results.pdfFailed")],
             });
           } finally {
             setExportPdfPending(false);
@@ -490,8 +490,11 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             bottomOffset={footerInsetBottom + 12}
           />
           {showResultsActions ? (
-            <ActionIconGridModal
+            <ActionListSheet
+              visible
               title={t("flow.results.actionsTitle")}
+              cancelLabel={t("common.cancel")}
+              bottomInset={insets.bottom}
               options={actionOptions}
               onDismiss={() => {
                 setShowResultsActions(false);

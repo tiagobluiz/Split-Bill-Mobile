@@ -24,6 +24,7 @@ describe("output contracts", () => {
       appName: "Split Bill",
       splitName: "",
       splitTitle: "Split Bill summary",
+      splitDateLabel: "Mar 9, 2026",
     });
   });
 
@@ -69,7 +70,7 @@ describe("output contracts", () => {
         "en-US",
         { settledParticipantIds: ["bruno"] }
       )
-    ).toBe("Split Bill\nAna: paid €18.00 and should get back €6.00.\nCarla: owes €6.00.");
+    ).toBe("Split Bill\nAna: paid €18.00, consumed €6.00, and should get back €6.00.\nCarla: owes €6.00.");
   });
 
 
@@ -98,7 +99,7 @@ describe("output contracts", () => {
         ],
       })
     ).toBe(
-      "Split Bill\nZed: paid €9.00 and should get back €6.00.\nAda: owes €3.00.\nBob: owes €3.00."
+      "Split Bill\nZed: paid €9.00, consumed €3.00, and should get back €6.00.\nAda: owes €3.00.\nBob: owes €3.00."
     );
   });
 
@@ -348,7 +349,7 @@ describe("output contracts", () => {
         },
         "en-US"
       )
-    ).toBe("Split Bill\nPayer: paid -€1.00 and still owes €1.00.\nCreditor: gets back €1.00.");
+    ).toBe("Split Bill\nPayer: paid -€1.00, consumed €0.00, and still owes €1.00.\nCreditor: gets back €1.00.");
   });
 
   it("reduces payer output to a paid-only line when nobody still owes anything", () => {
@@ -377,7 +378,7 @@ describe("output contracts", () => {
         "en-US",
         { settledParticipantIds: ["bruno"] }
       )
-    ).toBe("Split Bill\nAna: paid €10.00.");
+    ).toBe("Split Bill\nAna: paid €10.00 and consumed €5.00.");
   });
 
   it("uses the split name in the clipboard summary title when available", () => {
@@ -406,6 +407,6 @@ describe("output contracts", () => {
         },
         "en-US",
       ),
-    ).toBe("Split Bill - Weekend groceries\nAna: paid €10.00 and should get back €5.00.\nBruno: owes €5.00.");
+    ).toBe("Split Bill - Weekend groceries\nAna: paid €10.00, consumed €5.00, and should get back €5.00.\nBruno: owes €5.00.");
   });
 });

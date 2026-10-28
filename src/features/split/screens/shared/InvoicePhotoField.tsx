@@ -1,0 +1,104 @@
+import { useState } from "react";
+import { Image, Modal, Pressable, Text, View } from "react-native";
+import { Camera, Eye, Plus, Trash2 } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FieldLabel } from "../../../../components/ui";
+import { FONTS, PALETTE } from "../../../../theme/palette";
+import { useTranslation } from "../../../../i18n/provider";
+import { chooseInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { PhotoOptionsSheet } from "./PhotoOptionsSheet";
+
+function formatFileSize(size: number | null | undefined, unavailableLabel: string) {
+  if (typeof size !== "number" || !Number.isFinite(size) || size < 0) return unavailableLabel;
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
+  return `${size} B`;
+}
+
+export function InvoicePhotoField({
+  value,
+  fileName,
+  fileSize,
+  onChange,
+}: {
+  value: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  onChange: (photo: InvoicePhotoSelection | null) => void;
+}) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const selectSource = (camera: boolean) => {
+    setSourceOpen(false);
+    setTimeout(() => {
+      void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
+    }, 240);
+  };
+
+  return (
+    <View style={{ gap: 10 }}>
+      <FieldLabel>{t("splitDetails.invoice")}</FieldLabel>
+      {value ? (
+        <View style={{ minHeight: 104, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Image source={{ uri: value }} resizeMode="cover" style={{ width: 72, height: 78, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
+          <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.changePhoto")} onPress={() => setSourceOpen(true)} style={{ flex: 1, minHeight: 70, justifyContent: "center", gap: 8 }}>
+            <Text numberOfLines={2} ellipsizeMode="middle" style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15, lineHeight: 20 }}>{fileName || t("splitDetails.fileNameUnknown")}</Text>
+            <Text style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 13 }}>{formatFileSize(fileSize, t("splitDetails.fileSizeUnknown"))}</Text>
+          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.preview")} onPress={() => setPreviewOpen(true)} style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
+              <Eye color={PALETTE.primary} size={22} />
+            </Pressable>
+            <View style={{ width: 1, height: 32, backgroundColor: PALETTE.outlineVariant }} />
+            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.removePhoto")} onPress={() => onChange(null)} style={{ width: 34, height: 44, alignItems: "center", justifyContent: "center" }}>
+              <Trash2 color={PALETTE.primary} size={21} />
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.addInvoicePhoto")} onPress={() => setSourceOpen(true)} style={{ minHeight: 94, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: PALETTE.secondaryContainer, alignItems: "center", justifyContent: "center" }}>
+            <Camera color={PALETTE.primary} size={24} strokeWidth={1.8} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15 }}>{t("splitDetails.attachInvoice")}</Text>
+            <Text numberOfLines={1} style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 12, lineHeight: 16 }}>{t("splitDetails.photoSourceHint")}</Text>
+          </View>
+          <Plus color={PALETTE.primary} size={24} strokeWidth={1.8} />
+        </Pressable>
+      )}
+
+      {value ? (
+        <Modal visible={previewOpen} transparent animationType="fade" onRequestClose={() => setPreviewOpen(false)}>
+          <View style={{ flex: 1, backgroundColor: "rgba(31,26,23,0.92)", padding: 22, justifyContent: "center", gap: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text numberOfLines={1} style={{ flex: 1, color: PALETTE.onPrimary, fontFamily: FONTS.bodySemiBold, fontSize: 15 }}>{fileName || t("splitDetails.fileNameUnknown")}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setPreviewOpen(false)} style={{ padding: 8 }}>
+                <Text style={{ color: PALETTE.onPrimary, fontFamily: FONTS.bodyBold, fontSize: 18 }}>×</Text>
+              </Pressable>
+            </View>
+            <Image source={{ uri: value }} resizeMode="contain" style={{ width: "100%", height: "82%" }} />
+          </View>
+        </Modal>
+      ) : null}
+
+      <PhotoOptionsSheet
+        visible={sourceOpen}
+        title={t("splitDetails.addInvoicePhoto")}
+        cancelLabel={t("common.cancel")}
+        uploadLabel={t("splitDetails.choosePhoto")}
+        cameraLabel={t("splitDetails.takePhoto")}
+        removeLabel={t("splitDetails.removePhoto")}
+        bottomInset={insets.bottom}
+        hasPhoto={Boolean(value)}
+        onDismiss={() => setSourceOpen(false)}
+        onUpload={() => selectSource(false)}
+        onTakePhoto={() => selectSource(true)}
+        onRemove={() => { setSourceOpen(false); onChange(null); }}
+      />
+    </View>
+  );
+}

@@ -30,6 +30,10 @@ function renderModal(overrides: Partial<QuickEditProps> = {}) {
       values: {
         ...record.values,
         splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
         tagIds: ["tag-groceries", "missing"],
       } as QuickEditProps["record"]["values"],
     },
@@ -59,6 +63,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(props.onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-groceries"],
     });
   });
@@ -90,6 +98,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(props.onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: [],
     });
   });
@@ -147,6 +159,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-groceries", "tag-beach"],
     });
   });
@@ -179,6 +195,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-beach"],
     });
   });

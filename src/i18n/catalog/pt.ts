@@ -1,6 +1,6 @@
 import type { TranslationKey } from "./en";
-
 const ptPlain: Record<TranslationKey, string> = {
+  "splitDetails.date": "Data da divisão", "splitDetails.invoice": "Fotografia da fatura (opcional)", "splitDetails.choosePhoto": "Escolher fotografia da fatura", "splitDetails.changePhoto": "Alterar fotografia da fatura", "splitDetails.removePhoto": "Remover fotografia", "splitDetails.takePhoto": "Fotografar fatura", "splitDetails.preview": "Pré-visualizar fatura", "splitDetails.cameraDenied": "Permite o acesso à câmara nas definições do dispositivo.", "splitDetails.addInvoicePhoto": "Adicionar fotografia da fatura", "splitDetails.photoSourceHint": "Tira uma fotografia ou escolhe da galeria", "splitDetails.attachInvoice": "Anexar fatura", "splitDetails.fileNameUnknown": "Imagem da fatura", "splitDetails.fileSizeUnknown": "Tamanho indisponível", "pdf.attachments": "Anexos", "pdf.invoice": "Fatura", "pdf.exportedOn": "Exportado em {date}",
   "flow.participants.frequentTab": "Frequentes", "flow.participants.groupsTab": "Grupos", "flow.participants.groupProgress": "{added} de {total} adicionados", "flow.participants.addRemaining": "Adicionar ({count})", "flow.participants.allAdded": "Todos adicionados",
   "flow.participants.selectGroupA11y": "Selecionar grupo {group}", "flow.participants.addRemainingA11y": "Adicionar os {count} membros restantes de {group}", "flow.participants.addMemberA11y": "Adicionar {name} de {group}", "flow.participants.memberAddedA11y": "{name} j\u00e1 adicionado de {group}", "flow.participants.memberAvatarA11y": "Avatar de {name} no grupo",
   "flow.participants.addFrequentA11y": "Adicionar pessoa frequente {name}", "flow.participants.frequentAvatarA11y": "Avatar de pessoa frequente {name}", "flow.participants.noFrequentPeople": "Sem pessoas frequentes para adicionar de momento.", "flow.participants.noAvailableGroups": "Ainda n\u00e3o h\u00e1 grupos guardados.",
@@ -204,7 +204,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "home.rowActions.delete": "Apagar",
   "home.rowActions.deleteA11y": "Apagar divisão {title}",
   "home.editDetails.title": "Editar detalhes da divisão",
-  "home.editDetails.description": "Atualiza o nome da divisão e as tags.",
+  "home.editDetails.description": "Atualiza o nome, as tags, a data e a fotografia da fatura.",
   "home.editDetails.save": "Guardar detalhes",
   "home.editDetails.nameRequired": "Falta o nome da divisão.",
   "home.editDetails.saveFailed": "Não foi possível guardar os detalhes da divisão. {error}",
@@ -513,7 +513,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.results.pdfDownloadFailed": "Não foi possível descarregar o PDF.",
   "flow.results.shareA11y": "Partilhar como texto",
   "flow.results.pdfUnavailable": "A exportação em PDF não está disponível para esta divisão.",
-  "flow.results.pdfFailed": "Não foi possível gerar o PDF.",
+  "flow.results.pdfFailed": "Não foi possível gerar o PDF.", "flow.results.pdfInvoiceUnavailable": "Não foi possível ler a fotografia da fatura. Escolhe-a novamente em Editar detalhes e tenta exportar o PDF outra vez.",
   "flow.results.shareFailedTitle": "Falha na partilha",
   "flow.results.shareFailedBody": "Não foi possível abrir a folha de partilha.",
   "flow.results.totalSettled": "Total saldado",
@@ -618,9 +618,9 @@ const ptPlain: Record<TranslationKey, string> = {
   "friendly.percentTotal": "Garante que as percentagens somam 100%.",
   "clipboard.title.default": "Split Bill",
   "clipboard.title.named": "Split Bill - {splitName}",
-  "clipboard.payer.paidOnly": "{name}: pagou {amount}.",
-  "clipboard.payer.getBack": "{name}: pagou {amount} e deve receber {net}.",
-  "clipboard.payer.stillOwes": "{name}: pagou {amount} e ainda deve {net}.",
+  "clipboard.payer.paidOnly": "{name}: pagou {amount} e consumiu {consumed}.",
+  "clipboard.payer.getBack": "{name}: pagou {amount}, consumiu {consumed} e deve receber {net}.",
+  "clipboard.payer.stillOwes": "{name}: pagou {amount}, consumiu {consumed} e ainda deve {net}.",
   "clipboard.person.owes": "{name}: deve {amount}.",
   "clipboard.person.getsBack": "{name}: recebe {amount}.",
   "pdf.title.default": "Resumo da divisão",
@@ -738,8 +738,8 @@ const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
   "friendly.itemsMin": "Adiciona aí alguma coisa",
   "friendly.percentTotal": "Faz isso dar 100%",
 
-  "clipboard.payer.getBack": "{name}: pagou {amount}, vai buscar {net}",
-  "clipboard.payer.stillOwes": "{name}: pagou {amount}, ainda deve {net}",
+  "clipboard.payer.getBack": "{name}: pagou {amount}, consumiu {consumed}, vai buscar {net}",
+  "clipboard.payer.stillOwes": "{name}: pagou {amount}, consumiu {consumed}, ainda deve {net}",
   "clipboard.person.owes": "{name}: deve {amount}",
   "clipboard.person.getsBack": "{name}: recebe {amount}",
 
@@ -959,10 +959,10 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
   "friendly.percentNonNegative": "Percentagem negativa não é vida.",
   "friendly.percentTotal": "Faz isso dar 100%, vá.",
 
-  "clipboard.payer.paidOnly": "{name}: pagou {amount}. Herói.",
-  "clipboard.payer.getBack": "{name}: pagou {amount} e vai buscar {net}.",
+  "clipboard.payer.paidOnly": "{name}: pagou {amount} e consumiu {consumed}. Herói.",
+  "clipboard.payer.getBack": "{name}: pagou {amount}, consumiu {consumed} e vai buscar {net}.",
   "clipboard.payer.stillOwes":
-    "{name}: pagou {amount} e ainda deve {net}. Triste.",
+    "{name}: pagou {amount}, consumiu {consumed} e ainda deve {net}. Triste.",
   "clipboard.person.owes": "{name}: deve {amount}. Paga.",
   "clipboard.person.getsBack": "{name}: recebe {amount}. Sortudo.",
   "reminders.notification.splitBody":

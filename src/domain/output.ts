@@ -77,6 +77,7 @@ export function buildClipboardSummary(
           t("clipboard.payer.getBack", {
             name: person.name,
             amount: money(person.paidCents),
+            consumed: money(person.consumedCents),
             net: money(person.netCents),
           }),
         );
@@ -85,6 +86,7 @@ export function buildClipboardSummary(
           t("clipboard.payer.stillOwes", {
             name: person.name,
             amount: money(person.paidCents),
+            consumed: money(person.consumedCents),
             net: money(Math.abs(person.netCents)),
           }),
         );
@@ -93,6 +95,7 @@ export function buildClipboardSummary(
           t("clipboard.payer.paidOnly", {
             name: person.name,
             amount: money(person.paidCents),
+            consumed: money(person.consumedCents),
           }),
         );
       }

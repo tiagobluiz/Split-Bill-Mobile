@@ -1249,6 +1249,10 @@ describe("split store", () => {
     await storeModule.useSplitStore.getState().updateRecordDetails(record.id, {
       splitName: "Updated dinner",
       tagIds: ["tag-restaurant"],
+      splitDate: "2026-03-01",
+      invoicePhotoUri: "file:///invoice.jpg",
+      invoicePhotoName: "market-receipt.jpg",
+      invoicePhotoSize: 2516582,
     });
 
     expect(storeModule.useSplitStore.getState().records[0]).toMatchObject({
@@ -1257,7 +1261,17 @@ describe("split store", () => {
       values: expect.objectContaining({
         splitName: "Updated dinner",
         tagIds: ["tag-restaurant"],
+        splitDate: "2026-03-01",
+        invoicePhotoUri: "file:///invoice.jpg",
+        invoicePhotoName: "market-receipt.jpg",
+        invoicePhotoSize: 2516582,
       }),
+    });
+    const values = storeModule.useSplitStore.getState().records[0].values;
+    await storeModule.useSplitStore.getState().updateDraftMeta(values.splitName!, values.currency, values.exchangeRate, values.exchangeRatesByPair, values.tagIds, "2026-03-02", "file:///new.jpg", "new-receipt.jpg", 1024);
+    expect(storeModule.useSplitStore.getState().records[0]).toMatchObject({
+      status: "completed", completedAt,
+      values: { splitDate: "2026-03-02", invoicePhotoUri: "file:///new.jpg", invoicePhotoName: "new-receipt.jpg", invoicePhotoSize: 1024 },
     });
   });
 

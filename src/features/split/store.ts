@@ -20,6 +20,8 @@ import {
   type SplitMode,
 } from "../../domain";
 import { cloneDeep, getDeviceLocale } from "../../lib/device";
+import { localDay } from "../../domain/splitDate";
+import { compareSplitDates } from "../../domain/splitDateOrder";
 import {
   rememberItemOrigins,
   syncDraftItemOrigins,
@@ -69,6 +71,7 @@ import {
 } from "./people";
 import { removeGroupPhoto } from "./groupPhotos";
 import { removePersonPhoto } from "./personPhotos";
+import { removeInvoicePhoto } from "./invoicePhotos";
 import { getDefaultTranslationSettings, t } from "../../i18n";
 import {
   cancelReminder,
@@ -140,7 +143,7 @@ type SplitStore = {
   removeTag: (tagId: string) => Promise<void>;
   updateRecordDetails: (
     recordId: string,
-    details: { splitName: string; tagIds: string[] },
+    details: { splitName: string; tagIds: string[]; splitDate?: string; invoicePhotoUri?: string | null; invoicePhotoName?: string | null; invoicePhotoSize?: number | null },
   ) => Promise<void>;
   updateDraftMeta: (
     splitName: string,
@@ -148,6 +151,10 @@ type SplitStore = {
     exchangeRate?: DraftRecord["values"]["exchangeRate"],
     exchangeRatesByPair?: DraftRecord["values"]["exchangeRatesByPair"],
     tagIds?: string[],
+    splitDate?: string,
+    invoicePhotoUri?: string | null,
+    invoicePhotoName?: string | null,
+    invoicePhotoSize?: number | null,
   ) => Promise<void>;
   setStep: (step: number) => Promise<void>;
   updateParticipants: (participants: ParticipantsUpdater) => Promise<void>;
@@ -225,6 +232,7 @@ function createDraftRecord(defaultCurrency: string): DraftRecord {
     values: {
       ...createDefaultValues(getDeviceLocale()),
       currency: defaultCurrency,
+      splitDate: localDay(new Date(timestamp)),
     },
     settlementState: {
       settledParticipantIds: [],
@@ -361,9 +369,7 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
 
 function nextRecords(records: DraftRecord[], record: DraftRecord) {
   const otherRecords = records.filter((entry) => entry.id !== record.id);
-  return [record, ...otherRecords].sort((left, right) =>
-    right.updatedAt.localeCompare(left.updatedAt),
-  );
+  return [record, ...otherRecords].sort((left, right) => compareSplitDates(left, right, true));
 }
 
 function publishGroupSave(
@@ -489,7 +495,7 @@ function normalizeActiveRecordMutation(
   },
 ) {
   const nextRecord = cloneDeep(record);
-  const previousValuesSnapshot = JSON.stringify(record.values);
+  const previousValuesSnapshot = JSON.stringify({ ...record.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined });
   if (!nextRecord.settlementState) {
     nextRecord.settlementState = {
       settledParticipantIds: [],
@@ -498,7 +504,7 @@ function normalizeActiveRecordMutation(
   nextRecord.reminderState = normalizeReminderState(nextRecord.reminderState);
   mutator(nextRecord);
   const hasValuesChanged =
-    previousValuesSnapshot !== JSON.stringify(nextRecord.values);
+    previousValuesSnapshot !== JSON.stringify({ ...nextRecord.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined });
   if (
     options?.recomputeStatusOnValueChange &&
     record.status === "completed" &&
@@ -939,6 +945,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       await cancelReminderState(existing.reminderState);
     }
     await deleteRecord(id);
+    await removeInvoicePhoto(existing?.values.invoicePhotoUri);
     const next = get().records.filter((record) => record.id !== id);
     set({
       records: next,
@@ -1370,6 +1377,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           details.tagIds,
           get().settings.tags,
         );
+        if (details.splitDate) draft.values.splitDate = details.splitDate;
+        if (details.invoicePhotoUri !== undefined) draft.values.invoicePhotoUri = details.invoicePhotoUri;
+        if (details.invoicePhotoName !== undefined) draft.values.invoicePhotoName = details.invoicePhotoName;
+        if (details.invoicePhotoSize !== undefined) draft.values.invoicePhotoSize = details.invoicePhotoSize;
       }),
     );
   },
@@ -1379,12 +1390,20 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     exchangeRate,
     exchangeRatesByPair,
     tagIds,
+    splitDate,
+    invoicePhotoUri,
+    invoicePhotoName,
+    invoicePhotoSize,
   ) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
         (draft) => {
           draft.values.splitName = splitName.slice(0, SPLIT_NAME_MAX_LENGTH);
+          draft.values.splitDate = splitDate ?? draft.values.splitDate ?? localDay(new Date(draft.createdAt));
+          if (invoicePhotoUri !== undefined) draft.values.invoicePhotoUri = invoicePhotoUri;
+          if (invoicePhotoName !== undefined) draft.values.invoicePhotoName = invoicePhotoName;
+          if (invoicePhotoSize !== undefined) draft.values.invoicePhotoSize = invoicePhotoSize;
           draft.values.currency =
             currency.trim().toUpperCase() || get().settings.defaultCurrency;
           draft.values.exchangeRate = exchangeRate;

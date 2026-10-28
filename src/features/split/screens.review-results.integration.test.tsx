@@ -726,9 +726,13 @@ describe("split screens", () => {
       screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length,
     ).toBeGreaterThan(0);
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    expect(screen.getByLabelText("Cancel")).toBeTruthy();
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(screen.getByLabelText("PDF")).toBeTruthy();
     expect(screen.getByLabelText("Share as text")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    expect(screen.queryByLabelText("PDF")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Open share and export actions"));
     fireEvent.press(screen.getByLabelText("Share as text"));
     expect(mockShare).toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Open share and export actions"));

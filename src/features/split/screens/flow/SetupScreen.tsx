@@ -11,7 +11,11 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
-import * as ImagePicker from "expo-image-picker";
+import { SplitDatePicker } from "../shared/SplitDatePicker";
+import { InvoicePhotoField } from "../shared/InvoicePhotoField";
+import { BottomActionSheet } from "../shared/BottomActionSheet";
+import { persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { localDay } from "../../../../domain/splitDate";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
@@ -143,7 +147,6 @@ import {
 } from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
-  ActionSheetModal,
   ConfirmChoiceModal,
   SplitNoticeModal,
 } from "../shared/modals";
@@ -154,7 +157,7 @@ import {
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
 import { screenStyles } from "../shared/styles";
-import { TagChip } from "../shared/TagChips";
+import { SetupTagPicker } from "../shared/SetupTagPicker";
 import { TagEditorModal } from "../shared/TagEditorModal";
 
 const Paragraph = TamaguiParagraph as any;
@@ -178,6 +181,8 @@ const ITEM_CATEGORY_OPTIONS = [
   "Museum",
   "Tickets",
 ] as const;
+// The setup flow intentionally orchestrates many independent sections and states.
+// eslint-disable-next-line complexity
 export function SetupScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
@@ -193,6 +198,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     );
   const insets = useSafeAreaInsets();
   const [splitName, setSplitName] = useState(record?.values.splitName ?? "");
+  const [splitDate, setSplitDate] = useState(record?.values.splitDate ?? (record ? localDay(new Date(record.createdAt)) : localDay(new Date())));
+  const [invoicePhotoUri, setInvoicePhotoUri] = useState<string | null>(record?.values.invoicePhotoUri ?? null);
+  const [invoicePhotoName, setInvoicePhotoName] = useState<string | null>(record?.values.invoicePhotoName ?? null);
+  const [invoicePhotoSize, setInvoicePhotoSize] = useState<number | null>(record?.values.invoicePhotoSize ?? null);
+
   const [currency, setCurrency] = useState(
     record?.values.currency ?? settings.defaultCurrency,
   );
@@ -264,6 +274,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   useEffect(() => {
     if (record) {
       setSplitName(record.values.splitName ?? "");
+      setSplitDate(record.values.splitDate ?? localDay(new Date(record.createdAt)));
+      setInvoicePhotoUri(record.values.invoicePhotoUri ?? null);
+      setInvoicePhotoName(record.values.invoicePhotoName ?? null);
+      setInvoicePhotoSize(record.values.invoicePhotoSize ?? null);
       setCurrency(record.values.currency ?? settings.defaultCurrency);
       setSelectedTagIds(record.values.tagIds ?? []);
       setRateInput(String(record.values.exchangeRate?.rate ?? 1));
@@ -368,6 +382,37 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     }
   };
 
+  const handleInvoicePhotoChange = (photo: InvoicePhotoSelection | null) => {
+    setInvoicePhotoUri(photo?.uri ?? null);
+    setInvoicePhotoName(photo?.name ?? null);
+    setInvoicePhotoSize(photo?.size ?? null);
+  };
+
+  const handleRateInputChange = (value: string) => {
+    const numericValue = Number(value.replace(",", "."));
+    setRateInput(value);
+    setRateSource("manual");
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      const updatedAt = new Date().toISOString();
+      setRateUpdatedAt(updatedAt);
+      setRateByPair((prev) => ({
+        ...prev,
+        [`${normalizedCurrency}->${normalizedTargetCurrency}`]: {
+          rate: numericValue,
+          rateSource: "manual",
+          rateUpdatedAt: updatedAt,
+        },
+      }));
+    } else {
+      setRateUpdatedAt(null);
+      setRateByPair((prev) => {
+        const next = { ...prev };
+        delete next[`${normalizedCurrency}->${normalizedTargetCurrency}`];
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
     const pairChanged = activeRatePairRef.current !== pairKey;
@@ -447,6 +492,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       };
     }
 
+    const savedPhoto = await persistInvoicePhoto(invoicePhotoUri);
+    try {
     await updateDraftMeta(
       splitName.trim().slice(0, SPLIT_NAME_MAX_LENGTH),
       normalizedCurrency,
@@ -472,7 +519,17 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         ]),
       ),
       selectedTagIds,
+      splitDate,
+      savedPhoto,
+      invoicePhotoUri ? invoicePhotoName : null,
+      invoicePhotoUri ? invoicePhotoSize : null,
     );
+    } catch (error) {
+      if (savedPhoto !== record?.values.invoicePhotoUri) await removeInvoicePhoto(savedPhoto);
+      throw error;
+    }
+    if (record?.values.invoicePhotoUri !== savedPhoto) await removeInvoicePhoto(record?.values.invoicePhotoUri);
+    setInvoicePhotoUri(savedPhoto);
     const selectedTags = (settings.tags ?? []).filter((tag) =>
       selectedTagIds.includes(tag.id),
     );
@@ -501,8 +558,13 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             onDismiss={() => setSetupNoticeMessages([])}
           />
           {currencyMenuOpen ? (
-            <ActionSheetModal
+            <BottomActionSheet
+              visible
               title={t("flow.setup.currency")}
+              cancelLabel={t("common.cancel")}
+              bottomInset={insets.bottom}
+              selectionMode
+              showCancel={false}
               options={currencyOptions.map((option) => ({
                 label: option.label,
                 selected: normalizedCurrency === option.code,
@@ -545,7 +607,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               discardLabel={t("flow.setup.rateConfirmEdit")}
               onConfirm={() => {
                 setShowRateConfirmModal(false);
-                void persistAndContinue();
+                void persistAndContinue().catch(() => setSetupNoticeMessages([t("common.tryAgain")]));
               }}
               onDiscard={() => setShowRateConfirmModal(false)}
             />
@@ -575,7 +637,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   setShowRateConfirmModal(true);
                   return;
                 }
-                await persistAndContinue();
+                await persistAndContinue().catch(() => setSetupNoticeMessages([t("common.tryAgain")]));
               }}
             />
           </MeasuredFloatingFooter>
@@ -623,13 +685,19 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 />
               </View>
             </YStack>
-            <YStack gap="$2">
-              <FieldLabel>{t("flow.setup.currency")}</FieldLabel>
-              <YStack gap="$2.5">
+
+
+
+            <XStack alignItems="flex-start" gap="$3">
+              <YStack flex={1} gap="$2">
+                <SplitDatePicker value={splitDate} onChange={setSplitDate} />
+              </YStack>
+              <YStack flex={1} gap="$2">
+                <FieldLabel>{t("flow.setup.currency")}</FieldLabel>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("flow.setup.currency")}
-                  style={screenStyles.selectRow}
+                  style={[screenStyles.selectRow, { minHeight: 64, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 0 }]}
                   onPress={() => setCurrencyMenuOpen((value) => !value)}
                 >
                   <XStack
@@ -639,7 +707,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   >
                     <Text
                       fontFamily={FONTS.bodyMedium}
-                      fontSize={17}
+                      fontSize={15}
                       color={PALETTE.onSurface}
                     >
                       {getCurrencyOptionLabel(
@@ -651,10 +719,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   </XStack>
                 </Pressable>
               </YStack>
-            </YStack>
+            </XStack>
             {needsConversion ? (
               <YStack gap="$2">
-                <FieldLabel>
+              <FieldLabel>
                   {t("flow.setup.exchangeRateToCurrency", {
                     currency: normalizedTargetCurrency,
                   })}
@@ -665,36 +733,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                       <TextInput
                         accessibilityLabel={t("flow.setup.exchangeRateA11y")}
                         value={rateInput}
-                        onChangeText={(value) => {
-                          const numericValue = Number(value.replace(",", "."));
-                          setRateInput(value);
-                          setRateSource("manual");
-                          if (
-                            Number.isFinite(numericValue) &&
-                            numericValue > 0
-                          ) {
-                            const updatedAt = new Date().toISOString();
-                            setRateUpdatedAt(updatedAt);
-                            setRateByPair((prev) => ({
-                              ...prev,
-                              [`${normalizedCurrency}->${normalizedTargetCurrency}`]:
-                                {
-                                  rate: numericValue,
-                                  rateSource: "manual",
-                                  rateUpdatedAt: updatedAt,
-                                },
-                            }));
-                          } else {
-                            setRateUpdatedAt(null);
-                            setRateByPair((prev) => {
-                              const next = { ...prev };
-                              delete next[
-                                `${normalizedCurrency}->${normalizedTargetCurrency}`
-                              ];
-                              return next;
-                            });
-                          }
-                        }}
+                        onChangeText={handleRateInputChange}
                         placeholder={t("flow.setup.exchangeRatePlaceholder")}
                         placeholderTextColor={PALETTE.inputPlaceholder}
                         keyboardType="decimal-pad"
@@ -750,49 +789,24 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                 ) : null}
               </YStack>
             ) : null}
-            <YStack gap="$2">
-              <FieldLabel>{t("tags.label")}</FieldLabel>
-              <View style={screenStyles.tagPickerGrid}>
-                {orderedTags.map((tag) => {
-                  const selected = selectedTagIds.includes(tag.id);
-                  return (
-                    <Pressable
-                      key={tag.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={getSplitTagDisplayLabel(tag, t)}
-                      accessibilityState={{ selected }}
-                      style={screenStyles.tagFilterOption}
-                      onPress={() => {
-                        setSelectedTagIds((current) =>
-                          current.includes(tag.id)
-                            ? current.filter((id) => id !== tag.id)
-                            : [...current, tag.id],
-                        );
-                      }}
-                    >
-                      <TagChip tag={tag} selected={selected} />
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("tags.add")}
-                  style={screenStyles.tagPickerAddInline}
-                  onPress={() => setTagModalOpen(true)}
-                >
-                  <XStack alignItems="center" gap="$1.5">
-                    <Plus color={PALETTE.primary} size={13} />
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={12}
-                      color={PALETTE.primary}
-                    >
-                      {t("tags.add")}
-                    </Text>
-                  </XStack>
-                </Pressable>
-              </View>
-            </YStack>
+            <SetupTagPicker
+              tags={orderedTags}
+              selectedTagIds={selectedTagIds}
+              onToggle={(tagId) => {
+                setSelectedTagIds((current) =>
+                  current.includes(tagId)
+                    ? current.filter((id) => id !== tagId)
+                    : [...current, tagId],
+                );
+              }}
+              onAdd={() => setTagModalOpen(true)}
+            />
+            <InvoicePhotoField
+              value={invoicePhotoUri}
+              fileName={invoicePhotoName}
+              fileSize={invoicePhotoSize}
+              onChange={handleInvoicePhotoChange}
+            />
           </YStack>
         </YStack>
       </ScrollView>

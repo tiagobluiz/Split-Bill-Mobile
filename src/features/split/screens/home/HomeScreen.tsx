@@ -18,6 +18,7 @@ import {
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { getSettlementPreview, useSplitStore } from "../../store";
+import { compareSplitDates } from "../../splitDateOrder";
 import {
   getRecordMoneyPreview,
   getHomeBalanceCards,
@@ -166,7 +167,7 @@ export function HomeScreenView() {
   );
 
   const recentRecords = [...visibleRecords]
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .sort((left, right) => compareSplitDates(left, right, true))
     .slice(0, 5);
 
   const filteredSplitRecords = useMemo(() => {
@@ -207,11 +208,7 @@ export function HomeScreenView() {
               : activityTagFilterIds.some((tagId) => recordTagIds.has(tagId));
           });
 
-    return [...byTags].sort((left, right) =>
-      activityDateFilter === "newest"
-        ? right.updatedAt.localeCompare(left.updatedAt)
-        : left.updatedAt.localeCompare(right.updatedAt),
-    );
+    return [...byTags].sort((left, right) => compareSplitDates(left, right, activityDateFilter === "newest"));
   }, [
     activityBalanceFilter,
     activityDateFilter,
@@ -410,6 +407,10 @@ export function HomeScreenView() {
   const handleSaveQuickEdit = async (details: {
     splitName: string;
     tagIds: string[];
+    splitDate?: string;
+    invoicePhotoUri?: string | null;
+    invoicePhotoName?: string | null;
+    invoicePhotoSize?: number | null;
   }) => {
     const record = quickEditRecord;
     if (!record) {
