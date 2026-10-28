@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { Modal, Platform } from "react-native";
 import { InvoicePhotoField } from "./InvoicePhotoField";
 
 const mockChooseInvoicePhoto = jest.fn();
@@ -15,12 +16,28 @@ it("offers camera and gallery sources from the invoice card", () => {
 
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
   fireEvent.press(screen.getByText("Take invoice photo"));
+  expect(mockChooseInvoicePhoto).not.toHaveBeenCalled();
+  fireEvent(screen.UNSAFE_getByType(Modal), "onDismiss");
   expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(true, expect.any(Function), expect.any(String), expect.any(String));
 
   mockChooseInvoicePhoto.mockClear();
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
   fireEvent.press(screen.getByText("Choose invoice photo"));
+  expect(mockChooseInvoicePhoto).not.toHaveBeenCalled();
+  fireEvent(screen.UNSAFE_getByType(Modal), "onDismiss");
   expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String));
+});
+
+it("opens the web picker within the photo-source press", () => {
+  const os = jest.replaceProperty(Platform, "OS", "web");
+  const onChange = jest.fn();
+  render(<InvoicePhotoField value={null} onChange={onChange} />);
+
+  fireEvent.press(screen.getByLabelText("Add invoice photo"));
+  fireEvent.press(screen.getByText("Choose invoice photo"));
+
+  expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String));
+  os.restore();
 });
 
 it("previews and removes the current invoice photo", async () => {

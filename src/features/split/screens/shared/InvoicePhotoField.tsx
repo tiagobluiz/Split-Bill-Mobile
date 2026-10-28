@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Image, Modal, Pressable, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Image, Modal, Platform, Pressable, Text, View } from "react-native";
 import { Camera, Eye, Plus, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FieldLabel } from "../../../../components/ui";
@@ -28,9 +28,22 @@ export function InvoicePhotoField({
   const insets = useSafeAreaInsets();
   const [sourceOpen, setSourceOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const queuedPhotoPicker = useRef<boolean | null>(null);
 
   const selectSource = (camera: boolean) => {
+    if (Platform.OS !== "web") {
+      queuedPhotoPicker.current = camera;
+      setSourceOpen(false);
+      return;
+    }
     setSourceOpen(false);
+    void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
+  };
+
+  const launchQueuedPhotoPicker = () => {
+    const camera = queuedPhotoPicker.current;
+    queuedPhotoPicker.current = null;
+    if (camera === null) return;
     void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
   };
 
@@ -96,6 +109,7 @@ export function InvoicePhotoField({
         bottomInset={insets.bottom}
         hasPhoto={Boolean(value)}
         onDismiss={() => setSourceOpen(false)}
+        onDismissComplete={launchQueuedPhotoPicker}
         onUpload={() => selectSource(false)}
         onTakePhoto={() => selectSource(true)}
         onRemove={() => { setSourceOpen(false); onChange(null); }}
