@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { SplitDatePicker } from "../shared/SplitDatePicker";
 import { InvoicePhotoField } from "../shared/InvoicePhotoField";
-import { persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
 import { Plus } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -138,10 +138,10 @@ export function SplitDetailsQuickEditModal({
         invoicePhotoSize: invoicePhotoUri ? invoicePhotoSize : null,
       });
       } catch (error) {
-        if (savedPhoto !== record.values.invoicePhotoUri) await removeInvoicePhoto(savedPhoto);
+        if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
         throw error;
       }
-      if (savedPhoto !== record.values.invoicePhotoUri) await removeInvoicePhoto(record.values.invoicePhotoUri);
+      if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(record.values.invoicePhotoUri);
     } catch (saveError) {
       const message =
         saveError instanceof Error && saveError.message

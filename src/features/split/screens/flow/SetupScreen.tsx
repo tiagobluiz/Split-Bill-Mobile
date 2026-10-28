@@ -14,7 +14,7 @@ import * as Clipboard from "expo-clipboard";
 import { SplitDatePicker } from "../shared/SplitDatePicker";
 import { InvoicePhotoField } from "../shared/InvoicePhotoField";
 import { BottomActionSheet } from "../shared/BottomActionSheet";
-import { persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
 import { localDay } from "../../../../domain/splitDate";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -525,10 +525,10 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       invoicePhotoUri ? invoicePhotoSize : null,
     );
     } catch (error) {
-      if (savedPhoto !== record?.values.invoicePhotoUri) await removeInvoicePhoto(savedPhoto);
+      if (!areSameInvoicePhotos(savedPhoto, record?.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
       throw error;
     }
-    if (record?.values.invoicePhotoUri !== savedPhoto) await removeInvoicePhoto(record?.values.invoicePhotoUri);
+    if (!areSameInvoicePhotos(record?.values.invoicePhotoUri, savedPhoto)) await removeInvoicePhoto(record?.values.invoicePhotoUri);
     setInvoicePhotoUri(savedPhoto);
     const selectedTags = (settings.tags ?? []).filter((tag) =>
       selectedTagIds.includes(tag.id),

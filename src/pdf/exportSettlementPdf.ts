@@ -5,6 +5,7 @@ import * as LegacyFileSystem from "expo-file-system/legacy";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
+import { resolveInvoicePhotoUri } from "../lib/invoicePhotoPaths";
 import { formatMoney, type SplitFormValues } from "../domain/splitter";
 import { t } from "../i18n";
 import { PDF_HEADER_IMAGE_DATA_URI } from "./pdfHeaderImageDataUri.generated";
@@ -564,12 +565,13 @@ export async function buildSettlementPdfFile(
   let invoiceImageDataUri: string | undefined;
   if (values.invoicePhotoUri) {
     try {
-      if (values.invoicePhotoUri.startsWith("data:image/")) {
-        invoiceImageDataUri = values.invoicePhotoUri;
+      const invoicePhotoUri = resolveInvoicePhotoUri(values.invoicePhotoUri, LegacyFileSystem.documentDirectory) ?? values.invoicePhotoUri;
+      if (invoicePhotoUri.startsWith("data:image/")) {
+        invoiceImageDataUri = invoicePhotoUri;
       } else {
-      const encoded = await LegacyFileSystem.readAsStringAsync(values.invoicePhotoUri, { encoding: LegacyFileSystem.EncodingType.Base64 });
-      const mime = /\.png(?:\?|$)/i.test(values.invoicePhotoUri) ? "image/png" : /\.webp(?:\?|$)/i.test(values.invoicePhotoUri) ? "image/webp" : "image/jpeg";
-      invoiceImageDataUri = `data:${mime};base64,${encoded}`;
+        const encoded = await LegacyFileSystem.readAsStringAsync(invoicePhotoUri, { encoding: LegacyFileSystem.EncodingType.Base64 });
+        const mime = /\.png(?:\?|$)/i.test(invoicePhotoUri) ? "image/png" : /\.webp(?:\?|$)/i.test(invoicePhotoUri) ? "image/webp" : "image/jpeg";
+        invoiceImageDataUri = `data:${mime};base64,${encoded}`;
       }
     } catch {
       const error = new Error("Unable to read the invoice photo. Please choose the photo again and retry.");

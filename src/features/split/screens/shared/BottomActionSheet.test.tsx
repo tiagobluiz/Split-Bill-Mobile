@@ -72,6 +72,50 @@ describe("BottomActionSheet", () => {
     expect(onDismissComplete).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the fallback timer when the parent replaces its callback", () => {
+    jest.useFakeTimers();
+    const firstCallback = jest.fn();
+    const latestCallback = jest.fn();
+    const view = render(
+      <BottomActionSheet
+        visible
+        title="Actions"
+        cancelLabel="Cancel"
+        bottomInset={0}
+        options={[]}
+        onDismiss={jest.fn()}
+        onDismissComplete={firstCallback}
+      />,
+    );
+
+    view.rerender(
+      <BottomActionSheet
+        visible={false}
+        title="Actions"
+        cancelLabel="Cancel"
+        bottomInset={0}
+        options={[]}
+        onDismiss={jest.fn()}
+        onDismissComplete={firstCallback}
+      />,
+    );
+    view.rerender(
+      <BottomActionSheet
+        visible={false}
+        title="Actions"
+        cancelLabel="Cancel"
+        bottomInset={0}
+        options={[]}
+        onDismiss={jest.fn()}
+        onDismissComplete={latestCallback}
+      />,
+    );
+    act(() => jest.advanceTimersByTime(350));
+
+    expect(firstCallback).not.toHaveBeenCalled();
+    expect(latestCallback).toHaveBeenCalledTimes(1);
+  });
+
   it("renders selection and action states and routes presses", () => {
     const onDismiss = jest.fn();
     const onSelect = jest.fn();

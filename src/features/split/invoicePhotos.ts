@@ -3,8 +3,13 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Alert, Platform } from "react-native";
 import { createId } from "../../domain";
+import {
+  getInvoicePhotoRelativePath,
+  resolveInvoicePhotoUri,
+  sameInvoicePhotoUri,
+} from "../../lib/invoicePhotoPaths";
 
-const directory = `${FileSystem.documentDirectory ?? ""}invoice-photos/`;
+const invoicePhotoDirectory = "invoice-photos/";
 
 export type InvoicePhotoSelection = { uri: string; name: string; size: number | null };
 
@@ -49,23 +54,40 @@ export async function chooseInvoicePhoto(camera: boolean, onSelect: (photo: Invo
 
 export async function persistInvoicePhoto(uri: string | null) {
   if (!uri) return null;
-  if (Platform.OS === "web" && uri.startsWith("data:image/")) return uri;
+  if (uri.startsWith("data:image/")) return uri;
   if (!FileSystem.documentDirectory) throw new Error("Invoice photo storage is unavailable.");
-  if (uri.startsWith(directory)) return uri;
+  const existingRelativePath = getInvoicePhotoRelativePath(uri);
+  if (existingRelativePath) return existingRelativePath;
+  const documentDirectory = FileSystem.documentDirectory.endsWith("/")
+    ? FileSystem.documentDirectory
+    : `${FileSystem.documentDirectory}/`;
+  const directory = `${documentDirectory}${invoicePhotoDirectory}`;
   const converted = await ImageManipulator.manipulateAsync(uri, [], {
     compress: .85,
     format: ImageManipulator.SaveFormat.JPEG,
   });
-  const destination = `${directory}${createId()}.jpg`;
+  const relativePath = `${invoicePhotoDirectory}${createId()}.jpg`;
+  const destination = `${documentDirectory}${relativePath}`;
   try {
     await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
     await FileSystem.copyAsync({ from: converted.uri, to: destination });
-    return destination;
+    return relativePath;
   } finally {
     await FileSystem.deleteAsync(converted.uri, { idempotent: true }).catch(() => undefined);
   }
 }
 
 export async function removeInvoicePhoto(uri?: string | null) {
-  if (uri && uri.startsWith(directory)) await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+  const relativePath = getInvoicePhotoRelativePath(uri);
+  if (!relativePath || !FileSystem.documentDirectory) return;
+  const resolvedUri = resolveInvoicePhotoUri(relativePath, FileSystem.documentDirectory);
+  if (resolvedUri) await FileSystem.deleteAsync(resolvedUri, { idempotent: true }).catch(() => undefined);
+}
+
+export function getInvoicePhotoDisplayUri(uri: string | null | undefined) {
+  return resolveInvoicePhotoUri(uri, FileSystem.documentDirectory);
+}
+
+export function areSameInvoicePhotos(first: string | null | undefined, second: string | null | undefined) {
+  return sameInvoicePhotoUri(first, second);
 }

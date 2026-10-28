@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FieldLabel } from "../../../../components/ui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { chooseInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { chooseInvoicePhoto, getInvoicePhotoDisplayUri, type InvoicePhotoSelection } from "../../invoicePhotos";
 import { PhotoOptionsSheet } from "./PhotoOptionsSheet";
 
 function formatFileSize(size: number | null | undefined, unavailableLabel: string) {
@@ -29,6 +29,7 @@ export function InvoicePhotoField({
   const [sourceOpen, setSourceOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const queuedPhotoPicker = useRef<boolean | null>(null);
+  const displayUri = value ? getInvoicePhotoDisplayUri(value) ?? value : undefined;
 
   const selectSource = (camera: boolean) => {
     if (Platform.OS !== "web") {
@@ -57,7 +58,7 @@ export function InvoicePhotoField({
           onPress={() => setPreviewOpen(true)}
           style={{ minHeight: 104, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}
         >
-          <Image source={{ uri: value }} resizeMode="cover" style={{ width: 72, height: 78, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
+          <Image source={{ uri: displayUri }} resizeMode="cover" style={{ width: 72, height: 78, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
           <View style={{ flex: 1, minHeight: 70, justifyContent: "center", gap: 8 }}>
             <Text style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15, lineHeight: 20 }}>{t("pdf.invoice")}</Text>
             <Text style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 13 }}>{formatFileSize(fileSize, t("splitDetails.fileSizeUnknown"))}</Text>
@@ -94,7 +95,7 @@ export function InvoicePhotoField({
                 <Text style={{ color: PALETTE.onPrimary, fontFamily: FONTS.bodyBold, fontSize: 18 }}>×</Text>
               </Pressable>
             </View>
-            <Image source={{ uri: value }} resizeMode="contain" style={{ width: "100%", height: "82%" }} />
+            <Image source={{ uri: displayUri }} resizeMode="contain" style={{ width: "100%", height: "82%" }} />
           </View>
         </Modal>
       ) : null}

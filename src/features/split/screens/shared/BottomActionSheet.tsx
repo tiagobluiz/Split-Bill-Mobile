@@ -34,19 +34,21 @@ export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, op
   const { t } = useTranslation();
   const wasVisible = useRef(visible);
   const completedDismissal = useRef(false);
+  const onDismissCompleteRef = useRef(onDismissComplete);
+  onDismissCompleteRef.current = onDismissComplete;
   const completeDismissal = useCallback(() => {
     if (completedDismissal.current) return;
     completedDismissal.current = true;
-    onDismissComplete?.();
-  }, [onDismissComplete]);
+    onDismissCompleteRef.current?.();
+  }, []);
   useEffect(() => {
     const justDismissed = wasVisible.current && !visible;
     wasVisible.current = visible;
     if (visible) completedDismissal.current = false;
-    if (!justDismissed || !onDismissComplete) return;
+    if (!justDismissed) return;
     const timeout = setTimeout(completeDismissal, 350);
     return () => clearTimeout(timeout);
-  }, [completeDismissal, onDismissComplete, visible]);
+  }, [completeDismissal, visible]);
 
   return <Modal transparent visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onDismiss} onDismiss={completeDismissal}>
     <View style={screenStyles.personPhotoSheetOverlay}>

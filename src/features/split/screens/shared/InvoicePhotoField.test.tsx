@@ -6,6 +6,7 @@ const mockChooseInvoicePhoto = jest.fn();
 
 jest.mock("../../invoicePhotos", () => ({
   chooseInvoicePhoto: (...args: any[]) => mockChooseInvoicePhoto(...args),
+  getInvoicePhotoDisplayUri: (uri: string | null) => uri,
 }));
 
 beforeEach(() => mockChooseInvoicePhoto.mockClear());

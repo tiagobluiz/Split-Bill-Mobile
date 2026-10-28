@@ -87,6 +87,7 @@ jest.mock("expo-file-system", () => ({
 }));
 
 jest.mock("expo-file-system/legacy", () => ({
+  documentDirectory: "file:///docs/",
   copyAsync: (...args: any[]) => mockLegacyCopyAsync(...args),
   readAsStringAsync: (...args: any[]) => mockLegacyReadAsStringAsync(...args),
   writeAsStringAsync: (...args: any[]) => mockLegacyWriteAsStringAsync(...args),
@@ -225,6 +226,24 @@ describe("mobile PDF export", () => {
     await expect(buildSettlementPdfFile({ ...(pdfFixture.input as any), invoicePhotoUri: "file:///missing.jpg" }, "en-US"))
       .rejects.toMatchObject({ name: "InvoicePhotoReadError", message: expect.stringContaining("Unable to read the invoice photo") });
     expect(Print.printToFileAsync).not.toHaveBeenCalled();
+  });
+
+  it("resolves stable invoice paths against the current document directory for PDF export", async () => {
+    mockLegacyReadAsStringAsync.mockResolvedValueOnce("aW1hZ2U=");
+    (Print.printToFileAsync as jest.Mock).mockResolvedValueOnce({ uri: "file:///docs/split.pdf" });
+
+    await buildSettlementPdfFile(
+      { ...(pdfFixture.input as any), invoicePhotoUri: "invoice-photos/receipt.jpg" },
+      "en-US",
+    );
+
+    expect(mockLegacyReadAsStringAsync).toHaveBeenCalledWith(
+      "file:///docs/invoice-photos/receipt.jpg",
+      { encoding: "base64" },
+    );
+    expect(Print.printToFileAsync).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining("data:image/jpeg;base64,aW1hZ2U="),
+    }));
   });
 
   it("renders FX metadata bubbles when exchange rate is provided", () => {

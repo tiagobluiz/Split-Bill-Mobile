@@ -59,17 +59,26 @@ it("does not open the camera when permission is denied", async () => {
 
 it("converts picked images to JPEG before copying them into owned storage", async () => {
   const photo = await persistInvoicePhoto("content://gallery/invoice.heic");
-  expect(photo).toMatch(/^file:\/\/\/app\/invoice-photos\/.+\.jpg$/);
+  expect(photo).toMatch(/^invoice-photos\/.+\.jpg$/);
   expect(mockImageManipulator.manipulateAsync).toHaveBeenCalledWith("content://gallery/invoice.heic", [], {
     compress: .85,
     format: "jpeg",
   });
-  expect(mockFs.copyAsync).toHaveBeenCalledWith({ from: "file:///cache/converted.jpg", to: photo });
+  expect(mockFs.copyAsync).toHaveBeenCalledWith({ from: "file:///cache/converted.jpg", to: `file:///app/${photo}` });
   expect(mockFs.deleteAsync).toHaveBeenCalledWith("file:///cache/converted.jpg", { idempotent: true });
   await removeInvoicePhoto("content://gallery/invoice.png");
   expect(mockFs.deleteAsync).not.toHaveBeenCalledWith("content://gallery/invoice.png", { idempotent: true });
   await removeInvoicePhoto(photo);
-  expect(mockFs.deleteAsync).toHaveBeenCalledWith(photo, { idempotent: true });
+  expect(mockFs.deleteAsync).toHaveBeenCalledWith(`file:///app/${photo}`, { idempotent: true });
+});
+
+it("normalizes legacy app-owned absolute URIs without recopying or deleting the wrong file", async () => {
+  await expect(persistInvoicePhoto("file:///previous/container/Documents/invoice-photos/receipt.jpg"))
+    .resolves.toBe("invoice-photos/receipt.jpg");
+
+  await removeInvoicePhoto("file:///previous/container/Documents/invoice-photos/receipt.jpg");
+  expect(mockFs.deleteAsync).toHaveBeenCalledWith("file:///app/invoice-photos/receipt.jpg", { idempotent: true });
+  expect(mockImageManipulator.manipulateAsync).not.toHaveBeenCalled();
 });
 
 it("propagates copy failure so the previous attachment can remain saved", async () => {
@@ -136,7 +145,7 @@ it("keeps web data URIs and already-owned files without converting them", async 
   ({ persistInvoicePhoto } = require("./invoicePhotos"));
 
   await expect(persistInvoicePhoto("data:image/png;base64,abc")).resolves.toBe("data:image/png;base64,abc");
-  await expect(persistInvoicePhoto("file:///app/invoice-photos/saved.jpg")).resolves.toBe("file:///app/invoice-photos/saved.jpg");
+  await expect(persistInvoicePhoto("file:///app/invoice-photos/saved.jpg")).resolves.toBe("invoice-photos/saved.jpg");
   await expect(persistInvoicePhoto(null)).resolves.toBeNull();
   expect(mockImageManipulator.manipulateAsync).not.toHaveBeenCalled();
   jest.dontMock("react-native");
