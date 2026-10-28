@@ -803,7 +803,6 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             />
             <InvoicePhotoField
               value={invoicePhotoUri}
-              fileName={invoicePhotoName}
               fileSize={invoicePhotoSize}
               onChange={handleInvoicePhotoChange}
             />

@@ -17,12 +17,10 @@ function formatFileSize(size: number | null | undefined, unavailableLabel: strin
 
 export function InvoicePhotoField({
   value,
-  fileName,
   fileSize,
   onChange,
 }: {
   value: string | null;
-  fileName?: string | null;
   fileSize?: number | null;
   onChange: (photo: InvoicePhotoSelection | null) => void;
 }) {
@@ -45,7 +43,7 @@ export function InvoicePhotoField({
         <View style={{ minHeight: 104, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Image source={{ uri: value }} resizeMode="cover" style={{ width: 72, height: 78, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
           <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.changePhoto")} onPress={() => setSourceOpen(true)} style={{ flex: 1, minHeight: 70, justifyContent: "center", gap: 8 }}>
-            <Text numberOfLines={2} ellipsizeMode="middle" style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15, lineHeight: 20 }}>{fileName || t("splitDetails.fileNameUnknown")}</Text>
+            <Text style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 15, lineHeight: 20 }}>{t("pdf.invoice")}</Text>
             <Text style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 13 }}>{formatFileSize(fileSize, t("splitDetails.fileSizeUnknown"))}</Text>
           </Pressable>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -75,7 +73,7 @@ export function InvoicePhotoField({
         <Modal visible={previewOpen} transparent animationType="fade" onRequestClose={() => setPreviewOpen(false)}>
           <View style={{ flex: 1, backgroundColor: "rgba(31,26,23,0.92)", padding: 22, justifyContent: "center", gap: 14 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text numberOfLines={1} style={{ flex: 1, color: PALETTE.onPrimary, fontFamily: FONTS.bodySemiBold, fontSize: 15 }}>{fileName || t("splitDetails.fileNameUnknown")}</Text>
+              <Text numberOfLines={1} style={{ flex: 1, color: PALETTE.onPrimary, fontFamily: FONTS.bodySemiBold, fontSize: 15 }}>{t("pdf.invoice")}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={() => setPreviewOpen(false)} style={{ padding: 8 }}>
                 <Text style={{ color: PALETTE.onPrimary, fontFamily: FONTS.bodyBold, fontSize: 18 }}>×</Text>
               </Pressable>

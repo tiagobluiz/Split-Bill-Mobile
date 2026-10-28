@@ -252,7 +252,6 @@ export function SplitDetailsQuickEditModal({
               </YStack>
               <InvoicePhotoField
                 value={invoicePhotoUri}
-                fileName={invoicePhotoName}
                 fileSize={invoicePhotoSize}
                 onChange={(photo: InvoicePhotoSelection | null) => {
                   setInvoicePhotoUri(photo?.uri ?? null);

@@ -25,9 +25,9 @@ it("offers camera and gallery sources from the invoice card", async () => {
 
 it("previews and removes the current invoice photo", async () => {
   const onChange = jest.fn();
-  render(<InvoicePhotoField value="file:///invoice.jpg" fileName="continente-receipt.jpg" fileSize={2516582} onChange={onChange} />);
+  render(<InvoicePhotoField value="file:///invoice.jpg" fileSize={2516582} onChange={onChange} />);
 
-  expect(screen.getByText("continente-receipt.jpg")).toBeTruthy();
+  expect(screen.getByText("Invoice")).toBeTruthy();
   expect(screen.getByText("2.4 MB")).toBeTruthy();
   fireEvent.press(screen.getByLabelText("Preview invoice photo"));
   expect(screen.getByLabelText("Close")).toBeTruthy();
