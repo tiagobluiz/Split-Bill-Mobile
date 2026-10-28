@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Alert, Platform } from "react-native";
 import { createId } from "../../domain";
 
@@ -19,9 +20,10 @@ export async function chooseInvoicePhoto(camera: boolean, onSelect: (photo: Invo
       Alert.alert(deniedMessage);
       return;
     }
+    const pickerOptions = { quality: .85, base64: Platform.OS === "web" };
     const result = camera
-      ? await ImagePicker.launchCameraAsync({ quality: .85 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: .85, base64: Platform.OS === "web" });
+      ? await ImagePicker.launchCameraAsync({ ...pickerOptions, mediaTypes: ["images"] })
+      : await ImagePicker.launchImageLibraryAsync({ ...pickerOptions, mediaTypes: ["images"] });
     if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
       const uri = Platform.OS === "web" && asset.base64 ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}` : asset.uri;
@@ -50,11 +52,18 @@ export async function persistInvoicePhoto(uri: string | null) {
   if (Platform.OS === "web" && uri.startsWith("data:image/")) return uri;
   if (!FileSystem.documentDirectory) throw new Error("Invoice photo storage is unavailable.");
   if (uri.startsWith(directory)) return uri;
-  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-  const extension = uri.match(/\.(jpe?g|png|webp)(?:\?|$)/i)?.[1] ?? "jpg";
-  const destination = `${directory}${createId()}.${extension}`;
-  await FileSystem.copyAsync({ from: uri, to: destination });
-  return destination;
+  const converted = await ImageManipulator.manipulateAsync(uri, [], {
+    compress: .85,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  const destination = `${directory}${createId()}.jpg`;
+  try {
+    await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+    await FileSystem.copyAsync({ from: converted.uri, to: destination });
+    return destination;
+  } finally {
+    await FileSystem.deleteAsync(converted.uri, { idempotent: true }).catch(() => undefined);
+  }
 }
 
 export async function removeInvoicePhoto(uri?: string | null) {

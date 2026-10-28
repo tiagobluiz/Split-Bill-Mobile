@@ -1,5 +1,6 @@
 const mockFs = { documentDirectory: "file:///app/", makeDirectoryAsync: jest.fn(), copyAsync: jest.fn(), deleteAsync: jest.fn() };
 const mockPicker = { requestCameraPermissionsAsync: jest.fn(), launchCameraAsync: jest.fn(), launchImageLibraryAsync: jest.fn() };
+const mockImageManipulator = { manipulateAsync: jest.fn(), SaveFormat: { JPEG: "jpeg" } };
 let persistInvoicePhoto: typeof import("./invoicePhotos").persistInvoicePhoto;
 let removeInvoicePhoto: typeof import("./invoicePhotos").removeInvoicePhoto;
 let chooseInvoicePhoto: typeof import("./invoicePhotos").chooseInvoicePhoto;
@@ -7,9 +8,11 @@ beforeEach(() => {
   jest.resetModules();
   jest.doMock("expo-file-system/legacy", () => mockFs);
   jest.doMock("expo-image-picker", () => mockPicker);
+  jest.doMock("expo-image-manipulator", () => mockImageManipulator);
   ({ persistInvoicePhoto, removeInvoicePhoto, chooseInvoicePhoto } = require("./invoicePhotos"));
   jest.clearAllMocks();
   mockFs.deleteAsync.mockResolvedValue(undefined);
+  mockImageManipulator.manipulateAsync.mockResolvedValue({ uri: "file:///cache/converted.jpg" });
 });
 
 it("leaves the existing photo unchanged when selection is cancelled", async () => {
@@ -41,12 +44,17 @@ it("does not open the camera when permission is denied", async () => {
   expect(onSelect).not.toHaveBeenCalled();
 });
 
-it("copies an invoice into owned storage and removes only owned files", async () => {
-  const photo = await persistInvoicePhoto("content://gallery/invoice.png");
-  expect(photo).toMatch(/^file:\/\/\/app\/invoice-photos\/.+\.png$/);
-  expect(mockFs.copyAsync).toHaveBeenCalledWith({ from: "content://gallery/invoice.png", to: photo });
+it("converts picked images to JPEG before copying them into owned storage", async () => {
+  const photo = await persistInvoicePhoto("content://gallery/invoice.heic");
+  expect(photo).toMatch(/^file:\/\/\/app\/invoice-photos\/.+\.jpg$/);
+  expect(mockImageManipulator.manipulateAsync).toHaveBeenCalledWith("content://gallery/invoice.heic", [], {
+    compress: .85,
+    format: "jpeg",
+  });
+  expect(mockFs.copyAsync).toHaveBeenCalledWith({ from: "file:///cache/converted.jpg", to: photo });
+  expect(mockFs.deleteAsync).toHaveBeenCalledWith("file:///cache/converted.jpg", { idempotent: true });
   await removeInvoicePhoto("content://gallery/invoice.png");
-  expect(mockFs.deleteAsync).not.toHaveBeenCalled();
+  expect(mockFs.deleteAsync).not.toHaveBeenCalledWith("content://gallery/invoice.png", { idempotent: true });
   await removeInvoicePhoto(photo);
   expect(mockFs.deleteAsync).toHaveBeenCalledWith(photo, { idempotent: true });
 });
@@ -54,4 +62,27 @@ it("copies an invoice into owned storage and removes only owned files", async ()
 it("propagates copy failure so the previous attachment can remain saved", async () => {
   mockFs.copyAsync.mockRejectedValueOnce(new Error("disk full"));
   await expect(persistInvoicePhoto("file:///new.jpg")).rejects.toThrow("disk full");
+});
+
+it("requests base64 data for web camera captures", async () => {
+  jest.resetModules();
+  jest.doMock("react-native", () => {
+    return { Alert: { alert: jest.fn() }, Platform: { OS: "web" } };
+  });
+  jest.doMock("expo-file-system/legacy", () => mockFs);
+  jest.doMock("expo-image-picker", () => mockPicker);
+  jest.doMock("expo-image-manipulator", () => mockImageManipulator);
+  ({ chooseInvoicePhoto } = require("./invoicePhotos"));
+  mockPicker.requestCameraPermissionsAsync.mockResolvedValueOnce({ granted: true });
+  mockPicker.launchCameraAsync.mockResolvedValueOnce({
+    canceled: false,
+    assets: [{ uri: "blob:invoice", base64: "aW1hZ2U=", mimeType: "image/png" }],
+  });
+  const onSelect = jest.fn();
+
+  await chooseInvoicePhoto(true, onSelect, "denied", "error");
+
+  expect(mockPicker.launchCameraAsync).toHaveBeenCalledWith(expect.objectContaining({ base64: true }));
+  expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ uri: "data:image/png;base64,aW1hZ2U=" }));
+  jest.dontMock("react-native");
 });
