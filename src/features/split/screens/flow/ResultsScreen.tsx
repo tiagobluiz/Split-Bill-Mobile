@@ -99,6 +99,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
+  const shareAfterResultsActionsDismissRef = useRef(false);
   const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
   const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
   const [debtReminderErrorMessage, setDebtReminderErrorMessage] = useState("");
@@ -416,8 +417,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       icon: <MessageCircle color={PALETTE.primary} size={18} />,
       disabled: exportPdfPending,
       onPress: () => {
+        shareAfterResultsActionsDismissRef.current = true;
         setShowResultsActions(false);
-        void shareResults();
       },
     },
   ];
@@ -489,18 +490,21 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             message={reminderToastMessage}
             bottomOffset={footerInsetBottom + 12}
           />
-          {showResultsActions ? (
-            <ActionListSheet
-              visible
-              title={t("flow.results.actionsTitle")}
-              cancelLabel={t("common.cancel")}
-              bottomInset={insets.bottom}
-              options={actionOptions}
-              onDismiss={() => {
-                setShowResultsActions(false);
-              }}
-            />
-          ) : null}
+          <ActionListSheet
+            visible={showResultsActions}
+            title={t("flow.results.actionsTitle")}
+            cancelLabel={t("common.cancel")}
+            bottomInset={insets.bottom}
+            options={actionOptions}
+            onDismiss={() => {
+              setShowResultsActions(false);
+            }}
+            onDismissComplete={() => {
+              if (!shareAfterResultsActionsDismissRef.current) return;
+              shareAfterResultsActionsDismissRef.current = false;
+              void shareResults();
+            }}
+          />
         </>
       )}
       footer={

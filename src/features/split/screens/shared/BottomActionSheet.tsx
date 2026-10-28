@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { Check, ChevronRight } from "lucide-react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
@@ -20,20 +20,35 @@ export type BottomAction = {
   disabled?: boolean;
 };
 
-export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss, selectionMode = false, showCancel = true }: {
+export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss, onDismissComplete, selectionMode = false, showCancel = true }: {
   visible: boolean;
   title: string;
   cancelLabel: string;
   bottomInset: number;
   options: BottomAction[];
   onDismiss: () => void;
+  onDismissComplete?: () => void;
   selectionMode?: boolean;
   showCancel?: boolean;
 }) {
   const { t } = useTranslation();
-  if (!visible) return null;
+  const wasVisible = useRef(visible);
+  const completedDismissal = useRef(false);
+  const completeDismissal = useCallback(() => {
+    if (completedDismissal.current) return;
+    completedDismissal.current = true;
+    onDismissComplete?.();
+  }, [onDismissComplete]);
+  useEffect(() => {
+    const justDismissed = wasVisible.current && !visible;
+    wasVisible.current = visible;
+    if (visible) completedDismissal.current = false;
+    if (!justDismissed || !onDismissComplete) return;
+    const timeout = setTimeout(completeDismissal, 350);
+    return () => clearTimeout(timeout);
+  }, [completeDismissal, onDismissComplete, visible]);
 
-  return <Modal transparent visible animationType="slide" statusBarTranslucent onRequestClose={onDismiss}>
+  return <Modal transparent visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onDismiss} onDismiss={completeDismissal}>
     <View style={screenStyles.personPhotoSheetOverlay}>
       <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.personPhotoSheetBackdrop} onPress={onDismiss} />
       <View style={[screenStyles.personPhotoSheet, { paddingBottom: Math.max(bottomInset, 16) }]}>

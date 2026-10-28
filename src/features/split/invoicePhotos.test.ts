@@ -1,4 +1,4 @@
-const mockFs = { documentDirectory: "file:///app/", makeDirectoryAsync: jest.fn(), copyAsync: jest.fn(), deleteAsync: jest.fn() };
+const mockFs = { documentDirectory: "file:///app/", makeDirectoryAsync: jest.fn(), copyAsync: jest.fn(), deleteAsync: jest.fn(), getInfoAsync: jest.fn() };
 const mockPicker = { requestCameraPermissionsAsync: jest.fn(), launchCameraAsync: jest.fn(), launchImageLibraryAsync: jest.fn() };
 const mockImageManipulator = { manipulateAsync: jest.fn(), SaveFormat: { JPEG: "jpeg" } };
 let persistInvoicePhoto: typeof import("./invoicePhotos").persistInvoicePhoto;
@@ -34,6 +34,19 @@ it("preserves the picked filename and file size for the split summary", async ()
   mockPicker.launchImageLibraryAsync.mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///cache/image.jpg", fileName: "market-receipt.jpg", fileSize: 2516582 }] });
   await chooseInvoicePhoto(false, onSelect, "denied", "error");
   expect(onSelect).toHaveBeenCalledWith({ uri: "file:///cache/image.jpg", name: "market-receipt.jpg", size: 2516582 });
+});
+
+it("uses available native file metadata and falls back for names without extensions", async () => {
+  const onSelect = jest.fn();
+  mockFs.getInfoAsync.mockResolvedValueOnce({ exists: true, size: 1234 });
+  mockPicker.launchImageLibraryAsync.mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///cache/receipt", fileName: "  " }] });
+  await chooseInvoicePhoto(false, onSelect, "denied", "error");
+  expect(onSelect).toHaveBeenCalledWith({ uri: "file:///cache/receipt", name: "invoice.jpg", size: 1234 });
+
+  mockFs.getInfoAsync.mockResolvedValueOnce({ exists: false });
+  mockPicker.launchImageLibraryAsync.mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///cache/receipt" }] });
+  await chooseInvoicePhoto(false, onSelect, "denied", "error");
+  expect(onSelect).toHaveBeenLastCalledWith({ uri: "file:///cache/receipt", name: "invoice.jpg", size: null });
 });
 
 it("does not open the camera when permission is denied", async () => {
@@ -85,4 +98,56 @@ it("requests base64 data for web camera captures", async () => {
   expect(mockPicker.launchCameraAsync).toHaveBeenCalledWith(expect.objectContaining({ base64: true }));
   expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ uri: "data:image/png;base64,aW1hZ2U=" }));
   jest.dontMock("react-native");
+});
+
+it.each([
+  ["aW1hZ2U==", 4],
+  ["aW1hZ2U=", 5],
+  ["aW1hZ2U", 5],
+])("calculates web attachment size for base64 padding %s", async (base64, size) => {
+  jest.resetModules();
+  jest.doMock("react-native", () => ({ Alert: { alert: jest.fn() }, Platform: { OS: "web" } }));
+  jest.doMock("expo-file-system/legacy", () => mockFs);
+  jest.doMock("expo-image-picker", () => mockPicker);
+  jest.doMock("expo-image-manipulator", () => mockImageManipulator);
+  ({ chooseInvoicePhoto } = require("./invoicePhotos"));
+  mockPicker.launchImageLibraryAsync.mockResolvedValueOnce({
+    canceled: false,
+    assets: [{ uri: "blob:receipt", base64 }],
+  });
+  const onSelect = jest.fn();
+
+  await chooseInvoicePhoto(false, onSelect, "denied", "error");
+
+  expect(onSelect).toHaveBeenCalledWith({
+    uri: `data:image/jpeg;base64,${base64}`,
+    name: "invoice.jpg",
+    size,
+  });
+  jest.dontMock("react-native");
+});
+
+it("keeps web data URIs and already-owned files without converting them", async () => {
+  jest.resetModules();
+  jest.doMock("react-native", () => ({ Alert: { alert: jest.fn() }, Platform: { OS: "web" } }));
+  jest.doMock("expo-file-system/legacy", () => mockFs);
+  jest.doMock("expo-image-picker", () => mockPicker);
+  jest.doMock("expo-image-manipulator", () => mockImageManipulator);
+  ({ persistInvoicePhoto } = require("./invoicePhotos"));
+
+  await expect(persistInvoicePhoto("data:image/png;base64,abc")).resolves.toBe("data:image/png;base64,abc");
+  await expect(persistInvoicePhoto("file:///app/invoice-photos/saved.jpg")).resolves.toBe("file:///app/invoice-photos/saved.jpg");
+  await expect(persistInvoicePhoto(null)).resolves.toBeNull();
+  expect(mockImageManipulator.manipulateAsync).not.toHaveBeenCalled();
+  jest.dontMock("react-native");
+});
+
+it("reports unavailable persistent storage instead of dropping a native attachment", async () => {
+  jest.resetModules();
+  jest.doMock("expo-file-system/legacy", () => ({ ...mockFs, documentDirectory: null }));
+  jest.doMock("expo-image-picker", () => mockPicker);
+  jest.doMock("expo-image-manipulator", () => mockImageManipulator);
+  ({ persistInvoicePhoto } = require("./invoicePhotos"));
+
+  await expect(persistInvoicePhoto("file:///cache/invoice.jpg")).rejects.toThrow("Invoice photo storage is unavailable.");
 });

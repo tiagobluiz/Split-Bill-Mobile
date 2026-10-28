@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import { InvoicePhotoField } from "./InvoicePhotoField";
 
 const mockChooseInvoicePhoto = jest.fn();
@@ -9,18 +9,18 @@ jest.mock("../../invoicePhotos", () => ({
 
 beforeEach(() => mockChooseInvoicePhoto.mockClear());
 
-it("offers camera and gallery sources from the invoice card", async () => {
+it("offers camera and gallery sources from the invoice card", () => {
   const onChange = jest.fn();
   render(<InvoicePhotoField value={null} onChange={onChange} />);
 
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
   fireEvent.press(screen.getByText("Take invoice photo"));
-  await waitFor(() => expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(true, expect.any(Function), expect.any(String), expect.any(String)));
+  expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(true, expect.any(Function), expect.any(String), expect.any(String));
 
   mockChooseInvoicePhoto.mockClear();
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
   fireEvent.press(screen.getByText("Choose invoice photo"));
-  await waitFor(() => expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String)));
+  expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String));
 });
 
 it("previews and removes the current invoice photo", async () => {
@@ -36,4 +36,14 @@ it("previews and removes the current invoice photo", async () => {
 
   expect(onChange).toHaveBeenCalledWith(null);
   expect(screen.queryByLabelText("Close")).toBeNull();
+});
+
+it.each([
+  [512, "512 B"],
+  [1536, "2 KB"],
+  [Number.POSITIVE_INFINITY, "Size unavailable"],
+  [-1, "Size unavailable"],
+])("formats an invoice file size of %s", (fileSize, expected) => {
+  render(<InvoicePhotoField value="file:///invoice.jpg" fileSize={fileSize} onChange={jest.fn()} />);
+  expect(screen.getByText(expected)).toBeTruthy();
 });

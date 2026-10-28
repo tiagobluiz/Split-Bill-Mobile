@@ -31,9 +31,7 @@ export function InvoicePhotoField({
 
   const selectSource = (camera: boolean) => {
     setSourceOpen(false);
-    setTimeout(() => {
-      void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
-    }, 240);
+    void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
   };
 
   return (

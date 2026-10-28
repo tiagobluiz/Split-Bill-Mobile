@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BottomActionSheet } from "./BottomActionSheet";
 
-export function ActionListSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss }: {
+export function ActionListSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss, onDismissComplete }: {
   visible: boolean;
   title: string;
   cancelLabel: string;
@@ -16,6 +16,7 @@ export function ActionListSheet({ visible, title, cancelLabel, bottomInset, opti
     disabled?: boolean;
   }>;
   onDismiss: () => void;
+  onDismissComplete?: () => void;
 }) {
-  return <BottomActionSheet visible={visible} title={title} cancelLabel={cancelLabel} bottomInset={bottomInset} options={options} onDismiss={onDismiss} />;
+  return <BottomActionSheet visible={visible} title={title} cancelLabel={cancelLabel} bottomInset={bottomInset} options={options} onDismiss={onDismiss} onDismissComplete={onDismissComplete} />;
 }

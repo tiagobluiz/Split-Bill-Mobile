@@ -88,6 +88,28 @@ describe("SplitDetailsQuickEditModal", () => {
     expect(screen.getByText("Edit split details")).toBeTruthy();
   });
 
+  it("requires a non-empty split name before saving", async () => {
+    const { props } = renderModal();
+    fireEvent.changeText(screen.getByLabelText("Split name"), "   ");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(screen.getByText("Split name is missing.")).toBeTruthy();
+    expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it("uses the retry message for non-Error save failures", async () => {
+    renderModal({ onSave: jest.fn(async () => { throw "unexpected"; }) });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(screen.getByText("Could not save split details. Please try again.")).toBeTruthy();
+  });
+
   it("deselects an existing tag before saving", async () => {
     const { props } = renderModal();
 

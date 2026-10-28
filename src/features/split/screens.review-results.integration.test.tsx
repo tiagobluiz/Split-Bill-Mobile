@@ -734,7 +734,8 @@ describe("split screens", () => {
     expect(screen.queryByLabelText("PDF")).toBeNull();
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
     fireEvent.press(screen.getByLabelText("Share as text"));
-    expect(mockShare).toHaveBeenCalled();
+    expect(mockShare).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockShare).toHaveBeenCalled());
     fireEvent.press(screen.getByLabelText("Open share and export actions"));
     fireEvent.press(screen.getByLabelText("PDF"));
     await waitFor(() => {
