@@ -42,6 +42,11 @@ const { mockPush, mockBack, mockReplace } = createRouterMocks();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenApplication = jest.fn(async (..._args: any[]) => undefined);
+const mockAiHandoverOpen = jest.fn(async (..._args: any[]) => ({
+  opened: false,
+  promptPrefilled: false,
+  imageAttached: false,
+}));
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
 const mockTrackEvent = jest.fn(async (..._args: any[]) => undefined);
@@ -95,6 +100,16 @@ jest.mock("expo-clipboard", () => ({
 
 jest.mock("expo-intent-launcher", () => ({
   openApplication: (packageName: string) => mockOpenApplication(packageName),
+}));
+
+jest.mock("expo-file-system/legacy", () => ({
+  documentDirectory: "file:///app/files/",
+}));
+
+jest.mock("../../../modules/ai-handover/src", () => ({
+  AiHandover: {
+    open: (...args: any[]) => mockAiHandoverOpen(...args),
+  },
 }));
 
 jest.mock("expo-image-picker", () => ({
@@ -204,6 +219,12 @@ describe("split screens", () => {
     mockSetStringAsync.mockReset();
     mockOpenURL.mockReset();
     mockOpenApplication.mockReset();
+    mockAiHandoverOpen.mockReset();
+    mockAiHandoverOpen.mockResolvedValue({
+      opened: false,
+      promptPrefilled: false,
+      imageAttached: false,
+    });
     mockShare.mockReset();
     mockAlert.mockReset();
     mockTrackEvent.mockReset();
@@ -2192,6 +2213,105 @@ describe("split screens", () => {
 
     expect(screen.getByText("Import preview")).toBeTruthy();
     expect(screen.getByText("Add & Review Items")).toBeTruthy();
+  });
+
+  it("opens the selected Android AI with the prompt prefilled and advances to step two", async () => {
+    mockAiHandoverOpen.mockResolvedValue({
+      opened: true,
+      promptPrefilled: true,
+      imageAttached: false,
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockSetStringAsync).toHaveBeenCalledWith(
+      expect.stringContaining("Read the uploaded grocery receipt"),
+    );
+    expect(mockAiHandoverOpen).toHaveBeenCalledWith({
+      provider: "chatgpt",
+      prompt: expect.stringContaining("Read the uploaded grocery receipt"),
+      invoicePhotoUri: null,
+    });
+    expect(screen.getByText("Paste item list")).toBeTruthy();
+  });
+
+  it("retries text-only when invoice image sharing fails and explains the manual image step", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          invoicePhotoUri: "invoice-photos/receipt-1.png",
+        },
+      }),
+    ];
+    mockAiHandoverOpen
+      .mockResolvedValueOnce({
+        opened: false,
+        promptPrefilled: false,
+        imageAttached: false,
+      })
+      .mockResolvedValueOnce({
+        opened: true,
+        promptPrefilled: true,
+        imageAttached: false,
+      });
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("Choose Gemini"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockAiHandoverOpen).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        invoicePhotoUri: "file:///app/files/invoice-photos/receipt-1.png",
+      }),
+    );
+    expect(mockAiHandoverOpen.mock.calls[1][0]).toMatchObject({
+      provider: "gemini",
+      prompt: expect.any(String),
+    });
+    expect(mockAiHandoverOpen.mock.calls[1][0]).not.toHaveProperty(
+      "invoicePhotoUri",
+    );
+    expect(
+      screen.getByText(/If the prompt did not appear.*Attach the invoice photo/i),
+    ).toBeTruthy();
+    expect(screen.getByText("Paste item list")).toBeTruthy();
+  });
+
+  it("ignores a second AI handover press while dispatch is pending", async () => {
+    let resolveHandover!: (result: {
+      opened: boolean;
+      promptPrefilled: boolean;
+      imageAttached: boolean;
+    }) => void;
+    mockAiHandoverOpen.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveHandover = resolve;
+      }),
+    );
+    render(<PasteImportScreen draftId="draft-1" />);
+    const handoverButton = screen.getByText("Copy Prompt & Open AI");
+
+    fireEvent.press(handoverButton);
+    fireEvent.press(handoverButton);
+    await waitFor(() => expect(mockAiHandoverOpen).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveHandover({
+        opened: true,
+        promptPrefilled: true,
+        imageAttached: false,
+      });
+    });
+
+    expect(mockAiHandoverOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Paste item list")).toBeTruthy();
   });
   it("counts duplicate pasted rows as accepted merges in the import preview", () => {
     render(<PasteImportScreen draftId="draft-1" />);

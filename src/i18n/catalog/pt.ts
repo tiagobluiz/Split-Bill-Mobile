@@ -413,8 +413,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.stepOne": "Passo 1 de 2",
   "flow.import.stepTwo": "Passo 2 de 2",
   "flow.import.askAiTitle": "Pede à IA para ler o recibo",
-  "flow.import.askAiDescription":
-    "Vamos copiar um prompt já preparado e abrir a tua ferramenta de IA. Carrega lá o recibo e volta depois com a lista de itens.",
+  "flow.import.askAiDescription": "Vamos abrir a ferramenta de IA com o prompt pronto e anexar a foto da conta desta divisão, se existir. Sem foto, anexa o recibo. Revê tudo e toca em Enviar.",
   "flow.import.chooseTool": "Escolher ferramenta de IA",
   "flow.import.chooseToolA11y": "Escolher {provider}",
   "flow.import.prompt": "O prompt",
@@ -428,6 +427,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.mode.replace": "Substituir",
   "flow.import.pastedText": "Texto colado",
   "flow.import.copyOpenAi": "Copiar prompt e abrir IA",
+  "flow.import.pastePromptHint": "Se o prompt não aparecer, cola-o da área de transferência. Anexa a foto da conta, se necessário, e toca em Enviar.",
   "llm.receiptPrompt.readReceipt":
     "Lê o talão enviado e extrai apenas os itens comprados.",
   "llm.receiptPrompt.returnFormat":

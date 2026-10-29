@@ -555,7 +555,7 @@ const enPlain = {
   "flow.import.stepTwo": "Step 2 of 2",
   "flow.import.askAiTitle": "Ask AI to read your receipt",
   "flow.import.askAiDescription":
-    "We will copy a ready-made prompt and open your AI tool. Upload the receipt there, then come back with the item list.",
+    "We will open your AI tool with the prompt ready and attach this split's invoice photo when available. Without a photo, attach your receipt there. Review everything and tap Send.",
   "flow.import.chooseTool": "Choose AI tool",
   "flow.import.chooseToolA11y": "Choose {provider}",
   "flow.import.prompt": "The prompt",
@@ -569,6 +569,7 @@ const enPlain = {
   "flow.import.mode.replace": "Replace",
   "flow.import.pastedText": "Pasted text",
   "flow.import.copyOpenAi": "Copy Prompt & Open AI",
+  "flow.import.pastePromptHint": "If the prompt did not appear, paste it from your clipboard. Attach the invoice photo if needed, then tap Send.",
   "llm.receiptPrompt.readReceipt":
     "Read the uploaded grocery receipt and extract only the purchased receipt items.",
   "llm.receiptPrompt.returnFormat": "Return the result in this exact format:",
