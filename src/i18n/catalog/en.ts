@@ -554,8 +554,10 @@ const enPlain = {
   "flow.import.stepOne": "Step 1 of 2",
   "flow.import.stepTwo": "Step 2 of 2",
   "flow.import.askAiTitle": "Ask AI to read your receipt",
-  "flow.import.askAiDescription":
-    "We will copy a ready-made prompt and open your AI tool. Upload the receipt there, then come back with the item list.",
+  "flow.import.askAiAndroid":
+    "Split Bill copies the prompt, opens your selected AI tool, and shares this split's invoice photo when available. Check that the prompt and photo appear. If the prompt is missing, paste it from your clipboard; if no image is attached, attach the receipt or invoice photo manually. Review everything, then tap Send. When you have the item list, return to Split Bill and paste it in step 2.",
+  "flow.import.askAiManual":
+    "Split Bill copies the prompt and opens the AI tool. Paste the prompt and attach the receipt or invoice photo. Review it, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.chooseTool": "Choose AI tool",
   "flow.import.chooseToolA11y": "Choose {provider}",
   "flow.import.prompt": "The prompt",
@@ -569,6 +571,7 @@ const enPlain = {
   "flow.import.mode.replace": "Replace",
   "flow.import.pastedText": "Pasted text",
   "flow.import.copyOpenAi": "Copy Prompt & Open AI",
+  "flow.import.pastePromptHint": "If the prompt isn't in the AI chat, paste it from your clipboard. Attach this split's invoice photo or a receipt if it isn't already there, then review everything and tap Send. Once you have the item list, return to Split Bill and paste it here.",
   "llm.receiptPrompt.readReceipt":
     "Read the uploaded grocery receipt and extract only the purchased receipt items.",
   "llm.receiptPrompt.returnFormat": "Return the result in this exact format:",

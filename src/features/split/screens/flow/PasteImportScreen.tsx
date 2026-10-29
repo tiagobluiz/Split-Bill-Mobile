@@ -3,6 +3,8 @@ import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } fro
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as IntentLauncher from "expo-intent-launcher";
+import * as FileSystem from "expo-file-system/legacy";
+import { AiHandover } from "../../../../../modules/ai-handover/src";
 import { Bot, ClipboardCopy, Info, Merge, MessageCircle, Plus, ReceiptText, Sparkles, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -37,6 +39,7 @@ import {
   type LlmProvider,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
+import { resolveInvoicePhotoUri } from "../../../../lib/invoicePhotoPaths";
 import { rememberItemOrigins, recordError, trackEvent } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
@@ -155,7 +158,15 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const [mode, setMode] = useState<"append" | "replace">("append");
   const [step, setStep] = useState<1 | 2>(1);
   const [provider, setProvider] = useState<LlmProvider>("chatgpt");
+  const [handoffPending, setHandoffPending] = useState(false);
+  const handoffPendingRef = useRef(false);
+  const [needsManualPrompt, setNeedsManualPrompt] = useState(false);
   const prompt = buildReceiptLlmPrompt();
+  const hasInvoicePhoto = !!record?.values.invoicePhotoUri;
+  const askAiDescriptionKey =
+    Platform.OS !== "android"
+      ? "flow.import.askAiManual"
+      : "flow.import.askAiAndroid";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
   const locale = getDeviceLocale();
@@ -330,16 +341,29 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   };
 
   const copyPromptAndOpenAi = async () => {
+    if (handoffPendingRef.current) return;
+    handoffPendingRef.current = true;
+    setHandoffPending(true);
     try {
       await Clipboard.setStringAsync(prompt);
       if (Platform.OS === "android") {
-        const packageName = getReceiptLlmAndroidPackage(provider);
-        try {
-          await IntentLauncher.openApplication(packageName);
-        } catch (error) {
-          await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+        const invoiceUri = resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory);
+        let result = await AiHandover.open({ provider, prompt, invoicePhotoUri: invoiceUri });
+        if (!result.opened && invoiceUri) {
+          result = await AiHandover.open({ provider, prompt });
+        }
+        setNeedsManualPrompt(result.opened && (!result.promptPrefilled || (!!invoiceUri && !result.imageAttached)));
+        if (!result.opened) {
+          try {
+            await IntentLauncher.openApplication(getReceiptLlmAndroidPackage(provider));
+            setNeedsManualPrompt(true);
+          } catch {
+            await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+            setNeedsManualPrompt(true);
+          }
         }
       } else {
+        setNeedsManualPrompt(true);
         await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
       }
       openStepTwo();
@@ -349,6 +373,9 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         t("flow.import.openFailedTitle"),
         t("flow.import.openFailedBody"),
       );
+    } finally {
+      handoffPendingRef.current = false;
+      setHandoffPending(false);
     }
   };
 
@@ -422,6 +449,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   <PrimaryButton
                     label={t("flow.import.copyOpenAi")}
                     icon={<ReceiptText color={PALETTE.onPrimary} size={18} />}
+                    disabled={handoffPending}
                     onPress={() => void copyPromptAndOpenAi()}
                   />
                   <Pressable accessibilityRole="button" accessibilityLabel={t("flow.import.alreadyHaveListA11y")} onPress={openStepTwo}>
@@ -539,7 +567,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                 {t("flow.import.askAiTitle")}
               </Text>
               <Paragraph color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={15} lineHeight={22}>
-                {t("flow.import.askAiDescription")}
+                {t(askAiDescriptionKey)}
               </Paragraph>
             </SectionCard>
 
@@ -625,6 +653,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
               <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={PALETTE.onSurface} letterSpacing={-0.8}>
                 {t("flow.import.pasteTitle")}
               </Text>
+              {needsManualPrompt ? (
+                <Paragraph marginTop="$2" color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={13} lineHeight={19}>
+                  {t("flow.import.pastePromptHint")}
+                </Paragraph>
+              ) : null}
             </SectionCard>
 
             <SectionCard>

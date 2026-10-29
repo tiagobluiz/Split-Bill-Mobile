@@ -413,21 +413,21 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.stepOne": "Passo 1 de 2",
   "flow.import.stepTwo": "Passo 2 de 2",
   "flow.import.askAiTitle": "Pede à IA para ler o recibo",
-  "flow.import.askAiDescription":
-    "Vamos copiar um prompt já preparado e abrir a tua ferramenta de IA. Carrega lá o recibo e volta depois com a lista de itens.",
+  "flow.import.askAiAndroid": "O Split Bill copia o prompt, abre a IA que escolheste e partilha a foto da conta desta divisão, se existir. Confirma que o prompt e a foto aparecem. Se o prompt não estiver no chat, cola-o da área de transferência; se não houver uma imagem anexada, anexa manualmente o talão ou a foto da conta. Revê tudo e toca em Enviar. Quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
+  "flow.import.askAiManual": "O Split Bill copia o prompt e abre a IA. Cola o prompt e anexa o talão ou a foto da conta. Revê tudo, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.chooseTool": "Escolher ferramenta de IA",
   "flow.import.chooseToolA11y": "Escolher {provider}",
   "flow.import.prompt": "O prompt",
   "flow.import.copyPrompt": "Copiar texto",
   "flow.import.copyPromptA11y": "Copiar texto do prompt",
-  "flow.import.afterAi":
-    "Depois de a IA responder, copia apenas a lista de itens e volta aqui para o passo 2.",
+  "flow.import.afterAi": "Depois de a IA responder, copia apenas a lista de itens e volta aqui para o passo 2.",
   "flow.import.pasteTitle": "Colar lista de itens",
   "flow.import.mode": "Modo de importação",
   "flow.import.mode.append": "Juntar",
   "flow.import.mode.replace": "Substituir",
   "flow.import.pastedText": "Texto colado",
   "flow.import.copyOpenAi": "Copiar prompt e abrir IA",
+  "flow.import.pastePromptHint": "Se o prompt não estiver no chat da IA, cola-o da área de transferência. Anexa a foto da conta desta divisão ou um talão, se ainda não estiver no chat. Revê tudo, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a aqui.",
   "llm.receiptPrompt.readReceipt":
     "Lê o talão enviado e extrai apenas os itens comprados.",
   "llm.receiptPrompt.returnFormat":
@@ -845,8 +845,6 @@ const ptUnhinged: Partial<Record<keyof typeof ptPlain, string>> = {
 
   "flow.import.title": "Importar o caos",
   "flow.import.askAiTitle": "Pede à IA para sofrer",
-  "flow.import.askAiDescription":
-    "Copiamos o prompt, tu carregas o recibo e voltas com a lista. Fácil. Em teoria.",
   "flow.import.prompt": "O santo prompt",
   "flow.import.copyPrompt": "Copiar. Sem estragar.",
   "flow.import.afterAi": "Copia só a lista. Só. A. Lista.",
