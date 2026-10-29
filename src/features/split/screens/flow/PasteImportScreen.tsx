@@ -166,9 +166,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const askAiDescriptionKey =
     Platform.OS !== "android"
       ? "flow.import.askAiManual"
-      : hasInvoicePhoto
-        ? "flow.import.askAiAndroidWithPhoto"
-        : "flow.import.askAiAndroidWithoutPhoto";
+      : "flow.import.askAiAndroid";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
   const locale = getDeviceLocale();

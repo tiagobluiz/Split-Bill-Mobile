@@ -61,10 +61,10 @@ class AiHandoverModule : Module() {
           intent.putExtra(Intent.EXTRA_TEXT, prompt)
           if (intent.resolveActivity(activity.packageManager) == null) throw IllegalStateException("No AI app can receive the invoice")
           activity.startActivity(intent)
-          promise.resolve(mapOf("opened" to true, "promptPrefilled" to true, "imageAttached" to true))
+          promise.resolve(mapOf("opened" to true, "promptPrefilled" to (provider != "gemini"), "imageAttached" to true))
         } else {
           sendText()
-          promise.resolve(mapOf("opened" to true, "promptPrefilled" to true, "imageAttached" to false))
+          promise.resolve(mapOf("opened" to true, "promptPrefilled" to (provider != "gemini"), "imageAttached" to false))
         }
       } catch (_: Exception) {
         promise.resolve(mapOf("opened" to false, "promptPrefilled" to false, "imageAttached" to false))

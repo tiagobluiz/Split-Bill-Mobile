@@ -2262,7 +2262,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose Gemini"));
     expect(
       screen.getByText(
-        /opens the AI tool with the prompt and this split's invoice photo ready/i,
+        /copies the prompt, opens your selected AI tool, and shares this split's invoice photo when available/i,
       ),
     ).toBeTruthy();
 
@@ -2289,6 +2289,39 @@ describe("split screens", () => {
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });
 
+  it("keeps Gemini paste guidance until prompt prefill is fully device-verified", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          invoicePhotoUri: "invoice-photos/receipt-1.png",
+        },
+      }),
+    ];
+    mockAiHandoverOpen.mockResolvedValue({
+      opened: true,
+      promptPrefilled: false,
+      imageAttached: true,
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("Choose Gemini"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockAiHandoverOpen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "gemini",
+        invoicePhotoUri: "file:///app/files/invoice-photos/receipt-1.png",
+      }),
+    );
+    expect(
+      screen.getByText(/If the prompt isn't in the AI chat.*attach this split's invoice photo/i),
+    ).toBeTruthy();
+    expect(screen.getByText("Paste item list")).toBeTruthy();
+  });
+
   it("shares Claude the prompt and saved invoice photo on Android", async () => {
     mockStoreState.records = [
       buildRecord({
@@ -2307,7 +2340,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose Claude"));
 
     expect(
-      screen.getByText(/prompt and this split's invoice photo ready/i),
+      screen.getByText(/copies the prompt.*invoice photo when available/i),
     ).toBeTruthy();
     await act(async () => {
       fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
@@ -2349,7 +2382,7 @@ describe("split screens", () => {
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });
 
-  it("ignores a second AI handover press while dispatch is pending", async () => {
+  it("disables the AI handover button while dispatch is pending", async () => {
     let resolveHandover!: (result: {
       opened: boolean;
       promptPrefilled: boolean;

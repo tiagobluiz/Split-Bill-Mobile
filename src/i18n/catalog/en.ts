@@ -554,10 +554,8 @@ const enPlain = {
   "flow.import.stepOne": "Step 1 of 2",
   "flow.import.stepTwo": "Step 2 of 2",
   "flow.import.askAiTitle": "Ask AI to read your receipt",
-  "flow.import.askAiAndroidWithPhoto":
-    "Split Bill opens the AI tool with the prompt and this split's invoice photo ready. Review them, tap Send, then return to Split Bill and paste the item list in step 2.",
-  "flow.import.askAiAndroidWithoutPhoto":
-    "Split Bill opens the AI tool with the prompt ready. Attach a receipt, review the prompt, tap Send, then return to Split Bill and paste the item list in step 2.",
+  "flow.import.askAiAndroid":
+    "Split Bill copies the prompt, opens your selected AI tool, and shares this split's invoice photo when available. Check that the prompt and photo appear. If the prompt is missing, paste it from your clipboard; if no image is attached, attach the receipt or invoice photo manually. Review everything, then tap Send. When you have the item list, return to Split Bill and paste it in step 2.",
   "flow.import.askAiManual":
     "Split Bill copies the prompt and opens the AI tool. Paste the prompt and attach the receipt or invoice photo. Review it, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.chooseTool": "Choose AI tool",
