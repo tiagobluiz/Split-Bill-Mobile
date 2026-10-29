@@ -2262,7 +2262,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Choose Gemini"));
     expect(
       screen.getByText(
-        /shares this split's invoice photo with Gemini and copies the prompt/i,
+        /opens the AI tool with the prompt and this split's invoice photo ready/i,
       ),
     ).toBeTruthy();
 

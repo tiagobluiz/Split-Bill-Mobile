@@ -58,10 +58,10 @@ class AiHandoverModule : Module() {
             .putExtra(Intent.EXTRA_STREAM, photo)
           intent.clipData = ClipData.newUri(activity.contentResolver, "Invoice photo", photo)
           intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-          if (provider != "gemini") intent.putExtra(Intent.EXTRA_TEXT, prompt)
+          intent.putExtra(Intent.EXTRA_TEXT, prompt)
           if (intent.resolveActivity(activity.packageManager) == null) throw IllegalStateException("No AI app can receive the invoice")
           activity.startActivity(intent)
-          promise.resolve(mapOf("opened" to true, "promptPrefilled" to (provider != "gemini"), "imageAttached" to true))
+          promise.resolve(mapOf("opened" to true, "promptPrefilled" to true, "imageAttached" to true))
         } else {
           sendText()
           promise.resolve(mapOf("opened" to true, "promptPrefilled" to true, "imageAttached" to false))

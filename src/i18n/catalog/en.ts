@@ -558,8 +558,6 @@ const enPlain = {
     "Split Bill opens the AI tool with the prompt and this split's invoice photo ready. Review them, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.askAiAndroidWithoutPhoto":
     "Split Bill opens the AI tool with the prompt ready. Attach a receipt, review the prompt, tap Send, then return to Split Bill and paste the item list in step 2.",
-  "flow.import.askAiAndroidGeminiWithPhoto":
-    "Split Bill shares this split's invoice photo with Gemini and copies the prompt. If the prompt isn't in Gemini, paste it from your clipboard. Review both, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.askAiManual":
     "Split Bill copies the prompt and opens the AI tool. Paste the prompt and attach the receipt or invoice photo. Review it, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.chooseTool": "Choose AI tool",

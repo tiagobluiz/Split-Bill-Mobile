@@ -166,11 +166,9 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const askAiDescriptionKey =
     Platform.OS !== "android"
       ? "flow.import.askAiManual"
-      : provider === "gemini" && hasInvoicePhoto
-        ? "flow.import.askAiAndroidGeminiWithPhoto"
-        : hasInvoicePhoto
-          ? "flow.import.askAiAndroidWithPhoto"
-          : "flow.import.askAiAndroidWithoutPhoto";
+      : hasInvoicePhoto
+        ? "flow.import.askAiAndroidWithPhoto"
+        : "flow.import.askAiAndroidWithoutPhoto";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
   const locale = getDeviceLocale();
@@ -351,27 +349,19 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     try {
       await Clipboard.setStringAsync(prompt);
       if (Platform.OS === "android") {
-        if (provider === "chatgpt" || provider === "claude" || provider === "gemini") {
-          const invoiceUri = resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory);
-          let result = await AiHandover.open({ provider, prompt, invoicePhotoUri: invoiceUri });
-          if (!result.opened && invoiceUri) {
-            result = await AiHandover.open({ provider, prompt });
-          }
-          setNeedsManualPrompt(result.opened && (!result.promptPrefilled || (!!invoiceUri && !result.imageAttached)));
-          if (!result.opened) {
-            try {
-              await IntentLauncher.openApplication(getReceiptLlmAndroidPackage(provider));
-              setNeedsManualPrompt(true);
-            } catch {
-              await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
-              setNeedsManualPrompt(true);
-            }
-          }
-        } else {
+        const invoiceUri = resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory);
+        let result = await AiHandover.open({ provider, prompt, invoicePhotoUri: invoiceUri });
+        if (!result.opened && invoiceUri) {
+          result = await AiHandover.open({ provider, prompt });
+        }
+        setNeedsManualPrompt(result.opened && (!result.promptPrefilled || (!!invoiceUri && !result.imageAttached)));
+        if (!result.opened) {
           try {
             await IntentLauncher.openApplication(getReceiptLlmAndroidPackage(provider));
+            setNeedsManualPrompt(true);
           } catch {
             await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
+            setNeedsManualPrompt(true);
           }
         }
       } else {

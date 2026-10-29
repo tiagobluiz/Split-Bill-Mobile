@@ -415,7 +415,6 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.askAiTitle": "Pede à IA para ler o recibo",
   "flow.import.askAiAndroidWithPhoto": "O Split Bill abre a IA com o prompt e a foto da conta desta divisão prontos. Revê-os, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.askAiAndroidWithoutPhoto": "O Split Bill abre a IA com o prompt pronto. Anexa um talão, revê o prompt, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
-  "flow.import.askAiAndroidGeminiWithPhoto": "O Split Bill partilha a foto da conta desta divisão com o Gemini e copia o prompt. Se o prompt não aparecer no Gemini, cola-o da área de transferência. Revê ambos, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.askAiManual": "O Split Bill copia o prompt e abre a IA. Cola o prompt e anexa o talão ou a foto da conta. Revê tudo, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.chooseTool": "Escolher ferramenta de IA",
   "flow.import.chooseToolA11y": "Escolher {provider}",
