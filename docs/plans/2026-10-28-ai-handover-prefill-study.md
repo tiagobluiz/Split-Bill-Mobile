@@ -127,6 +127,7 @@ Remaining coverage: real receipt JPEG/HEIC inputs, larger images, upload/analysi
 - If image dispatch fails, the screen retries text-only. If provider dispatch fails, it tries the installed app launcher and then the provider website. Non-Android behavior and Claude remain on the existing path.
 - The screen blocks repeated launches while one is pending and proceeds to step two after Android accepts dispatch. That acceptance confirms only that Android started the target activity; it does not confirm the receiving composer contents.
 - Validation in this run: typecheck, lint, architecture checks, relevant invoice-path and handover/screen tests, Expo Android autolinking, and Android debug assembly passed. Device runtime acceptance tests against the AI apps remain pending; no test message was sent.
+- Emulator smoke test: installed the rebuilt, debuggable 2.3.0 / Android versionCode 15 app over the existing emulator development install, confirmed it launched, then exercised the missing-provider website fallback. Returning from Chrome showed step two and the manual-paste/photo guidance. ChatGPT and Gemini were not installed in the emulator, so this does not verify their composers or image intake. The Samsung device was not connected during this check.
 
 ## Follow-up: automatic execution after handover
 
