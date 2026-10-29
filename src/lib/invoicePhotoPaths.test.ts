@@ -36,6 +36,10 @@ describe("invoice photo paths", () => {
 
   it("does not treat paths outside the invoice-photo directory as app-owned", () => {
     expect(getInvoicePhotoRelativePath("invoice-photos/../settings.json")).toBeNull();
+    expect(getInvoicePhotoRelativePath("invoice-photos/.")).toBeNull();
+    expect(getInvoicePhotoRelativePath("invoice-photos/..")).toBeNull();
+    expect(getInvoicePhotoRelativePath("invoice-photos/")).toBeNull();
+    expect(getInvoicePhotoRelativePath("invoice-photos/not-a-photo")).toBeNull();
     expect(getInvoicePhotoRelativePath("file:///external/invoice.jpg")).toBeNull();
   });
 });

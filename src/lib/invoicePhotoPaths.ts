@@ -1,7 +1,7 @@
 const INVOICE_PHOTO_DIRECTORY = "invoice-photos/";
 
 function isValidInvoicePhotoPath(path: string) {
-  return /^invoice-photos\/[^/]+$/.test(path) && !path.endsWith("/..");
+  return /^invoice-photos\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png|webp)$/i.test(path);
 }
 
 /** Returns an app-owned invoice photo's stable path, accepting legacy file URIs. */
