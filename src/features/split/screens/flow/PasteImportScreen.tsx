@@ -162,6 +162,15 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const handoffPendingRef = useRef(false);
   const [needsManualPrompt, setNeedsManualPrompt] = useState(false);
   const prompt = buildReceiptLlmPrompt();
+  const hasInvoicePhoto = !!record?.values.invoicePhotoUri;
+  const askAiDescriptionKey =
+    Platform.OS !== "android"
+      ? "flow.import.askAiManual"
+      : provider === "gemini" && hasInvoicePhoto
+        ? "flow.import.askAiAndroidGeminiWithPhoto"
+        : hasInvoicePhoto
+          ? "flow.import.askAiAndroidWithPhoto"
+          : "flow.import.askAiAndroidWithoutPhoto";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const hasPastedText = input.trim().length > 0;
   const locale = getDeviceLocale();
@@ -342,7 +351,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     try {
       await Clipboard.setStringAsync(prompt);
       if (Platform.OS === "android") {
-        if (provider === "chatgpt" || provider === "gemini") {
+        if (provider === "chatgpt" || provider === "claude" || provider === "gemini") {
           const invoiceUri = resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory);
           let result = await AiHandover.open({ provider, prompt, invoicePhotoUri: invoiceUri });
           if (!result.opened && invoiceUri) {
@@ -366,7 +375,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
           }
         }
       } else {
-        setNeedsManualPrompt(false);
+        setNeedsManualPrompt(true);
         await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
       }
       openStepTwo();
@@ -570,7 +579,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                 {t("flow.import.askAiTitle")}
               </Text>
               <Paragraph color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={15} lineHeight={22}>
-                {t("flow.import.askAiDescription")}
+                {t(askAiDescriptionKey)}
               </Paragraph>
             </SectionCard>
 

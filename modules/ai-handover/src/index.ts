@@ -1,6 +1,6 @@
 import { requireOptionalNativeModule } from "expo-modules-core";
 
-export type AiHandoverProvider = "chatgpt" | "gemini";
+export type AiHandoverProvider = "chatgpt" | "claude" | "gemini";
 export type AiHandoverResult = {
   opened: boolean;
   promptPrefilled: boolean;

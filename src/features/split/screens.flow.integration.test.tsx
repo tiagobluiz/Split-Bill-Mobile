@@ -2260,6 +2260,11 @@ describe("split screens", () => {
       });
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Choose Gemini"));
+    expect(
+      screen.getByText(
+        /shares this split's invoice photo with Gemini and copies the prompt/i,
+      ),
+    ).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
@@ -2279,7 +2284,67 @@ describe("split screens", () => {
       "invoicePhotoUri",
     );
     expect(
-      screen.getByText(/If the prompt did not appear.*Attach the invoice photo/i),
+      screen.getByText(/If the prompt isn't in the AI chat.*return to Split Bill/i),
+    ).toBeTruthy();
+    expect(screen.getByText("Paste item list")).toBeTruthy();
+  });
+
+  it("shares Claude the prompt and saved invoice photo on Android", async () => {
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          invoicePhotoUri: "invoice-photos/claude-receipt.png",
+        },
+      }),
+    ];
+    mockAiHandoverOpen.mockResolvedValue({
+      opened: true,
+      promptPrefilled: true,
+      imageAttached: true,
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByLabelText("Choose Claude"));
+
+    expect(
+      screen.getByText(/prompt and this split's invoice photo ready/i),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockAiHandoverOpen).toHaveBeenCalledWith({
+      provider: "claude",
+      prompt: expect.stringContaining("Read the uploaded grocery receipt"),
+      invoicePhotoUri:
+        "file:///app/files/invoice-photos/claude-receipt.png",
+    });
+    expect(screen.getByText("Paste item list")).toBeTruthy();
+    expect(
+      screen.queryByText(/If the prompt isn't in the AI chat/i),
+    ).toBeNull();
+  });
+
+  it("shows manual prompt and invoice instructions after opening an AI website", async () => {
+    Object.defineProperty(Platform, "OS", {
+      configurable: true,
+      value: "ios",
+    });
+    render(<PasteImportScreen draftId="draft-1" />);
+
+    expect(
+      screen.getByText(/copies the prompt and opens the AI tool/i),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
+    });
+
+    expect(mockSetStringAsync).toHaveBeenCalledWith(
+      expect.stringContaining("Read the uploaded grocery receipt"),
+    );
+    expect(mockOpenURL).toHaveBeenCalled();
+    expect(
+      screen.getByText(/If the prompt isn't in the AI chat.*return to Split Bill/i),
     ).toBeTruthy();
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });

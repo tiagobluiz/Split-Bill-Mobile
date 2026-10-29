@@ -554,8 +554,14 @@ const enPlain = {
   "flow.import.stepOne": "Step 1 of 2",
   "flow.import.stepTwo": "Step 2 of 2",
   "flow.import.askAiTitle": "Ask AI to read your receipt",
-  "flow.import.askAiDescription":
-    "We will open your AI tool with the prompt ready and attach this split's invoice photo when available. Without a photo, attach your receipt there. Review everything and tap Send.",
+  "flow.import.askAiAndroidWithPhoto":
+    "Split Bill opens the AI tool with the prompt and this split's invoice photo ready. Review them, tap Send, then return to Split Bill and paste the item list in step 2.",
+  "flow.import.askAiAndroidWithoutPhoto":
+    "Split Bill opens the AI tool with the prompt ready. Attach a receipt, review the prompt, tap Send, then return to Split Bill and paste the item list in step 2.",
+  "flow.import.askAiAndroidGeminiWithPhoto":
+    "Split Bill shares this split's invoice photo with Gemini and copies the prompt. If the prompt isn't in Gemini, paste it from your clipboard. Review both, tap Send, then return to Split Bill and paste the item list in step 2.",
+  "flow.import.askAiManual":
+    "Split Bill copies the prompt and opens the AI tool. Paste the prompt and attach the receipt or invoice photo. Review it, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.chooseTool": "Choose AI tool",
   "flow.import.chooseToolA11y": "Choose {provider}",
   "flow.import.prompt": "The prompt",
@@ -569,7 +575,7 @@ const enPlain = {
   "flow.import.mode.replace": "Replace",
   "flow.import.pastedText": "Pasted text",
   "flow.import.copyOpenAi": "Copy Prompt & Open AI",
-  "flow.import.pastePromptHint": "If the prompt did not appear, paste it from your clipboard. Attach the invoice photo if needed, then tap Send.",
+  "flow.import.pastePromptHint": "If the prompt isn't in the AI chat, paste it from your clipboard. Attach this split's invoice photo or a receipt if it isn't already there, then review everything and tap Send. Once you have the item list, return to Split Bill and paste it here.",
   "llm.receiptPrompt.readReceipt":
     "Read the uploaded grocery receipt and extract only the purchased receipt items.",
   "llm.receiptPrompt.returnFormat": "Return the result in this exact format:",
