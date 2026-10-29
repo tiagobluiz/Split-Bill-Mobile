@@ -5,6 +5,7 @@ import * as LegacyFileSystem from "expo-file-system/legacy";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
+import { resolveInvoicePhotoUri } from "../lib/invoicePhotoPaths";
 import { formatMoney, type SplitFormValues } from "../domain/splitter";
 import { t } from "../i18n";
 import { PDF_HEADER_IMAGE_DATA_URI } from "./pdfHeaderImageDataUri.generated";
@@ -94,6 +95,7 @@ export function renderSettlementPdfHtml(
   data: PdfExportData,
   locale = "en-US",
   headerImageDataUri: string | null | undefined = PDF_HEADER_IMAGE_DATA_URI,
+  invoiceImageDataUri?: string,
 ) {
   const totalCurrency = data.exchangeRate?.targetCurrency ?? data.currency;
   const totalRate = data.exchangeRate?.rate ?? 1;
@@ -491,8 +493,9 @@ export function renderSettlementPdfHtml(
         <div class="header-content">
           <h1 class="title">
             ${escapeHtml(data.splitName || t("pdf.title.default"))}
-            <span class="title-date">(${escapeHtml(data.exportDateLabel)})</span>
+            <span class="title-date">(${escapeHtml(t("splitDetails.date"))}: ${escapeHtml(data.splitDateLabel ?? data.exportDateLabel)})</span>
           </h1>
+          <p class="title-date">${escapeHtml(t("pdf.exportedOn", { date: data.exportDateLabel }))}</p>
           <div class="meta-grid">
             <div class="meta-card">
               <p class="meta-label">${escapeHtml(t("pdf.summary.total"))}</p>
@@ -549,6 +552,7 @@ export function renderSettlementPdfHtml(
         <div class="section-note">${escapeHtml(data.note)}</div>
         ${itemCards}
       </section>
+      ${invoiceImageDataUri ? `<section style="page-break-before: always"><h2>${escapeHtml(t("pdf.attachments"))}</h2><h3>${escapeHtml(t("pdf.invoice"))}</h3><img src="${escapeHtml(invoiceImageDataUri)}" alt="Invoice" style="display:block;max-width:100%;max-height:240mm;object-fit:contain" /></section>` : ""}
     </body>
   </html>`;
 }
@@ -558,7 +562,24 @@ export async function buildSettlementPdfFile(
   locale = "en-US",
 ): Promise<{ uri: string; fileName: string }> {
   const data = buildPdfExportData(values, new Date(), locale);
-  const html = renderSettlementPdfHtml(data, locale);
+  let invoiceImageDataUri: string | undefined;
+  if (values.invoicePhotoUri) {
+    try {
+      const invoicePhotoUri = resolveInvoicePhotoUri(values.invoicePhotoUri, LegacyFileSystem.documentDirectory) ?? values.invoicePhotoUri;
+      if (invoicePhotoUri.startsWith("data:image/")) {
+        invoiceImageDataUri = invoicePhotoUri;
+      } else {
+        const encoded = await LegacyFileSystem.readAsStringAsync(invoicePhotoUri, { encoding: LegacyFileSystem.EncodingType.Base64 });
+        const mime = /\.png(?:\?|$)/i.test(invoicePhotoUri) ? "image/png" : /\.webp(?:\?|$)/i.test(invoicePhotoUri) ? "image/webp" : "image/jpeg";
+        invoiceImageDataUri = `data:${mime};base64,${encoded}`;
+      }
+    } catch {
+      const error = new Error("Unable to read the invoice photo. Please choose the photo again and retry.");
+      error.name = "InvoicePhotoReadError";
+      throw error;
+    }
+  }
+  const html = renderSettlementPdfHtml(data, locale, undefined, invoiceImageDataUri);
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,

@@ -44,6 +44,7 @@ import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
 import { getParticipantDisplayName } from "../shared/participantUtils";
 import { ParticipantAvatar } from "../shared/participantComponents";
+import { ActionListSheet } from "../shared/ActionListSheet";
 import {
   getOwingPeople,
   getSettledParticipantIds,
@@ -52,7 +53,6 @@ import {
 } from "../shared/settlementUtils";
 import { SplitNoticeModal } from "../shared/modals";
 import {
-  ActionIconGridModal,
   ReminderDateTimeModal,
   ToastNotice,
 } from "../shared/modals";
@@ -99,6 +99,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
+  const shareAfterResultsActionsDismissRef = useRef(false);
   const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
   const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
   const [debtReminderErrorMessage, setDebtReminderErrorMessage] = useState("");
@@ -371,7 +372,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           console.warn("Failed to download split PDF", error);
           setPdfNotice({
             title: undefined,
-            messages: [t("flow.results.pdfDownloadFailed")],
+            messages: [t(error instanceof Error && error.name === "InvoicePhotoReadError" ? "flow.results.pdfInvoiceUnavailable" : "flow.results.pdfDownloadFailed")],
           });
         } finally {
           setExportPdfPending(false);
@@ -402,7 +403,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             console.warn("Failed to export split PDF", error);
             setPdfNotice({
               title: undefined,
-              messages: [t("flow.results.pdfFailed")],
+              messages: [t(error instanceof Error && error.name === "InvoicePhotoReadError" ? "flow.results.pdfInvoiceUnavailable" : "flow.results.pdfFailed")],
             });
           } finally {
             setExportPdfPending(false);
@@ -416,8 +417,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       icon: <MessageCircle color={PALETTE.primary} size={18} />,
       disabled: exportPdfPending,
       onPress: () => {
+        shareAfterResultsActionsDismissRef.current = true;
         setShowResultsActions(false);
-        void shareResults();
       },
     },
   ];
@@ -489,15 +490,21 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             message={reminderToastMessage}
             bottomOffset={footerInsetBottom + 12}
           />
-          {showResultsActions ? (
-            <ActionIconGridModal
-              title={t("flow.results.actionsTitle")}
-              options={actionOptions}
-              onDismiss={() => {
-                setShowResultsActions(false);
-              }}
-            />
-          ) : null}
+          <ActionListSheet
+            visible={showResultsActions}
+            title={t("flow.results.actionsTitle")}
+            cancelLabel={t("common.cancel")}
+            bottomInset={insets.bottom}
+            options={actionOptions}
+            onDismiss={() => {
+              setShowResultsActions(false);
+            }}
+            onDismissComplete={() => {
+              if (!shareAfterResultsActionsDismissRef.current) return;
+              shareAfterResultsActionsDismissRef.current = false;
+              void shareResults();
+            }}
+          />
         </>
       )}
       footer={

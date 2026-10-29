@@ -1196,6 +1196,7 @@ describe("split screens", () => {
       buildRecord({
         id: `split-${index + 1}`,
         status: index % 2 === 0 ? "completed" : "draft",
+        createdAt: `2026-04-${String(22 - index).padStart(2, "0")}T10:00:00.000Z`,
         updatedAt: `2026-04-${String(22 - index).padStart(2, "0")}T10:00:00.000Z`,
         values: {
           ...buildRecord().values,
@@ -2106,6 +2107,10 @@ describe("split screens", () => {
       {
         splitName: "Portugal Trip",
         tagIds: ["tag-groceries", "tag-restaurant"],
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       },
     );
     expect(mockPush).not.toHaveBeenCalledWith(
@@ -2130,5 +2135,22 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     expect(screen.queryByText(/Reminder:/i)).toBeNull();
+  });
+
+  it("keeps split dates out of home split cards", () => {
+    const record = buildRecordFixture({
+      id: "dated-home-card",
+      values: {
+        ...buildRecordFixture().values,
+        splitName: "Dated dinner",
+        splitDate: "2026-04-04",
+      },
+    });
+    mockStoreState.records = [record];
+
+    render(<HomeScreen />);
+
+    expect(screen.getByText("Dated dinner")).toBeTruthy();
+    expect(screen.queryByText("2026-04-04")).toBeNull();
   });
 });

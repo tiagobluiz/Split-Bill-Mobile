@@ -294,6 +294,10 @@ describe("split screens", () => {
         }),
       }),
       ["tag-restaurant", "tag-groceries"],
+      "2026-04-04",
+      null,
+      null,
+      null,
     );
     expect(mockTrackSplitTagsUsed).toHaveBeenCalledWith({
       tagCount: 2,
@@ -321,6 +325,10 @@ describe("split screens", () => {
       undefined,
       {},
       [],
+      "2026-04-04",
+      null,
+      null,
+      null,
     );
   });
 

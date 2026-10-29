@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { SplitDatePicker } from "../shared/SplitDatePicker";
+import { InvoicePhotoField } from "../shared/InvoicePhotoField";
+import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
 import { Plus } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -8,6 +11,7 @@ import {
 } from "tamagui";
 
 import { SPLIT_NAME_MAX_LENGTH, trimName } from "../../../../domain";
+import { localDay } from "../../../../domain/splitDate";
 import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import {
@@ -20,6 +24,7 @@ import {
 } from "../../tags";
 import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
+import { FieldLabel } from "../../../../components/ui";
 import { screenStyles } from "../shared/styles";
 import type { HomeRecord } from "./homeTypes";
 
@@ -48,7 +53,7 @@ export function SplitDetailsQuickEditModal({
 }: {
   record: HomeRecord;
   tags: SplitTag[];
-  onSave: (details: { splitName: string; tagIds: string[] }) => Promise<void>;
+  onSave: (details: { splitName: string; tagIds: string[]; splitDate?: string; invoicePhotoUri?: string | null; invoicePhotoName?: string | null; invoicePhotoSize?: number | null }) => Promise<void>;
   onCancel: () => void;
   onAddTag: (
     label: string,
@@ -58,6 +63,10 @@ export function SplitDetailsQuickEditModal({
 }) {
   const { t } = useTranslation();
   const [nameDraft, setNameDraft] = useState(record.values.splitName ?? "");
+  const [splitDate, setSplitDate] = useState(record.values.splitDate ?? localDay(new Date(record.createdAt)));
+  const [invoicePhotoUri, setInvoicePhotoUri] = useState(record.values.invoicePhotoUri ?? null);
+  const [invoicePhotoName, setInvoicePhotoName] = useState(record.values.invoicePhotoName ?? null);
+  const [invoicePhotoSize, setInvoicePhotoSize] = useState(record.values.invoicePhotoSize ?? null);
   const [selectedTagIds, setSelectedTagIds] = useState(() =>
     normalizeSelectedTagIds(record.values.tagIds ?? [], tags),
   );
@@ -77,10 +86,14 @@ export function SplitDetailsQuickEditModal({
     }
     previousRecordIdRef.current = record.id;
     setNameDraft(record.values.splitName ?? "");
+    setSplitDate(record.values.splitDate ?? localDay(new Date(record.createdAt)));
+    setInvoicePhotoUri(record.values.invoicePhotoUri ?? null);
+    setInvoicePhotoName(record.values.invoicePhotoName ?? null);
+    setInvoicePhotoSize(record.values.invoicePhotoSize ?? null);
     setSelectedTagIds(normalizeSelectedTagIds(record.values.tagIds ?? [], tags));
     setError("");
     setSaving(false);
-  }, [record.id, record.values.splitName, record.values.tagIds, tags]);
+  }, [record.id, record.values.splitName, record.values.tagIds, record.values.invoicePhotoUri, record.values.invoicePhotoName, record.values.invoicePhotoSize, tags]);
 
   useEffect(() => {
     setSelectedTagIds((current) => normalizeSelectedTagIds(current, tags));
@@ -114,10 +127,21 @@ export function SplitDetailsQuickEditModal({
     setSaving(true);
     setError("");
     try {
+      const savedPhoto = await persistInvoicePhoto(invoicePhotoUri);
+      try {
       await onSave({
         splitName: nextName.slice(0, SPLIT_NAME_MAX_LENGTH),
         tagIds: selectedTagIds,
+        splitDate,
+        invoicePhotoUri: savedPhoto,
+        invoicePhotoName: invoicePhotoUri ? invoicePhotoName : null,
+        invoicePhotoSize: invoicePhotoUri ? invoicePhotoSize : null,
       });
+      } catch (error) {
+        if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
+        throw error;
+      }
+      if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(record.values.invoicePhotoUri);
     } catch (saveError) {
       const message =
         saveError instanceof Error && saveError.message
@@ -163,13 +187,7 @@ export function SplitDetailsQuickEditModal({
               keyboardShouldPersistTaps="handled"
             >
               <YStack gap="$2">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={13}
-                  color={PALETTE.onSurface}
-                >
-                  {t("flow.setup.splitName")}
-                </Text>
+                <FieldLabel>{t("flow.setup.splitName")}</FieldLabel>
                 <View style={screenStyles.quickEditInputShell}>
                   <TextInput
                     value={nameDraft}
@@ -188,14 +206,9 @@ export function SplitDetailsQuickEditModal({
                   />
                 </View>
               </YStack>
+              <SplitDatePicker value={splitDate} onChange={setSplitDate} />
               <YStack gap="$2">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={13}
-                  color={PALETTE.onSurface}
-                >
-                  {t("tags.label")}
-                </Text>
+                <FieldLabel>{t("tags.label")}</FieldLabel>
                 <View style={screenStyles.tagPickerGrid}>
                   {orderedTags.map((tag) => {
                     const selected = selectedTagIds.includes(tag.id);
@@ -237,6 +250,15 @@ export function SplitDetailsQuickEditModal({
                   </Pressable>
                 </View>
               </YStack>
+              <InvoicePhotoField
+                value={invoicePhotoUri}
+                fileSize={invoicePhotoSize}
+                onChange={(photo: InvoicePhotoSelection | null) => {
+                  setInvoicePhotoUri(photo?.uri ?? null);
+                  setInvoicePhotoName(photo?.name ?? null);
+                  setInvoicePhotoSize(photo?.size ?? null);
+                }}
+              />
               {error ? (
                 <Text
                   fontFamily={FONTS.bodyBold}

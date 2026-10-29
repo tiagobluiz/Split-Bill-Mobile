@@ -30,6 +30,10 @@ function renderModal(overrides: Partial<QuickEditProps> = {}) {
       values: {
         ...record.values,
         splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
         tagIds: ["tag-groceries", "missing"],
       } as QuickEditProps["record"]["values"],
     },
@@ -59,6 +63,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(props.onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-groceries"],
     });
   });
@@ -80,6 +88,28 @@ describe("SplitDetailsQuickEditModal", () => {
     expect(screen.getByText("Edit split details")).toBeTruthy();
   });
 
+  it("requires a non-empty split name before saving", async () => {
+    const { props } = renderModal();
+    fireEvent.changeText(screen.getByLabelText("Split name"), "   ");
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(screen.getByText("Split name is missing.")).toBeTruthy();
+    expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it("uses the retry message for non-Error save failures", async () => {
+    renderModal({ onSave: jest.fn(async () => { throw "unexpected"; }) });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save details"));
+    });
+
+    expect(screen.getByText("Could not save split details. Please try again.")).toBeTruthy();
+  });
+
   it("deselects an existing tag before saving", async () => {
     const { props } = renderModal();
 
@@ -90,6 +120,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(props.onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: [],
     });
   });
@@ -147,6 +181,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-groceries", "tag-beach"],
     });
   });
@@ -179,6 +217,10 @@ describe("SplitDetailsQuickEditModal", () => {
 
     expect(onSave).toHaveBeenCalledWith({
       splitName: "Dinner",
+        splitDate: "2026-04-04",
+        invoicePhotoUri: null,
+        invoicePhotoName: null,
+        invoicePhotoSize: null,
       tagIds: ["tag-beach"],
     });
   });

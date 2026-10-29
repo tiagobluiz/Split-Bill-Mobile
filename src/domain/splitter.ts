@@ -28,6 +28,13 @@ export type ItemFormValue = {
 
 export type SplitFormValues = {
   splitName?: string;
+  /** Calendar day of the split, independent of timezone. */
+  splitDate?: string;
+  /** Persistent local URI for the optional invoice image. */
+  invoicePhotoUri?: string | null;
+  /** Original picker name and byte size shown on the setup and edit screens. */
+  invoicePhotoName?: string | null;
+  invoicePhotoSize?: number | null;
   tagIds?: string[];
   currency: string;
   exchangeRate?: {

@@ -1,5 +1,6 @@
 import { computeSettlement, parseSplit, type ParsedParticipant, type SplitFormValues, type SplitMode } from "./splitter";
 import { t } from "../i18n";
+import { isValidSplitDate, localDay } from "./splitDate";
 
 export type PdfExportPerson = {
   participantId: string;
@@ -45,6 +46,7 @@ export type PdfExportData = {
   splitName: string;
   splitTitle: string;
   exportDateLabel: string;
+  splitDateLabel: string;
   fileName: string;
   currency: string;
   totalCents: number;
@@ -260,6 +262,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
     splitName: values.splitName?.trim() ?? "",
     splitTitle: getPdfTitle(values.splitName),
     exportDateLabel: formatExportDate(date, locale),
+    splitDateLabel: formatExportDate(new Date(`${isValidSplitDate(values.splitDate) ? values.splitDate : localDay(date)}T12:00:00`), locale),
     fileName: buildPdfFilename(values.splitName, date),
     currency: settlement.data.currency,
     totalCents: settlement.data.totalCents,

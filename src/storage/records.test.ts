@@ -89,7 +89,7 @@ describe("records storage", () => {
     });
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS split_records"));
     expect(database.getAllAsync).toHaveBeenCalledWith(
-      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
+      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records"
     );
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id = ?",

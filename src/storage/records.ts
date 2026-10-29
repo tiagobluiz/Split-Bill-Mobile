@@ -1,4 +1,6 @@
 import { validatePersonName, type SplitFormValues } from "../domain";
+import { isValidSplitDate, localDay } from "../domain/splitDate";
+import { compareSplitDates } from "../domain/splitDateOrder";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
 import { MEMBERSHIP_SCHEMA, replacePersonMemberships } from "./personMemberships";
@@ -155,6 +157,7 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
       values: {
         ...values,
         splitName: typeof values.splitName === "string" ? values.splitName : "",
+        splitDate: isValidSplitDate(values.splitDate) ? values.splitDate : localDay(new Date(row.created_at)),
         tagIds: normalizeTagIds((values as { tagIds?: unknown }).tagIds),
         items,
       },
@@ -173,10 +176,10 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
 export async function listRecords() {
   const rows = await withAppDatabaseRetry((db) =>
     db.getAllAsync<DatabaseRow>(
-      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records ORDER BY updated_at DESC"
+      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records"
     )
   );
-  return rows.map(mapRow).filter((row): row is DraftRecord => Boolean(row));
+  return rows.map(mapRow).filter((row): row is DraftRecord => Boolean(row)).sort((left, right) => compareSplitDates(left, right, true));
 }
 
 export async function getRecordById(id: string) {
