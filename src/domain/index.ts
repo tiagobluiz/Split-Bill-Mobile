@@ -9,8 +9,12 @@ import { buildClipboardSummary as buildClipboardSummaryValue } from "./output";
 import { parsePastedItems as parsePastedItemsValue } from "./pasteImport";
 import { buildPdfExportData as buildPdfExportDataValue, buildPdfFilename as buildPdfFilenameValue } from "./pdfExport";
 import {
-  buildShareSummary as buildShareSummaryValue,
   computeSettlement as computeSettlementValue,
+  parseSplit as parseSplitValue,
+} from "./settlement";
+import {
+  buildShareSummary as buildShareSummaryValue,
+  combineItemAmounts as combineItemAmountsValue,
   createAllocation as createAllocationValue,
   createDefaultPercentValues as createDefaultPercentValuesValue,
   createDefaultValues as createDefaultValuesValue,
@@ -22,8 +26,8 @@ import {
   getItemUniquenessKey as getItemUniquenessKeyValue,
   itemHasDuplicate as itemHasDuplicateValue,
   normalizeMoneyInput as normalizeMoneyInputValue,
+  normalizeItemName as normalizeItemNameValue,
   parseMoneyToCents as parseMoneyToCentsValue,
-  parseSplit as parseSplitValue,
   rebalancePercentAllocations as rebalancePercentAllocationsValue,
   removeSingleTrailingBlankItem as removeSingleTrailingBlankItemValue,
   resetPercentAllocations as resetPercentAllocationsValue,
@@ -37,6 +41,7 @@ import {
   validateStepOne as validateStepOneValue,
   validateStepThree as validateStepThreeValue,
   validateStepTwo as validateStepTwoValue,
+  validateItemNameAndAmount as validateItemNameAndAmountValue,
 } from "./splitter";
 
 export type { LlmProvider } from "./llmHandoff";
@@ -81,6 +86,7 @@ export const parsePastedItems = parsePastedItemsValue;
 export const buildPdfExportData = buildPdfExportDataValue;
 export const buildPdfFilename = buildPdfFilenameValue;
 export const buildShareSummary = buildShareSummaryValue;
+export const combineItemAmounts = combineItemAmountsValue;
 export const computeSettlement = computeSettlementValue;
 export const createAllocation = createAllocationValue;
 export const createDefaultPercentValues = createDefaultPercentValuesValue;
@@ -97,6 +103,8 @@ export const PARTICIPANT_NAME_MAX_LENGTH = PARTICIPANT_NAME_MAX_LENGTH_VALUE;
 export const ITEM_NAME_MAX_LENGTH = ITEM_NAME_MAX_LENGTH_VALUE;
 export const ITEM_AMOUNT_MAX_CENTS = ITEM_AMOUNT_MAX_CENTS_VALUE;
 export const normalizeMoneyInput = normalizeMoneyInputValue;
+export const normalizeItemName = normalizeItemNameValue;
+export const validateItemNameAndAmount = validateItemNameAndAmountValue;
 export const parseMoneyToCents = parseMoneyToCentsValue;
 export const parseSplit = parseSplitValue;
 export const rebalancePercentAllocations = rebalancePercentAllocationsValue;

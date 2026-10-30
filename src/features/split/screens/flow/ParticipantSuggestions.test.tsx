@@ -74,11 +74,12 @@ function view(
   onAddGroup = jest.fn(async () => undefined),
   appSettings = settings,
   language: "en" | "pt" = "en",
+  sourceRecords: DraftRecord[] = [history, current],
 ) {
   return (
     <LocalizationProvider language={language} humour="plain">
       <ParticipantSuggestions
-        records={[history, current]}
+        records={sourceRecords}
         record={current}
         settings={appSettings}
         onAddFriend={jest.fn()}
@@ -89,6 +90,47 @@ function view(
 }
 
 describe("participant suggestion modes", () => {
+  it("distinguishes when no frequent people exist yet", () => {
+    render(view(record, undefined, settings, "en", []));
+    expect(screen.getByText("No frequent people yet")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "People from past splits will appear here as you keep creating splits.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByTestId("frequent-empty-icon-new")).toBeTruthy();
+  });
+
+  it("explains when every frequent person is already in the split", () => {
+    const allAdded = {
+      ...record,
+      values: {
+        ...record.values,
+        participants: people.map((person) => ({
+          id: `${person.id}-current`,
+          personId: person.id,
+          name: person.name,
+        })),
+      },
+    };
+    render(view(allAdded));
+    expect(screen.getByText("All your regulars are added")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Need someone else? Search or add them below.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByTestId("frequent-empty-icon-complete")).toBeTruthy();
+    expect(
+      StyleSheet.flatten(screen.getByTestId("frequent-empty-card").props.style),
+    ).toMatchObject({
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 20,
+    });
+  });
+
   it("keeps frequent people separate from groups and excludes already-added and archived people", () => {
     render(view());
     expect(
@@ -106,6 +148,34 @@ describe("participant suggestion modes", () => {
     expect(
       screen.getByLabelText("David already added from Roomies"),
     ).toBeDisabled();
+  });
+
+  it("hides an unlinked frequent candidate when a linked current participant has the same name", () => {
+    const legacyHistory = {
+      ...history,
+      values: {
+        ...history.values,
+        participants: history.values.participants.map((participant) =>
+          participant.name === "David"
+            ? { id: "legacy-david", name: "David" }
+            : participant,
+        ),
+      },
+    } as DraftRecord;
+    const linkedCurrent = {
+      ...record,
+      values: {
+        ...record.values,
+        participants: [
+          { id: "owner-local", personId: "you", name: "You" },
+          { id: "david-local", personId: "david", name: " David " },
+        ],
+      },
+    } as DraftRecord;
+
+    render(view(linkedCurrent, undefined, settings, "en", [legacyHistory, linkedCurrent]));
+
+    expect(screen.queryByLabelText("Add frequent friend David")).toBeNull();
   });
 
   it("adds individually, sorts missing before added members, and adds only remaining members", async () => {
@@ -196,7 +266,7 @@ describe("participant suggestion modes", () => {
     ).toBe("100%");
   });
 
-  it("shows a localized empty state when there are no groups", () => {
+  it("guides users to People when there are no groups", () => {
     render(
       view(
         record,
@@ -206,6 +276,15 @@ describe("participant suggestion modes", () => {
       ),
     );
     fireEvent.press(screen.getByRole("tab", { name: "Grupos" }));
-    expect(screen.getByText("Ainda não há grupos guardados.")).toBeTruthy();
+    expect(screen.getByText("Ainda não há grupos")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Cria grupos em Pessoas para adicionares várias pessoas de uma vez.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByTestId("groups-empty-icon")).toBeTruthy();
+    expect(
+      StyleSheet.flatten(screen.getByTestId("groups-empty-card").props.style),
+    ).toMatchObject({ paddingHorizontal: 16, paddingVertical: 12 });
   });
 });

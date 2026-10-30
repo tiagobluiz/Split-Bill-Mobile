@@ -16,14 +16,14 @@ it("offers camera and gallery sources from the invoice card", () => {
   render(<InvoicePhotoField value={null} onChange={onChange} />);
 
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
-  fireEvent.press(screen.getByText("Take invoice photo"));
+  fireEvent.press(screen.getByText("Take photo"));
   expect(mockChooseInvoicePhoto).not.toHaveBeenCalled();
   fireEvent(screen.UNSAFE_getByType(Modal), "onDismiss");
   expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(true, expect.any(Function), expect.any(String), expect.any(String));
 
   mockChooseInvoicePhoto.mockClear();
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
-  fireEvent.press(screen.getByText("Choose invoice photo"));
+  fireEvent.press(screen.getByText("Choose photo"));
   expect(mockChooseInvoicePhoto).not.toHaveBeenCalled();
   fireEvent(screen.UNSAFE_getByType(Modal), "onDismiss");
   expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String));
@@ -35,7 +35,7 @@ it("opens the web picker within the photo-source press", () => {
   render(<InvoicePhotoField value={null} onChange={onChange} />);
 
   fireEvent.press(screen.getByLabelText("Add invoice photo"));
-  fireEvent.press(screen.getByText("Choose invoice photo"));
+  fireEvent.press(screen.getByText("Choose photo"));
 
   expect(mockChooseInvoicePhoto).toHaveBeenCalledWith(false, expect.any(Function), expect.any(String), expect.any(String));
   os.restore();

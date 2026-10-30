@@ -7,6 +7,12 @@ describe("paste import parser", () => {
     expect(parsePastedItems(pasteFixture.input)).toEqual(pasteFixture.expected);
   });
 
+  it("automatically skips zero-value items and reports why", () => {
+    const result = parsePastedItems("Milk - 0.00\nBread - 2.00");
+    expect(result.items).toEqual([{ name: "Bread", price: "2.00" }]);
+    expect(result.ignoredLineDetails[0]?.reason).toBe("Zero-value items are skipped");
+  });
+
   it("warns when lines are malformed or summary-like", () => {
     const result = parsePastedItems("item,price\nTotal 12.00\nBroken Line");
 

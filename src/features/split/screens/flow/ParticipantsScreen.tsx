@@ -69,6 +69,7 @@ import {
   formatMoney,
   normalizeMoneyInput,
   normalizePersonNameInput,
+  personNameKey,
   PERSON_NAME_MAX_LENGTH,
   parseMoneyToCents,
   resetPercentAllocations,
@@ -216,6 +217,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   ];
   const isParticipantsStepReady = participantsStepErrors.length === 0;
   const sortedParticipants = sortParticipantsByName(record.values.participants);
+  const searchQuery = personNameKey(name);
   const addParticipant = async (
     rawName: string,
     options?: { keepKeyboardOpen?: boolean; personId?: string },
@@ -264,6 +266,31 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     }
   };
   const peopleById = new Map((settings.people ?? []).map((person) => [person.id, person]));
+  const participantsByName = new Set(
+    record.values.participants.map((participant) => personNameKey(participant.name)),
+  );
+  const participantPersonIds = new Set(
+    record.values.participants.map((participant) => participant.personId).filter(Boolean),
+  );
+  const matchingPeople = searchQuery
+    ? (settings.people ?? [])
+        .filter((person) =>
+          !person.archivedAt &&
+          personNameKey(person.name).includes(searchQuery) &&
+          !participantPersonIds.has(person.id) &&
+          !participantsByName.has(personNameKey(person.name)),
+        )
+        .sort((left, right) => left.name.localeCompare(right.name, getDeviceLocale(), { sensitivity: "base" }))
+    : [];
+  const savedPersonAlreadyAdded =
+    searchQuery.length > 0 &&
+    (settings.people ?? []).some(
+      (person) =>
+        !person.archivedAt &&
+        personNameKey(person.name).includes(searchQuery) &&
+        (participantPersonIds.has(person.id) ||
+          participantsByName.has(personNameKey(person.name))),
+    );
   const addGroupPeople = async (groupId: string, personIds?: string[]) => {
     try {
       await addParticipantsFromGroup(groupId, personIds);
@@ -339,7 +366,10 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
             onAddFriend={(name, personId) => { void addParticipant(name, { keepKeyboardOpen: false, personId }); }}
             onAddGroup={addGroupPeople}
           />
-          <View style={screenStyles.participantInputShell}>
+          <View
+            testID="participant-name-input-shell"
+            style={[screenStyles.participantInputShell, { marginTop: -4 }]}
+          >
             <TextInput
               ref={participantInputRef}
               accessibilityLabel={t("flow.participants.inputPlaceholder")}
@@ -373,6 +403,42 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               <Plus color={PALETTE.onPrimary} size={20} />
             </Pressable>
           </View>
+          {searchQuery ? (
+            <YStack gap="$2">
+              {matchingPeople.map((person) => (
+                <Pressable
+                  key={person.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("flow.participants.addSavedPersonA11y", { name: person.name })}
+                  onPress={() => void addParticipant(person.name, { personId: person.id })}
+                  style={screenStyles.participantPill}
+                >
+                  <XStack alignItems="center" gap="$3">
+                    <ParticipantAvatar
+                      name={person.name}
+                      ownerName={settings.ownerName}
+                      ownerProfileImageUri={settings.ownerProfileImageUri}
+                      style={screenStyles.participantAvatar}
+                      label={t("flow.participants.savedPersonAvatarA11y", { name: person.name })}
+                      person={person}
+                    />
+                    <Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>
+                      {person.name}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ))}
+              {matchingPeople.length === 0 ? (
+                <Text accessibilityLiveRegion="polite" color={PALETTE.onSurfaceVariant}>
+                  {savedPersonAlreadyAdded
+                    ? t("flow.participants.savedPersonAlreadyAdded")
+                    : t("flow.participants.noSavedPersonMatches", {
+                        name: normalizePersonNameInput(name),
+                      })}
+                </Text>
+              ) : null}
+            </YStack>
+          ) : null}
           <YStack gap="$3.5">
             <Text
               fontFamily={FONTS.bodyBold}
@@ -384,27 +450,28 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               {t("flow.participants.added")}
             </Text>
             {sortedParticipants.length === 0 ? null : (
-              <YStack gap="$3.5">
+              <YStack gap="$2.5">
                 {sortedParticipants.map((participant) => (
-                  <ParticipantRow
-                    key={participant.id}
-                    participant={participant}
-                    ownerName={settings.ownerName}
-                    ownerProfileImageUri={settings.ownerProfileImageUri}
-                    person={participant.personId ? peopleById.get(participant.personId) : undefined}
-                    onRemove={() => {
-                      void updateParticipants((participants) =>
-                        participants.filter(
-                          (entry) => entry.id !== participant.id,
-                        ),
-                      ).catch((error) => {
-                        console.warn("Failed to remove participant", error);
-                        setParticipantsNoticeMessages([
-                          t("flow.participants.removeFailed"),
-                        ]);
-                      });
-                    }}
-                  />
+                  <View key={participant.id} style={screenStyles.recentShadowWrap}>
+                    <ParticipantRow
+                      participant={participant}
+                      ownerName={settings.ownerName}
+                      ownerProfileImageUri={settings.ownerProfileImageUri}
+                      person={participant.personId ? peopleById.get(participant.personId) : undefined}
+                      onRemove={() => {
+                        void updateParticipants((participants) =>
+                          participants.filter(
+                            (entry) => entry.id !== participant.id,
+                          ),
+                        ).catch((error) => {
+                          console.warn("Failed to remove participant", error);
+                          setParticipantsNoticeMessages([
+                            t("flow.participants.removeFailed"),
+                          ]);
+                        });
+                      }}
+                    />
+                  </View>
                 ))}
               </YStack>
             )}

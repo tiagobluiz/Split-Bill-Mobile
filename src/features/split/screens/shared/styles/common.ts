@@ -3,11 +3,14 @@ import { StyleSheet } from "react-native";
 
 export const commonStyles = {
   participantPill: {
-    minHeight: 78,
-    borderRadius: 28,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    minHeight: 72,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     backgroundColor: PALETTE.surfaceContainerLowest,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     shadowColor: PALETTE.primary,
     shadowOpacity: 0.05,
     shadowRadius: 14,

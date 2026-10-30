@@ -193,6 +193,16 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
               />
             </View>
           </View>
+          {errors.some((error) => error.code === "participant-share-negative") ? (
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={13}
+              lineHeight={19}
+              color={PALETTE.danger}
+            >
+              {errors.find((error) => error.code === "participant-share-negative")?.message}
+            </Text>
+          ) : null}
           <View style={screenStyles.reviewStickySeparator} />
         </YStack>
       </View>

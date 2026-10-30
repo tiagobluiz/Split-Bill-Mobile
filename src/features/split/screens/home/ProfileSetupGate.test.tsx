@@ -76,7 +76,7 @@ describe("ProfileSetupGate", () => {
     fireEvent.press(screen.getByText("Let’s go"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Ana");
     fireEvent.press(screen.getByText("Next"));
-    await act(async () => { fireEvent.press(screen.getByText("Choose a photo")); });
+    await act(async () => { fireEvent.press(screen.getByText("Choose photo")); });
     expect(screen.getByText("Finish setup")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByText("Finish setup")); });
     expect(mockStoreState.updateSettings).toHaveBeenCalledWith({

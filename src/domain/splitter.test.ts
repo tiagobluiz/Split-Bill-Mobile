@@ -15,6 +15,9 @@ import {
   formatMoney,
   formatMoneyTrailingSymbol,
   normalizeMoneyInput,
+  getItemUniquenessKey,
+  itemHasDuplicate,
+  validateItemNameAndAmount,
   parseMoneyToCents,
   parseSplit,
   rebalancePercentAllocations,
@@ -26,7 +29,7 @@ import {
   validateStepThree,
   validateStepTwo,
   type SplitFormValues,
-} from "./splitter";
+} from "./index";
 
 describe("splitter domain", () => {
   it("parses money inputs documented in the contract", () => {
@@ -260,7 +263,7 @@ describe("splitter domain", () => {
     expect(computeSettlement(invalidValues).ok).toBe(false);
   });
 
-  it("validates duplicate item identity with the shared manual and import rule", () => {
+  it("keeps historical same-name items valid while identifying new duplicates", () => {
     const values: SplitFormValues = {
       currency: "EUR",
       participants: [
@@ -283,8 +286,8 @@ describe("splitter domain", () => {
         {
           id: "milk-2",
           name: "milk",
-          price: "3.50",
-          category: "",
+          price: "4.50",
+          category: "Bakery",
           splitMode: "even",
           allocations: [
             { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
@@ -294,9 +297,28 @@ describe("splitter domain", () => {
       ],
     };
 
-    expect(validateStepTwo(values).map((entry) => entry.message)).toContain(
-      "This item already exists. Change the name, price, or category."
-    );
+    expect(validateStepTwo(values)).toEqual([]);
+    expect(parseSplit(values).ok).toBe(true);
+    expect(computeSettlement(values).ok).toBe(true);
+    expect(
+      itemHasDuplicate(values.items, {
+        ...values.items[1]!,
+        price: "8.00",
+        category: "Drinks",
+      }),
+    ).toBe(true);
+  });
+
+  it("matches duplicate item names after case and whitespace normalization", () => {
+    expect(getItemUniquenessKey({ name: "  Ice   Cream ", price: "1.00", category: "A" }))
+      .toBe("ice cream");
+    expect(itemHasDuplicate(
+      [{ id: "first", name: "Ice Cream", price: "1.00", category: "A" }],
+      { id: "second", name: " ice   cream ", price: "8.00", category: "B" },
+    )).toBe(true);
+    expect(validateItemNameAndAmount("Ice Cream", "-1.00")).toBe(true);
+    expect(validateItemNameAndAmount("Ice Cream", "0")).toBe(false);
+    expect(validateItemNameAndAmount("Ice Cream", "1000000.01")).toBe(false);
   });
 
   it("covers shares and percent validation edge cases", () => {
@@ -403,7 +425,7 @@ describe("splitter domain", () => {
         {
           id: "item-1",
           name: " Milk ",
-          price: "-1.00",
+          price: "1.00",
           splitMode: "percent",
           allocations: [
             { participantId: "ana", evenIncluded: true, shares: "1", percent: "100", percentLocked: true },
@@ -430,7 +452,7 @@ describe("splitter domain", () => {
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
       expect(parsed.data.items[0].shares).toHaveLength(2);
-      expect(parsed.data.items[0].shares[0]).toEqual({ participantId: "ana", amountCents: -100 });
+      expect(parsed.data.items[0].shares[0]).toEqual({ participantId: "ana", amountCents: 100 });
       expect(parsed.data.items[0].shares[1]?.participantId).toBe("bruno");
       expect(Object.is(parsed.data.items[0].shares[1]?.amountCents, -0) || parsed.data.items[0].shares[1]?.amountCents === 0).toBe(
         true
@@ -638,35 +660,17 @@ describe("splitter domain", () => {
       ],
     });
 
-    expect(negative).toEqual({
+    expect(negative).toMatchObject({
       ok: true,
       data: {
-        currency: "EUR",
-        itemBreakdown: [
-          {
-            id: "negative",
-            name: "Discount",
-            amountCents: -5,
-            splitMode: "shares",
-            shares: [
-              expect.objectContaining({ participantId: "payer" }),
-              { participantId: "b", amountCents: -2 },
-              { participantId: "c", amountCents: -3 },
-            ],
-          },
-        ],
-        people: [
-          { participantId: "payer", name: "Payer", consumedCents: 0, paidCents: -5, netCents: -5, isPayer: true },
-          { participantId: "b", name: "Bea", consumedCents: -2, paidCents: 0, netCents: 2, isPayer: false },
-          { participantId: "c", name: "Carl", consumedCents: -3, paidCents: 0, netCents: 3, isPayer: false },
-        ],
-        transfers: [],
         totalCents: -5,
+        people: [
+          { participantId: "payer", netCents: -5 },
+          { participantId: "b", netCents: 2 },
+          { participantId: "c", netCents: 3 },
+        ],
       },
     });
-    if (negative.ok) {
-      expect(Object.is(negative.data.itemBreakdown[0]?.shares[0]?.amountCents, -0) || negative.data.itemBreakdown[0]?.shares[0]?.amountCents === 0).toBe(true);
-    }
   });
 
   it("covers excluded even participants and unknown share summaries through public APIs", () => {

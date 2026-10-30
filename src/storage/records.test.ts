@@ -152,6 +152,36 @@ describe("records storage", () => {
     expect(database.runAsync).toHaveBeenCalledWith("INSERT INTO split_person_memberships (split_id, participant_id, person_id) VALUES (?, ?, ?)", ["draft-2", "payer", personId]);
   });
 
+  it("repairs duplicate item ids when loading a saved record", async () => {
+    const row = {
+      id: "draft-duplicate-items",
+      status: "draft",
+      step: 2,
+      payload: JSON.stringify({
+        splitName: "",
+        currency: "EUR",
+        payerParticipantId: "ana",
+        participants: [{ id: "ana", name: "Ana" }],
+        items: [
+          { id: "same", name: "Milk", price: "1.00", splitMode: "even", allocations: [] },
+          { id: "same", name: "Milk", price: "2.00", splitMode: "even", allocations: [] },
+        ],
+      }),
+      created_at: "2026-04-04T09:00:00.000Z",
+      updated_at: "2026-04-04T10:00:00.000Z",
+      completed_at: null,
+    };
+    const { recordsModule } = await loadModule({ row });
+    const record = await recordsModule.getRecordById(row.id);
+    const secondRead = await recordsModule.getRecordById(row.id);
+    expect(record?.values.items.map((item) => item.id)[0]).toBe("same");
+    expect(new Set(record?.values.items.map((item) => item.id)).size).toBe(2);
+    expect(record?.values.items.map((item) => item.price)).toEqual(["1.00", "2.00"]);
+    expect(secondRead?.values.items.map((item) => item.id)).toEqual(
+      record?.values.items.map((item) => item.id),
+    );
+  });
+
   it("keeps registry people that are absent from a stale settings snapshot during record writes", async () => {
     const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
     const { database, recordsModule } = await loadModule({

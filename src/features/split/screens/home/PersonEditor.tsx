@@ -54,6 +54,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saveCompleted, setSaveCompleted] = useState(false);
   const changeBusy = (value: boolean) => { setBusy(value); onBusyChange?.(value); };
   const [contactOpen, setContactOpen] = useState(false);
   const [contactQuery, setContactQuery] = useState("");
@@ -69,7 +70,9 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
 
   const normalizedName = normalizePersonNameInput(draft.name);
   const nameValidation = useMemo(() => validatePersonName(draft.name, people, person?.id), [draft.name, people, person?.id]);
-  const duplicate = nameValidation?.reason === "duplicate" ? nameValidation.person : undefined;
+  const duplicate = !busy && !saveCompleted && nameValidation?.reason === "duplicate"
+    ? nameValidation.person
+    : undefined;
 
   const importContact = async () => {
     try {
@@ -128,7 +131,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
         <PersonGroupsSection person={person} groups={groups} groupIds={draft.groupIds} setDraft={setDraft} />
         {error ? <Text accessibilityRole="alert" color={PALETTE.danger} fontFamily={FONTS.bodyBold}>{error}</Text> : null}
       </ScrollView>
-      <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy || Boolean(duplicate)} style={[screenStyles.splitNoticeButton, (busy || duplicate) && { opacity: .55 }]} onPress={async () => {
+      <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy || saveCompleted || Boolean(duplicate)} style={[screenStyles.splitNoticeButton, (busy || saveCompleted || duplicate) && { opacity: .55 }]} onPress={async () => {
         setError("");
         if (nameValidation) { setError(getPersonNameValidationMessage(nameValidation, t, "people.validationPerson")); return; }
         changeBusy(true);
@@ -153,6 +156,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
             return;
           }
           if (draft.photoUri !== person?.photoUri) await discardTemporaryPersonPhoto(draft.photoUri);
+          setSaveCompleted(true);
           changeBusy(false);
           onCancel();
         } catch {
@@ -220,9 +224,6 @@ function PersonAppearancePanel({ person, draft, setDraft, suggestedContactPhoto,
       visible={photoOptionsOpen}
       title={t("people.photoOptions")}
       cancelLabel={t("common.cancel")}
-      uploadLabel={t("settings.profilePictureUpload")}
-      cameraLabel={t("settings.profilePictureTake")}
-      removeLabel={t("groups.removePhoto")}
       bottomInset={insets.bottom}
       hasPhoto={Boolean(draft.photoUri)}
       onDismiss={() => setPhotoOptionsOpen(false)}

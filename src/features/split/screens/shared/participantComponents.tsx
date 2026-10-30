@@ -94,20 +94,21 @@ export function ParticipantRow({
   const displayName = getParticipantDisplayName(participant.name, ownerName);
 
   return (
-    <XStack alignItems="center" justifyContent="space-between" gap="$4" style={screenStyles.participantPill}>
-      <XStack alignItems="center" gap="$3.5" flex={1}>
+    <XStack alignItems="center" justifyContent="space-between" gap="$3" style={screenStyles.participantPill}>
+      <XStack alignItems="center" gap="$3" flex={1}>
         <ParticipantAvatar
           name={participant.name}
           ownerName={ownerName}
           ownerProfileImageUri={ownerProfileImageUri}
-          style={screenStyles.participantAvatar}
+          style={[screenStyles.participantAvatar, { width: 42, height: 42, borderRadius: 21 }]}
           label={`Participant avatar ${participant.name.trim() || "unknown"}`}
+          textSize={18}
           person={person}
         />
         <YStack flex={1}>
           <Text
             fontFamily={FONTS.bodyBold}
-            fontSize={16}
+            fontSize={15}
             color={PALETTE.onSurface}
             numberOfLines={2}
           >

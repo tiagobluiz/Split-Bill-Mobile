@@ -4,14 +4,18 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import {
+  ArrowRight,
   Bell,
   Check,
   FileJson,
   FileText,
   MessageCircle,
   Minus,
+  EllipsisVertical,
   RotateCcw,
   Share2,
+  UserRound,
+  X,
 } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -42,7 +46,10 @@ import {
 } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { useRecord } from "../shared/hooks";
-import { getParticipantDisplayName } from "../shared/participantUtils";
+import {
+  getParticipantDisplayName,
+  isOwnerReference,
+} from "../shared/participantUtils";
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import {
@@ -71,9 +78,9 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const insets = useSafeAreaInsets();
   const {
     markCompleted,
-    settings,
     markBillPaid,
     revertBillPaid,
+    settings,
     toggleParticipantPaid,
     updateSettings,
     setParticipantDebtReminder,
@@ -81,9 +88,9 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   } = useSplitStore(
     useShallow((state) => ({
       markCompleted: state.markCompleted,
-      settings: state.settings,
       markBillPaid: state.markBillPaid,
       revertBillPaid: state.revertBillPaid,
+      settings: state.settings,
       toggleParticipantPaid: state.toggleParticipantPaid,
       updateSettings: state.updateSettings,
       setParticipantDebtReminder: state.setParticipantDebtReminder,
@@ -99,6 +106,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
+  const [showPaymentActions, setShowPaymentActions] = useState(false);
   const shareAfterResultsActionsDismissRef = useRef(false);
   const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
   const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
@@ -243,18 +251,33 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const displayCurrency = hasMatchingFx ? appCurrency : settlement.data.currency;
   const money = (amountCents: number) =>
     formatAppMoney(convertCents(amountCents, exchangeRate), displayCurrency, locale, settings);
-  const owingPeople = getOwingPeople(settlement.data.people);
+  const owingPeople = [...getOwingPeople(settlement.data.people)].sort((a, b) =>
+    a.name.localeCompare(b.name, locale, { sensitivity: "base" }),
+  );
+  const owingParticipantIds = new Set(
+    owingPeople.map((person) => person.participantId),
+  );
+  const breakdownPeople = [...settlement.data.people]
+    .filter(
+      (person) =>
+        person.isPayer ||
+        person.netCents === 0 ||
+        owingParticipantIds.has(person.participantId),
+    )
+    .sort((a, b) => {
+      if (a.isPayer !== b.isPayer) {
+        return a.isPayer ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name, locale, { sensitivity: "base" });
+    });
   const debtReminderPickerPerson = owingPeople.find(
     (person) => person.participantId === debtReminderPickerParticipantId,
   );
   const settledParticipantIds = getSettledParticipantIds(record);
   const pdfData = getPdfExportPreview(record);
   const payerConsumedCents = Math.max(0, payer.paidCents - payer.netCents);
-  const totalOwedCents = owingPeople.reduce(
-    (sum, person) => sum + Math.abs(person.netCents),
-    0,
-  );
-  const settledOwedCents = owingPeople.reduce(
+  const alreadyReceivedCents = owingPeople.reduce(
     (sum, person) =>
       sum +
       (settledParticipantIds.has(person.participantId)
@@ -265,12 +288,23 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const unsettledPeople = owingPeople.filter(
     (person) => !settledParticipantIds.has(person.participantId),
   );
-  const allPaid = owingPeople.length > 0 && unsettledPeople.length === 0;
-  const settlementProgressPercent =
-    totalOwedCents > 0
-      ? Math.round((settledOwedCents / totalOwedCents) * 100)
-      : 0;
+  const stillToReceiveCents = unsettledPeople.reduce(
+    (sum, person) => sum + Math.abs(person.netCents),
+    0,
+  );
+  const payerIsOwner = isOwnerReference(payer.name, settings.ownerName);
+  const payerDisplayName = getParticipantDisplayName(
+    payer.name,
+    settings.ownerName,
+  );
   const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
+  const fromPeopleLabel = (count: number) =>
+    t(
+      count === 1
+        ? "flow.results.fromPeople.one"
+        : "flow.results.fromPeople.other",
+      { count },
+    );
   const getDebtReminderLabel = (participantId: string) => {
     const reminder =
       record.reminderState?.participantDebtReminders?.[participantId];
@@ -422,6 +456,34 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       },
     },
   ];
+  const paymentActionOptions = [
+    {
+      label: t("flow.results.markAllPaid"),
+      description: t("flow.results.markAllPaidDescription"),
+      accessibilityLabel: t("flow.results.markAllPaid"),
+      icon: <Check color={PALETTE.primary} size={22} />,
+      onPress: () => {
+        setShowPaymentActions(false);
+        void runPaymentAction(
+          markBillPaid,
+          t("flow.results.markPaidFailed"),
+        );
+      },
+    },
+    {
+      label: t("flow.results.resetAllPayments"),
+      description: t("flow.results.resetAllPaymentsDescription"),
+      accessibilityLabel: t("flow.results.resetAllPayments"),
+      icon: <RotateCcw color={PALETTE.primary} size={22} />,
+      onPress: () => {
+        setShowPaymentActions(false);
+        void runPaymentAction(
+          revertBillPaid,
+          t("flow.results.markPaidFailed"),
+        );
+      },
+    },
+  ];
   // Reviewed/approved save flow is preserved here and can be restored by toggling the flag.
   if (ENABLE_SAVE_PDF_ACTION) {
     actionOptions.unshift(savePdfAction);
@@ -505,6 +567,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               void shareResults();
             }}
           />
+          <ActionListSheet
+            visible={showPaymentActions}
+            title={t("flow.results.paymentActionsTitle")}
+            cancelLabel={t("common.cancel")}
+            bottomInset={insets.bottom}
+            options={paymentActionOptions}
+            onDismiss={() => setShowPaymentActions(false)}
+          />
         </>
       )}
       footer={
@@ -515,15 +585,22 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               style={screenStyles.resultsPrimaryButton}
               onPress={() => setShowResultsActions(true)}
             >
-              <XStack alignItems="center" justifyContent="center" gap="$2.5">
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                width="100%"
+              >
                 <Share2 color={PALETTE.onPrimary} size={18} />
                 <Text
+                  flex={1}
                   fontFamily={FONTS.headlineBold}
                   fontSize={15}
                   color={PALETTE.onPrimary}
+                  textAlign="center"
                 >
                   {t("flow.results.actionsCta")}
                 </Text>
+                <ArrowRight color={PALETTE.onPrimary} size={18} />
               </XStack>
             </Pressable>
           </MeasuredFloatingFooter>
@@ -538,42 +615,24 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         <FlowScreenHeader
           title={t("flow.results.title")}
           onBack={() => router.replace(`/split/${draftId}/overview`)}
+          onClose={() => router.back()}
         />
       </View>
       <View style={screenStyles.participantsScrollContent}>
         <YStack gap="$5">
           <View style={screenStyles.resultsHeroCard}>
             <View style={screenStyles.resultsHeroGlow} />
-            <YStack gap="$2">
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={11}
-                color="rgba(255,255,255,0.78)"
-                textTransform="uppercase"
-                letterSpacing={1.8}
-              >
-                {trackPaymentsEnabled ? t("flow.results.totalSettled") : t("flow.results.totalBill")}
-              </Text>
-              {trackPaymentsEnabled ? (
-                <XStack alignItems="flex-end" gap="$2.5" flexWrap="wrap">
-                  <Text
-                    fontFamily={FONTS.headlineBlack}
-                    fontSize={32}
-                    color={PALETTE.onPrimary}
-                    letterSpacing={-1.2}
-                  >
-                    {money(settledOwedCents)}
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.headlineBold}
-                    fontSize={20}
-                    color="rgba(255,255,255,0.82)"
-                  >
-                    /
-                    {money(totalOwedCents)}
-                  </Text>
-                </XStack>
-              ) : (
+            <XStack alignItems="flex-start" justifyContent="space-between">
+              <YStack gap="$1">
+                <Text
+                  fontFamily={FONTS.bodyBold}
+                  fontSize={11}
+                  color="rgba(255,255,255,0.78)"
+                  textTransform="uppercase"
+                  letterSpacing={1.8}
+                >
+                  {t("flow.results.totalBill")}
+                </Text>
                 <Text
                   fontFamily={FONTS.headlineBlack}
                   fontSize={32}
@@ -582,48 +641,89 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 >
                   {money(settlement.data.totalCents)}
                 </Text>
-              )}
-            </YStack>
-            {trackPaymentsEnabled ? (
-              <View style={screenStyles.resultsProgressTrack}>
-                <View
-                  style={[
-                    screenStyles.resultsProgressFill,
-                    { width: `${settlementProgressPercent}%` },
-                  ]}
-                />
-              </View>
-            ) : null}
-            <XStack alignItems="center" gap="$2.5" paddingTop="$3">
+                <Text
+                  fontFamily={FONTS.bodyMedium}
+                  fontSize={12}
+                  color="rgba(255,255,255,0.82)"
+                >
+                  {t(
+                    settlement.data.people.length === 1
+                      ? "flow.results.people.one"
+                      : "flow.results.people.other",
+                    { count: settlement.data.people.length },
+                  )}
+                </Text>
+              </YStack>
               {trackPaymentsEnabled ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    allPaid ? t("flow.results.revertMarkPaidA11y") : t("flow.results.markPaidA11y")
-                  }
-                  style={screenStyles.resultsHeroChip}
-                  onPress={() =>
-                    void runPaymentAction(
-                      allPaid ? revertBillPaid : markBillPaid,
-                      t("flow.results.markPaidFailed"),
-                    )
-                  }
+                  accessibilityLabel={t("flow.results.paymentActionsTitle")}
+                  style={screenStyles.resultsHeroMenuButton}
+                  onPress={() => setShowPaymentActions(true)}
                 >
-                  {allPaid ? (
-                    <RotateCcw color={PALETTE.primary} size={12} />
-                  ) : (
-                    <Check color={PALETTE.primary} size={12} />
-                  )}
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={11}
-                    color={PALETTE.primary}
-                  >
-                    {allPaid ? t("flow.results.revertMarkPaid") : t("flow.results.markPaid")}
-                  </Text>
+                  <EllipsisVertical color={PALETTE.onPrimary} size={21} />
                 </Pressable>
               ) : null}
             </XStack>
+            {trackPaymentsEnabled ? (
+              <>
+                <View style={screenStyles.resultsHeroDivider} />
+                <XStack
+                  alignItems="stretch"
+                  justifyContent="space-between"
+                  gap="$3"
+                  style={screenStyles.resultsHeroMetrics}
+                >
+                  <YStack flex={1} gap="$1">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={12}
+                      color="rgba(255,255,255,0.84)"
+                    >
+                      {t("flow.results.stillToReceive")}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={23}
+                      color={PALETTE.onPrimary}
+                    >
+                      {money(stillToReceiveCents)}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={11}
+                      color="rgba(255,255,255,0.78)"
+                    >
+                      {fromPeopleLabel(unsettledPeople.length)}
+                    </Text>
+                  </YStack>
+                  <View style={screenStyles.resultsHeroMetricDivider} />
+                  <YStack flex={1} gap="$1">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={12}
+                      color="rgba(255,255,255,0.84)"
+                    >
+                      {t("flow.results.alreadyReceived")}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.headlineBlack}
+                      fontSize={23}
+                      color={PALETTE.onPrimary}
+                    >
+                      {money(alreadyReceivedCents)}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={11}
+                      color="rgba(255,255,255,0.78)"
+                    >
+                      {fromPeopleLabel(owingPeople.length - unsettledPeople.length)}
+                    </Text>
+                  </YStack>
+                </XStack>
+              </>
+            ) : null}
           </View>
           <View style={screenStyles.reviewStickySeparator} />
         </YStack>
@@ -640,54 +740,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
-          <YStack gap="$3">
-            <Text
-              fontFamily={FONTS.headlineBold}
-              fontSize={14}
-              color={PALETTE.onSurface}
-              letterSpacing={-0.2}
-            >
-              {t("flow.results.paidBy")}
-            </Text>
-            <View style={screenStyles.resultsPaidCard}>
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                gap="$3"
-              >
-                <XStack alignItems="center" gap="$3" flex={1}>
-                  <ParticipantAvatar
-                    name={payer.name}
-                    ownerName={settings.ownerName}
-                    ownerProfileImageUri={settings.ownerProfileImageUri}
-                    style={screenStyles.resultsAvatar}
-                    label={`Results avatar ${payer.name}`}
-                  />
-                  <YStack flex={1}>
-                    <Text
-                      fontFamily={FONTS.headlineBold}
-                      fontSize={18}
-                      color={PALETTE.onSurface}
-                    >
-                      {getParticipantDisplayName(
-                        payer.name,
-                        settings.ownerName,
-                      )}
-                    </Text>
-                  </YStack>
-                </XStack>
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={24}
-                  color={PALETTE.primary}
-                >
-                  {money(payerConsumedCents)}
-                </Text>
-              </XStack>
-            </View>
-          </YStack>
-
+        <YStack gap="$3">
           <YStack gap="$3">
             <XStack alignItems="center" justifyContent="space-between">
               <Text
@@ -703,12 +756,61 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 fontSize={12}
                 color={PALETTE.onSurfaceVariant}
               >
-                {t("flow.results.contributors", { count: settlement.data.people.length })}
+                {t(
+                  settlement.data.people.length === 1
+                    ? "flow.results.people.one"
+                    : "flow.results.people.other",
+                  { count: settlement.data.people.length },
+                )}
               </Text>
             </XStack>
             <YStack gap="$3">
-              {owingPeople.map((person) => {
-                const isSettled = settledParticipantIds.has(person.participantId);
+              {breakdownPeople.map((person) => {
+                const isPayerRow = person.isPayer;
+                const personDisplayName = getParticipantDisplayName(
+                  person.name,
+                  settings.ownerName,
+                );
+                const hasNothingDue = !isPayerRow && person.netCents === 0;
+                const isSettled =
+                  !isPayerRow &&
+                  trackPaymentsEnabled &&
+                  settledParticipantIds.has(person.participantId);
+                const statusLabel = isPayerRow
+                  ? `${t("flow.results.paidTheBill")} · ${t(
+                      payerIsOwner
+                        ? "flow.results.yourShare"
+                        : "flow.results.theirShare",
+                    )}`
+                  : hasNothingDue
+                    ? t("record.amount.nothingDue")
+                    : isSettled
+                      ? t("flow.results.settled")
+                      : person.netCents < 0
+                        ? payerIsOwner
+                          ? t("flow.results.owesYou")
+                          : t("flow.results.owesPayer", {
+                              name: payerDisplayName,
+                            })
+                        : payerIsOwner
+                          ? t("flow.results.youOwePerson", {
+                              name: personDisplayName,
+                            })
+                          : isOwnerReference(person.name, settings.ownerName)
+                            ? t("flow.results.payerOwesYou", {
+                                name: payerDisplayName,
+                              })
+                            : t("flow.results.payerOwesPerson", {
+                                payer: payerDisplayName,
+                                name: personDisplayName,
+                              });
+                const statusIconStyle = isPayerRow
+                  ? screenStyles.resultsStatusIconPayer
+                  : hasNothingDue
+                    ? screenStyles.resultsStatusIconNothingDue
+                    : isSettled
+                      ? screenStyles.resultsStatusIconSettled
+                      : screenStyles.resultsStatusIconOwed;
                 const togglePaidA11yLabel = isSettled
                   ? t("flow.results.togglePaidAddBackA11y", { name: person.name })
                   : t("flow.results.togglePaidSettleA11y", { name: person.name });
@@ -727,16 +829,28 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                         style={screenStyles.resultsAvatar}
                         label={`Results avatar ${person.name}`}
                       />
-                      <YStack flex={1}>
+                      <YStack flex={1} gap="$1">
                         <Text
                           fontFamily={FONTS.headlineBold}
                           fontSize={17}
                           color={PALETTE.onSurface}
                         >
-                          {getParticipantDisplayName(
-                            person.name,
-                            settings.ownerName,
-                          )}
+                        {personDisplayName}
+                        </Text>
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={12}
+                          color={
+                            isPayerRow
+                              ? PALETTE.primary
+                              : hasNothingDue
+                                ? PALETTE.onSurfaceVariant
+                                : isSettled
+                                  ? PALETTE.success
+                                  : PALETTE.primary
+                          }
+                        >
+                          {statusLabel}
                         </Text>
                         {reminderLabel ? (
                           <XStack alignItems="center" gap="$1.5" marginTop="$1">
@@ -757,56 +871,43 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                         <Text
                           fontFamily={FONTS.headlineBold}
                           fontSize={20}
-                          color={PALETTE.primary}
-                          textDecorationLine={
-                            trackPaymentsEnabled && isSettled
-                              ? "line-through"
-                              : "none"
-                          }
+                          color={isSettled ? PALETTE.outline : PALETTE.primary}
+                          textDecorationLine={isSettled ? "line-through" : "none"}
                         >
-                          {money(Math.abs(person.netCents))}
-                        </Text>
-                        {trackPaymentsEnabled && isSettled ? (
-                          <Text
-                            fontFamily={FONTS.bodyBold}
-                            fontSize={12}
-                            color={PALETTE.success}
-                            textTransform="uppercase"
-                            letterSpacing={1.6}
-                          >
-                            {t("flow.results.settled")}
-                          </Text>
-                        ) : trackPaymentsEnabled ? (
-                          <Text
-                            fontFamily={FONTS.bodyBold}
-                            fontSize={12}
-                            color={PALETTE.primary}
-                            textTransform="uppercase"
-                            letterSpacing={1.6}
-                          >
-                            {t("flow.results.owed")}
-                          </Text>
-                        ) : null}
-                      </YStack>
-                      {trackPaymentsEnabled ? (
-                        <View
-                          style={[
-                            screenStyles.resultsCheckBubble,
-                            isSettled
-                              ? screenStyles.resultsCheckBubbleSettled
-                              : null,
-                          ]}
-                        >
-                          {isSettled ? (
-                            <Minus color={PALETTE.onPrimary} size={14} />
-                          ) : (
-                            <Check color={PALETTE.onPrimary} size={14} />
+                          {money(
+                            isPayerRow
+                              ? payerConsumedCents
+                              : Math.abs(person.netCents),
                           )}
-                        </View>
-                      ) : null}
+                        </Text>
+                      </YStack>
+                      <View style={[screenStyles.resultsStatusIcon, statusIconStyle]}>
+                        {isPayerRow ? (
+                          <UserRound color="#1686cc" size={17} fill="#1686cc" />
+                        ) : hasNothingDue || isSettled ? (
+                          <Minus
+                            color={hasNothingDue ? "#fffdfa" : PALETTE.onPrimary}
+                            size={15}
+                            strokeWidth={3}
+                          />
+                        ) : (
+                          <Check color={PALETTE.onPrimary} size={16} strokeWidth={3} />
+                        )}
+                      </View>
                     </XStack>
                   </XStack>
                 );
+
+                if (isPayerRow || hasNothingDue) {
+                  return (
+                    <View
+                      key={person.participantId}
+                      style={screenStyles.resultsBreakdownCard}
+                    >
+                      {rowContent}
+                    </View>
+                  );
+                }
 
                 if (!trackPaymentsEnabled) {
                   return (
