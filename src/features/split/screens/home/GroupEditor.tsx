@@ -130,9 +130,6 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
               visible={photoOptionsOpen}
               title={t("groups.choosePhoto")}
               cancelLabel={t("common.cancel")}
-              uploadLabel={t("groups.photoLibrary")}
-              cameraLabel={t("groups.photoCamera")}
-              removeLabel={t("groups.removePhoto")}
               bottomInset={insets.bottom}
               hasPhoto={Boolean(draft.photoUri)}
               onDismiss={() => setPhotoOptionsOpen(false)}
@@ -186,7 +183,7 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
           <View style={screenStyles.groupSearchShell}><Search color={PALETTE.onSurfaceVariant} size={17} /><TextInput value={query} onChangeText={setQuery} placeholder={t("groups.searchPeople")} style={screenStyles.groupSearchInput} /></View>
           <Pressable accessibilityRole="button" accessibilityLabel={t("groups.importContacts")} onPress={importContacts} style={screenStyles.groupsImportButton}><ImagePlus color={PALETTE.primary} size={19} /><Text color={PALETTE.primary} fontFamily={FONTS.bodyBold}>{t("groups.importContacts")}</Text></Pressable>
           {query.trim() && !nameExists(query) ? <View style={screenStyles.recentShadowWrap}><Pressable accessibilityRole="button" accessibilityLabel={t(addByNameKey, { name: normalizePersonName(query) })} onPress={() => addName(query)} style={screenStyles.groupsCompactRow}><Text flex={1} fontFamily={FONTS.bodyBold}>{t(addByNameKey, { name: normalizePersonName(query) })}</Text><ChevronRight color={PALETTE.primary} /></Pressable></View> : null}
-          {searchResults.length ? <YStack gap="$2">{searchResults.map((person) => <View key={person.id} style={screenStyles.recentShadowWrap}><Pressable accessibilityRole="button" accessibilityLabel={t("groups.addMemberA11y", { name: person.name })} onPress={() => toggleMember(person.id)} style={screenStyles.groupsCompactRow}>
+          {searchResults.length ? <YStack gap="$2">{searchResults.map((person) => <View key={person.id} style={screenStyles.recentShadowWrap}><Pressable accessibilityRole="button" accessibilityLabel={t("groups.addMemberA11y", { name: person.name })} onPress={() => { toggleMember(person.id); setQuery(""); }} style={screenStyles.groupsCompactRow}>
             <ParticipantAvatar name={person.name} ownerName={ownerName} ownerProfileImageUri={ownerProfileImageUri} person={person} style={screenStyles.groupsPersonAvatar} label={`${person.name} avatar`} />
             <Text flex={1} fontFamily={FONTS.bodyBold}>{person.name}</Text>
             <Plus color={PALETTE.primary} size={19} />

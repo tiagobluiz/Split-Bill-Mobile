@@ -6,7 +6,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Check, Plus } from "lucide-react-native";
+import { Check, Plus, Sparkles, Users } from "lucide-react-native";
 import { Text as TamaguiText } from "tamagui";
 import type { DraftRecord } from "../../../../storage/records";
 import type { AppSettings } from "../../../../storage/settings";
@@ -18,6 +18,7 @@ import { ParticipantAvatar } from "../shared/participantComponents";
 import {
   getFrequentFriends,
   getFrequentGroups,
+  isOwnerReference,
   sortParticipantsByName,
 } from "../shared/participantUtils";
 import { screenStyles } from "../shared/styles";
@@ -60,11 +61,15 @@ export function ParticipantSuggestions({
   );
   const isAdded = (person: Pick<SavedPerson, "id" | "name">) =>
     currentIds.has(person.id) || legacyNames.has(nameKey(person.name));
-  const friends = getFrequentFriends(records, record.id, settings.ownerName, {
+  const frequentFriends = getFrequentFriends(records, record.id, settings.ownerName, {
     people,
     limit: FREQUENT_ENTRY_LIMIT,
     ownerPersonId: settings.ownerPersonId,
-  }).filter(
+  });
+  const hasHistoricalFrequentPeople = frequentFriends.some(
+    (friend) => !isOwnerReference(friend.name, settings.ownerName),
+  );
+  const friends = frequentFriends.filter(
     (friend) =>
       !isAdded({
         id:
@@ -136,7 +141,6 @@ export function ParticipantSuggestions({
       </View>
       {mode === "frequent" ? (
         <View style={styles.frequentContent}>
-          <Text style={styles.eyebrow}>{t("flow.participants.frequent")}</Text>
           {friends.length ? (
             <ScrollView
               horizontal
@@ -186,9 +190,43 @@ export function ParticipantSuggestions({
               ))}
             </ScrollView>
           ) : (
-            <Text style={styles.emptyText}>
-              {t("flow.participants.noFrequentPeople")}
-            </Text>
+            <View testID="frequent-empty-card" style={styles.frequentEmptyCard}>
+              <View
+                testID={
+                  hasHistoricalFrequentPeople
+                    ? "frequent-empty-icon-complete"
+                    : "frequent-empty-icon-new"
+                }
+                style={styles.frequentEmptyIcon}
+              >
+                {hasHistoricalFrequentPeople ? (
+                  <>
+                    <Users color={PALETTE.primary} size={22} />
+                    <View style={styles.frequentEmptyIconBadge}>
+                      <Check color={PALETTE.onPrimary} size={10} strokeWidth={3} />
+                    </View>
+                  </>
+                ) : (
+                  <Sparkles color={PALETTE.primary} size={22} />
+                )}
+              </View>
+              <View style={styles.frequentEmptyCopy}>
+                <Text style={styles.frequentEmptyTitle}>
+                  {t(
+                    hasHistoricalFrequentPeople
+                      ? "flow.participants.allFrequentPeopleAddedTitle"
+                      : "flow.participants.noFrequentPeopleTitle",
+                  )}
+                </Text>
+                <Text style={styles.frequentEmptyDescription}>
+                  {t(
+                    hasHistoricalFrequentPeople
+                      ? "flow.participants.allFrequentPeopleAddedDescription"
+                      : "flow.participants.noFrequentPeopleDescription",
+                  )}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
       ) : (
@@ -399,9 +437,22 @@ export function ParticipantSuggestions({
               ) : null}
             </>
           ) : (
-            <Text style={styles.emptyText}>
-              {t("flow.participants.noAvailableGroups")}
-            </Text>
+            <View testID="groups-empty-card" style={styles.frequentEmptyCard}>
+              <View testID="groups-empty-icon" style={styles.frequentEmptyIcon}>
+                <Users color={PALETTE.primary} size={22} />
+                <View style={styles.frequentEmptyIconBadge}>
+                  <Plus color={PALETTE.onPrimary} size={10} strokeWidth={3} />
+                </View>
+              </View>
+              <View style={styles.frequentEmptyCopy}>
+                <Text style={styles.frequentEmptyTitle}>
+                  {t("flow.participants.noGroupsTitle")}
+                </Text>
+                <Text style={styles.frequentEmptyDescription}>
+                  {t("flow.participants.noGroupsDescription")}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
       )}
@@ -412,12 +463,48 @@ export function ParticipantSuggestions({
 const styles = StyleSheet.create({
   suggestions: { gap: 18 },
   frequentContent: { gap: 12 },
-  eyebrow: {
+  frequentEmptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: PALETTE.surfaceContainerLow,
+  },
+  frequentEmptyIcon: {
+    position: "relative",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PALETTE.primaryContainer,
+  },
+  frequentEmptyIconBadge: {
+    position: "absolute",
+    right: -3,
+    bottom: -2,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PALETTE.primary,
+    borderWidth: 2,
+    borderColor: PALETTE.surfaceContainerLow,
+  },
+  frequentEmptyCopy: { flex: 1, gap: 4 },
+  frequentEmptyTitle: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 11,
+    fontSize: 14,
+    color: PALETTE.onSurface,
+  },
+  frequentEmptyDescription: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    lineHeight: 17,
     color: PALETTE.onSurfaceVariant,
-    textTransform: "uppercase",
-    letterSpacing: 0,
   },
   friend: { width: 78, minHeight: 94, alignItems: "center", gap: 8 },
   groupsContent: { gap: 10 },
@@ -490,11 +577,4 @@ const styles = StyleSheet.create({
     backgroundColor: PALETTE.surfaceContainerLow,
   },
   memberActionPending: { backgroundColor: PALETTE.primary },
-  emptyText: {
-    fontFamily: FONTS.bodyMedium,
-    color: PALETTE.onSurfaceVariant,
-    fontSize: 14,
-    paddingVertical: 12,
-    lineHeight: 21,
-  },
 });

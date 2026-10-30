@@ -10,6 +10,7 @@ import {
   Keyboard,
   Share,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from "react-native";
@@ -779,6 +780,8 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
+    expect(screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length).toBeGreaterThan(0);
+
     fireEvent.press(screen.getByText("Mark as Paid"));
     expect(mockStoreState.markBillPaid).toHaveBeenCalled();
 
@@ -793,6 +796,7 @@ describe("split screens", () => {
     ];
     rerender(<ResultsScreen draftId="draft-1" />);
     expect(screen.getByText("Revert Mark as Paid")).toBeTruthy();
+    expect(screen.getAllByText(/9[,.]00|€\s?9[,.]00|EUR\s?9[,.]00/).length).toBeGreaterThan(0);
     fireEvent.press(screen.getByText("Revert Mark as Paid"));
     expect(mockStoreState.revertBillPaid).toHaveBeenCalled();
   });
@@ -826,6 +830,7 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
 
+    expect(screen.getAllByText(/6[,.]00|€\s?6[,.]00|EUR\s?6[,.]00/).length).toBeGreaterThan(0);
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
     fireEvent.press(screen.getByText("Bruno"));
@@ -996,20 +1001,20 @@ describe("split screens", () => {
             netCents: -150,
           },
           {
-            participantId: "bruno",
-            name: "Bruno",
-            isPayer: false,
-            paidCents: 0,
-            consumedCents: -50,
-            netCents: 50,
-          },
-          {
             participantId: "zoe",
             name: "Zoe",
             isPayer: false,
             paidCents: 0,
             consumedCents: 150,
             netCents: 100,
+          },
+          {
+            participantId: "bruno",
+            name: "Bruno",
+            isPayer: false,
+            paidCents: 0,
+            consumedCents: -50,
+            netCents: 50,
           },
         ],
         transfers: [],
@@ -1023,7 +1028,7 @@ describe("split screens", () => {
       }),
     ];
 
-    render(<ResultsScreen draftId="draft-1" />);
+    const view = render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
@@ -1032,6 +1037,11 @@ describe("split screens", () => {
     expect(screen.getByText("Zoe")).toBeTruthy();
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
+    const displayedOwerNames = view
+      .UNSAFE_getAllByType(Text)
+      .map((node) => node.props.children)
+      .filter((name) => name === "Bruno" || name === "Zoe");
+    expect(displayedOwerNames).toEqual(["Bruno", "Zoe"]);
   });
 
   it("hides payment controls on results when track payments is disabled", async () => {
@@ -1252,7 +1262,7 @@ describe("split screens", () => {
     expect(screen.getByText("You owe")).toBeTruthy();
   });
 
-  it("renders zero settlement progress when nobody owes anything", async () => {
+  it("renders the full bill as settled when nobody owes anything", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockReturnValueOnce({
       ok: true,
@@ -1280,16 +1290,47 @@ describe("split screens", () => {
     });
 
     expect(screen.getByText("Total settled")).toBeTruthy();
-    expect(screen.getAllByText(/0,00|0.00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/9[,.]00|€\s?9[,.]00|EUR\s?9[,.]00/).length).toBeGreaterThan(0);
   });
 
-  it("routes the results close header action to home", async () => {
+  it("renders zero progress for a zero-total bill", async () => {
+    const store = require("./store");
+    store.getSettlementPreview.mockReturnValueOnce({
+      ok: true,
+      data: {
+        currency: "EUR",
+        totalCents: 0,
+        itemBreakdown: [],
+        people: [
+          {
+            participantId: "ana",
+            name: "Ana",
+            isPayer: true,
+            paidCents: 0,
+            consumedCents: 0,
+            netCents: 0,
+          },
+        ],
+        transfers: [],
+      },
+    });
+
+    render(<ResultsScreen draftId="draft-1" />);
+    await waitFor(() => {
+      expect(mockStoreState.markCompleted).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Total settled")).toBeTruthy();
+    expect(screen.getAllByText(/0[,.]00|€\s?0[,.]00|EUR\s?0[,.]00/).length).toBeGreaterThan(0);
+  });
+
+  it("returns to the originating screen when closing results", async () => {
     render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockBack).toHaveBeenCalled();
   });
 
   it("routes the results back action to review overview", async () => {

@@ -208,21 +208,35 @@ export function normalizeMoneyInput(value: string) {
   return (amountCents / 100).toFixed(2);
 }
 
-function normalizeItemCategory(category?: string) {
-  return (category?.trim() || "General").toLowerCase();
-}
-
 export function getItemUniquenessKey(
   item: Pick<ItemFormValue, "name" | "price" | "category">
 ) {
-  const name = trimName(item.name).toLowerCase();
-  const amountCents = parseMoneyToCents(item.price);
-
-  if (!name || amountCents === null || amountCents === 0) {
+  const name = normalizeItemName(item.name);
+  if (!name) {
     return null;
   }
+  return name;
+}
 
-  return `${name}|${(amountCents / 100).toFixed(2)}|${normalizeItemCategory(item.category)}`;
+export function normalizeItemName(name: string) {
+  return trimName(name).replace(/\s+/g, " ").toLowerCase();
+}
+
+export function validateItemNameAndAmount(name: string, price: string) {
+  const normalizedName = trimName(name);
+  const amountCents = parseMoneyToCents(price);
+  return Boolean(
+    normalizedName && normalizedName.length <= ITEM_NAME_MAX_LENGTH &&
+    amountCents !== null && amountCents !== 0 &&
+    Math.abs(amountCents) <= ITEM_AMOUNT_MAX_CENTS,
+  );
+}
+
+export function combineItemAmounts(existingCents: number, incomingCents: number) {
+  const amountCents = existingCents + incomingCents;
+  return amountCents === 0 || Math.abs(amountCents) <= ITEM_AMOUNT_MAX_CENTS
+    ? amountCents
+    : null;
 }
 
 export function itemHasDuplicate(

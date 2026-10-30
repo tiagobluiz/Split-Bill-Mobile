@@ -3,11 +3,11 @@ import { create } from "zustand";
 import {
   buildClipboardSummary,
   buildPdfExportData,
+  combineItemAmounts,
   computeSettlement,
   createDefaultValues,
   createEmptyItem,
   createId,
-  ITEM_AMOUNT_MAX_CENTS,
   normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
@@ -15,6 +15,7 @@ import {
   resetPercentAllocations,
   resetShareAllocations,
   syncItemAllocations,
+  normalizeItemName,
   SPLIT_NAME_MAX_LENGTH,
   trimName,
   type SplitMode,
@@ -553,11 +554,6 @@ function ensureItemsAligned(values: DraftRecord["values"]) {
     ...values,
     items: syncItemAllocations(values.items, values.participants),
   };
-}
-
-function getImportMergeKey(name: string) {
-  const normalized = trimName(name).toLowerCase();
-  return normalized || null;
 }
 
 function formatMergedImportPrice(amountCents: number) {
@@ -1470,8 +1466,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeActiveRecordMutation(
         record,
         (draft) => {
+          let uniqueId = item.id;
+          const usedIds = new Set(draft.values.items.map((entry) => entry.id));
+          while (usedIds.has(uniqueId)) {
+            uniqueId = createId();
+          }
           const [syncedItem] = syncItemAllocations(
-            [item],
+            [{ ...item, id: uniqueId }],
             draft.values.participants,
           );
           draft.values.items.push(syncedItem);
@@ -1750,19 +1751,28 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
 
           parsed.items.forEach((item) => {
             const amountCents = parseMoneyToCents(item.price);
-            if (amountCents === null) {
+            if (amountCents === null || amountCents === 0) {
               return;
             }
-            const mergeKey = getImportMergeKey(item.name);
+            const mergeKey = normalizeItemName(item.name);
             if (!mergeKey) {
               return;
             }
             const existingMatch = mergeTargets.find(
-              (candidate) => getImportMergeKey(candidate.name) === mergeKey,
+              (candidate) => normalizeItemName(candidate.name) === mergeKey,
             );
             if (existingMatch) {
               const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
-              const mergedCents = existingCents + amountCents;
+              const mergedCents = combineItemAmounts(existingCents, amountCents);
+              if (mergedCents === null) {
+                importWarnings.push({
+                  code: "invalid-merge-amount-too-high",
+                  message: t("pasteImport.invalidMergeAmountTooHigh", {
+                    item: trimName(item.name),
+                  }),
+                });
+                return;
+              }
               if (mergedCents === 0) {
                 const wasExistingItem = existingItems.some(
                   (existingItem) => existingItem.id === existingMatch.id,
@@ -1778,15 +1788,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
                 hasAcceptedImport = true;
                 return;
               }
-              if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-                importWarnings.push({
-                  code: "invalid-merge-amount-too-high",
-                  message: t("pasteImport.invalidMergeAmountTooHigh", {
-                    item: trimName(item.name),
-                  }),
-                });
-                return;
-              }
               hasAcceptedImport = true;
               existingMatch.price = formatMergedImportPrice(mergedCents);
               if (
@@ -1800,6 +1801,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
             }
 
             const nextItem = createEmptyItem(draft.values.participants);
+            const usedIds = new Set(mergeTargets.map((entry) => entry.id));
+            while (usedIds.has(nextItem.id)) {
+              nextItem.id = createId();
+            }
             const importedItem = {
               ...nextItem,
               name: trimName(item.name),

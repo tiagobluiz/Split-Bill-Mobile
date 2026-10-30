@@ -1,4 +1,4 @@
-import { validatePersonName, type SplitFormValues } from "../domain";
+import { createId, validatePersonName, type SplitFormValues } from "../domain";
 import { isValidSplitDate, localDay } from "../domain/splitDate";
 import { compareSplitDates } from "../domain/splitDateOrder";
 import type { SQLiteDatabase } from "expo-sqlite";
@@ -134,7 +134,28 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
       parsedPayload && typeof parsedPayload === "object" && "values" in parsedPayload
         ? (parsedPayload.values as SplitFormValues)
         : (parsedPayload as SplitFormValues);
-    const items = Array.isArray(values.items) ? values.items.filter((item) => !isLegacyPlaceholderItem(item)) : [];
+    const seenItemIds = new Set<string>();
+    const reservedItemIds = new Set(
+      Array.isArray(values.items)
+        ? values.items.filter((item) => !isLegacyPlaceholderItem(item)).map((item) => item.id)
+        : [],
+    );
+    const items = Array.isArray(values.items)
+      ? values.items.filter((item) => !isLegacyPlaceholderItem(item)).map((item) => {
+          if (!seenItemIds.has(item.id)) {
+            seenItemIds.add(item.id);
+            return item;
+          }
+          let repairedId = createId();
+          while (reservedItemIds.has(repairedId) || seenItemIds.has(repairedId)) {
+            repairedId = createId();
+          }
+          const repairedItem = { ...item, id: repairedId };
+          reservedItemIds.add(repairedId);
+          seenItemIds.add(repairedItem.id);
+          return repairedItem;
+        })
+      : [];
     const settlementState =
       parsedPayload &&
       typeof parsedPayload === "object" &&

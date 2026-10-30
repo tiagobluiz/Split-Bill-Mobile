@@ -391,38 +391,27 @@ export const flowStyles = {
       borderRadius: 46,
       backgroundColor: "rgba(255,255,255,0.08)",
     },
-  resultsHeroChip: {
-      minHeight: 28,
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      backgroundColor: PALETTE.surfaceContainerLowest,
+  resultsHeroDivider: {
+      height: 1,
+      marginTop: 16,
+      marginBottom: 14,
+      backgroundColor: "rgba(255,255,255,0.28)",
+    },
+  resultsHeroMetrics: {
+      paddingTop: 2,
+    },
+  resultsHeroMetricDivider: {
+      width: 1,
+      alignSelf: "stretch",
+      backgroundColor: "rgba(255,255,255,0.36)",
+    },
+  resultsHeroMenuButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
-      flexDirection: "row",
-      gap: 6,
-    },
-  resultsProgressTrack: {
-      height: 8,
-      borderRadius: 999,
-      backgroundColor: "rgba(255,255,255,0.2)",
-      marginTop: 16,
-      overflow: "hidden",
-    },
-  resultsProgressFill: {
-      height: "100%",
-      borderRadius: 999,
-      backgroundColor: PALETTE.surfaceContainerLowest,
-    },
-  resultsPaidCard: {
-      borderRadius: 24,
-      backgroundColor: PALETTE.surfaceContainerLowest,
-      paddingHorizontal: 18,
-      paddingVertical: 18,
-      shadowColor: PALETTE.primary,
-      shadowOpacity: 0.05,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 3,
+      backgroundColor: "rgba(255,255,255,0.12)",
     },
   resultsBreakdownCard: {
       borderRadius: 24,
@@ -446,18 +435,24 @@ export const flowStyles = {
       justifyContent: "center",
       overflow: "hidden",
     },
-  resultsCheckBubble: {
+  resultsStatusIcon: {
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: PALETTE.primary,
       alignItems: "center",
       justifyContent: "center",
     },
-  resultsCheckBubbleSettled: {
+  resultsStatusIconPayer: {
+      backgroundColor: "#d5efff",
+    },
+  resultsStatusIconNothingDue: {
+      backgroundColor: "#b4b3b0",
+    },
+  resultsStatusIconOwed: {
+      backgroundColor: PALETTE.primary,
+    },
+  resultsStatusIconSettled: {
       backgroundColor: PALETTE.success,
-      alignItems: "center",
-      justifyContent: "center",
     },
   resultsPrimaryButton: {
       flex: 1,

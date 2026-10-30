@@ -29,13 +29,14 @@ import {
 import { useTranslation } from "../../../../i18n/provider";
 import {
   buildReceiptLlmPrompt,
+  combineItemAmounts,
   formatMoney,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
-  ITEM_AMOUNT_MAX_CENTS,
   normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
+  normalizeItemName,
   type LlmProvider,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
@@ -108,11 +109,6 @@ function AiProviderIcon({
   return <Sparkles color={color} size={20} />;
 }
 
-function getImportPreviewMergeKey(name: string) {
-  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
-  return normalized || null;
-}
-
 function formatImportPreviewPrice(amountCents: number) {
   return normalizeMoneyInput((amountCents / 100).toFixed(2));
 }
@@ -154,6 +150,8 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 236 });
   const scrollViewRef = useRef<ScrollView | null>(null);
+  const importPreviewRecordRef = useRef<typeof record | null>(null);
+  const importApplyPendingRef = useRef(false);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"append" | "replace">("append");
   const [step, setStep] = useState<1 | 2>(1);
@@ -161,6 +159,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const [handoffPending, setHandoffPending] = useState(false);
   const handoffPendingRef = useRef(false);
   const [needsManualPrompt, setNeedsManualPrompt] = useState(false);
+  const [importApplyPending, setImportApplyPending] = useState(false);
   const prompt = buildReceiptLlmPrompt();
   const hasInvoicePhoto = !!record?.values.invoicePhotoUri;
   const askAiDescriptionKey =
@@ -168,10 +167,11 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       ? "flow.import.askAiManual"
       : "flow.import.askAiAndroid";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
+  const importPreviewRecord = importPreviewRecordRef.current ?? record;
   const hasPastedText = input.trim().length > 0;
   const locale = getDeviceLocale();
   const importPreview = useMemo(() => {
-    if (!record) {
+    if (!importPreviewRecord) {
       return {
         acceptedCount: 0,
         acceptedTotalCents: 0,
@@ -180,7 +180,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       };
     }
 
-    const existingItems = record.values.items
+    const existingItems = importPreviewRecord.values.items
       .filter((item) => item.name.trim() || item.price.trim())
       .map((item) => ({
         id: item.id,
@@ -216,17 +216,39 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
 
       const item = detail.item;
       const amountCents = parseMoneyToCents(item.price);
-      const mergeKey = getImportPreviewMergeKey(item.name);
+      const mergeKey = normalizeItemName(item.name);
       const displayName = item.name.trim().replace(/\s+/g, " ");
       if (amountCents === null || !mergeKey) {
         return;
       }
+      if (amountCents === 0) {
+        rows.push({
+          id: `skipped-zero-${index}`,
+          label: displayName,
+          detail: t("pasteImport.ignoreReason.zeroAmount"),
+          skipped: true,
+          intent: "skipped",
+        });
+        ignoredMergeCount += 1;
+        return;
+      }
       const existingMatch = mergeTargets.find(
-        (candidate) => getImportPreviewMergeKey(candidate.name) === mergeKey,
+        (candidate) => normalizeItemName(candidate.name) === mergeKey,
       );
       if (existingMatch) {
         const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
-        const mergedCents = existingCents + amountCents;
+        const mergedCents = combineItemAmounts(existingCents, amountCents);
+        if (mergedCents === null) {
+          rows.push({
+            id: `skipped-merge-${index}`,
+            label: displayName,
+            detail: t("pasteImport.invalidMergeAmountTooHigh", { item: displayName }),
+            skipped: true,
+            intent: "skipped",
+          });
+          ignoredMergeCount += 1;
+          return;
+        }
         if (mergedCents === 0) {
           removeImportPreviewTarget(existingMatch.id, [
             existingItems,
@@ -239,12 +261,12 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
             detail: t("flow.import.previewDeletes", {
               importedAmount: formatMoney(
                 amountCents,
-                record.values.currency,
+                importPreviewRecord.values.currency,
                 locale,
               ),
               existingAmount: formatMoney(
                 existingCents,
-                record.values.currency,
+                importPreviewRecord.values.currency,
                 locale,
               ),
             }),
@@ -255,19 +277,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
           acceptedTotalCents += amountCents;
           return;
         }
-        if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-          rows.push({
-            id: `skipped-merge-${index}`,
-            label: displayName,
-            detail: t("pasteImport.invalidMergeAmountTooHigh", {
-              item: displayName,
-            }),
-            skipped: true,
-            intent: "skipped",
-          });
-          ignoredMergeCount += 1;
-          return;
-        }
         existingMatch.price = formatImportPreviewPrice(mergedCents);
         rows.push({
           id: `accepted-${index}`,
@@ -275,12 +284,12 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
           detail: t("flow.import.previewMerges", {
             importedAmount: formatMoney(
               amountCents,
-              record.values.currency,
+              importPreviewRecord.values.currency,
               locale,
             ),
             mergedAmount: formatMoney(
               mergedCents,
-              record.values.currency,
+              importPreviewRecord.values.currency,
               locale,
             ),
           }),
@@ -304,7 +313,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         detail: t("flow.import.previewAdds", {
           importedAmount: formatMoney(
             amountCents,
-            record.values.currency,
+          importPreviewRecord.values.currency,
             locale,
           ),
         }),
@@ -324,7 +333,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       ignoredMergeCount,
       rows,
     };
-  }, [locale, mode, parsedPreview.lineDetails, record, t]);
+  }, [importPreviewRecord, locale, mode, parsedPreview.lineDetails, t]);
   const parsedItemCount = importPreview.acceptedCount;
   const ignoredLineCount =
     parsedPreview.ignoredLines.length + importPreview.ignoredMergeCount;
@@ -392,6 +401,10 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   };
 
   const applyImport = async () => {
+    if (importApplyPendingRef.current) return;
+    importApplyPendingRef.current = true;
+    importPreviewRecordRef.current = record;
+    setImportApplyPending(true);
     try {
       const result = await importPastedList(input, mode);
       const suppressedWarningCodes = new Set([
@@ -421,6 +434,9 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       }
       router.back();
     } catch (error) {
+      importApplyPendingRef.current = false;
+      importPreviewRecordRef.current = null;
+      setImportApplyPending(false);
       console.warn("Failed to import pasted list", error);
       recordError(error, {
         screen: "PasteImportScreen",
@@ -524,7 +540,10 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
                   </XStack>
                   <FlowContinueButton
                     label={t("flow.import.addReview")}
-                    onPress={() => void applyImport()}
+                    disabled={importApplyPending}
+                    onPress={() => {
+                      if (!importApplyPendingRef.current) void applyImport();
+                    }}
                   />
                 </YStack>
               )}

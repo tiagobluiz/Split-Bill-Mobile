@@ -1,4 +1,5 @@
 import { PALETTE } from "../../../../../theme/palette";
+import { commonStyles } from "./common";
 
 export const homeStyles = {
   stickyHomeHeader: {
@@ -175,21 +176,7 @@ export const homeStyles = {
       alignItems: "center",
       justifyContent: "center",
     },
-  groupsCompactRow: {
-      minHeight: 72,
-      borderRadius: 24,
-      backgroundColor: PALETTE.surfaceContainerLowest,
-      paddingHorizontal: 18,
-      paddingVertical: 18,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      shadowColor: PALETTE.primary,
-      shadowOpacity: 0.05,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 3,
-    },
+  groupsCompactRow: commonStyles.participantPill,
   groupSearchShell: { minHeight: 54, borderRadius: 20, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: PALETTE.surfaceContainerLow },
   groupSearchInput: { minHeight: 44, flex: 1, paddingVertical: 0, fontFamily: "Inter_500Medium", fontSize: 14, color: PALETTE.onSurface },
   peopleFilterPills: {

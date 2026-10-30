@@ -133,7 +133,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <YStack gap="$5">
-          <YStack gap="$3.5">
+          <YStack gap="$3">
             {payerParticipants.map((participant) => {
               const selected =
                 participant.id === record.values.payerParticipantId;

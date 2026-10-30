@@ -3,6 +3,7 @@ import { LocalizationProvider } from "../../../../i18n/provider";
 import type { ParticipantGroup, SavedPerson } from "../../people";
 import { getAvatarTone } from "../shared/participantUtils";
 import { PersonEditor } from "./PersonEditor";
+import type { SavePersonResult } from "../../store";
 
 jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -76,10 +77,64 @@ describe("PersonEditor", () => {
     const onOpenExisting = jest.fn();
     renderEditor({ people: [existing], onOpenExisting });
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "  ANA  ");
+    expect(screen.getByText("A person named Ana already exists.")).toBeTruthy();
 
     fireEvent.press(screen.getByText("Edit existing person"));
 
     expect(onOpenExisting).toHaveBeenCalledWith(existing, null);
+  });
+
+  it("does not flash a duplicate warning when the saved person arrives before the editor closes", async () => {
+    let resolveSave!: (result: SavePersonResult) => void;
+    const onSave = jest.fn(() => new Promise<SavePersonResult>((resolve) => { resolveSave = resolve; }));
+    const onBusyChange = jest.fn();
+    const onCancel = jest.fn(() => {
+      expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    });
+    const savedPerson = { ...existing, id: "person-new", name: "Carla" };
+    const editor = (people: SavedPerson[]) => (
+      <LocalizationProvider language="en" humour="plain">
+        <PersonEditor person={null} people={people} groups={[]} records={[]} onCancel={onCancel} onOpenExisting={jest.fn()} onSave={onSave} onBusyChange={onBusyChange} />
+      </LocalizationProvider>
+    );
+    const { rerender } = render(editor([]));
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+
+    rerender(editor([savedPerson]));
+    expect(screen.queryByText("A person named Carla already exists.")).toBeNull();
+    expect(screen.queryByText("Edit existing person")).toBeNull();
+    expect(screen.getByText("Import from contacts")).toBeTruthy();
+    expect(onCancel).not.toHaveBeenCalled();
+
+    await act(async () => { resolveSave({ ok: true, personId: savedPerson.id }); });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("A person named Carla already exists.")).toBeNull();
+    expect(screen.queryByText("Edit existing person")).toBeNull();
+    expect(screen.getByText("Import from contacts")).toBeTruthy();
+  });
+
+  it("resumes duplicate validation against refreshed people after a save fails", async () => {
+    let resolveSave!: (result: SavePersonResult) => void;
+    const onSave = jest.fn(() => new Promise<SavePersonResult>((resolve) => { resolveSave = resolve; }));
+    const onCancel = jest.fn();
+    const conflictingPerson = { ...existing, id: "person-carla", name: "Carla" };
+    const editor = (people: SavedPerson[]) => (
+      <LocalizationProvider language="en" humour="plain">
+        <PersonEditor person={null} people={people} groups={[]} records={[]} onCancel={onCancel} onOpenExisting={jest.fn()} onSave={onSave} />
+      </LocalizationProvider>
+    );
+    const { rerender } = render(editor([]));
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+    rerender(editor([conflictingPerson]));
+    expect(screen.queryByText("A person named Carla already exists.")).toBeNull();
+
+    await act(async () => { resolveSave({ ok: false, reason: "persistence" }); });
+    expect(screen.getByText("Could not save settings")).toBeTruthy();
+    expect(screen.getByText("A person named Carla already exists.")).toBeTruthy();
+    expect(screen.getByText("Edit existing person")).toBeTruthy();
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("offers restoration for an archived name match", () => {

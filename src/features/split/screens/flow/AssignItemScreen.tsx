@@ -30,14 +30,16 @@ import {
 import { useTranslation } from "../../../../i18n/provider";
 import {
   createEmptyItem,
+  combineItemAmounts,
   formatMoney,
-  ITEM_AMOUNT_MAX_CENTS,
   ITEM_NAME_MAX_LENGTH,
   normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
   resetShareAllocations,
   validateStepThree,
+  normalizeItemName,
+  validateItemNameAndAmount,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { rememberItemOrigins, recordError, trackEvent } from "../../../../lib/telemetry";
@@ -199,13 +201,12 @@ export function AssignItemScreen({
   const hasValidName = trimmedItemName.length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
-  const isSaveReady = hasValidName && hasValidPrice;
-  const normalizedManualName = trimmedItemName.replace(/\s+/g, " ").toLowerCase();
+  const isSaveReady = validateItemNameAndAmount(trimmedItemName, normalizedItemPrice);
+  const normalizedManualName = normalizeItemName(trimmedItemName);
   const mergeCandidate = record.values.items.find(
     (candidate) =>
       candidate.id !== item.id &&
-      candidate.name.trim().replace(/\s+/g, " ").toLowerCase() ===
-        normalizedManualName,
+      normalizeItemName(candidate.name) === normalizedManualName,
   );
   const mergeCandidateMergedCents =
     mergeCandidate && parsedItemPriceCents !== null
@@ -239,6 +240,11 @@ export function AssignItemScreen({
 
       if (!hasValidPrice) {
         setAssignNoticeMessages([t("flow.itemDetail.priceRequired")]);
+        return;
+      }
+
+      if (!validateItemNameAndAmount(trimmedItemName, normalizedItemPrice)) {
+        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
         return;
       }
 
@@ -305,16 +311,16 @@ export function AssignItemScreen({
 
     try {
       const targetCents = parseMoneyToCents(targetItem.price) ?? 0;
-      const mergedCents = targetCents + parsedItemPriceCents;
+      const mergedCents = combineItemAmounts(targetCents, parsedItemPriceCents);
+      if (mergedCents === null) {
+        setMergeCandidateItemId("");
+        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
+        return;
+      }
       if (mergedCents === 0) {
         await removeItem(targetItem.id);
         setMergeCandidateItemId("");
         router.back();
-        return;
-      }
-      if (Math.abs(mergedCents) > ITEM_AMOUNT_MAX_CENTS) {
-        setMergeCandidateItemId("");
-        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
         return;
       }
       const mergedPrice = normalizeMoneyInput(

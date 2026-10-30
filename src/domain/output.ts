@@ -103,6 +103,13 @@ export function buildClipboardSummary(
     }
 
     if (person.netCents === 0) {
+      lines.push(
+        t("clipboard.person.zero", {
+          name: person.name,
+          consumed: money(person.consumedCents),
+          amount: money(0),
+        }),
+      );
       return;
     }
 

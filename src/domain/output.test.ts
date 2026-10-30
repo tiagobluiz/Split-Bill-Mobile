@@ -42,7 +42,7 @@ describe("output contracts", () => {
     ).toBeNull();
   });
 
-  it("omits settled participants from the shared summary and reduces the payer remaining amount", () => {
+  it("shows settled participants with zero remaining while reducing the payer amount", () => {
     expect(
       buildClipboardSummary(
         {
@@ -70,7 +70,7 @@ describe("output contracts", () => {
         "en-US",
         { settledParticipantIds: ["bruno"] }
       )
-    ).toBe("Split Bill\nAna: paid €18.00, consumed €6.00, and should get back €6.00.\nCarla: owes €6.00.");
+    ).toBe("Split Bill\nAna: paid €18.00, consumed €6.00, and should get back €6.00.\nBruno: consumed €6.00 and owes €0.00.\nCarla: owes €6.00.");
   });
 
 

@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { ITEM_NAME_MAX_LENGTH } from "./splitter";
+import { ITEM_NAME_MAX_LENGTH, validateItemNameAndAmount } from "./splitter";
 
 export type ReceiptImportItem = {
   name: string;
@@ -218,6 +218,10 @@ function getIgnoredLineReason(line: string) {
   return t("pasteImport.ignoreReason.format");
 }
 
+function isZeroValueItem(item: ReceiptImportItem) {
+  return Number(item.price) === 0;
+}
+
 function parseTrailingPriceLine(line: string) {
   const trimmed = line.trim();
   const withoutPrefix = trimmed.replace(/^(?:[-*]\s*|\d+[.)]\s*)/, "").trim();
@@ -260,6 +264,22 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
 
   lines.forEach((line) => {
     const parsed = parseLineFormat(line) ?? parseCsvLine(line) ?? parseTrailingPriceLine(line);
+    if (parsed && isZeroValueItem(parsed)) {
+      const reason = t("pasteImport.ignoreReason.zeroAmount");
+      ignoredLines.push(line);
+      ignoredLineDetails.push({ line, reason });
+      lineDetails.push({ kind: "ignored", line, reason });
+      return;
+    }
+
+    if (parsed && !validateItemNameAndAmount(parsed.name, parsed.price)) {
+      const reason = t("pasteImport.ignoreReason.invalidPrice");
+      ignoredLines.push(line);
+      ignoredLineDetails.push({ line, reason });
+      lineDetails.push({ kind: "ignored", line, reason });
+      return;
+    }
+
     if (parsed) {
       items.push(parsed);
       lineDetails.push({

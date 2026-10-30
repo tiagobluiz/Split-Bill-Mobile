@@ -104,9 +104,6 @@ export function InvoicePhotoField({
         visible={sourceOpen}
         title={t("splitDetails.addInvoicePhoto")}
         cancelLabel={t("common.cancel")}
-        uploadLabel={t("splitDetails.choosePhoto")}
-        cameraLabel={t("splitDetails.takePhoto")}
-        removeLabel={t("splitDetails.removePhoto")}
         bottomInset={insets.bottom}
         hasPhoto={Boolean(value)}
         onDismiss={() => setSourceOpen(false)}

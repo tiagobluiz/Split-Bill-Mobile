@@ -471,7 +471,7 @@ describe("split screens", () => {
     ];
     rerender(<ParticipantsScreen draftId="draft-1" />);
     expect(screen.getByText("Who's splitting?")).toBeTruthy();
-    expect(screen.getByText("Frequent Participants")).toBeTruthy();
+    expect(screen.queryByText("Frequent Participants")).toBeNull();
     expect(screen.queryByText("Organizer")).toBeNull();
     expect(screen.getByText("Next: Select Payer")).toBeTruthy();
     expect(screen.getByLabelText("Next: Select Payer")).toBeEnabled();
@@ -712,6 +712,79 @@ describe("split screens", () => {
     });
   });
 
+  it("searches saved people inline and adds the selected person by saved identity", async () => {
+    const current = buildRecord({
+      values: {
+        ...buildRecord().values,
+        participants: [{ id: "bruno-local", name: "Bruno" }],
+      },
+    });
+    mockStoreState.records = [current];
+    mockStoreState.settings = {
+      ...mockStoreState.settings,
+      ownerName: "Ana",
+      ownerPersonId: "person-ana",
+      people: [
+        { id: "person-zara", name: "Zara" },
+        { id: "person-ana", name: "Ana" },
+        { id: "person-amy", name: "Amy" },
+        { id: "person-archived", name: "Alfred", archivedAt: "now" },
+        { id: "person-bruno", name: "Bruno" },
+      ],
+    };
+
+    render(<ParticipantsScreen draftId="draft-1" />);
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId("participant-name-input-shell").props.style,
+      ).marginTop,
+    ).toBe(-4);
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "a");
+    expect(
+      screen.getAllByLabelText(/^Add saved person/).map((result) => result.props.accessibilityLabel),
+    ).toEqual([
+      "Add saved person Amy",
+      "Add saved person Ana",
+      "Add saved person Zara",
+    ]);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add saved person Ana"));
+    });
+    const updateCall = mockStoreState.updateParticipants.mock.calls.at(-1);
+    expect(updateCall[0](current.values.participants)).toContainEqual(
+      expect.objectContaining({ name: "Ana", personId: "person-ana" }),
+    );
+    expect(screen.getByPlaceholderText("Enter name").props.value).toBe("");
+  });
+
+  it("keeps manual participant entry available when saved people do not match", async () => {
+    mockStoreState.settings.people = [
+      { id: "person-bruno", name: "Bruno" },
+      { id: "person-archived", name: "Nobody", archivedAt: "now" },
+    ];
+    render(<ParticipantsScreen draftId="draft-1" />);
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "New Friend");
+    expect(
+      screen.getByText(
+        "No saved person named “New Friend”. Tap + to add them.",
+      ),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Add person"));
+    });
+    const updateCall = mockStoreState.updateParticipants.mock.calls.at(-1);
+    expect(updateCall[0](buildRecord().values.participants)).toContainEqual(
+      expect.objectContaining({ name: "New Friend" }),
+    );
+
+    fireEvent.changeText(screen.getByPlaceholderText("Enter name"), "BRUNO");
+    expect(screen.queryByLabelText("Add saved person Bruno")).toBeNull();
+    expect(
+      screen.getByText("This saved person is already in the split."),
+    ).toBeTruthy();
+  });
+
   it("shows the participants popup hint after an attempted advance", () => {
     mockStoreState.records = [
       buildRecord({
@@ -771,7 +844,7 @@ describe("split screens", () => {
       }),
     ];
     const view = render(<ParticipantsScreen draftId="draft-1" />);
-    expect(screen.getByText("Frequent Participants")).toBeTruthy();
+    expect(screen.queryByText("Frequent Participants")).toBeNull();
     expect(screen.getByLabelText("Add frequent friend Tiago")).toBeTruthy();
 
     mockStoreState.records = [
@@ -822,7 +895,7 @@ describe("split screens", () => {
     ];
 
     view.rerender(<ParticipantsScreen draftId="draft-1" />);
-    expect(screen.getByText("Frequent Participants")).toBeTruthy();
+    expect(screen.queryByText("Frequent Participants")).toBeNull();
     const labels = Array.from(
       new Set(
         view.UNSAFE_root.findAll(

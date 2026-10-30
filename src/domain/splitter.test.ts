@@ -15,6 +15,9 @@ import {
   formatMoney,
   formatMoneyTrailingSymbol,
   normalizeMoneyInput,
+  getItemUniquenessKey,
+  itemHasDuplicate,
+  validateItemNameAndAmount,
   parseMoneyToCents,
   parseSplit,
   rebalancePercentAllocations,
@@ -297,6 +300,18 @@ describe("splitter domain", () => {
     expect(validateStepTwo(values).map((entry) => entry.message)).toContain(
       "This item already exists. Change the name, price, or category."
     );
+  });
+
+  it("matches duplicate item names after case and whitespace normalization", () => {
+    expect(getItemUniquenessKey({ name: "  Ice   Cream ", price: "1.00", category: "A" }))
+      .toBe("ice cream");
+    expect(itemHasDuplicate(
+      [{ id: "first", name: "Ice Cream", price: "1.00", category: "A" }],
+      { id: "second", name: " ice   cream ", price: "8.00", category: "B" },
+    )).toBe(true);
+    expect(validateItemNameAndAmount("Ice Cream", "-1.00")).toBe(true);
+    expect(validateItemNameAndAmount("Ice Cream", "0")).toBe(false);
+    expect(validateItemNameAndAmount("Ice Cream", "1000000.01")).toBe(false);
   });
 
   it("covers shares and percent validation edge cases", () => {
