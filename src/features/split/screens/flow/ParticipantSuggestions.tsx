@@ -54,13 +54,11 @@ export function ParticipantSuggestions({
   const currentIds = new Set(
     record.values.participants.map((entry) => entry.personId).filter(Boolean),
   );
-  const legacyNames = new Set(
-    record.values.participants
-      .filter((entry) => !entry.personId)
-      .map((entry) => nameKey(entry.name)),
+  const participantNames = new Set(
+    record.values.participants.map((entry) => nameKey(entry.name)),
   );
   const isAdded = (person: Pick<SavedPerson, "id" | "name">) =>
-    currentIds.has(person.id) || legacyNames.has(nameKey(person.name));
+    currentIds.has(person.id) || participantNames.has(nameKey(person.name));
   const frequentFriends = getFrequentFriends(records, record.id, settings.ownerName, {
     people,
     limit: FREQUENT_ENTRY_LIMIT,

@@ -318,7 +318,7 @@ describe("GroupEditor", () => {
     const onSave = jest.fn(async () => true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Group photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); await Promise.resolve(); });
     await waitFor(() => expect(screen.queryByText("Choose an icon")).toBeNull());
     expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({ allowsEditing: true, aspect: [1, 1] }));
 
@@ -339,7 +339,7 @@ describe("GroupEditor", () => {
     ImagePicker.requestMediaLibraryPermissionsAsync.mockImplementationOnce(async () => ({ granted: false }));
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Group photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); await Promise.resolve(); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); await Promise.resolve(); });
     expect(screen.getByText("Choose an icon")).toBeTruthy();
     expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
   });
@@ -352,7 +352,7 @@ describe("GroupEditor", () => {
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[member]} allPeople={[member]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
 
     fireEvent.press(screen.getByLabelText("Group photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Photo library")); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });
     fireEvent.press(screen.getByText("Continue to members"));
 
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });

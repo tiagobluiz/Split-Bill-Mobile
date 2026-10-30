@@ -161,7 +161,7 @@ type SplitStore = {
   setStep: (step: number) => Promise<void>;
   updateParticipants: (participants: ParticipantsUpdater) => Promise<void>;
   setPayer: (participantId: string) => Promise<void>;
-  createItem: (item: DraftRecord["values"]["items"][number]) => Promise<void>;
+  createItem: (item: DraftRecord["values"]["items"][number]) => Promise<string | null>;
   saveItemSplit: (
     itemId: string,
     item: DraftRecord["values"]["items"][number],
@@ -1463,6 +1463,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async createItem(item) {
+    let createdItemId: string | null = null;
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
@@ -1475,6 +1476,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           while (usedIds.has(uniqueId)) {
             uniqueId = createId();
           }
+          createdItemId = uniqueId;
           const [syncedItem] = syncItemAllocations(
             [{ ...item, id: uniqueId }],
             draft.values.participants,
@@ -1484,6 +1486,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         { recomputeStatusOnValueChange: true },
       ),
     );
+    return createdItemId;
   },
   async saveItemSplit(itemId, item) {
     await withActiveRecord(set, get, (record) =>

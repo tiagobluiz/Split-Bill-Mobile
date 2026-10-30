@@ -266,13 +266,15 @@ export function AssignItemScreen({
       }
 
       if (isNewItem) {
-        await createItem({
+        const createdItemId = await createItem({
           ...item,
           name: trimmedItemName,
           price: normalizedItemPrice,
           category: effectiveCategory,
         });
-        rememberItemOrigins(draftId, [item.id], "manual");
+        if (createdItemId) {
+          rememberItemOrigins(draftId, [createdItemId], "manual");
+        }
         await trackEvent("item_insertion_success", {
           method: "manual",
           item_count: 1,

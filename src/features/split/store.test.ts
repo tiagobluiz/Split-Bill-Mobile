@@ -1657,6 +1657,32 @@ describe("split store", () => {
     expect(storageMocks.saveRecord).toHaveBeenCalled();
   });
 
+  it("returns the repaired ID when a new item's requested ID is already in use", async () => {
+    const { storeModule, domainMocks } = await loadReadyStore();
+    domainMocks.createId
+      .mockReturnValueOnce("item-even")
+      .mockReturnValueOnce("item-id-repaired");
+
+    const createdItemId = await storeModule.useSplitStore
+      .getState()
+      .createItem({
+        id: "item-even",
+        name: "New item with a collision",
+        price: "1.00",
+        category: "",
+        splitMode: "even",
+        allocations: [],
+      });
+
+    expect(createdItemId).toBe("item-id-repaired");
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.find((item) => item.id === createdItemId),
+    ).toMatchObject({ name: "New item with a collision" });
+  });
+
   it("rejects duplicate names at the store boundary for new items", async () => {
     const { storeModule } = await loadReadyStore();
     const before = storeModule.useSplitStore.getState().getActiveRecord()!;

@@ -266,58 +266,6 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
   });
 
-  it("explains when a discount would make someone's final share negative", () => {
-    const baseValues = buildRecord().values;
-    const allocation = (participantId: string, shares: string) => ({
-      participantId,
-      evenIncluded: Number(shares) > 0,
-      shares,
-      percent: "0",
-      percentLocked: false,
-    });
-    mockStoreState.records = [
-      buildRecord({
-        values: {
-          ...baseValues,
-          items: [
-            {
-              ...baseValues.items[0]!,
-              id: "meal",
-              name: "Meal",
-              price: "4.00",
-              splitMode: "shares",
-              allocations: [
-                allocation("ana", "0"),
-                allocation("bruno", "1"),
-                allocation("zoe", "1"),
-              ],
-            },
-            {
-              ...baseValues.items[0]!,
-              id: "discount",
-              name: "Discount",
-              price: "-3.00",
-              splitMode: "shares",
-              allocations: [
-                allocation("ana", "0"),
-                allocation("bruno", "1"),
-                allocation("zoe", "0"),
-              ],
-            },
-          ],
-        },
-      }),
-    ];
-
-    render(<ReviewScreen draftId="draft-1" />);
-
-    expect(
-      screen.getByText(
-        "A discount makes someone's total share negative. Adjust the split before continuing.",
-      ),
-    ).toBeTruthy();
-  });
-
   it("routes completed records with invalid settlement back to overview", () => {
     const completedRecord = buildRecord({
       status: "completed",

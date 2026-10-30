@@ -1789,6 +1789,7 @@ describe("split screens", () => {
   });
 
   it("creates a new item from inside the editor route instead of pre-creating it on the items screen", async () => {
+    mockStoreState.createItem.mockResolvedValueOnce("created-item-id");
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     expect(screen.getByText("Add Item")).toBeTruthy();
     fireEvent.changeText(
@@ -1806,6 +1807,11 @@ describe("split screens", () => {
         price: "12.50",
         category: "General",
       }),
+    );
+    expect(mockRememberItemOrigins).toHaveBeenCalledWith(
+      "draft-1",
+      ["created-item-id"],
+      "manual",
     );
     expect(mockTrackEvent).toHaveBeenCalledWith("item_insertion_success", {
       method: "manual",

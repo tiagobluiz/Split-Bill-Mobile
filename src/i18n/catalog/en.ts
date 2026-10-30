@@ -782,8 +782,6 @@ const enPlain = {
   "validation.percentMaxDecimals": "Use no more than 2 decimal places.",
   "validation.percentFormat": "Enter a valid percentage.",
   "validation.percentTotal": "Percent totals must add up to 100.",
-  "validation.participantShareNegative":
-    "A discount makes someone's total share negative. Adjust the split before continuing.",
   "friendly.itemsMin": "Add at least one item with a price before continuing.",
   "friendly.splitEvenMin": "Pick at least one person for this item.",
   "friendly.sharesTotalMin": "Add at least one share before you continue.",

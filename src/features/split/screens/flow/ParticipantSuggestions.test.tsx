@@ -150,6 +150,34 @@ describe("participant suggestion modes", () => {
     ).toBeDisabled();
   });
 
+  it("hides an unlinked frequent candidate when a linked current participant has the same name", () => {
+    const legacyHistory = {
+      ...history,
+      values: {
+        ...history.values,
+        participants: history.values.participants.map((participant) =>
+          participant.name === "David"
+            ? { id: "legacy-david", name: "David" }
+            : participant,
+        ),
+      },
+    } as DraftRecord;
+    const linkedCurrent = {
+      ...record,
+      values: {
+        ...record.values,
+        participants: [
+          { id: "owner-local", personId: "you", name: "You" },
+          { id: "david-local", personId: "david", name: " David " },
+        ],
+      },
+    } as DraftRecord;
+
+    render(view(linkedCurrent, undefined, settings, "en", [legacyHistory, linkedCurrent]));
+
+    expect(screen.queryByLabelText("Add frequent friend David")).toBeNull();
+  });
+
   it("adds individually, sorts missing before added members, and adds only remaining members", async () => {
     const onAddGroup = jest.fn(async () => undefined);
     const { rerender } = render(view(record, onAddGroup));

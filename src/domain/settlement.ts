@@ -201,31 +201,6 @@ function getRoundedAggregateParticipantShares(
   );
 }
 
-export function validateParticipantShareTotals(
-  values: SplitFormValues,
-): StepValidationError[] {
-  if (
-    validateStepOne(values).length > 0 ||
-    validateStepTwo(values).length > 0 ||
-    validateStepThree(values).length > 0
-  ) {
-    return [];
-  }
-
-  const participants = values.participants.map((participant) => ({
-    id: participant.id,
-    name: trimName(participant.name),
-    isPayer: participant.id === values.payerParticipantId,
-  }));
-  return getRoundedAggregateParticipantShares(values, participants)
-    .filter((entry) => entry.amountCents < 0)
-    .map(() => ({
-      code: "participant-share-negative",
-      path: "items",
-      message: t("validation.participantShareNegative"),
-    }));
-}
-
 export function parseSplit(values: SplitFormValues) {
   const stepErrors = [
     ...validateStepOne(values),
@@ -233,11 +208,6 @@ export function parseSplit(values: SplitFormValues) {
     ...validateStepThree(values),
   ];
   if (stepErrors.length > 0) return { ok: false as const, errors: stepErrors };
-
-  const participantShareErrors = validateParticipantShareTotals(values);
-  if (participantShareErrors.length > 0) {
-    return { ok: false as const, errors: participantShareErrors };
-  }
 
   const participants = values.participants.map((participant) => ({
     id: participant.id,

@@ -11,7 +11,6 @@ import { buildPdfExportData as buildPdfExportDataValue, buildPdfFilename as buil
 import {
   computeSettlement as computeSettlementValue,
   parseSplit as parseSplitValue,
-  validateParticipantShareTotals as validateParticipantShareTotalsValue,
 } from "./settlement";
 import {
   buildShareSummary as buildShareSummaryValue,
@@ -117,4 +116,3 @@ export const trimName = trimNameValue;
 export const validateStepOne = validateStepOneValue;
 export const validateStepThree = validateStepThreeValue;
 export const validateStepTwo = validateStepTwoValue;
-export const validateParticipantShareTotals = validateParticipantShareTotalsValue;

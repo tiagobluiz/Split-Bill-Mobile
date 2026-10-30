@@ -28,7 +28,6 @@ import {
   validateStepOne,
   validateStepThree,
   validateStepTwo,
-  validateParticipantShareTotals,
   type SplitFormValues,
 } from "./index";
 
@@ -661,54 +660,17 @@ describe("splitter domain", () => {
       ],
     });
 
-    expect(negative.ok).toBe(false);
-    if (!negative.ok) {
-      expect(negative.errors.map((error) => error.code)).toContain(
-        "participant-share-negative",
-      );
-    }
-  });
-
-  it("rejects a discount allocation that makes a participant's final share negative", () => {
-    const values: SplitFormValues = {
-      currency: "EUR",
-      participants: [
-        { id: "payer", name: "Payer" },
-        { id: "bea", name: "Bea" },
-        { id: "carl", name: "Carl" },
-      ],
-      payerParticipantId: "payer",
-      items: [
-        {
-          id: "meal",
-          name: "Meal",
-          price: "4.00",
-          splitMode: "shares",
-          allocations: [
-            { participantId: "payer", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
-            { participantId: "bea", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-            { participantId: "carl", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
-          ],
-        },
-        {
-          id: "discount",
-          name: "Discount",
-          price: "-3.00",
-          splitMode: "shares",
-          allocations: [
-            { participantId: "payer", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
-            { participantId: "bea", evenIncluded: true, shares: "1", percent: "100", percentLocked: false },
-            { participantId: "carl", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
-          ],
-        },
-      ],
-    };
-
-    expect(validateParticipantShareTotals(values).map((error) => error.code)).toEqual([
-      "participant-share-negative",
-    ]);
-    expect(parseSplit(values).ok).toBe(false);
-    expect(computeSettlement(values).ok).toBe(false);
+    expect(negative).toMatchObject({
+      ok: true,
+      data: {
+        totalCents: -5,
+        people: [
+          { participantId: "payer", netCents: -5 },
+          { participantId: "b", netCents: 2 },
+          { participantId: "c", netCents: 3 },
+        ],
+      },
+    });
   });
 
   it("covers excluded even participants and unknown share summaries through public APIs", () => {

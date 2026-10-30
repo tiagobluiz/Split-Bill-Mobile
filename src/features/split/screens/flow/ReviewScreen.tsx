@@ -25,7 +25,6 @@ import {
   validateStepOne,
   validateStepThree,
   validateStepTwo,
-  validateParticipantShareTotals,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { trackSplitStepCompleted } from "../../../../lib/telemetry";
@@ -87,7 +86,6 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
-    ...validateParticipantShareTotals(record.values),
   ];
   const isReviewReady = errors.length === 0 && Boolean(settlement?.ok);
   const locale = getDeviceLocale();
