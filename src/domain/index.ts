@@ -9,9 +9,13 @@ import { buildClipboardSummary as buildClipboardSummaryValue } from "./output";
 import { parsePastedItems as parsePastedItemsValue } from "./pasteImport";
 import { buildPdfExportData as buildPdfExportDataValue, buildPdfFilename as buildPdfFilenameValue } from "./pdfExport";
 import {
+  computeSettlement as computeSettlementValue,
+  parseSplit as parseSplitValue,
+  validateParticipantShareTotals as validateParticipantShareTotalsValue,
+} from "./settlement";
+import {
   buildShareSummary as buildShareSummaryValue,
   combineItemAmounts as combineItemAmountsValue,
-  computeSettlement as computeSettlementValue,
   createAllocation as createAllocationValue,
   createDefaultPercentValues as createDefaultPercentValuesValue,
   createDefaultValues as createDefaultValuesValue,
@@ -25,7 +29,6 @@ import {
   normalizeMoneyInput as normalizeMoneyInputValue,
   normalizeItemName as normalizeItemNameValue,
   parseMoneyToCents as parseMoneyToCentsValue,
-  parseSplit as parseSplitValue,
   rebalancePercentAllocations as rebalancePercentAllocationsValue,
   removeSingleTrailingBlankItem as removeSingleTrailingBlankItemValue,
   resetPercentAllocations as resetPercentAllocationsValue,
@@ -114,3 +117,4 @@ export const trimName = trimNameValue;
 export const validateStepOne = validateStepOneValue;
 export const validateStepThree = validateStepThreeValue;
 export const validateStepTwo = validateStepTwoValue;
+export const validateParticipantShareTotals = validateParticipantShareTotalsValue;

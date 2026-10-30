@@ -26,6 +26,7 @@ import {
   validateStepOne,
   validateStepThree,
   validateStepTwo,
+  validateParticipantShareTotals,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { trackSplitStepCompleted } from "../../../../lib/telemetry";
@@ -76,6 +77,7 @@ export function OverviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
+    ...validateParticipantShareTotals(record.values),
   ];
   const errorMessages = errors.map((error) => error.message);
   const locale = getDeviceLocale();

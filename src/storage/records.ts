@@ -141,14 +141,17 @@ function mapRow(row: DatabaseRow): DraftRecord | null {
         : [],
     );
     const items = Array.isArray(values.items)
-      ? values.items.filter((item) => !isLegacyPlaceholderItem(item)).map((item) => {
+      ? values.items.filter((item) => !isLegacyPlaceholderItem(item)).map((item, itemIndex) => {
           if (!seenItemIds.has(item.id)) {
             seenItemIds.add(item.id);
             return item;
           }
-          let repairedId = createId();
+          const repairedIdBase = `${row.id}-item-${itemIndex}`;
+          let repairedId = repairedIdBase;
+          let suffix = 2;
           while (reservedItemIds.has(repairedId) || seenItemIds.has(repairedId)) {
-            repairedId = createId();
+            repairedId = `${repairedIdBase}-${suffix}`;
+            suffix += 1;
           }
           const repairedItem = { ...item, id: repairedId };
           reservedItemIds.add(repairedId);

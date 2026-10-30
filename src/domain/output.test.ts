@@ -240,7 +240,7 @@ describe("output contracts", () => {
           {
             id: "item-1",
             name: "Discount",
-            price: "-1.00",
+            price: "1.00",
             splitMode: "percent",
             allocations: [
               { participantId: "payer", evenIncluded: true, shares: "0", percent: "0", percentLocked: false },
@@ -264,7 +264,7 @@ describe("output contracts", () => {
       {
         participantId: "ghost",
         name: "Unknown",
-        amountCents: -100,
+        amountCents: 100,
         allocationLabel: "100%",
       },
     ]);
@@ -340,7 +340,7 @@ describe("output contracts", () => {
     expect(data.splitTitle).toBe("Weekend Groceries split summary");
   });
 
-  it("uses sign-aware clipboard wording for non-payer credits and payer debts", () => {
+  it("rejects clipboard summaries when a participant's final share is negative", () => {
     expect(
       buildClipboardSummary(
         {
@@ -367,7 +367,7 @@ describe("output contracts", () => {
         },
         "en-US"
       )
-    ).toBe("Split Bill\nPayer: paid -€1.00, consumed €0.00, and still owes €1.00.\nCreditor: gets back €1.00.\nDebtor: consumed €0.00 and owes €0.00.");
+    ).toBeNull();
   });
 
   it("reduces payer output to a paid-only line when nobody still owes anything", () => {

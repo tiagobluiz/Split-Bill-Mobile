@@ -110,7 +110,7 @@ export function ParticipantRow({
             fontFamily={FONTS.bodyBold}
             fontSize={15}
             color={PALETTE.onSurface}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {displayName}
           </Text>

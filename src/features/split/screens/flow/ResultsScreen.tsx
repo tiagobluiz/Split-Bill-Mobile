@@ -11,7 +11,7 @@ import {
   FileText,
   MessageCircle,
   Minus,
-  MoreVertical,
+  EllipsisVertical,
   RotateCcw,
   Share2,
   UserRound,
@@ -661,7 +661,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                   style={screenStyles.resultsHeroMenuButton}
                   onPress={() => setShowPaymentActions(true)}
                 >
-                  <MoreVertical color={PALETTE.onPrimary} size={21} />
+                  <EllipsisVertical color={PALETTE.onPrimary} size={21} />
                 </Pressable>
               ) : null}
             </XStack>

@@ -1,4 +1,5 @@
-import { computeSettlement, formatMoney, removeSingleTrailingBlankItem, type SplitFormValues } from "./splitter";
+import { computeSettlement } from "./settlement";
+import { formatMoney, removeSingleTrailingBlankItem, type SplitFormValues } from "./splitter";
 import { t } from "../i18n";
 
 function comparePeopleBySummaryOrder(left: { name: string; isPayer: boolean }, right: { name: string; isPayer: boolean }) {

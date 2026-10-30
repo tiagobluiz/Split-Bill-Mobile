@@ -629,6 +629,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "validation.percentMaxDecimals": "Usa no máximo 2 casas decimais.",
   "validation.percentFormat": "Insere uma percentagem válida.",
   "validation.percentTotal": "As percentagens têm de somar 100.",
+  "validation.participantShareNegative":
+    "Um desconto torna negativa a parte total de alguém. Ajusta a divisão para continuar.",
   "friendly.itemsMin":
     "Adiciona pelo menos um item com preço antes de continuar.",
   "friendly.splitEvenMin": "Escolhe pelo menos uma pessoa para este item.",

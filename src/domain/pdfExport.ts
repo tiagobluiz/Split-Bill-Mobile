@@ -1,4 +1,5 @@
-import { computeSettlement, parseSplit, type ParsedParticipant, type SplitFormValues, type SplitMode } from "./splitter";
+import { computeSettlement, parseSplit } from "./settlement";
+import type { ParsedParticipant, SplitFormValues, SplitMode } from "./splitter";
 import { t } from "../i18n";
 import { isValidSplitDate, localDay } from "./splitDate";
 

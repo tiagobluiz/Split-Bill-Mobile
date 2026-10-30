@@ -266,6 +266,58 @@ describe("split screens", () => {
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
   });
 
+  it("explains when a discount would make someone's final share negative", () => {
+    const baseValues = buildRecord().values;
+    const allocation = (participantId: string, shares: string) => ({
+      participantId,
+      evenIncluded: Number(shares) > 0,
+      shares,
+      percent: "0",
+      percentLocked: false,
+    });
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...baseValues,
+          items: [
+            {
+              ...baseValues.items[0]!,
+              id: "meal",
+              name: "Meal",
+              price: "4.00",
+              splitMode: "shares",
+              allocations: [
+                allocation("ana", "0"),
+                allocation("bruno", "1"),
+                allocation("zoe", "1"),
+              ],
+            },
+            {
+              ...baseValues.items[0]!,
+              id: "discount",
+              name: "Discount",
+              price: "-3.00",
+              splitMode: "shares",
+              allocations: [
+                allocation("ana", "0"),
+                allocation("bruno", "1"),
+                allocation("zoe", "0"),
+              ],
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<ReviewScreen draftId="draft-1" />);
+
+    expect(
+      screen.getByText(
+        "A discount makes someone's total share negative. Adjust the split before continuing.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("routes completed records with invalid settlement back to overview", () => {
     const completedRecord = buildRecord({
       status: "completed",
@@ -720,24 +772,27 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
     expect(screen.getByText("Final Results")).toBeTruthy();
-    expect(screen.getByText("Paid by")).toBeTruthy();
+    expect(screen.getByText("Paid the bill · Your share")).toBeTruthy();
     expect(screen.getByText("Breakdown")).toBeTruthy();
-    expect(screen.getByText("Mark as Paid")).toBeTruthy();
+    expect(screen.getByLabelText("Manage payments")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Manage payments"));
+    expect(screen.getByText("Mark all as paid")).toBeTruthy();
+    fireEvent.press(screen.getByText("Cancel"));
     expect(
       screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length,
     ).toBeGreaterThan(0);
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     expect(screen.getByLabelText("Cancel")).toBeTruthy();
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(screen.getByLabelText("PDF")).toBeTruthy();
     expect(screen.getByLabelText("Share as text")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Cancel"));
     expect(screen.queryByLabelText("PDF")).toBeNull();
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     fireEvent.press(screen.getByLabelText("Share as text"));
     expect(mockShare).not.toHaveBeenCalled();
     await waitFor(() => expect(mockShare).toHaveBeenCalled());
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     fireEvent.press(screen.getByLabelText("PDF"));
     await waitFor(() => {
       expect(exportSettlementPdfSpy).toHaveBeenCalledWith(
@@ -769,7 +824,7 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(downloadSettlementPdfToDeviceSpy).not.toHaveBeenCalled();
   });
@@ -782,7 +837,8 @@ describe("split screens", () => {
 
     expect(screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length).toBeGreaterThan(0);
 
-    fireEvent.press(screen.getByText("Mark as Paid"));
+    fireEvent.press(screen.getByLabelText("Manage payments"));
+    fireEvent.press(screen.getByText("Mark all as paid"));
     expect(mockStoreState.markBillPaid).toHaveBeenCalled();
 
     mockStoreState.records = [
@@ -795,9 +851,10 @@ describe("split screens", () => {
       }),
     ];
     rerender(<ResultsScreen draftId="draft-1" />);
-    expect(screen.getByText("Revert Mark as Paid")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Manage payments"));
+    expect(screen.getByText("Reset all payments")).toBeTruthy();
     expect(screen.getAllByText(/9[,.]00|€\s?9[,.]00|EUR\s?9[,.]00/).length).toBeGreaterThan(0);
-    fireEvent.press(screen.getByText("Revert Mark as Paid"));
+    fireEvent.press(screen.getByText("Reset all payments"));
     expect(mockStoreState.revertBillPaid).toHaveBeenCalled();
   });
 
@@ -813,7 +870,7 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(screen.getByText("Final Results")).toBeTruthy();
     });
-    expect(screen.getByLabelText("Open share and export actions")).toBeTruthy();
+    expect(screen.getByLabelText("Share results and export options")).toBeTruthy();
     expect(mockStoreState.markCompleted).not.toHaveBeenCalled();
   });
 
@@ -830,9 +887,9 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
 
-    expect(screen.getAllByText(/6[,.]00|€\s?6[,.]00|EUR\s?6[,.]00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length).toBeGreaterThan(0);
     expect(screen.getByText("Settled")).toBeTruthy();
-    expect(screen.getByText("Owed")).toBeTruthy();
+    expect(screen.getAllByText("Owes you")).toHaveLength(1);
     fireEvent.press(screen.getByText("Bruno"));
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
     fireEvent.press(screen.getByText("Zoe"));
@@ -983,7 +1040,7 @@ describe("split screens", () => {
     expect(cardsWithFooterSpacer).toHaveLength(0);
   });
 
-  it("renders reverse-settlement breakdowns using the people owed by the payer", async () => {
+  it("shows each debtor and their paid state in the payer's breakdown", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockReturnValueOnce({
       ok: true,
@@ -997,24 +1054,24 @@ describe("split screens", () => {
             name: "Ana",
             isPayer: true,
             paidCents: 200,
-            consumedCents: 350,
-            netCents: -150,
+            consumedCents: 100,
+            netCents: 100,
           },
           {
             participantId: "zoe",
             name: "Zoe",
             isPayer: false,
             paidCents: 0,
-            consumedCents: 150,
-            netCents: 100,
+            consumedCents: 50,
+            netCents: -50,
           },
           {
             participantId: "bruno",
             name: "Bruno",
             isPayer: false,
             paidCents: 0,
-            consumedCents: -50,
-            netCents: 50,
+            consumedCents: 50,
+            netCents: -50,
           },
         ],
         transfers: [],
@@ -1036,7 +1093,7 @@ describe("split screens", () => {
     expect(screen.getByText("Bruno")).toBeTruthy();
     expect(screen.getByText("Zoe")).toBeTruthy();
     expect(screen.getByText("Settled")).toBeTruthy();
-    expect(screen.getByText("Owed")).toBeTruthy();
+    expect(screen.getAllByText("Owes you")).toHaveLength(1);
     const displayedOwerNames = view
       .UNSAFE_getAllByType(Text)
       .map((node) => node.props.children)
@@ -1058,10 +1115,9 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    expect(screen.queryByText("Mark as Paid")).toBeNull();
-    expect(screen.queryByText("Revert Mark as Paid")).toBeNull();
+    expect(screen.queryByLabelText("Manage payments")).toBeNull();
     expect(screen.queryByText("Settled")).toBeNull();
-    expect(screen.queryByText("Owed")).toBeNull();
+    expect(screen.getAllByText("Owes you")).toHaveLength(2);
     expect(screen.getByText("Total bill")).toBeTruthy();
   });
 
@@ -1079,10 +1135,9 @@ describe("split screens", () => {
       expect(screen.getByText("Final Results")).toBeTruthy();
     });
 
-    expect(screen.queryByText("Mark as Paid")).toBeNull();
-    expect(screen.queryByText("Revert Mark as Paid")).toBeNull();
+    expect(screen.queryByLabelText("Manage payments")).toBeNull();
     expect(screen.queryByText("Settled")).toBeNull();
-    expect(screen.queryByText("Owed")).toBeNull();
+    expect(screen.getAllByText("Owes you")).toHaveLength(2);
     expect(screen.getByText("Total bill")).toBeTruthy();
   });
 
@@ -1289,7 +1344,7 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    expect(screen.getByText("Total settled")).toBeTruthy();
+    expect(screen.getByText("Total bill")).toBeTruthy();
     expect(screen.getAllByText(/9[,.]00|€\s?9[,.]00|EUR\s?9[,.]00/).length).toBeGreaterThan(0);
   });
 
@@ -1320,7 +1375,7 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    expect(screen.getByText("Total settled")).toBeTruthy();
+    expect(screen.getByText("Total bill")).toBeTruthy();
     expect(screen.getAllByText(/0[,.]00|€\s?0[,.]00|EUR\s?0[,.]00/).length).toBeGreaterThan(0);
   });
 
@@ -1355,7 +1410,7 @@ describe("split screens", () => {
     ];
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     fireEvent.press(screen.getByLabelText("PDF"));
     expect(screen.getByText("Almost there")).toBeTruthy();
     expect(
@@ -1372,7 +1427,7 @@ describe("split screens", () => {
       .mockRejectedValueOnce(new Error("pdf down"));
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     fireEvent.press(screen.getByLabelText("PDF"));
 
     await waitFor(() => {
@@ -1389,7 +1444,7 @@ describe("split screens", () => {
       .mockRejectedValueOnce(new Error("save down"));
 
     render(<ResultsScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Open share and export actions"));
+    fireEvent.press(screen.getByLabelText("Share results and export options"));
     expect(screen.queryByLabelText("Save PDF")).toBeNull();
     expect(screen.queryByText("Could not download the PDF.")).toBeNull();
     expect(
@@ -1426,7 +1481,8 @@ describe("split screens", () => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
 
-    fireEvent.press(screen.getByText("Mark as Paid"));
+    fireEvent.press(screen.getByLabelText("Manage payments"));
+    fireEvent.press(screen.getByText("Mark all as paid"));
     await waitFor(() => {
       expect(mockAlert).toHaveBeenCalledWith(
         "Please try again.",

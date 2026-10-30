@@ -258,7 +258,7 @@ describe("PersonEditor", () => {
     renderEditor({ person: { ...existing, photoUri: "file:///owned/ana.jpg" } });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
     expect(screen.getByText("Person photo")).toBeTruthy();
-    expect(screen.getByLabelText("Upload photo")).toBeTruthy();
+    expect(screen.getByLabelText("Choose photo")).toBeTruthy();
     expect(screen.getByLabelText("Take photo")).toBeTruthy();
     expect(screen.getByLabelText("Remove photo")).toBeTruthy();
     expect(screen.getByLabelText("Cancel")).toBeTruthy();
@@ -270,7 +270,7 @@ describe("PersonEditor", () => {
     const onSave = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
     renderEditor({ onSave });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });
     await waitFor(() => expect(screen.queryByText("Background color")).toBeNull());
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
@@ -397,7 +397,7 @@ describe("PersonEditor", () => {
     renderEditor();
 
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });
     expect(alert).toHaveBeenLastCalledWith("Please allow photo access to choose a profile picture.", "", expect.any(Array));
     expect(screen.getByText("Background color")).toBeTruthy();
 
@@ -406,7 +406,7 @@ describe("PersonEditor", () => {
     expect(alert).toHaveBeenLastCalledWith("Please allow camera access to take a profile picture.", "", expect.any(Array));
 
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Take photo")); });
     expect(screen.getByText("Background color")).toBeTruthy();
@@ -420,7 +420,7 @@ describe("PersonEditor", () => {
     const onSave = jest.fn().mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValue({ ok: true, personId: "person-new" });
     renderEditor({ onSave });
     fireEvent.press(screen.getByLabelText("Choose person photo"));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Upload photo")); });
+    await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Carla");
 
     await act(async () => { fireEvent.press(screen.getByText("Save")); });

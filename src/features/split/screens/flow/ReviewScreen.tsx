@@ -25,6 +25,7 @@ import {
   validateStepOne,
   validateStepThree,
   validateStepTwo,
+  validateParticipantShareTotals,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { trackSplitStepCompleted } from "../../../../lib/telemetry";
@@ -86,6 +87,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
     ...validateStepOne(record.values),
     ...validateStepTwo(record.values),
     ...validateStepThree(record.values),
+    ...validateParticipantShareTotals(record.values),
   ];
   const isReviewReady = errors.length === 0 && Boolean(settlement?.ok);
   const locale = getDeviceLocale();
@@ -193,6 +195,16 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
               />
             </View>
           </View>
+          {errors.some((error) => error.code === "participant-share-negative") ? (
+            <Text
+              fontFamily={FONTS.bodyMedium}
+              fontSize={13}
+              lineHeight={19}
+              color={PALETTE.danger}
+            >
+              {errors.find((error) => error.code === "participant-share-negative")?.message}
+            </Text>
+          ) : null}
           <View style={screenStyles.reviewStickySeparator} />
         </YStack>
       </View>

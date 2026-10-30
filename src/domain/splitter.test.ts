@@ -28,8 +28,9 @@ import {
   validateStepOne,
   validateStepThree,
   validateStepTwo,
+  validateParticipantShareTotals,
   type SplitFormValues,
-} from "./splitter";
+} from "./index";
 
 describe("splitter domain", () => {
   it("parses money inputs documented in the contract", () => {
@@ -425,7 +426,7 @@ describe("splitter domain", () => {
         {
           id: "item-1",
           name: " Milk ",
-          price: "-1.00",
+          price: "1.00",
           splitMode: "percent",
           allocations: [
             { participantId: "ana", evenIncluded: true, shares: "1", percent: "100", percentLocked: true },
@@ -452,7 +453,7 @@ describe("splitter domain", () => {
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
       expect(parsed.data.items[0].shares).toHaveLength(2);
-      expect(parsed.data.items[0].shares[0]).toEqual({ participantId: "ana", amountCents: -100 });
+      expect(parsed.data.items[0].shares[0]).toEqual({ participantId: "ana", amountCents: 100 });
       expect(parsed.data.items[0].shares[1]?.participantId).toBe("bruno");
       expect(Object.is(parsed.data.items[0].shares[1]?.amountCents, -0) || parsed.data.items[0].shares[1]?.amountCents === 0).toBe(
         true
@@ -660,35 +661,54 @@ describe("splitter domain", () => {
       ],
     });
 
-    expect(negative).toEqual({
-      ok: true,
-      data: {
-        currency: "EUR",
-        itemBreakdown: [
-          {
-            id: "negative",
-            name: "Discount",
-            amountCents: -5,
-            splitMode: "shares",
-            shares: [
-              expect.objectContaining({ participantId: "payer" }),
-              { participantId: "b", amountCents: -2 },
-              { participantId: "c", amountCents: -3 },
-            ],
-          },
-        ],
-        people: [
-          { participantId: "payer", name: "Payer", consumedCents: 0, paidCents: -5, netCents: -5, isPayer: true },
-          { participantId: "b", name: "Bea", consumedCents: -2, paidCents: 0, netCents: 2, isPayer: false },
-          { participantId: "c", name: "Carl", consumedCents: -3, paidCents: 0, netCents: 3, isPayer: false },
-        ],
-        transfers: [],
-        totalCents: -5,
-      },
-    });
-    if (negative.ok) {
-      expect(Object.is(negative.data.itemBreakdown[0]?.shares[0]?.amountCents, -0) || negative.data.itemBreakdown[0]?.shares[0]?.amountCents === 0).toBe(true);
+    expect(negative.ok).toBe(false);
+    if (!negative.ok) {
+      expect(negative.errors.map((error) => error.code)).toContain(
+        "participant-share-negative",
+      );
     }
+  });
+
+  it("rejects a discount allocation that makes a participant's final share negative", () => {
+    const values: SplitFormValues = {
+      currency: "EUR",
+      participants: [
+        { id: "payer", name: "Payer" },
+        { id: "bea", name: "Bea" },
+        { id: "carl", name: "Carl" },
+      ],
+      payerParticipantId: "payer",
+      items: [
+        {
+          id: "meal",
+          name: "Meal",
+          price: "4.00",
+          splitMode: "shares",
+          allocations: [
+            { participantId: "payer", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
+            { participantId: "bea", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+            { participantId: "carl", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
+          ],
+        },
+        {
+          id: "discount",
+          name: "Discount",
+          price: "-3.00",
+          splitMode: "shares",
+          allocations: [
+            { participantId: "payer", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
+            { participantId: "bea", evenIncluded: true, shares: "1", percent: "100", percentLocked: false },
+            { participantId: "carl", evenIncluded: false, shares: "0", percent: "0", percentLocked: false },
+          ],
+        },
+      ],
+    };
+
+    expect(validateParticipantShareTotals(values).map((error) => error.code)).toEqual([
+      "participant-share-negative",
+    ]);
+    expect(parseSplit(values).ok).toBe(false);
+    expect(computeSettlement(values).ok).toBe(false);
   });
 
   it("covers excluded even participants and unknown share summaries through public APIs", () => {

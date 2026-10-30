@@ -173,9 +173,13 @@ describe("records storage", () => {
     };
     const { recordsModule } = await loadModule({ row });
     const record = await recordsModule.getRecordById(row.id);
+    const secondRead = await recordsModule.getRecordById(row.id);
     expect(record?.values.items.map((item) => item.id)[0]).toBe("same");
     expect(new Set(record?.values.items.map((item) => item.id)).size).toBe(2);
     expect(record?.values.items.map((item) => item.price)).toEqual(["1.00", "2.00"]);
+    expect(secondRead?.values.items.map((item) => item.id)).toEqual(
+      record?.values.items.map((item) => item.id),
+    );
   });
 
   it("keeps registry people that are absent from a stale settings snapshot during record writes", async () => {
