@@ -1657,6 +1657,58 @@ describe("split store", () => {
     expect(storageMocks.saveRecord).toHaveBeenCalled();
   });
 
+  it("rejects duplicate names at the store boundary for new items", async () => {
+    const { storeModule } = await loadReadyStore();
+    const before = storeModule.useSplitStore.getState().getActiveRecord()!;
+    await expect(
+      storeModule.useSplitStore.getState().createItem({
+        ...before.values.items[0],
+        id: "item-duplicate-create",
+        name: " milk ",
+        price: "8.00",
+        category: "Bakery",
+      }),
+    ).rejects.toThrow("duplicate-item-name");
+    expect(
+      storeModule.useSplitStore.getState().getActiveRecord()?.values.items,
+    ).toEqual(before.values.items);
+  });
+
+  it("blocks new duplicate renames but allows editing a historical duplicate in place", async () => {
+    const record = createRecord({
+      values: {
+        ...createValues(),
+        items: [
+          ...createValues().items,
+          {
+            ...createValues().items[0],
+            id: "item-old-duplicate",
+            name: " milk ",
+            price: "8.00",
+            category: "Bakery",
+          },
+        ],
+      },
+    });
+    const { storeModule } = await loadReadyStore({ record });
+    await expect(
+      storeModule.useSplitStore
+        .getState()
+        .updateItemField("item-shares", "name", "MILK"),
+    ).rejects.toThrow("duplicate-item-name");
+    await expect(
+      storeModule.useSplitStore
+        .getState()
+        .updateItemField("item-old-duplicate", "price", "9.00"),
+    ).resolves.toBeUndefined();
+    expect(
+      storeModule.useSplitStore
+        .getState()
+        .getActiveRecord()
+        ?.values.items.find((item) => item.id === "item-old-duplicate"),
+    ).toEqual(expect.objectContaining({ name: " milk ", price: "9.00" }));
+  });
+
   it("updates split allocations across even, shares, and percent modes", async () => {
     const { storeModule, record, domainMocks } = await loadReadyStore();
     await storeModule.useSplitStore

@@ -1898,6 +1898,41 @@ describe("split screens", () => {
     ).toBeTruthy();
   });
 
+  it("allows editing other fields on a historical duplicate without renaming it", async () => {
+    const baseItem = buildRecord().values.items[0]!;
+    mockStoreState.records = [
+      buildRecord({
+        values: {
+          ...buildRecord().values,
+          items: [
+            baseItem,
+            {
+              ...baseItem,
+              id: "item-2",
+              name: " groceries ",
+              price: "8.00",
+              category: "Bakery",
+            },
+          ],
+        },
+      }),
+    ];
+
+    render(<AssignItemScreen draftId="draft-1" itemId="item-2" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "9.00");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save Item"));
+    });
+
+    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+      "item-2",
+      "price",
+      "9.00",
+    );
+    expect(mockBack).toHaveBeenCalled();
+  });
+
   it("warns and deletes an existing item when a duplicate manual merge reaches zero", async () => {
     const baseItem = buildRecord().values.items[0]!;
     mockStoreState.records = [

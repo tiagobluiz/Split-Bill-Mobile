@@ -8,6 +8,7 @@ import {
   createDefaultValues,
   createEmptyItem,
   createId,
+  itemHasDuplicate,
   normalizeMoneyInput,
   parseMoneyToCents,
   parsePastedItems,
@@ -1466,6 +1467,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeActiveRecordMutation(
         record,
         (draft) => {
+          if (itemHasDuplicate(draft.values.items, item)) {
+            throw new Error("duplicate-item-name");
+          }
           let uniqueId = item.id;
           const usedIds = new Set(draft.values.items.map((entry) => entry.id));
           while (usedIds.has(uniqueId)) {
@@ -1486,6 +1490,16 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeActiveRecordMutation(
         record,
         (draft) => {
+          const existingItem = draft.values.items.find(
+            (entry) => entry.id === itemId,
+          );
+          if (
+            existingItem &&
+            normalizeItemName(existingItem.name) !== normalizeItemName(item.name) &&
+            itemHasDuplicate(draft.values.items, item, itemId)
+          ) {
+            throw new Error("duplicate-item-name");
+          }
           const [syncedItem] = syncItemAllocations(
             [{ ...item, id: itemId }],
             draft.values.participants,
@@ -1503,6 +1517,21 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeActiveRecordMutation(
         record,
         (draft) => {
+          const existingItem = draft.values.items.find(
+            (item) => item.id === itemId,
+          );
+          if (
+            field === "name" &&
+            existingItem &&
+            normalizeItemName(existingItem.name) !== normalizeItemName(value) &&
+            itemHasDuplicate(
+              draft.values.items,
+              { ...existingItem, name: value },
+              itemId,
+            )
+          ) {
+            throw new Error("duplicate-item-name");
+          }
           draft.values.items = draft.values.items.map((item) =>
             item.id === itemId ? { ...item, [field]: value } : item,
           );

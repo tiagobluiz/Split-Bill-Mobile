@@ -28,6 +28,24 @@ describe("output contracts", () => {
     });
   });
 
+  it("exports historical same-name items with different prices and categories", () => {
+    const values = JSON.parse(JSON.stringify(pdfFixture.input)) as SplitFormValues;
+    const originalItem = values.items[0]!;
+    values.items.push({
+      ...originalItem,
+      id: "historical-duplicate",
+      price: "2.00",
+      category: "Bakery",
+    });
+
+    const result = buildPdfExportData(values);
+    expect(result.items).toHaveLength(values.items.length);
+    expect(result.items.map((item) => item.name)).toEqual([
+      ...pdfFixture.input.items.map((item) => item.name),
+      originalItem.name,
+    ]);
+  });
+
   it("returns null summary when settlement is invalid", () => {
     expect(
       buildClipboardSummary(
@@ -349,7 +367,7 @@ describe("output contracts", () => {
         },
         "en-US"
       )
-    ).toBe("Split Bill\nPayer: paid -€1.00, consumed €0.00, and still owes €1.00.\nCreditor: gets back €1.00.");
+    ).toBe("Split Bill\nPayer: paid -€1.00, consumed €0.00, and still owes €1.00.\nCreditor: gets back €1.00.\nDebtor: consumed €0.00 and owes €0.00.");
   });
 
   it("reduces payer output to a paid-only line when nobody still owes anything", () => {
@@ -378,7 +396,7 @@ describe("output contracts", () => {
         "en-US",
         { settledParticipantIds: ["bruno"] }
       )
-    ).toBe("Split Bill\nAna: paid €10.00 and consumed €5.00.");
+    ).toBe("Split Bill\nAna: paid €10.00 and consumed €5.00.\nBruno: consumed €5.00 and owes €0.00.");
   });
 
   it("uses the split name in the clipboard summary title when available", () => {

@@ -263,7 +263,7 @@ describe("splitter domain", () => {
     expect(computeSettlement(invalidValues).ok).toBe(false);
   });
 
-  it("validates duplicate item identity with the shared manual and import rule", () => {
+  it("keeps historical same-name items valid while identifying new duplicates", () => {
     const values: SplitFormValues = {
       currency: "EUR",
       participants: [
@@ -286,8 +286,8 @@ describe("splitter domain", () => {
         {
           id: "milk-2",
           name: "milk",
-          price: "3.50",
-          category: "",
+          price: "4.50",
+          category: "Bakery",
           splitMode: "even",
           allocations: [
             { participantId: "ana", evenIncluded: true, shares: "1", percent: "50", percentLocked: false },
@@ -297,9 +297,16 @@ describe("splitter domain", () => {
       ],
     };
 
-    expect(validateStepTwo(values).map((entry) => entry.message)).toContain(
-      "This item already exists. Change the name, price, or category."
-    );
+    expect(validateStepTwo(values)).toEqual([]);
+    expect(parseSplit(values).ok).toBe(true);
+    expect(computeSettlement(values).ok).toBe(true);
+    expect(
+      itemHasDuplicate(values.items, {
+        ...values.items[1]!,
+        price: "8.00",
+        category: "Drinks",
+      }),
+    ).toBe(true);
   });
 
   it("matches duplicate item names after case and whitespace normalization", () => {

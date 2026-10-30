@@ -702,7 +702,6 @@ export function validateStepOne(values: SplitFormValues): StepValidationError[] 
 
 export function validateStepTwo(values: SplitFormValues): StepValidationError[] {
   const errors: StepValidationError[] = [];
-  const seenItemKeys = new Set<string>();
 
   if (values.items.length === 0) {
     errors.push({
@@ -749,17 +748,6 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
       });
     }
 
-    const uniqueKey = getItemUniquenessKey(item);
-    if (uniqueKey) {
-      if (seenItemKeys.has(uniqueKey)) {
-        errors.push({
-          code: "item-duplicate",
-          path: `items.${index}.name`,
-          message: t("validation.itemDuplicate"),
-        });
-      }
-      seenItemKeys.add(uniqueKey);
-    }
   });
 
   return errors;

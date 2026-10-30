@@ -33,6 +33,7 @@ import {
   combineItemAmounts,
   formatMoney,
   ITEM_NAME_MAX_LENGTH,
+  itemHasDuplicate,
   normalizeMoneyInput,
   parseMoneyToCents,
   resetPercentAllocations,
@@ -203,11 +204,13 @@ export function AssignItemScreen({
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
   const isSaveReady = validateItemNameAndAmount(trimmedItemName, normalizedItemPrice);
   const normalizedManualName = normalizeItemName(trimmedItemName);
-  const mergeCandidate = record.values.items.find(
-    (candidate) =>
-      candidate.id !== item.id &&
-      normalizeItemName(candidate.name) === normalizedManualName,
-  );
+  const mergeCandidate = itemHasDuplicate(record.values.items, item, item.id)
+    ? record.values.items.find(
+        (candidate) =>
+          candidate.id !== item.id &&
+          normalizeItemName(candidate.name) === normalizedManualName,
+      )
+    : undefined;
   const mergeCandidateMergedCents =
     mergeCandidate && parsedItemPriceCents !== null
       ? (parseMoneyToCents(mergeCandidate.price) ?? 0) + parsedItemPriceCents
@@ -253,7 +256,11 @@ export function AssignItemScreen({
         return;
       }
 
-      if (!isNewItem && mergeCandidate) {
+      const isRenamingExistingItem =
+        !isNewItem &&
+        sourceItem != null &&
+        normalizeItemName(sourceItem.name) !== normalizedManualName;
+      if (!isNewItem && isRenamingExistingItem && mergeCandidate) {
         setAssignNoticeMessages([t("flow.itemDetail.duplicateItem")]);
         return;
       }
@@ -291,6 +298,10 @@ export function AssignItemScreen({
 
       router.back();
     } catch (error) {
+      if (error instanceof Error && error.message === "duplicate-item-name") {
+        setAssignNoticeMessages([t("flow.itemDetail.duplicateItem")]);
+        return;
+      }
       recordError(error, {
         screen: "AssignItemScreen",
         action: "saveEditor",
