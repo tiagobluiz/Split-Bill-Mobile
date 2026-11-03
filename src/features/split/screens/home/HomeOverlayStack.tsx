@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { Bell, Pencil, Trash2 } from "lucide-react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
@@ -19,6 +19,7 @@ import type {
 } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 import { SplitDetailsQuickEditModal } from "./SplitDetailsQuickEditModal";
+import { ActionListSheet } from "../shared/ActionListSheet";
 import type { SplitTag, SplitTagColor, SplitTagIcon } from "../../tags";
 
 const Text = TamaguiText as any;
@@ -34,6 +35,8 @@ export function HomeOverlayStack({
   settingsNoticeMessages,
   onDismissSettingsNotice,
   selectedRecordActionTarget,
+  selectedRecordHasReminder,
+  selectedRecordReminderDate,
   onDismissRecordActionTarget,
   onRecordActionReminder,
   onRecordActionEditDetails,
@@ -51,7 +54,10 @@ export function HomeOverlayStack({
   onRemoveSplitReminder,
   onSaveSplitReminder,
   reminderToastMessage,
+  reminderUndoAvailable,
+  onUndoReminderRemoval,
   footerInsetBottom,
+  safeAreaBottomInset,
   currencyMenuOpen,
   setCurrencyMenuOpen,
   draftCurrencyOptions,
@@ -86,6 +92,8 @@ export function HomeOverlayStack({
   settingsNoticeMessages: string[];
   onDismissSettingsNotice: () => void;
   selectedRecordActionTarget: RecordActionTarget | null;
+  selectedRecordHasReminder: boolean;
+  selectedRecordReminderDate?: string;
   onDismissRecordActionTarget: () => void;
   onRecordActionReminder: () => void;
   onRecordActionEditDetails: () => void;
@@ -110,7 +118,10 @@ export function HomeOverlayStack({
   onRemoveSplitReminder: () => void;
   onSaveSplitReminder: (scheduledForIso: string) => void;
   reminderToastMessage: string;
+  reminderUndoAvailable: boolean;
+  onUndoReminderRemoval: () => void;
   footerInsetBottom: number;
+  safeAreaBottomInset: number;
   currencyMenuOpen: boolean;
   setCurrencyMenuOpen: (value: boolean) => void;
   draftCurrencyOptions: CurrencyOption[];
@@ -155,6 +166,11 @@ export function HomeOverlayStack({
   closeCustomCurrencyModal: () => void;
 }) {
   const { t } = useTranslation();
+  const deferredAction = useRef<(() => void) | null>(null);
+  const deferAction = (action: () => void) => {
+    deferredAction.current = action;
+    onDismissRecordActionTarget();
+  };
 
   return (
     <>
@@ -163,36 +179,47 @@ export function HomeOverlayStack({
         messages={settingsNoticeMessages}
         onDismiss={onDismissSettingsNotice}
       />
-      {selectedRecordActionTarget ? (
-        <ActionIconGridModal
+      <ActionListSheet
+          visible={Boolean(selectedRecordActionTarget)}
           title={t("home.rowActions.title")}
+          cancelLabel={t("common.cancel")}
+          bottomInset={safeAreaBottomInset}
+          rowMinHeight={82}
+          simpleRows
           options={[
             {
               label: t("home.rowActions.editDetails"),
               accessibilityLabel: t("home.rowActions.editDetailsA11y", {
-                title: selectedRecordActionTarget.title,
+                title: selectedRecordActionTarget?.title ?? "",
               }),
               icon: <Pencil color={PALETTE.primary} size={18} />,
-              onPress: onRecordActionEditDetails,
+              description: t("home.editDetails.description"),
+              onPress: () => deferAction(onRecordActionEditDetails),
             },
             {
-              label: t("reminders.actionsTitle"),
+              label: t(selectedRecordHasReminder ? "reminders.actionEdit" : "reminders.actionSet"),
               icon: <Bell color={PALETTE.primary} size={18} />,
-              onPress: onRecordActionReminder,
+              description: selectedRecordReminderDate ?? t("home.rowActions.reminderDescription"),
+              onPress: () => deferAction(onRecordActionReminder),
             },
             {
               label: t("home.rowActions.delete"),
               accessibilityLabel: t("home.rowActions.deleteA11y", {
-                title: selectedRecordActionTarget.title,
+                title: selectedRecordActionTarget?.title ?? "",
               }),
               icon: <Trash2 color={PALETTE.danger} size={18} />,
               tone: "danger",
-              onPress: onRecordActionDelete,
+              onPress: () => deferAction(onRecordActionDelete),
             },
           ]}
           onDismiss={onDismissRecordActionTarget}
+          onDismissComplete={() => {
+            onDismissRecordActionTarget();
+            const action = deferredAction.current;
+            deferredAction.current = null;
+            action?.();
+          }}
         />
-      ) : null}
       {quickEditRecord ? (
         <SplitDetailsQuickEditModal
           record={quickEditRecord}
@@ -204,7 +231,7 @@ export function HomeOverlayStack({
       ) : null}
       {splitReminderPickerRecord ? (
         <ReminderDateTimeModal
-          title={t("reminders.picker.title")}
+          title={t(splitReminderPickerHasExisting ? "reminders.picker.editTitle" : "reminders.picker.setTitle")}
           initialIso={
             splitReminderPickerRecord.reminderState?.splitReminder
               ?.scheduledForIso
@@ -226,6 +253,8 @@ export function HomeOverlayStack({
       <ToastNotice
         message={reminderToastMessage}
         bottomOffset={footerInsetBottom + 12}
+        actionLabel={reminderUndoAvailable ? t("common.undo") : undefined}
+        onAction={reminderUndoAvailable ? onUndoReminderRemoval : undefined}
       />
       {currencyMenuOpen ? (
         <ActionSheetModal

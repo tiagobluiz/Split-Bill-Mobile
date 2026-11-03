@@ -21,5 +21,5 @@ export function PhotoOptionsSheet({ visible, title, cancelLabel, bottomInset, ha
     { label: t("photoOptions.takePhoto"), icon: <Camera size={25} color={PALETTE.primary} />, onPress: onTakePhoto },
     ...(hasPhoto ? [{ label: t("photoOptions.removePhoto"), icon: <Trash2 size={25} color={PALETTE.danger} />, onPress: onRemove, tone: "danger" as const }] : []),
   ];
-  return <BottomActionSheet visible={visible} title={title} cancelLabel={cancelLabel} bottomInset={bottomInset} options={options} onDismiss={onDismiss} onDismissComplete={onDismissComplete} />;
+  return <BottomActionSheet visible={visible} title={title} cancelLabel={cancelLabel} bottomInset={bottomInset} options={options} onDismiss={onDismiss} onDismissComplete={onDismissComplete} simpleRows />;
 }

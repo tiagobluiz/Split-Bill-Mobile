@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
-import { Modal, Pressable, View } from "react-native";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { Check, ChevronRight } from "lucide-react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
-import { useTranslation } from "../../../../i18n/provider";
 import { screenStyles } from "./styles";
+import { BottomSheetFrame } from "./BottomSheetFrame";
+import { SheetCancelButton } from "./SheetCancelButton";
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
@@ -20,7 +21,7 @@ export type BottomAction = {
   disabled?: boolean;
 };
 
-export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss, onDismissComplete, selectionMode = false, showCancel = true }: {
+export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, options, onDismiss, onDismissComplete, selectionMode = false, showCancel = true, rowMinHeight, simpleRows = false }: {
   visible: boolean;
   title: string;
   cancelLabel: string;
@@ -30,8 +31,11 @@ export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, op
   onDismissComplete?: () => void;
   selectionMode?: boolean;
   showCancel?: boolean;
+  rowMinHeight?: number;
+  simpleRows?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
+  const ListContainer = selectionMode ? ScrollView : View;
   const wasVisible = useRef(visible);
   const completedDismissal = useRef(false);
   const onDismissCompleteRef = useRef(onDismissComplete);
@@ -50,16 +54,26 @@ export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, op
     return () => clearTimeout(timeout);
   }, [completeDismissal, visible]);
 
-  return <Modal transparent visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onDismiss} onDismiss={completeDismissal}>
-    <View style={screenStyles.personPhotoSheetOverlay}>
-      <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.personPhotoSheetBackdrop} onPress={onDismiss} />
-      <View style={[screenStyles.personPhotoSheet, { paddingBottom: Math.max(bottomInset, 16) }]}>
-        <View style={screenStyles.personPhotoSheetHandle} />
-        <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>{title}</Text>
-        <YStack gap={selectionMode ? "$1.5" : "$2"}>
+  return <BottomSheetFrame visible={visible} title={title} bottomInset={bottomInset} onDismiss={onDismiss} onDismissComplete={completeDismissal}
+    swipeToDismiss={simpleRows}
+    overlayStyle={simpleRows ? { paddingHorizontal: 0 } : undefined}
+    cardStyle={simpleRows ? { maxWidth: undefined, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingHorizontal: 22, gap: 12 } : undefined}>
+        <ListContainer style={selectionMode ? { maxHeight: windowHeight * 0.55 } : undefined}>
+        <YStack gap={simpleRows ? 0 : selectionMode ? "$1.5" : "$2"}>
           {options.map((option) => {
             const danger = option.tone === "danger";
-            return <Pressable key={option.label} accessibilityRole="button" accessibilityLabel={option.accessibilityLabel ?? option.label} accessibilityState={{ selected: Boolean(option.selected), disabled: Boolean(option.disabled) }} disabled={option.disabled} onPress={option.disabled ? undefined : option.onPress} style={[screenStyles.personPhotoSheetRow, selectionMode ? { minHeight: 64, borderRadius: 18, paddingHorizontal: 18 } : null, danger && screenStyles.personPhotoSheetDangerRow, option.selected ? { backgroundColor: PALETTE.secondaryContainer, borderWidth: 1, borderColor: PALETTE.primary } : null, option.disabled ? { opacity: 0.55 } : null, option.description ? { minHeight: 82 } : null]}>
+            if (simpleRows) return <View key={option.label}>
+              <View style={{ height: 1, backgroundColor: PALETTE.divider, marginHorizontal: 8 }} />
+              <Pressable accessibilityRole="button" accessibilityLabel={option.accessibilityLabel ?? option.label} accessibilityState={{ selected: Boolean(option.selected), disabled: Boolean(option.disabled) }} disabled={option.disabled} onPress={option.onPress} style={{ minHeight: 76, flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 10, opacity: option.disabled ? 0.55 : 1 }}>
+                {option.icon ? <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: danger ? PALETTE.dangerSurface : "transparent" }}>{option.icon}</View> : null}
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text fontFamily={FONTS.bodySemiBold} fontSize={16} color={danger ? PALETTE.danger : option.selected ? PALETTE.primary : PALETTE.onSurface}>{option.label}</Text>
+                  {option.description ? <Text fontFamily={FONTS.body} fontSize={13} color={PALETTE.onSurfaceVariant}>{option.description}</Text> : null}
+                </View>
+                {selectionMode ? <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: option.selected ? 0 : 1.5, borderColor: PALETTE.onSurfaceVariant, backgroundColor: option.selected ? PALETTE.primary : "transparent", alignItems: "center", justifyContent: "center" }}>{option.selected ? <Check size={17} color={PALETTE.onPrimary} strokeWidth={3} /> : null}</View> : null}
+              </Pressable>
+            </View>;
+            return <Pressable key={option.label} accessibilityRole="button" accessibilityLabel={option.accessibilityLabel ?? option.label} accessibilityState={{ selected: Boolean(option.selected), disabled: Boolean(option.disabled) }} disabled={option.disabled} onPress={option.disabled ? undefined : option.onPress} style={[screenStyles.personPhotoSheetRow, selectionMode ? { minHeight: 64, borderRadius: 18, paddingHorizontal: 18 } : null, rowMinHeight ? { minHeight: rowMinHeight } : null, danger && screenStyles.personPhotoSheetDangerRow, option.selected ? { backgroundColor: PALETTE.secondaryContainer, borderWidth: 1, borderColor: PALETTE.primary } : null, option.disabled ? { opacity: 0.55 } : null, option.description ? { minHeight: Math.max(82, rowMinHeight ?? 0) } : null]}>
               {option.icon}
               <View style={{ flex: 1, gap: option.description ? 2 : 0 }}>
                 <Text fontFamily={FONTS.bodySemiBold} fontSize={17} color={danger ? PALETTE.danger : option.selected ? PALETTE.primary : PALETTE.onSurface}>{option.label}</Text>
@@ -72,14 +86,12 @@ export function BottomActionSheet({ visible, title, cancelLabel, bottomInset, op
               ) : option.selected ? <Check size={22} color={PALETTE.primary} /> : <ChevronRight size={21} color={danger ? PALETTE.danger : PALETTE.onSurfaceVariant} />}
             </Pressable>;
           })}
+          {simpleRows && showCancel ? <View style={{ height: 1, backgroundColor: PALETTE.divider, marginHorizontal: 8 }} /> : null}
         </YStack>
+        </ListContainer>
         {showCancel ? <>
-          <View style={screenStyles.personPhotoSheetDivider} />
-          <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={onDismiss} style={screenStyles.personPhotoSheetCancel}>
-            <Text fontFamily={FONTS.bodySemiBold} fontSize={17} color={PALETTE.onSurface}>{cancelLabel}</Text>
-          </Pressable>
+          {!simpleRows ? <View style={screenStyles.personPhotoSheetDivider} /> : null}
+          <SheetCancelButton label={cancelLabel} onPress={onDismiss} formStyle={simpleRows} />
         </> : null}
-      </View>
-    </View>
-  </Modal>;
+  </BottomSheetFrame>;
 }

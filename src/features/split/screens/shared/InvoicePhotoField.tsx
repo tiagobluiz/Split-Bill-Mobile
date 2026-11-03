@@ -18,10 +18,14 @@ function formatFileSize(size: number | null | undefined, unavailableLabel: strin
 export function InvoicePhotoField({
   value,
   fileSize,
+  fileName,
+  compact = false,
   onChange,
 }: {
   value: string | null;
   fileSize?: number | null;
+  fileName?: string | null;
+  compact?: boolean;
   onChange: (photo: InvoicePhotoSelection | null) => void;
 }) {
   const { t } = useTranslation();
@@ -52,6 +56,18 @@ export function InvoicePhotoField({
     <View style={{ gap: 10 }}>
       <FieldLabel>{t("splitDetails.invoice")}</FieldLabel>
       {value ? (
+        compact ? (
+        <View style={{ gap: 8 }}>
+          <View style={{ minHeight: 66, borderRadius: 16, backgroundColor: PALETTE.surfaceContainerLow, padding: 8, flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.preview")} onPress={() => setPreviewOpen(true)}>
+              <Image source={{ uri: displayUri }} resizeMode="cover" style={{ width: 58, height: 58, borderRadius: 10, backgroundColor: PALETTE.surfaceContainer }} />
+            </Pressable>
+            <View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: PALETTE.onSurface, fontFamily: FONTS.bodySemiBold, fontSize: 14 }}>{fileName || t("pdf.invoice")}</Text><Text style={{ color: PALETTE.onSurfaceVariant, fontFamily: FONTS.body, fontSize: 12 }}>{formatFileSize(fileSize, t("splitDetails.fileSizeUnknown"))}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.removePhoto")} onPress={() => onChange(null)} style={{ padding: 10 }}><Trash2 color={PALETTE.danger} size={19} /></Pressable>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.addInvoicePhoto")} onPress={() => setSourceOpen(true)} style={{ minHeight: 48, borderRadius: 15, borderWidth: 1, borderStyle: "dashed", borderColor: PALETTE.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}><Camera color={PALETTE.primary} size={19} /><Text style={{ color: PALETTE.primary, fontFamily: FONTS.bodyBold, fontSize: 14 }}>{t("splitDetails.addInvoicePhoto")}</Text></Pressable>
+        </View>
+        ) : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("splitDetails.preview")}
@@ -73,7 +89,9 @@ export function InvoicePhotoField({
             </Pressable>
           </View>
         </Pressable>
+        )
       ) : (
+        compact ? <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.addInvoicePhoto")} onPress={() => setSourceOpen(true)} style={{ minHeight: 52, borderRadius: 15, borderWidth: 1, borderStyle: "dashed", borderColor: PALETTE.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}><Camera color={PALETTE.primary} size={19} /><Text style={{ color: PALETTE.primary, fontFamily: FONTS.bodyBold, fontSize: 14 }}>{t("splitDetails.addInvoicePhoto")}</Text></Pressable> :
         <Pressable accessibilityRole="button" accessibilityLabel={t("splitDetails.addInvoicePhoto")} onPress={() => setSourceOpen(true)} style={{ minHeight: 94, borderRadius: 18, backgroundColor: PALETTE.surfaceContainerLow, paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: PALETTE.secondaryContainer, alignItems: "center", justifyContent: "center" }}>
             <Camera color={PALETTE.primary} size={24} strokeWidth={1.8} />

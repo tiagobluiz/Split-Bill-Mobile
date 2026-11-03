@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { SplitDatePicker } from "../shared/SplitDatePicker";
 import { InvoicePhotoField } from "../shared/InvoicePhotoField";
 import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
@@ -26,6 +26,7 @@ import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
 import { FieldLabel } from "../../../../components/ui";
 import { screenStyles } from "../shared/styles";
+import { FormBottomSheet, FormSheetFooter } from "../shared/FormBottomSheet";
 import type { HomeRecord } from "./homeTypes";
 
 const Text = TamaguiText as any;
@@ -79,6 +80,15 @@ export function SplitDetailsQuickEditModal({
     [tags, t],
   );
   const previousRecordIdRef = useRef(record.id);
+  const { height: windowHeight } = useWindowDimensions();
+  const [formContentHeight, setFormContentHeight] = useState(0);
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onCancel();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onCancel]);
 
   useEffect(() => {
     if (previousRecordIdRef.current === record.id) {
@@ -154,34 +164,11 @@ export function SplitDetailsQuickEditModal({
 
   return (
     <>
-      <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("modal.dismissActionSheet")}
-          style={screenStyles.splitNoticeBackdrop}
-          onPress={onCancel}
-        />
-        <View style={screenStyles.quickEditCard}>
-          <YStack gap="$3">
-            <YStack gap="$1">
-              <Text
-                fontFamily={FONTS.headlineBold}
-                fontSize={22}
-                color={PALETTE.onSurface}
-              >
-                {t("home.editDetails.title")}
-              </Text>
-              <Text
-                fontFamily={FONTS.bodyMedium}
-                fontSize={13}
-                lineHeight={19}
-                color={PALETTE.onSurfaceVariant}
-              >
-                {t("home.editDetails.description")}
-              </Text>
-            </YStack>
+      <FormBottomSheet title={t("home.editDetails.title")} onClose={onCancel} avoidKeyboard height={Math.min(windowHeight * 0.9, (formContentHeight || 450) + 230)}>
+          <YStack gap="$3" flex={1}>
             <ScrollView
-              style={screenStyles.quickEditScroll}
+              style={{ flex: 1 }}
+              onContentSizeChange={(_, height) => setFormContentHeight(height)}
               contentContainerStyle={screenStyles.quickEditContent}
               showsVerticalScrollIndicator
               keyboardShouldPersistTaps="handled"
@@ -253,6 +240,8 @@ export function SplitDetailsQuickEditModal({
               <InvoicePhotoField
                 value={invoicePhotoUri}
                 fileSize={invoicePhotoSize}
+                fileName={invoicePhotoName}
+                compact
                 onChange={(photo: InvoicePhotoSelection | null) => {
                   setInvoicePhotoUri(photo?.uri ?? null);
                   setInvoicePhotoName(photo?.name ?? null);
@@ -270,46 +259,15 @@ export function SplitDetailsQuickEditModal({
                 </Text>
               ) : null}
             </ScrollView>
-            <YStack gap="$2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("home.editDetails.save")}
-                disabled={saving}
-                style={[
-                  screenStyles.splitNoticeButton,
-                  saving ? screenStyles.quickEditButtonDisabled : null,
-                ]}
-                onPress={() => void saveDetails()}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onPrimary}
-                >
-                  {t("home.editDetails.save")}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("common.cancel")}
-                style={[
-                  screenStyles.splitNoticeButton,
-                  screenStyles.splitNoticeButtonSecondary,
-                ]}
-                onPress={onCancel}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onSecondaryContainer}
-                >
-                  {t("common.cancel")}
-                </Text>
-              </Pressable>
-            </YStack>
+            <FormSheetFooter
+              primaryLabel={t("home.editDetails.save")}
+              onPrimaryPress={() => void saveDetails()}
+              primaryDisabled={saving}
+              cancelLabel={t("common.cancel")}
+              onCancel={onCancel}
+            />
           </YStack>
-        </View>
-      </View>
+      </FormBottomSheet>
       {tagEditorOpen ? (
         <TagEditorModal
           existingTags={tags}

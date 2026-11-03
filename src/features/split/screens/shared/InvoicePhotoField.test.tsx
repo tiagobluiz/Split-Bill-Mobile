@@ -56,6 +56,37 @@ it("previews and removes the current invoice photo", async () => {
   expect(screen.queryByLabelText("Close")).toBeNull();
 });
 
+it("renders the compact invoice row with filename, size, preview, remove, and replace actions", () => {
+  const onChange = jest.fn();
+  render(
+    <InvoicePhotoField
+      value="file:///invoice.jpg"
+      fileName="invoice.jpg"
+      fileSize={2516582}
+      compact
+      onChange={onChange}
+    />,
+  );
+
+  expect(screen.getByText("invoice.jpg")).toBeTruthy();
+  expect(screen.getByText("2.4 MB")).toBeTruthy();
+  fireEvent.press(screen.getByLabelText("Preview invoice photo"));
+  expect(screen.getByLabelText("Close")).toBeTruthy();
+  fireEvent.press(screen.getByLabelText("Close"));
+  fireEvent.press(screen.getByLabelText("Add invoice photo"));
+  expect(screen.getByText("Choose photo")).toBeTruthy();
+  fireEvent.press(screen.getAllByLabelText("Remove photo")[0]);
+  expect(onChange).toHaveBeenCalledWith(null);
+});
+
+it("uses the compact outlined add action when no invoice is attached", () => {
+  render(<InvoicePhotoField value={null} compact onChange={jest.fn()} />);
+
+  fireEvent.press(screen.getByLabelText("Add invoice photo"));
+  expect(screen.getByText("Choose photo")).toBeTruthy();
+  expect(screen.getByText("Take photo")).toBeTruthy();
+});
+
 it.each([
   [512, "512 B"],
   [1536, "2 KB"],
