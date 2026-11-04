@@ -871,6 +871,7 @@ describe("split screens", () => {
     render(<ResultsScreen draftId="draft-1" />);
 
     fireEvent(screen.getByText("Bruno"), "onLongPress");
+    expect(screen.getByText("Set reminder")).toBeTruthy();
     expect(screen.queryByLabelText("Next: choose time")).toBeNull();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Set"));
@@ -882,8 +883,22 @@ describe("split screens", () => {
     );
   });
 
-  it("asks for confirmation before removing a debt reminder", async () => {
+  it("deletes a debt reminder immediately and offers undo", async () => {
     const futureIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    mockStoreState.clearParticipantDebtReminder = jest.fn(async (recordId, participantId) => {
+      mockStoreState.records = mockStoreState.records.map((record: any) =>
+        record.id === recordId
+          ? {
+              ...record,
+              reminderState: {
+                ...record.reminderState,
+                participantDebtReminders: {},
+              },
+            }
+          : record,
+      );
+      return undefined;
+    });
     mockStoreState.records = [
       buildRecord({
         status: "draft",
@@ -904,14 +919,24 @@ describe("split screens", () => {
     render(<ResultsScreen draftId="draft-1" />);
 
     fireEvent(screen.getByText("Bruno"), "onLongPress");
-    fireEvent.press(screen.getByLabelText("Remove"));
-    expect(screen.getByText("Remove reminder?")).toBeTruthy();
+    expect(screen.getByText("Edit reminder")).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Remove reminder"));
+      fireEvent.press(screen.getByLabelText("Remove"));
     });
     expect(mockStoreState.clearParticipantDebtReminder).toHaveBeenCalledWith(
       "draft-1",
       "bruno",
+    );
+    expect(screen.getByText("Reminder deleted.")).toBeTruthy();
+    expect(screen.getByLabelText("Reminder deleted. Undo").props.accessibilityLiveRegion).toBe("assertive");
+    expect(screen.getByLabelText("Undo")).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Undo"));
+    });
+    expect(mockStoreState.setParticipantDebtReminder).toHaveBeenCalledWith(
+      "draft-1",
+      "bruno",
+      futureIso,
     );
   });
 

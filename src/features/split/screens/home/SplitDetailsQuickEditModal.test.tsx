@@ -133,6 +133,7 @@ describe("SplitDetailsQuickEditModal", () => {
     renderModal({ onAddTag });
 
     fireEvent.press(screen.getByLabelText("Add tag"));
+    await screen.findByPlaceholderText("Tag name");
     fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Beach");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Create Tag"));
@@ -142,14 +143,18 @@ describe("SplitDetailsQuickEditModal", () => {
     expect(screen.getByText("Create New Tag")).toBeTruthy();
   });
 
-  it("cancels nested custom tag creation without closing quick edit", () => {
+  it("cancels nested custom tag creation without closing quick edit", async () => {
     renderModal();
 
+    fireEvent.changeText(screen.getByLabelText("Split name"), "Unsaved dinner");
     fireEvent.press(screen.getByLabelText("Add tag"));
+    await screen.findByPlaceholderText("Tag name");
+    expect(screen.queryByText("Edit split details")).toBeNull();
     fireEvent.press(screen.getAllByLabelText("Cancel").at(-1)!);
 
     expect(screen.queryByText("Create New Tag")).toBeNull();
     expect(screen.getByText("Edit split details")).toBeTruthy();
+    expect(screen.getByLabelText("Split name").props.value).toBe("Unsaved dinner");
   });
 
   it("auto-selects a newly created tag when the settings tags refresh", async () => {
@@ -158,6 +163,7 @@ describe("SplitDetailsQuickEditModal", () => {
     const rendered = renderModal({ onAddTag, onSave });
 
     fireEvent.press(screen.getByLabelText("Add tag"));
+    await screen.findByPlaceholderText("Tag name");
     fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Beach");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Create Tag"));
@@ -196,6 +202,7 @@ describe("SplitDetailsQuickEditModal", () => {
 
     fireEvent.press(screen.getByText("Groceries"));
     fireEvent.press(screen.getByLabelText("Add tag"));
+    await screen.findByPlaceholderText("Tag name");
     fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Beach");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Create Tag"));

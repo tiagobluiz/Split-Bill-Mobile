@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, TextInput, View } from "react-native";
 import {
   Briefcase,
   Heart,
@@ -76,6 +76,8 @@ export function TagEditorModal({
   existingTags,
   onSave,
   onCancel,
+  handleAndroidBack = false,
+  embedded = false,
 }: {
   existingTags: SplitTag[];
   onSave: (
@@ -84,6 +86,8 @@ export function TagEditorModal({
     color: SplitTagColor,
   ) => Promise<boolean>;
   onCancel: () => void;
+  handleAndroidBack?: boolean;
+  embedded?: boolean;
 }) {
   const { t } = useTranslation();
   const [label, setLabel] = useState("");
@@ -95,6 +99,14 @@ export function TagEditorModal({
   const [saving, setSaving] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const emojiKeyboard = useEmojiKeyboard();
+  useEffect(() => {
+    if (!handleAndroidBack) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!saving) onCancel();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [handleAndroidBack, onCancel, saving]);
 
   useEffect(() => {
     if (!customColorOpen) {
@@ -146,7 +158,7 @@ export function TagEditorModal({
 
   return (
     <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <View style={screenStyles.splitNoticeBackdrop} />
+      {!embedded ? <View style={screenStyles.splitNoticeBackdrop} /> : null}
       <View style={screenStyles.tagEditorKeyboardWrap}>
         <View style={screenStyles.tagEditorCard}>
           <YStack gap="$3">
@@ -431,6 +443,7 @@ export function TagEditorModal({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("common.cancel")}
+                  disabled={saving}
                   style={screenStyles.confirmChoiceSecondaryButton}
                   onPress={onCancel}
                 >

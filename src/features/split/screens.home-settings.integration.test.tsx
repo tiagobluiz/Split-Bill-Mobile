@@ -992,6 +992,7 @@ describe("split screens", () => {
     const view = render(<HomeScreen />);
     fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
+    act(() => jest.advanceTimersByTime(350));
     expect(screen.getByText("Split deleted")).toBeTruthy();
     expect(screen.queryByLabelText("Delete split Delete Me")).toBeNull();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
@@ -1006,8 +1007,10 @@ describe("split screens", () => {
 
     fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
+    act(() => jest.advanceTimersByTime(350));
     fireEvent(screen.getByLabelText("Open split Delete Next"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Next"));
+    act(() => jest.advanceTimersByTime(350));
     expect(mockStoreState.removeRecord).toHaveBeenCalledWith("draft-delete-me");
     expect(screen.queryByLabelText("Delete split Delete Next")).toBeNull();
 
@@ -1037,6 +1040,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent(screen.getByLabelText("Open split Expire Delete"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Expire Delete"));
+    act(() => jest.advanceTimersByTime(350));
     expect(screen.getByText("Split deleted")).toBeTruthy();
 
     await act(async () => {
@@ -2038,8 +2042,9 @@ describe("split screens", () => {
     render(<HomeScreen />);
 
     fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
-    expect(screen.getByText("Reminder")).toBeTruthy();
-    fireEvent.press(screen.getByText("Reminder"));
+    expect(screen.getByText("Set reminder")).toBeTruthy();
+    fireEvent.press(screen.getByText("Set reminder"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
     expect(screen.queryByLabelText("Next: choose time")).toBeNull();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Set"));
@@ -2049,6 +2054,49 @@ describe("split screens", () => {
       "draft-1",
       expect.any(String),
     );
+  });
+
+  it("deletes a split reminder immediately and restores it with undo", async () => {
+    const futureIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    mockStoreState.clearSplitReminder = jest.fn(async (recordId) => {
+      mockStoreState.records = mockStoreState.records.map((record: any) =>
+        record.id === recordId
+          ? {
+              ...record,
+              reminderState: { participantDebtReminders: {} },
+            }
+          : record,
+      );
+      return undefined;
+    });
+    mockStoreState.records = [
+      buildRecord({
+        reminderState: {
+          splitReminder: {
+            scheduledForIso: futureIso,
+            notificationId: "split-reminder",
+            createdAt: futureIso,
+            updatedAt: futureIso,
+          },
+          participantDebtReminders: {},
+        },
+      }),
+    ];
+
+    render(<HomeScreen />);
+    fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
+    fireEvent.press(screen.getByText("Edit reminder"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Remove"));
+    });
+
+    expect(mockStoreState.clearSplitReminder).toHaveBeenCalledWith("draft-1");
+    expect(screen.getByText("Reminder deleted.")).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Undo"));
+    });
+    expect(mockStoreState.setSplitReminder).toHaveBeenCalledWith("draft-1", futureIso);
   });
 
   it("quick edits split details from row actions without navigating through setup", async () => {
@@ -2084,6 +2132,7 @@ describe("split screens", () => {
     fireEvent(screen.getByLabelText("Open split Old Dinner"), "onLongPress");
     expect(screen.getByText("Edit details")).toBeTruthy();
     fireEvent.press(screen.getByText("Edit details"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
 
     expect(screen.getByText("Edit split details")).toBeTruthy();
     expect(screen.queryByText("Currency")).toBeNull();
@@ -2096,7 +2145,14 @@ describe("split screens", () => {
     expect(screen.getByText("Split name is missing.")).toBeTruthy();
     expect(mockStoreState.updateRecordDetails).not.toHaveBeenCalled();
 
-    fireEvent.changeText(nameInput, "Portugal Trip");
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    expect(screen.queryByText("Edit split details")).toBeNull();
+    fireEvent(screen.getByLabelText("Open split Old Dinner"), "onLongPress");
+    fireEvent.press(screen.getByText("Edit details"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
+
+    const reopenedNameInput = screen.getByDisplayValue("Old Dinner");
+    fireEvent.changeText(reopenedNameInput, "Portugal Trip");
     fireEvent.press(screen.getByText("Restaurant"));
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Save details"));
@@ -2135,6 +2191,28 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     expect(screen.queryByText(/Reminder:/i)).toBeNull();
+  });
+
+  it("offers edit reminder when a split already has one scheduled", async () => {
+    mockStoreState.records = [buildRecord({
+      id: "reminded-split",
+      reminderState: {
+        splitReminder: {
+          scheduledForIso: "2030-01-01T09:00:00.000Z",
+          notificationId: "existing-reminder",
+          createdAt: "2026-04-04T08:00:00.000Z",
+          updatedAt: "2026-04-04T08:00:00.000Z",
+        },
+        participantDebtReminders: {},
+      },
+    })];
+
+    render(<HomeScreen />);
+    fireEvent(screen.getByLabelText("Open split Groceries"), "longPress");
+    fireEvent.press(screen.getByText("Edit reminder"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
+    expect(screen.getAllByText("Edit reminder").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Update")).toBeTruthy();
   });
 
   it("keeps split dates out of home split cards", () => {

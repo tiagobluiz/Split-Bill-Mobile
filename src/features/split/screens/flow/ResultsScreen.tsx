@@ -64,6 +64,7 @@ import {
   ToastNotice,
 } from "../shared/modals";
 import { screenStyles } from "../shared/styles";
+import { useTimedUndoNotice } from "../shared/useTimedUndoNotice";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
@@ -71,6 +72,12 @@ const YStack = TamaguiYStack as any;
 // Save/download is intentionally hidden from the results actions UX.
 // Re-enable by flipping this flag back to true.
 const ENABLE_SAVE_PDF_ACTION = false;
+
+type DebtReminderUndoItem = {
+  recordId: string;
+  participantId: string;
+  scheduledForIso: string;
+};
 
 export function ResultsScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
@@ -111,7 +118,20 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
   const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
   const [debtReminderErrorMessage, setDebtReminderErrorMessage] = useState("");
-  const [reminderToastMessage, setReminderToastMessage] = useState("");
+  const reminderUndo = useTimedUndoNotice<DebtReminderUndoItem>(
+    async (item) => {
+      if (
+        record?.id !== item.recordId ||
+        !record.values.participants.some((participant) => participant.id === item.participantId) ||
+        record.reminderState?.participantDebtReminders?.[item.participantId]
+      ) {
+        throw new Error("participant-reminder-not-restorable");
+      }
+      await setParticipantDebtReminder(item.recordId, item.participantId, item.scheduledForIso);
+    },
+    t("reminders.restored"),
+    t("reminders.restoreFailed"),
+  );
   const settlement = getSettlementPreview(record);
   const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
   const locale = getDeviceLocale();
@@ -143,16 +163,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       }
     })();
   }, [markCompleted, record, settlement, summary]);
-  useEffect(() => {
-    if (!reminderToastMessage) {
-      return;
-    }
-    const timeout = setTimeout(() => {
-      setReminderToastMessage("");
-    }, 2200);
-    return () => clearTimeout(timeout);
-  }, [reminderToastMessage]);
-
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -357,10 +367,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
   ) => {
     try {
       await setParticipantDebtReminder(record.id, participantId, scheduledForIso);
+      reminderUndo.notify(t("reminders.saved"));
       setDebtReminderPickerHasExisting(false);
       setDebtReminderPickerParticipantId("");
       setDebtReminderErrorMessage("");
-      setReminderToastMessage(t("reminders.saved"));
     } catch (error) {
       const message =
         error instanceof Error && error.message === "notification-permission-denied"
@@ -369,6 +379,23 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             ? t("reminders.errors.futureOnly")
             : t("reminders.saveFailed");
       setDebtReminderErrorMessage(message);
+    }
+  };
+  const handleRemoveDebtReminder = async (participantId: string) => {
+    const removedReminder = record?.reminderState?.participantDebtReminders?.[participantId];
+    if (!record || !removedReminder?.scheduledForIso) return;
+    try {
+      await clearParticipantDebtReminder(record.id, participantId);
+      setDebtReminderErrorMessage("");
+      setDebtReminderPickerHasExisting(false);
+      setDebtReminderPickerParticipantId("");
+      reminderUndo.notify(t("reminders.removed"), {
+        recordId: record.id,
+        participantId,
+        scheduledForIso: removedReminder.scheduledForIso,
+      });
+    } catch {
+      setDebtReminderErrorMessage(t("reminders.removeFailed"));
     }
   };
   const savePdfAction = {
@@ -503,7 +530,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           />
           {debtReminderPickerPerson ? (
             <ReminderDateTimeModal
-              title={t("reminders.picker.title")}
+              title={t(debtReminderPickerHasExisting ? "reminders.picker.editTitle" : "reminders.picker.setTitle")}
               initialIso={
                 record.reminderState?.participantDebtReminders?.[
                   debtReminderPickerPerson.participantId
@@ -523,21 +550,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               }}
               onRemove={
                 debtReminderPickerHasExisting
-                  ? () => {
-                      void clearParticipantDebtReminder(
-                        record.id,
-                        debtReminderPickerPerson.participantId,
-                      )
-                        .then(() => {
-                          setDebtReminderErrorMessage("");
-                          setDebtReminderPickerHasExisting(false);
-                          setDebtReminderPickerParticipantId("");
-                          setReminderToastMessage(t("reminders.removed"));
-                        })
-                        .catch(() => {
-                          setDebtReminderErrorMessage(t("reminders.removeFailed"));
-                        });
-                    }
+                  ? () => void handleRemoveDebtReminder(debtReminderPickerPerson.participantId)
                   : undefined
               }
               onSave={(scheduledForIso) => {
@@ -549,11 +562,14 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             />
           ) : null}
           <ToastNotice
-            message={reminderToastMessage}
+            message={reminderUndo.message}
             bottomOffset={footerInsetBottom + 12}
+            actionLabel={reminderUndo.canUndo ? t("common.undo") : undefined}
+            onAction={reminderUndo.canUndo ? () => void reminderUndo.undo() : undefined}
           />
           <ActionListSheet
             visible={showResultsActions}
+            simpleRows
             title={t("flow.results.actionsTitle")}
             cancelLabel={t("common.cancel")}
             bottomInset={insets.bottom}

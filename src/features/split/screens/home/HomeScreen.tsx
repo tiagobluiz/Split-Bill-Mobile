@@ -38,6 +38,7 @@ import type {
   RecordActionTarget,
 } from "./homeTypes";
 import { useHomeSettingsDraftController } from "./useHomeSettingsDraftController";
+import { useTimedUndoNotice } from "../shared/useTimedUndoNotice";
 import { screenStyles } from "../shared/styles";
 import {
   isDefaultSplitTag,
@@ -47,6 +48,8 @@ import {
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
+
+type SplitReminderUndoItem = { recordId: string; scheduledForIso: string };
 
 export function HomeScreenView() {
   const { t } = useTranslation();
@@ -124,7 +127,17 @@ export function HomeScreenView() {
     useState(false);
   const [splitReminderErrorMessage, setSplitReminderErrorMessage] =
     useState("");
-  const [reminderToastMessage, setReminderToastMessage] = useState("");
+  const reminderUndo = useTimedUndoNotice<SplitReminderUndoItem>(
+    async (item) => {
+      const currentRecord = records.find((record) => record.id === item.recordId);
+      if (!currentRecord || currentRecord.reminderState?.splitReminder) {
+        throw new Error("split-reminder-not-restorable");
+      }
+      await setSplitReminder(item.recordId, item.scheduledForIso);
+    },
+    t("reminders.restored"),
+    t("reminders.restoreFailed"),
+  );
   const [pendingTagDeleteId, setPendingTagDeleteId] = useState("");
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
 
@@ -276,18 +289,6 @@ export function HomeScreenView() {
     activityTagFilterIds,
   ]);
 
-  useEffect(() => {
-    if (!reminderToastMessage) {
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setReminderToastMessage("");
-    }, 2200);
-
-    return () => clearTimeout(timeout);
-  }, [reminderToastMessage]);
-
   const startSplit = async () => {
     if (creatingSplitRef.current) {
       return;
@@ -363,10 +364,10 @@ export function HomeScreenView() {
   ) => {
     try {
       await setSplitReminder(recordId, scheduledForIso);
+      reminderUndo.notify(t("reminders.saved"));
       setSplitReminderPickerHasExisting(false);
       setSplitReminderPickerRecordId("");
       setSplitReminderErrorMessage("");
-      setReminderToastMessage(t("reminders.saved"));
     } catch (error) {
       const message =
         error instanceof Error &&
@@ -383,13 +384,20 @@ export function HomeScreenView() {
     if (!splitReminderPickerRecord) {
       return;
     }
+    const removedReminder = splitReminderPickerRecord.reminderState?.splitReminder;
+    if (!removedReminder?.scheduledForIso) {
+      return;
+    }
 
     void clearSplitReminder(splitReminderPickerRecord.id)
       .then(() => {
         setSplitReminderErrorMessage("");
         setSplitReminderPickerHasExisting(false);
         setSplitReminderPickerRecordId("");
-        setReminderToastMessage(t("reminders.removed"));
+        reminderUndo.notify(t("reminders.removed"), {
+          recordId: splitReminderPickerRecord.id,
+          scheduledForIso: removedReminder.scheduledForIso,
+        });
       })
       .catch(() => {
         setSplitReminderErrorMessage(t("reminders.removeFailed"));
@@ -444,6 +452,14 @@ export function HomeScreenView() {
           settingsNoticeMessages={settingsController.settingsNoticeMessages}
           onDismissSettingsNotice={settingsController.clearSettingsNotice}
           selectedRecordActionTarget={selectedRecordActionTarget}
+          selectedRecordHasReminder={Boolean(records.find((record) => record.id === selectedRecordActionTarget?.id)?.reminderState?.splitReminder)}
+          selectedRecordReminderDate={(() => {
+            const iso = records.find((record) => record.id === selectedRecordActionTarget?.id)?.reminderState?.splitReminder?.scheduledForIso;
+            const date = iso ? new Date(iso) : null;
+            return date && Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, {
+              year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: !use24HourClock,
+            }).format(date) : undefined;
+          })()}
           onDismissRecordActionTarget={() =>
             setSelectedRecordActionTarget(null)
           }
@@ -505,8 +521,11 @@ export function HomeScreenView() {
               scheduledForIso,
             );
           }}
-          reminderToastMessage={reminderToastMessage}
+          reminderToastMessage={reminderUndo.message}
+          reminderUndoAvailable={reminderUndo.canUndo}
+          onUndoReminderRemoval={() => void reminderUndo.undo()}
           footerInsetBottom={footerInsetBottom}
+          safeAreaBottomInset={insets.bottom}
           currencyMenuOpen={settingsController.currencyMenuOpen}
           setCurrencyMenuOpen={settingsController.setCurrencyMenuOpen}
           draftCurrencyOptions={settingsController.draftCurrencyOptions}

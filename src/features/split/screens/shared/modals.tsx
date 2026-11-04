@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
+import { AccessibilityInfo, BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { Trash2 } from "lucide-react-native";
+import { CalendarDays, ChevronDown, Clock3, Trash2 } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -15,6 +15,7 @@ import { FONTS, PALETTE } from "../../../../theme/palette";
 import { t } from "../../../../i18n";
 import { prefers24HourTime } from "../../../../lib/device";
 import { screenStyles } from "./styles";
+import { FormBottomSheet, FormSheetFooter } from "./FormBottomSheet";
 
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
@@ -279,7 +280,6 @@ export function ReminderDateTimeModal({
   onSave: (scheduledForIso: string) => void;
 }) {
   const [activePickerMode, setActivePickerMode] = useState<"date" | "time" | null>(null);
-  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
   const use24HourClock = prefers24HourTime();
   const getDefaultReminderDate = () => new Date(Date.now() + 60 * 60 * 1000);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -300,23 +300,18 @@ export function ReminderDateTimeModal({
       setSelectedDate(parsed);
     }
     setActivePickerMode(null);
-    setShowRemoveConfirmModal(false);
     setLocalErrorMessage("");
   }, [initialIso]);
   useEffect(() => {
     const backSubscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        if (showRemoveConfirmModal) {
-          setShowRemoveConfirmModal(false);
-          return true;
-        }
         onCancel();
         return true;
       },
     );
     return () => backSubscription.remove();
-  }, [onCancel, showRemoveConfirmModal]);
+  }, [onCancel]);
 
   const clearErrors = () => {
     if (localErrorMessage) {
@@ -396,33 +391,12 @@ export function ReminderDateTimeModal({
     onSave(selectedDate.toISOString());
   };
   const handleRemovePress = () => {
-    setShowRemoveConfirmModal(true);
-  };
-  const handleCancelRemove = () => {
-    setShowRemoveConfirmModal(false);
-  };
-  const handleConfirmRemove = () => {
-    setShowRemoveConfirmModal(false);
     onRemove?.();
   };
 
   return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("modal.dismissActionSheet")}
-        style={screenStyles.splitNoticeBackdrop}
-        onPress={onCancel}
-      />
-      <View style={screenStyles.splitNoticeCard}>
+    <FormBottomSheet title={title} onClose={onCancel}>
         <YStack gap="$3">
-          <Text
-            fontFamily={FONTS.headlineBold}
-            fontSize={22}
-            color={PALETTE.onSurface}
-          >
-            {title}
-          </Text>
           <YStack gap="$2">
             <Pressable
               accessibilityRole="button"
@@ -430,13 +404,10 @@ export function ReminderDateTimeModal({
               style={screenStyles.actionSheetButton}
               onPress={() => openPicker("date")}
             >
-              <XStack alignItems="center" justifyContent="space-between" gap="$2.5">
-                <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onSurfaceVariant}>
-                  {t("reminders.picker.date")}
-                </Text>
-                <Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>
-                  {formattedDate}
-                </Text>
+              <XStack alignItems="center" gap="$3">
+                <CalendarDays color={PALETTE.primary} size={23} />
+                <YStack flex={1}><Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onSurfaceVariant}>{t("reminders.picker.date")}</Text><Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.onSurface}>{formattedDate}</Text></YStack>
+                <ChevronDown color={PALETTE.primary} size={19} />
               </XStack>
             </Pressable>
             <Pressable
@@ -445,13 +416,10 @@ export function ReminderDateTimeModal({
               style={screenStyles.actionSheetButton}
               onPress={() => openPicker("time")}
             >
-              <XStack alignItems="center" justifyContent="space-between" gap="$2.5">
-                <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onSurfaceVariant}>
-                  {t("reminders.picker.time")}
-                </Text>
-                <Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>
-                  {formattedTime}
-                </Text>
+              <XStack alignItems="center" gap="$3">
+                <Clock3 color={PALETTE.primary} size={23} />
+                <YStack flex={1}><Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onSurfaceVariant}>{t("reminders.picker.time")}</Text><Text fontFamily={FONTS.bodyMedium} fontSize={16} color={PALETTE.onSurface}>{formattedTime}</Text></YStack>
+                <ChevronDown color={PALETTE.primary} size={19} />
               </XStack>
             </Pressable>
           </YStack>
@@ -477,93 +445,64 @@ export function ReminderDateTimeModal({
               {combinedErrorMessage}
             </Text>
           ) : null}
-          <YStack gap="$2">
-            {onRemove ? (
-              <XStack style={screenStyles.reminderActionRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={removeLabel ?? t("reminders.remove")}
-                  style={screenStyles.reminderRemoveButton}
-                  onPress={handleRemovePress}
-                >
-                  <Trash2 color="#b43d29" size={18} />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={saveLabel}
-                  style={[screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonCompact]}
-                  onPress={handleSavePress}
-                >
-                  <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
-                    {saveLabel}
-                  </Text>
-                </Pressable>
-              </XStack>
-            ) : (
+          <FormSheetFooter
+            primaryLabel={saveLabel}
+            onPrimaryPress={handleSavePress}
+            cancelLabel={t("common.cancel")}
+            onCancel={onCancel}
+            beforePrimary={onRemove ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={saveLabel}
-                style={screenStyles.splitNoticeButton}
-                onPress={handleSavePress}
+                accessibilityLabel={removeLabel ?? t("reminders.remove")}
+                style={screenStyles.reminderRemoveButton}
+                onPress={handleRemovePress}
               >
-                <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
-                  {saveLabel}
-                </Text>
+                <Trash2 color="#b43d29" size={18} />
               </Pressable>
-            )}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("common.cancel")}
-              style={[screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonSecondary]}
-              onPress={onCancel}
-            >
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={14}
-                color={PALETTE.onSecondaryContainer}
-                textAlign="center"
-              >
-                {t("common.cancel")}
-              </Text>
-            </Pressable>
-          </YStack>
+            ) : undefined}
+          />
         </YStack>
-      </View>
-      {showRemoveConfirmModal && onRemove ? (
-        <ConfirmChoiceModal
-          title={t("reminders.confirmRemove.title")}
-          body={t("reminders.confirmRemove.body")}
-          confirmLabel={t("reminders.confirmRemove.confirm")}
-          discardLabel={t("reminders.confirmRemove.discard")}
-          discardButtonVariant="secondaryPill"
-          onConfirm={handleConfirmRemove}
-          onDiscard={handleCancelRemove}
-        />
-      ) : null}
-    </View>
+    </FormBottomSheet>
   );
 }
 
 export function ToastNotice({
   message,
   bottomOffset = 16,
+  actionLabel,
+  onAction,
 }: {
   message: string;
   bottomOffset?: number;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
+  const announcement = message.trim() && actionLabel && onAction ? `${message} ${actionLabel}` : message;
+  useEffect(() => {
+    if (Platform.OS === "ios" && announcement.trim()) {
+      AccessibilityInfo.announceForAccessibility(announcement);
+    }
+  }, [announcement]);
   if (!message.trim()) {
     return null;
   }
 
   return (
     <View
-      pointerEvents="none"
+      pointerEvents={onAction ? "box-none" : "none"}
       style={[screenStyles.toastOverlay, { bottom: bottomOffset }]}
     >
-      <View style={screenStyles.toastCard}>
-        <Text fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onPrimary}>
+      <View pointerEvents={onAction ? "auto" : "none"} style={[screenStyles.toastCard, onAction ? screenStyles.toastCardWithAction : null]}>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" accessibilityLabel={announcement} style={onAction ? { flex: 1 } : undefined} fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onPrimary}>
           {message}
         </Text>
+        {actionLabel && onAction ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} style={screenStyles.undoButton} onPress={onAction}>
+            <Text fontFamily={FONTS.bodyBold} fontSize={12} color={PALETTE.onPrimary} textTransform="uppercase" letterSpacing={1.2}>
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

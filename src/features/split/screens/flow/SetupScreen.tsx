@@ -564,7 +564,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               cancelLabel={t("common.cancel")}
               bottomInset={insets.bottom}
               selectionMode
-              showCancel={false}
+              simpleRows
               options={currencyOptions.map((option) => ({
                 label: option.label,
                 selected: normalizedCurrency === option.code,

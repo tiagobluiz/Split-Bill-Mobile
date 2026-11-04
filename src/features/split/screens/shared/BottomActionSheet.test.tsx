@@ -1,9 +1,26 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Modal } from "react-native";
+import { Modal, StyleSheet } from "react-native";
 import { BottomActionSheet } from "./BottomActionSheet";
 
 describe("BottomActionSheet", () => {
   afterEach(() => jest.useRealTimers());
+
+  it("preserves selection, disabled actions and cancel in the divider layout", () => {
+    const select = jest.fn();
+    const disabled = jest.fn();
+    const dismiss = jest.fn();
+    render(<BottomActionSheet visible title="Currency" cancelLabel="Cancel" bottomInset={0} selectionMode simpleRows onDismiss={dismiss} options={[
+      { label: "Euro", selected: true, onPress: select },
+      { label: "Dollar", disabled: true, onPress: disabled },
+    ]} />);
+    expect(screen.getByLabelText("Euro").props.accessibilityState.selected).toBe(true);
+    fireEvent.press(screen.getByLabelText("Euro"));
+    fireEvent.press(screen.getByLabelText("Dollar"));
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(disabled).not.toHaveBeenCalled();
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
 
   it("runs the dismissal completion after the native modal closes", () => {
     jest.useFakeTimers();
@@ -170,5 +187,29 @@ describe("BottomActionSheet", () => {
     fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
     expect(onSelectedPress).toHaveBeenCalledTimes(1);
     expect(onDismiss).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps action rows at a consistent minimum height when a description is present", () => {
+    render(
+      <BottomActionSheet
+        visible
+        title="Split actions"
+        cancelLabel="Cancel"
+        bottomInset={0}
+        rowMinHeight={82}
+        options={[
+          { label: "Edit details", description: "Update split details.", onPress: jest.fn() },
+          { label: "Set reminder", description: "Choose when to be reminded.", onPress: jest.fn() },
+          { label: "Delete", tone: "danger", onPress: jest.fn() },
+        ]}
+        onDismiss={jest.fn()}
+      />,
+    );
+
+    const rowHeights = ["Edit details", "Set reminder", "Delete"].map((label) => {
+      const row = screen.getByLabelText(label);
+      return StyleSheet.flatten(row.props.style).minHeight;
+    });
+    expect(rowHeights).toEqual([82, 82, 82]);
   });
 });
