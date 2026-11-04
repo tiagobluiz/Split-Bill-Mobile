@@ -231,6 +231,11 @@ describe("person identity SQLite migration and membership persistence", () => {
     await expect(store.getState().removePerson(anaId)).resolves.toBe("archived");
     expect(store.getState().settings.participantGroups!.find((entry) => entry.id === group.id)?.memberPersonIds).toEqual([]);
     expect(await records.getRecordById("old")).toEqual(originalSplit);
+    await expect(store.getState().updateParticipantGroup(group.id, { name: "Renamed", memberPersonIds: [], description: "Updated" })).resolves.toBe(true);
+    const emptyGroupSettings = await require("./settings").getAppSettings();
+    expect(emptyGroupSettings.participantGroups[0]).toMatchObject({ id: group.id, name: "Renamed", description: "Updated", memberPersonIds: [] });
+    await expect(store.getState().addParticipantGroup("Empty new group", [])).resolves.toBe(false);
+    await expect(store.getState().updateParticipantGroup(group.id, { name: "Renamed", memberPersonIds: ["missing"] })).resolves.toBe(false);
     await expect(store.getState().updateParticipantGroup(group.id, {
       name: group.name,
       memberPersonIds: [],

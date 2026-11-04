@@ -54,6 +54,26 @@ describe("GroupEditor", () => {
     }));
   });
 
+  it("saves metadata for an existing empty group", async () => {
+    const group = { id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const onSave = jest.fn(async () => true);
+    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[]} allPeople={[]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Household");
+    fireEvent.press(screen.getByText("Continue to members"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Household", memberPersonIds: [] }));
+  });
+
+  it("requires at least one member for a new group", async () => {
+    const onSave = jest.fn(async () => true);
+    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Roomies");
+    fireEvent.press(screen.getByText("Continue to members"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a unique group name and at least one member.")).toBeTruthy();
+  });
+
   it("keeps the draft retryable when saving fails", async () => {
     const onSave = jest.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValue(true);
     render(

@@ -208,7 +208,7 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
       <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy} style={[screenStyles.splitNoticeButton, busy && { opacity: .55 }]} onPress={async () => {
         setError("");
         if (step === 1) { if (!normalized || groups.some((g) => g.id !== group?.id && g.name.toLowerCase() === normalized.toLowerCase())) { setError(t("people.validationGroup")); return; } setStep(2); return; }
-        if (!draft.memberPersonIds.length && !draft.newPersonNames.length) { setError(t("people.validationGroup")); return; }
+        if (!draft.memberPersonIds.length && !draft.newPersonNames.length && (!group || group.memberPersonIds.length > 0)) { setError(t("people.validationGroup")); return; }
         changeBusy(true);
         const previousPhoto = group?.photoUri ?? null;
         let durablePhoto = draft.photoUri;

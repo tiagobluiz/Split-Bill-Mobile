@@ -227,8 +227,8 @@ function HomeDirectoryOverlays({ personActionMenu, pendingDeletePerson, groupAct
   const personRef = useRef<SavedPerson | null>(null);
   const groupRef = useRef<ParticipantGroup | null>(null);
   const pendingAction = useRef<(() => void) | null>(null);
-  if (personActionMenu) personRef.current = personActionMenu;
-  if (groupActionMenu) groupRef.current = groupActionMenu;
+  useEffect(() => { if (personActionMenu) personRef.current = personActionMenu; }, [personActionMenu]);
+  useEffect(() => { if (groupActionMenu) groupRef.current = groupActionMenu; }, [groupActionMenu]);
   const personTarget = personActionMenu ?? personRef.current;
   const groupTarget = groupActionMenu ?? groupRef.current;
   const finishAction = () => { const action = pendingAction.current; pendingAction.current = null; action?.(); };
