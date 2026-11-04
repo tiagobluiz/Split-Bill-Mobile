@@ -105,8 +105,8 @@ export function BottomSheetFrame({
           style={screenStyles.personPhotoSheetBackdrop}
           onPress={onDismiss}
         />
-        {contentOverride && avoidKeyboard ? (
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {contentOverride && avoidKeyboard && Platform.OS === "ios" ? (
+          <KeyboardAvoidingView behavior="padding" style={StyleSheet.absoluteFill} pointerEvents="box-none">
             {contentOverride}
           </KeyboardAvoidingView>
         ) : contentOverride ?? (avoidKeyboard ? (
