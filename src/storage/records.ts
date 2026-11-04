@@ -390,7 +390,7 @@ export async function saveParticipantGroup(
       }
     }
     const validMemberIds = [...memberIds].filter((id) => nextPeople.some((person) => person.id === id));
-    if (!validMemberIds.length && (memberIds.size > 0 || !existingGroup || existingGroup.memberPersonIds.length > 0)) return null;
+    if (!validMemberIds.length) return null;
     const timestamp = new Date().toISOString();
     const appearance = {
       ...(input.description !== undefined ? { description: input.description } : {}),

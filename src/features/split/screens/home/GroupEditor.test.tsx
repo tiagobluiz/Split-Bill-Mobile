@@ -54,14 +54,19 @@ describe("GroupEditor", () => {
     }));
   });
 
-  it("saves metadata for an existing empty group", async () => {
+  it("requires a member before saving an existing empty group", async () => {
     const group = { id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const onSave = jest.fn(async () => true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[]} allPeople={[]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Household");
     fireEvent.press(screen.getByText("Continue to members"));
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Household", memberPersonIds: [] }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a unique group name and at least one member.")).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Maya");
+    fireEvent.press(screen.getByText("Add “Maya”"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Household", newPersonNames: ["Maya"] }));
   });
 
   it("requires at least one member for a new group", async () => {
