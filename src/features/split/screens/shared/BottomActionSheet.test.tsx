@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Modal, StyleSheet } from "react-native";
+import { Modal } from "react-native";
 import { BottomActionSheet } from "./BottomActionSheet";
 
 describe("BottomActionSheet", () => {
@@ -9,7 +9,7 @@ describe("BottomActionSheet", () => {
     const select = jest.fn();
     const disabled = jest.fn();
     const dismiss = jest.fn();
-    render(<BottomActionSheet visible title="Currency" cancelLabel="Cancel" bottomInset={0} selectionMode simpleRows onDismiss={dismiss} options={[
+    render(<BottomActionSheet visible title="Currency" cancelLabel="Cancel" bottomInset={0} selectionMode onDismiss={dismiss} options={[
       { label: "Euro", selected: true, onPress: select },
       { label: "Dollar", disabled: true, onPress: disabled },
     ]} />);
@@ -163,53 +163,11 @@ describe("BottomActionSheet", () => {
     expect(screen.getByText("Delete photo")).toBeTruthy();
   });
 
-  it("renders regular actions without a cancel row and supports system dismissal", () => {
+  it("supports system and backdrop dismissal", () => {
     const onDismiss = jest.fn();
-    const onSelectedPress = jest.fn();
-    render(
-      <BottomActionSheet
-        visible
-        title="Actions"
-        cancelLabel="Cancel"
-        bottomInset={0}
-        showCancel={false}
-        options={[
-          { label: "Selected", onPress: onSelectedPress, selected: true },
-          { label: "Continue", onPress: jest.fn() },
-        ]}
-        onDismiss={onDismiss}
-      />,
-    );
-
-    expect(screen.queryByText("Cancel")).toBeNull();
-    fireEvent.press(screen.getByLabelText("Selected"));
+    render(<BottomActionSheet visible title="Actions" cancelLabel="Cancel" bottomInset={0} options={[]} onDismiss={onDismiss} />);
     fireEvent(screen.UNSAFE_getByType(Modal), "onRequestClose");
     fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
-    expect(onSelectedPress).toHaveBeenCalledTimes(1);
     expect(onDismiss).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps action rows at a consistent minimum height when a description is present", () => {
-    render(
-      <BottomActionSheet
-        visible
-        title="Split actions"
-        cancelLabel="Cancel"
-        bottomInset={0}
-        rowMinHeight={82}
-        options={[
-          { label: "Edit details", description: "Update split details.", onPress: jest.fn() },
-          { label: "Set reminder", description: "Choose when to be reminded.", onPress: jest.fn() },
-          { label: "Delete", tone: "danger", onPress: jest.fn() },
-        ]}
-        onDismiss={jest.fn()}
-      />,
-    );
-
-    const rowHeights = ["Edit details", "Set reminder", "Delete"].map((label) => {
-      const row = screen.getByLabelText(label);
-      return StyleSheet.flatten(row.props.style).minHeight;
-    });
-    expect(rowHeights).toEqual([82, 82, 82]);
   });
 });

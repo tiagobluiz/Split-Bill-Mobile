@@ -1,13 +1,11 @@
 import { useRef, type RefObject } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Bell, Pencil, Trash2 } from "lucide-react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import {
-  ActionIconGridModal,
-  ActionSheetModal,
   ReminderDateTimeModal,
   SplitNoticeModal,
   ToastNotice,
@@ -19,6 +17,8 @@ import type {
 } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 import { SplitDetailsQuickEditModal } from "./SplitDetailsQuickEditModal";
+import { BottomActionSheet } from "../shared/BottomActionSheet";
+import { FormBottomSheet, FormSheetFooter } from "../shared/FormBottomSheet";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import type { SplitTag, SplitTagColor, SplitTagIcon } from "../../tags";
 
@@ -166,6 +166,7 @@ export function HomeOverlayStack({
   closeCustomCurrencyModal: () => void;
 }) {
   const { t } = useTranslation();
+  const openCurrencyAfterDismiss = useRef(false);
   const deferredAction = useRef<(() => void) | null>(null);
   const deferAction = (action: () => void) => {
     deferredAction.current = action;
@@ -174,18 +175,16 @@ export function HomeOverlayStack({
 
   return (
     <>
-      <SplitNoticeModal
+      {!currencyModalOpen ? <SplitNoticeModal
         title={settingsNoticeTitle}
         messages={settingsNoticeMessages}
         onDismiss={onDismissSettingsNotice}
-      />
+      /> : null}
       <ActionListSheet
           visible={Boolean(selectedRecordActionTarget)}
           title={t("home.rowActions.title")}
           cancelLabel={t("common.cancel")}
           bottomInset={safeAreaBottomInset}
-          rowMinHeight={82}
-          simpleRows
           options={[
             {
               label: t("home.rowActions.editDetails"),
@@ -256,10 +255,13 @@ export function HomeOverlayStack({
         actionLabel={reminderUndoAvailable ? t("common.undo") : undefined}
         onAction={reminderUndoAvailable ? onUndoReminderRemoval : undefined}
       />
-      {currencyMenuOpen ? (
-        <ActionSheetModal
+      <BottomActionSheet
+          visible={currencyMenuOpen}
+
+          selectionMode
+          cancelLabel={t("common.cancel")}
+          bottomInset={safeAreaBottomInset}
           title={t("settings.defaultCurrency")}
-          scrollableOptions
           options={[
             ...draftCurrencyOptions.map((option) => ({
               label: option.label,
@@ -273,16 +275,20 @@ export function HomeOverlayStack({
               label: t("common.other"),
               accessibilityLabel: t("settings.currencyPickerOther"),
               onPress: () => {
+                openCurrencyAfterDismiss.current = true;
                 setCurrencyMenuOpen(false);
-                setCurrencyModalOpen(true);
               },
             },
           ]}
           onDismiss={() => setCurrencyMenuOpen(false)}
+          onDismissComplete={() => { if (openCurrencyAfterDismiss.current) { openCurrencyAfterDismiss.current = false; setCurrencyModalOpen(true); } }}
         />
-      ) : null}
-      {languageMenuOpen ? (
-        <ActionSheetModal
+      <BottomActionSheet
+          visible={languageMenuOpen}
+
+          selectionMode
+          cancelLabel={t("common.cancel")}
+          bottomInset={safeAreaBottomInset}
           title={t("settings.pickLanguage")}
           options={[
             {
@@ -304,9 +310,12 @@ export function HomeOverlayStack({
           ]}
           onDismiss={() => setLanguageMenuOpen(false)}
         />
-      ) : null}
-      {humourMenuOpen ? (
-        <ActionSheetModal
+      <BottomActionSheet
+          visible={humourMenuOpen}
+
+          selectionMode
+          cancelLabel={t("common.cancel")}
+          bottomInset={safeAreaBottomInset}
           title={t("settings.pickTone")}
           options={[
             {
@@ -336,9 +345,12 @@ export function HomeOverlayStack({
           ]}
           onDismiss={() => setHumourMenuOpen(false)}
         />
-      ) : null}
-      {splitListAmountDisplayMenuOpen ? (
-        <ActionSheetModal
+      <BottomActionSheet
+          visible={splitListAmountDisplayMenuOpen}
+
+          selectionMode
+          cancelLabel={t("common.cancel")}
+          bottomInset={safeAreaBottomInset}
           title={t("settings.splitRowsPickerTitle")}
           options={availableSplitListAmountDisplayOptions.map((option) => ({
             label: option.label,
@@ -352,19 +364,10 @@ export function HomeOverlayStack({
           }))}
           onDismiss={() => setSplitListAmountDisplayMenuOpen(false)}
         />
-      ) : null}
       {currencyModalOpen ? (
-        <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-          <View style={screenStyles.splitNoticeBackdrop} />
-          <View style={screenStyles.splitNoticeCard}>
+        <FormBottomSheet title={t("settings.currencyAddTitle")} onClose={closeCustomCurrencyModal} avoidKeyboard>
+          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
             <YStack gap="$3">
-              <Text
-                fontFamily={FONTS.headlineBold}
-                fontSize={22}
-                color={PALETTE.onSurface}
-              >
-                {t("settings.currencyAddTitle")}
-              </Text>
               <View
                 style={[
                   screenStyles.assignInputShell,
@@ -422,37 +425,15 @@ export function HomeOverlayStack({
                   maxLength={3}
                 />
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("settings.currencySave")}
-                style={screenStyles.splitNoticeButton}
-                onPress={() => void addCustomCurrency()}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onPrimary}
-                >
-                  {t("settings.currencySave")}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("common.cancel")}
-                style={screenStyles.confirmChoiceSecondaryButton}
-                onPress={closeCustomCurrencyModal}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={14}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("common.cancel")}
-                </Text>
-              </Pressable>
+              {settingsNoticeMessages.length > 0 ? <YStack gap="$2">
+                <Text fontFamily={FONTS.headlineBold} color={PALETTE.onSurface}>{settingsNoticeTitle}</Text>
+                {settingsNoticeMessages.map((message) => <Text key={message} color={PALETTE.onSurfaceVariant}>{message}</Text>)}
+                <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissNotice")} onPress={onDismissSettingsNotice} style={screenStyles.formSheetCancel}><Text color={PALETTE.primary}>{t("common.ok")}</Text></Pressable>
+              </YStack> : null}
+              <FormSheetFooter primaryLabel={t("settings.currencySave")} onPrimaryPress={() => void addCustomCurrency()} cancelLabel={t("common.cancel")} onCancel={closeCustomCurrencyModal} />
             </YStack>
-          </View>
-        </View>
+          </ScrollView>
+        </FormBottomSheet>
       ) : null}
     </>
   );

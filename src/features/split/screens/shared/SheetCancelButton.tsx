@@ -5,17 +5,17 @@ import { screenStyles } from "./styles";
 
 const Text = TamaguiText as any;
 
-export function SheetCancelButton({ label, onPress, formStyle = false }: { label: string; onPress: () => void; formStyle?: boolean }) {
+export function SheetCancelButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={formStyle ? screenStyles.formSheetCancel : screenStyles.personPhotoSheetCancel}
+      style={screenStyles.formSheetCancel}
     >
       <Text
-        fontFamily={formStyle ? FONTS.bodyBold : FONTS.bodySemiBold}
-        fontSize={formStyle ? 14 : 17}
+        fontFamily={FONTS.bodyBold}
+        fontSize={14}
         color={PALETTE.onSurface}
       >
         {label}

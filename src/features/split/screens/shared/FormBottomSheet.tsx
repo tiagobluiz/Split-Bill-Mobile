@@ -94,7 +94,7 @@ export function FormSheetFooter({ primaryLabel, onPrimaryPress, cancelLabel, onC
           {primaryButton}
         </XStack>
       ) : primaryButton}
-      <SheetCancelButton label={cancelLabel} onPress={onCancel} formStyle />
+      <SheetCancelButton label={cancelLabel} onPress={onCancel} />
     </YStack>
   );
 }

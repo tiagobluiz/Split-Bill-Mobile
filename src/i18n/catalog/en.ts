@@ -253,7 +253,7 @@ const enPlain = {
   "people.useContactPhoto": "Use photo from this contact",
   "people.selectColorA11y": "Select {color} avatar color",
   "people.deletePersonTitle": "Delete person?",
-  "people.deletePersonArchivePrompt": "Archive {person}? They will leave your active people list, while existing groups and split history stay intact.",
+  "people.deletePersonArchivePrompt": "Archive {person}? They will be removed from your active people list and groups. Their split history will be kept.",
   "people.deletePersonPermanentPrompt": "Delete {person} permanently? This person is not used in any group or split.",
   "people.splitNameConflict": "This name conflicts with a participant in {split}. Choose another name to preserve that participant’s identity.",
   "people.archivedEditorHint": "This person is archived. Saving restores this record.",
@@ -712,6 +712,7 @@ const enPlain = {
   "flow.results.settled": "Settled",
   "flow.results.togglePaidAddBackA11y": "Add {name} back to owed",
   "flow.results.togglePaidSettleA11y": "Mark {name} as paid",
+  "flow.results.debtMarkPaid": "Mark as paid", "flow.results.debtMarkUnpaid": "Mark as unpaid",
   "flow.results.togglePaidFailed": "Could not update {name}'s payment status.",
   "pasteImport.ignoredLines.one":
     "Ignored {count} pasted line that did not match the expected format.",

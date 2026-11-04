@@ -884,6 +884,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Cur");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "#");
     await act(async () => {
@@ -1614,6 +1615,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     fireEvent.changeText(
       screen.getByPlaceholderText("Currency name"),
       "Points",
@@ -1710,6 +1712,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "123");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "#");
     await act(async () => {
@@ -1764,6 +1767,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     fireEvent.press(screen.getByLabelText("Cancel"));
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
   });
@@ -1775,6 +1779,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Save"));
     });
@@ -1792,6 +1797,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
 
     const nameInput = screen.getByPlaceholderText("Currency name");
     const symbolInput = screen.getByPlaceholderText("Currency symbol");
@@ -1826,6 +1832,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
 
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "Token");
     fireEvent.changeText(
@@ -1862,7 +1869,7 @@ describe("split screens", () => {
     expect(screen.getByText("People (1)")).toBeTruthy();
   });
 
-  it("keeps the custom currency modal open when tapping outside", async () => {
+  it("dismisses the custom currency modal when tapping outside", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
 
@@ -1870,10 +1877,10 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
 
     expect(screen.getByPlaceholderText("Currency name")).toBeTruthy();
-    expect(screen.queryByLabelText("Dismiss action sheet")).toBeNull();
-    fireEvent.press(screen.getByLabelText("Cancel"));
+    fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
     expect(screen.queryByPlaceholderText("Currency name")).toBeNull();
   });
 
@@ -1896,6 +1903,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Choose default currency"));
     });
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
 
     expect(screen.getByPlaceholderText("Currency name")).toBeTruthy();
     expect(hardwareBackHandlers.length).toBeGreaterThan(0);

@@ -59,7 +59,12 @@ export async function deleteSavedPerson(
             : entry,
         )
       : settings.people!.filter((entry) => entry.id !== personId);
-    const nextSettings = { ...settings, people };
+    const participantGroups = settings.participantGroups?.map((group) =>
+      group.memberPersonIds.includes(personId)
+        ? { ...group, memberPersonIds: group.memberPersonIds.filter((id) => id !== personId), updatedAt: timestamp }
+        : group,
+    );
+    const nextSettings = { ...settings, people, participantGroups };
     await tx.runAsync("UPDATE app_settings SET payload = ? WHERE key = ?", [
       JSON.stringify(nextSettings),
       "app-settings",

@@ -229,6 +229,8 @@ describe("person identity SQLite migration and membership persistence", () => {
     expect(group.memberPersonIds).toEqual([anaId]);
 
     await expect(store.getState().removePerson(anaId)).resolves.toBe("archived");
+    expect(store.getState().settings.participantGroups!.find((entry) => entry.id === group.id)?.memberPersonIds).toEqual([]);
+    expect(await records.getRecordById("old")).toEqual(originalSplit);
     await expect(store.getState().updateParticipantGroup(group.id, {
       name: group.name,
       memberPersonIds: [],
@@ -1002,8 +1004,11 @@ describe("person identity SQLite migration and membership persistence", () => {
 
     const { deleteSavedPerson } = require("./personDeletion");
     expect((await deleteSavedPerson("legacy-person")).result).toBe("archived");
-    expect((await deleteSavedPerson("group-only-person")).result).toBe(
-      "archived",
-    );
+    const groupOnlyResult = await deleteSavedPerson("group-only-person");
+    expect(groupOnlyResult.result).toBe("archived");
+    expect(groupOnlyResult.settings.participantGroups.find((group: any) => group.id === "group-only").memberPersonIds).toEqual([]);
+    const persisted = await require("./settings").getAppSettings();
+    expect(persisted.participantGroups.find((group: any) => group.id === "group-only").memberPersonIds).toEqual([]);
+    expect(await records.getRecordById("legacy")).toBeTruthy();
   });
 });

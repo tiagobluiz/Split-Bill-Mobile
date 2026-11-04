@@ -52,6 +52,7 @@ import {
 } from "../shared/participantUtils";
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { ActionListSheet } from "../shared/ActionListSheet";
+import { DebtActionSheet } from "./DebtActionSheet";
 import {
   getOwingPeople,
   getSettledParticipantIds,
@@ -114,6 +115,9 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     useFloatingFooterInset({ fallbackHeight: 196 });
   const [showResultsActions, setShowResultsActions] = useState(false);
   const [showPaymentActions, setShowPaymentActions] = useState(false);
+  const [debtAction, setDebtAction] = useState<{ id: string; name: string; settled: boolean } | null>(null);
+  const [debtMenuVisible, setDebtMenuVisible] = useState(false);
+  const debtNextAction = useRef<(() => void) | null>(null);
   const shareAfterResultsActionsDismissRef = useRef(false);
   const [debtReminderPickerParticipantId, setDebtReminderPickerParticipantId] = useState("");
   const [debtReminderPickerHasExisting, setDebtReminderPickerHasExisting] = useState(false);
@@ -569,7 +573,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           />
           <ActionListSheet
             visible={showResultsActions}
-            simpleRows
             title={t("flow.results.actionsTitle")}
             cancelLabel={t("common.cancel")}
             bottomInset={insets.bottom}
@@ -582,6 +585,17 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
               shareAfterResultsActionsDismissRef.current = false;
               void shareResults();
             }}
+          />
+          <DebtActionSheet
+            visible={debtMenuVisible}
+            target={debtAction}
+            tracking={trackPaymentsEnabled}
+            hasReminder={Boolean(debtAction && record?.reminderState?.participantDebtReminders?.[debtAction.id])}
+            bottomInset={insets.bottom}
+            onDismiss={() => setDebtMenuVisible(false)}
+            onDismissComplete={() => { const action = debtNextAction.current; debtNextAction.current = null; setDebtAction(null); action?.(); }}
+            onPayment={(target) => { debtNextAction.current = () => { void runPaymentAction(() => toggleParticipantPaid(target.id), t("flow.results.togglePaidFailed", { name: target.name })); }; setDebtMenuVisible(false); }}
+            onReminder={(target) => { debtNextAction.current = () => { setDebtReminderErrorMessage(""); setDebtReminderPickerHasExisting(Boolean(record?.reminderState?.participantDebtReminders?.[target.id])); setDebtReminderPickerParticipantId(target.id); }; setDebtMenuVisible(false); }}
           />
           <ActionListSheet
             visible={showPaymentActions}
@@ -938,15 +952,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                           : null,
                       ]}
                       onLongPress={() => {
-                        setDebtReminderErrorMessage("");
-                        setDebtReminderPickerHasExisting(
-                          Boolean(
-                            record.reminderState?.participantDebtReminders?.[
-                              person.participantId
-                            ],
-                          ),
-                        );
-                        setDebtReminderPickerParticipantId(person.participantId);
+                        setDebtAction({ id: person.participantId, name: personDisplayName, settled: isSettled });
+                        setDebtMenuVisible(true);
                       }}
                     >
                       {rowContent}
@@ -972,15 +979,8 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                       )
                     }
                     onLongPress={() => {
-                      setDebtReminderErrorMessage("");
-                      setDebtReminderPickerHasExisting(
-                        Boolean(
-                          record.reminderState?.participantDebtReminders?.[
-                            person.participantId
-                          ],
-                        ),
-                      );
-                      setDebtReminderPickerParticipantId(person.participantId);
+                      setDebtAction({ id: person.participantId, name: personDisplayName, settled: isSettled });
+                      setDebtMenuVisible(true);
                     }}
                   >
                     {rowContent}

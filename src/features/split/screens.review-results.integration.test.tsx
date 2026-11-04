@@ -860,6 +860,30 @@ describe("split screens", () => {
     expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
   });
 
+  it("offers the matching payment action for a long-pressed debt", async () => {
+    mockStoreState.records = [buildRecord({ status: "completed", step: 5, settlementState: { settledParticipantIds: ["bruno"] } })];
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent(screen.getByText("Bruno"), "onLongPress");
+    expect(mockStoreState.toggleParticipantPaid).not.toHaveBeenCalled();
+    expect(screen.getByText("Mark as unpaid")).toBeTruthy();
+    expect(screen.queryByText("Set reminder")).toBeNull();
+    expect(screen.queryByText("Edit reminder")).toBeNull();
+    fireEvent.press(screen.getByText("Mark as unpaid"));
+    await waitFor(() => expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno"));
+  });
+
+  it("offers only reminders for a debt when payment tracking is disabled", () => {
+    mockStoreState.settings = { ...mockStoreState.settings, trackPaymentsFeatureEnabled: false };
+    render(<ResultsScreen draftId="draft-1" />);
+    fireEvent(screen.getByText("Bruno"), "onLongPress");
+    expect(screen.getByText("Set reminder")).toBeTruthy();
+    expect(screen.queryByText("Mark as paid")).toBeNull();
+    expect(screen.queryByText("Mark as unpaid")).toBeNull();
+    expect(mockStoreState.toggleParticipantPaid).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    expect(screen.queryByText("Set reminder")).toBeNull();
+  });
+
   it("opens debt reminder actions on long press and saves a reminder", async () => {
     mockStoreState.records = [
       buildRecord({
@@ -872,6 +896,9 @@ describe("split screens", () => {
 
     fireEvent(screen.getByText("Bruno"), "onLongPress");
     expect(screen.getByText("Set reminder")).toBeTruthy();
+    expect(mockStoreState.toggleParticipantPaid).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByText("Set reminder"));
+    await screen.findByLabelText("Set");
     expect(screen.queryByLabelText("Next: choose time")).toBeNull();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Set"));
@@ -920,6 +947,8 @@ describe("split screens", () => {
 
     fireEvent(screen.getByText("Bruno"), "onLongPress");
     expect(screen.getByText("Edit reminder")).toBeTruthy();
+    fireEvent.press(screen.getByText("Edit reminder"));
+    await screen.findByLabelText("Remove");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Remove"));
     });
@@ -948,6 +977,8 @@ describe("split screens", () => {
     render(<ResultsScreen draftId="draft-1" />);
 
     fireEvent(screen.getByText("Bruno"), "onLongPress");
+    fireEvent.press(screen.getByText("Set reminder"));
+    await screen.findByLabelText("Set");
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Set"));
     });
@@ -1219,11 +1250,12 @@ describe("split screens", () => {
     });
   });
 
-  it("closes the custom currency popup from cancel and clears its validation state", () => {
+  it("closes the custom currency popup from cancel and clears its validation state", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     fireEvent.changeText(screen.getByPlaceholderText("Currency name"), "");
     fireEvent.changeText(screen.getByPlaceholderText("Currency symbol"), "");
     fireEvent.press(screen.getByLabelText("Save"));
@@ -1235,6 +1267,7 @@ describe("split screens", () => {
 
     fireEvent.press(screen.getByLabelText("Choose default currency"));
     fireEvent.press(screen.getByLabelText("Choose other currency"));
+    await screen.findByPlaceholderText("Currency name");
     expect(screen.getByPlaceholderText("Currency name").props.value).toBe("");
     expect(screen.getByPlaceholderText("Currency symbol").props.value).toBe("");
   });
