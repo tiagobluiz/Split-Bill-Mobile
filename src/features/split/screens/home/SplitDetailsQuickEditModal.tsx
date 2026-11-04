@@ -72,7 +72,10 @@ export function SplitDetailsQuickEditModal({
     normalizeSelectedTagIds(record.values.tagIds ?? [], tags),
   );
   const [error, setError] = useState("");
-  const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  const [phase, setPhase] = useState<"details" | "tag">("details");
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const tagSavingRef = useRef(false);
   const [pendingCreatedTagLabel, setPendingCreatedTagLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const orderedTags = useMemo(
@@ -84,7 +87,7 @@ export function SplitDetailsQuickEditModal({
   const [formContentHeight, setFormContentHeight] = useState(0);
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      onCancel();
+      if (phaseRef.current === "details") onCancel();
       return true;
     });
     return () => subscription.remove();
@@ -162,9 +165,32 @@ export function SplitDetailsQuickEditModal({
     }
   };
 
+  const closeTagEditor = () => {
+    if (!tagSavingRef.current) setPhase("details");
+  };
+  const tagEditor = phase === "tag" ? (
+    <TagEditorModal
+      embedded
+      existingTags={tags}
+      onCancel={closeTagEditor}
+      onSave={async (label, icon, color) => {
+        tagSavingRef.current = true;
+        try {
+          const saved = await onAddTag(label, icon, color);
+          if (!saved) return false;
+          setPendingCreatedTagLabel(normalizeTagName(label));
+          setPhase("details");
+          return true;
+        } finally {
+          tagSavingRef.current = false;
+        }
+      }}
+    />
+  ) : undefined;
+
   return (
     <>
-      <FormBottomSheet title={t("home.editDetails.title")} onClose={onCancel} avoidKeyboard height={Math.min(windowHeight * 0.9, (formContentHeight || 450) + 230)}>
+      <FormBottomSheet title={t("home.editDetails.title")} onClose={phase === "tag" ? closeTagEditor : onCancel} contentOverride={tagEditor} avoidKeyboard height={Math.min(windowHeight * 0.9, (formContentHeight || 450) + 230)}>
           <YStack gap="$3" flex={1}>
             <ScrollView
               style={{ flex: 1 }}
@@ -222,7 +248,7 @@ export function SplitDetailsQuickEditModal({
                     accessibilityRole="button"
                     accessibilityLabel={t("tags.add")}
                     style={screenStyles.tagPickerAddInline}
-                    onPress={() => setTagEditorOpen(true)}
+                    onPress={() => setPhase("tag")}
                   >
                     <XStack alignItems="center" gap="$1.5">
                       <Plus color={PALETTE.primary} size={13} />
@@ -268,21 +294,6 @@ export function SplitDetailsQuickEditModal({
             />
           </YStack>
       </FormBottomSheet>
-      {tagEditorOpen ? (
-        <TagEditorModal
-          existingTags={tags}
-          onCancel={() => setTagEditorOpen(false)}
-          onSave={async (label, icon, color) => {
-            const saved = await onAddTag(label, icon, color);
-            if (!saved) {
-              return false;
-            }
-            setPendingCreatedTagLabel(normalizeTagName(label));
-            setTagEditorOpen(false);
-            return true;
-          }}
-        />
-      ) : null}
     </>
   );
 }

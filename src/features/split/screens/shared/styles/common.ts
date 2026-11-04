@@ -655,12 +655,13 @@ export const commonStyles = {
     paddingBottom: 4,
   },
   tagPreviewPanel: {
-    minHeight: 92,
+    minHeight: 68,
     borderRadius: 28,
     backgroundColor: PALETTE.surfaceContainerLow,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 5,
+    paddingVertical: 8,
   },
   tagEditorIconButton: {
     width: 52,

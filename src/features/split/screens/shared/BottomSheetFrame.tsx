@@ -21,6 +21,7 @@ export function BottomSheetFrame({
   avoidKeyboard = false,
   animationType = "slide",
   swipeToDismiss = false,
+  contentOverride,
 }: {
   visible: boolean;
   title: string;
@@ -35,6 +36,7 @@ export function BottomSheetFrame({
   avoidKeyboard?: boolean;
   animationType?: "none" | "slide" | "fade";
   swipeToDismiss?: boolean;
+  contentOverride?: ReactNode;
 }) {
   const { t } = useTranslation();
   const translateY = useRef(new Animated.Value(0)).current;
@@ -103,14 +105,14 @@ export function BottomSheetFrame({
           style={screenStyles.personPhotoSheetBackdrop}
           onPress={onDismiss}
         />
-        {avoidKeyboard ? (
+        {contentOverride ?? (avoidKeyboard ? (
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ width: "100%", maxHeight: "96%" }}
+            style={{ width: "100%", maxHeight: "96%", alignItems: "center" }}
           >
             {sheetContent}
           </KeyboardAvoidingView>
-        ) : sheetContent}
+        ) : sheetContent)}
       </View>
     </Modal>
   );

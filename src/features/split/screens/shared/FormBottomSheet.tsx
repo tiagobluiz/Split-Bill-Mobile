@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text as TamaguiText, XStack as TamaguiXStack, YStack as TamaguiYStack } from "tamagui";
@@ -11,21 +11,43 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-export function FormBottomSheet({ title, onClose, children, avoidKeyboard = false, height }: {
+export function FormBottomSheet({ title, onClose, children, avoidKeyboard = false, height, visible = true, onDismissComplete, contentOverride }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   avoidKeyboard?: boolean;
   height?: number;
+  visible?: boolean;
+  onDismissComplete?: () => void;
+  contentOverride?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const completed = useRef(false);
+  const previousVisible = useRef(visible);
+  const callbackRef = useRef(onDismissComplete);
+  callbackRef.current = onDismissComplete;
+  const complete = useCallback(() => {
+    if (completed.current) return;
+    completed.current = true;
+    callbackRef.current?.();
+  }, []);
+  useEffect(() => {
+    const wasVisible = previousVisible.current;
+    previousVisible.current = visible;
+    if (visible) { completed.current = false; return; }
+    if (!wasVisible) return;
+    const timeout = setTimeout(complete, 350);
+    return () => clearTimeout(timeout);
+  }, [visible, complete]);
 
   return (
     <BottomSheetFrame
-      visible
+      visible={visible}
       title={title}
       bottomInset={insets.bottom}
       onDismiss={onClose}
+      onDismissComplete={complete}
+      contentOverride={contentOverride}
       centeredTitle
       titleFontSize={18}
       overlayStyle={[screenStyles.splitNoticeOverlay, screenStyles.formSheetOverlay]}
