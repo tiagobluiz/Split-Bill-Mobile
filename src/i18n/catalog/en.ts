@@ -206,7 +206,7 @@ const enPlain = {
   "people.createPersonTitle": "Add person",
   "people.editPersonTitle": "Edit person",
   "people.validationPerson": "Use a unique person name.",
-  "people.validationGroup": "Add a unique group name and at least one member.",
+  "groups.validationNameRequired": "Enter a group name.", "groups.validationNameDuplicate": "A group with this name already exists.", "groups.validationMembersRequired": "Add at least one member.",
   "people.memberCount": "{count} members",
   "people.archived": "Archived",
   "people.deletePersonA11y": "Delete person {person}",

@@ -173,7 +173,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "people.createPersonTitle": "Adicionar pessoa",
   "people.editPersonTitle": "Editar pessoa",
   "people.validationPerson": "Usa um nome de pessoa único.",
-  "people.validationGroup": "Adiciona um nome de grupo único e pelo menos um membro.",
+  "groups.validationNameRequired": "Introduz um nome para o grupo.", "groups.validationNameDuplicate": "Já existe um grupo com este nome.", "groups.validationMembersRequired": "Adiciona pelo menos um membro.",
   "people.memberCount": "{count} membros",
   "people.archived": "Arquivado",
   "people.deletePersonA11y": "Eliminar pessoa {person}",

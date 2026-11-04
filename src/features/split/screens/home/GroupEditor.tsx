@@ -207,8 +207,8 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
       </ScrollView>
       <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy} style={[screenStyles.splitNoticeButton, busy && { opacity: .55 }]} onPress={async () => {
         setError("");
-        if (step === 1) { if (!normalized || groups.some((g) => g.id !== group?.id && g.name.toLowerCase() === normalized.toLowerCase())) { setError(t("people.validationGroup")); return; } setStep(2); return; }
-        if (!draft.memberPersonIds.length && !draft.newPersonNames.length) { setError(t("people.validationGroup")); return; }
+        if (step === 1) { if (!normalized) { setError(t("groups.validationNameRequired")); return; } if (groups.some((g) => g.id !== group?.id && normalizeGroupName(g.name).toLowerCase() === normalized.toLowerCase())) { setError(t("groups.validationNameDuplicate")); return; } setStep(2); return; }
+        if (!draft.memberPersonIds.length && !draft.newPersonNames.length) { setError(t("groups.validationMembersRequired")); return; }
         changeBusy(true);
         const previousPhoto = group?.photoUri ?? null;
         let durablePhoto = draft.photoUri;
@@ -222,7 +222,7 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
           const saved = await onSave({ ...draft, photoUri: durablePhoto, name: normalized });
           if (!saved) {
             if (copiedPhoto) await removeGroupPhoto(durablePhoto);
-            setError(t("people.validationGroup"));
+            setError(t("common.couldNotSaveSettings"));
           } else if (previousPhoto && previousPhoto !== durablePhoto) {
             await removeGroupPhoto(previousPhoto);
           }
