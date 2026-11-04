@@ -128,7 +128,7 @@ export function normalizeGroups(
             validPersonIds.has(memberId),
           )
         : [];
-      if (memberPersonIds.length === 0) {
+      if (!Array.isArray(raw.memberPersonIds) || (raw.memberPersonIds.length > 0 && memberPersonIds.length === 0)) {
         return null;
       }
       seenIds.add(id);

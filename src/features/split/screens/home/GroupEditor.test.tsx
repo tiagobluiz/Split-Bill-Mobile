@@ -54,6 +54,31 @@ describe("GroupEditor", () => {
     }));
   });
 
+  it("requires a member before saving an existing empty group", async () => {
+    const group = { id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const onSave = jest.fn(async () => true);
+    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[]} allPeople={[]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Household");
+    fireEvent.press(screen.getByText("Continue to members"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Add at least one member.")).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Maya");
+    fireEvent.press(screen.getByText("Add “Maya”"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Household", newPersonNames: ["Maya"] }));
+  });
+
+  it("requires at least one member for a new group", async () => {
+    const onSave = jest.fn(async () => true);
+    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Roomies");
+    fireEvent.press(screen.getByText("Continue to members"));
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Add at least one member.")).toBeTruthy();
+  });
+
   it("keeps the draft retryable when saving fails", async () => {
     const onSave = jest.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValue(true);
     render(
@@ -182,11 +207,18 @@ describe("GroupEditor", () => {
     const groups = [{ id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" }];
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={groups} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("Continue to members"));
-    expect(screen.getByText("Add a unique group name and at least one member.")).toBeTruthy();
+    expect(screen.getByText("Enter a group name.")).toBeTruthy();
+    expect(screen.getByText("Almost there")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByText("Enter a group name.")).toBeNull();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), " roomies ");
     fireEvent.press(screen.getByText("Continue to members"));
-    expect(screen.getByText("Add a unique group name and at least one member.")).toBeTruthy();
+    expect(screen.getByText("A group with this name already exists.")).toBeTruthy();
     expect(screen.queryByText("Add people who often split expenses in this group.")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Trip");
+    fireEvent.press(screen.getByText("Continue to members"));
+    expect(screen.getByText("Save group")).toBeTruthy();
   });
 
   it("preserves edit details across both steps and saves without replacing the group identity", async () => {
@@ -224,7 +256,7 @@ describe("GroupEditor", () => {
     const onSave = jest.fn(async () => true);
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("Save group"));
-    expect(screen.getByText("Add a unique group name and at least one member.")).toBeTruthy();
+    expect(screen.getByText("Add at least one member.")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Mina");
     fireEvent.press(screen.getByText("Add “Mina”"));
     onSave.mockRejectedValueOnce(new Error("storage unavailable"));

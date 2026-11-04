@@ -92,21 +92,23 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.queryByLabelText("Open actions for Roomies")).toBeNull();
   });
 
-  it("opens group details from the menu", () => {
+  it("opens group details from the menu", async () => {
     renderGroupsDirectory();
 
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Edit details"));
+    await screen.findByText("Group details");
 
     expect(screen.getByText("Group details")).toBeTruthy();
     expect(screen.getByText("STEP 1 OF 2")).toBeTruthy();
   });
 
-  it("opens group members from the menu", () => {
+  it("opens group members from the menu", async () => {
     renderGroupsDirectory();
 
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Edit members"));
+    await screen.findByText("Add group members");
 
     expect(screen.getByText("Add group members")).toBeTruthy();
     expect(screen.getByText("STEP 2 OF 2")).toBeTruthy();
@@ -135,12 +137,13 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("Group details")).toBeTruthy();
   });
 
-  it("confirms deletion and removes only the selected group", () => {
+  it("confirms deletion and removes only the selected group", async () => {
     const onRemoveGroup = jest.fn(async () => undefined);
     renderGroupsDirectory(onRemoveGroup);
 
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Delete group"));
+    await screen.findByText("Delete group?");
 
     expect(screen.getByText("Delete group?")).toBeTruthy();
     expect(screen.getByText("Delete Roomies? Its people and existing split history will remain unchanged.")).toBeTruthy();
@@ -149,6 +152,7 @@ describe("HomeGroupsTabContent group actions", () => {
 
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Delete group"));
+    await screen.findByText("Delete group?");
     act(() => fireEvent.press(screen.getByLabelText("Delete group")));
     expect(onRemoveGroup).toHaveBeenCalledWith(group.id);
   });
@@ -165,7 +169,7 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByLabelText("Open actions for Ana")).toBeTruthy();
   });
 
-  it("opens the person actions on long press and explains archiving on delete", () => {
+  it("opens the person actions on long press and explains archiving on delete", async () => {
     const person = { id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const directorySettings = { ...settings, people: [person], participantGroups: [{ ...group, memberPersonIds: [person.id] }] };
     renderDirectory(undefined, directorySettings, jest.fn(() => ({ used: true, splitCount: 0, groupCount: 1 })));
@@ -176,8 +180,9 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("Edit person")).toBeTruthy();
     expect(screen.getByText("Archive person")).toBeTruthy();
     fireEvent.press(screen.getByText("Archive person"));
+    await screen.findByText("Archive person?");
     expect(screen.getByText("Archive person?")).toBeTruthy();
-    expect(screen.getByText("Archive Ana? They will leave your active people list, while existing groups and split history stay intact.")).toBeTruthy();
+    expect(screen.getByText("Archive Ana? They will be removed from your active people list and groups. Their split history will be kept.")).toBeTruthy();
   });
 
   it("creates a group with a new member through the directory action", async () => {
@@ -221,6 +226,7 @@ describe("HomeGroupsTabContent group actions", () => {
     fireEvent.press(screen.getByText("Archived (1)"));
     fireEvent.press(screen.getByLabelText("Open actions for Ana"));
     fireEvent.press(screen.getByText("Restore person"));
+    await screen.findByDisplayValue("Ana");
     expect(screen.getByDisplayValue("Ana")).toBeTruthy();
     expect(onSavePerson).not.toHaveBeenCalled();
     await act(async () => { fireEvent.press(screen.getByText("Restore and save")); });
@@ -232,6 +238,7 @@ describe("HomeGroupsTabContent group actions", () => {
     renderGroupsDirectory(onRemoveGroup);
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Delete group"));
+    await screen.findByText("Delete group?");
     await act(async () => { fireEvent.press(screen.getByLabelText("Delete group")); });
     expect(screen.getByText(/Could not save settings/)).toBeTruthy();
     expect(screen.getByText("Delete group?")).toBeTruthy();
@@ -240,6 +247,7 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.queryByText(/Could not save settings/)).toBeNull();
     fireEvent.press(screen.getByLabelText("Open actions for Roomies"));
     fireEvent.press(screen.getByText("Delete group"));
+    await screen.findByText("Delete group?");
     expect(screen.queryByText(/Could not save settings/)).toBeNull();
     fireEvent.press(screen.getByLabelText("Cancel"));
   });
@@ -257,6 +265,7 @@ describe("HomeGroupsTabContent group actions", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Search people..."), "");
     fireEvent.press(screen.getByLabelText("Open actions for Ana"));
     fireEvent.press(screen.getByText("Delete person"));
+    await screen.findByLabelText("Delete person");
     expect(screen.getByText("Delete Ana permanently? This person is not used in any group or split.")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByLabelText("Delete person")); });
     expect(onRemovePerson).toHaveBeenCalledWith(person.id);
@@ -285,6 +294,7 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("Restore person")).toBeTruthy();
     expect(screen.getByText("Delete person")).toBeTruthy();
     fireEvent.press(screen.getByText("Delete person"));
+    await screen.findByLabelText("Delete person");
     expect(screen.getByText("Delete Nina permanently? This person is not used in any group or split.")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByLabelText("Delete person")); });
     expect(onRemovePerson).toHaveBeenCalledWith(archived.id);
@@ -309,6 +319,7 @@ describe("HomeGroupsTabContent group actions", () => {
     fireEvent.press(screen.getByText("People (2)"));
     fireEvent.press(screen.getByLabelText("Open actions for Ana"));
     fireEvent.press(screen.getByText("Archive person"));
+    await screen.findByText("Archive person?");
     await act(async () => { fireEvent.press(screen.getByLabelText("Archive person")); });
     expect(screen.getByText(/Could not save settings/)).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByLabelText("Archive person")); });

@@ -35,6 +35,7 @@ import {
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { screenStyles } from "./styles";
+import { FormBottomSheet } from "./FormBottomSheet";
 import { TagChip } from "./TagChips";
 
 const Text = TamaguiText as any;
@@ -156,19 +157,10 @@ export function TagEditorModal({
     return "";
   };
 
-  return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      {!embedded ? <View style={screenStyles.splitNoticeBackdrop} /> : null}
-      <View style={screenStyles.tagEditorKeyboardWrap}>
-        <View style={screenStyles.tagEditorCard}>
+  const content = (
+        <View style={embedded ? screenStyles.tagEditorCard : { flexShrink: 1 }}>
           <YStack gap="$3">
-            <Text
-              fontFamily={FONTS.headlineBold}
-              fontSize={24}
-              color={PALETTE.onSurface}
-            >
-              {t("tags.createTitle")}
-            </Text>
+            {embedded ? <Text fontFamily={FONTS.headlineBold} fontSize={24} color={PALETTE.onSurface}>{t("tags.createTitle")}</Text> : null}
             <Text
               fontFamily={FONTS.bodyMedium}
               fontSize={13}
@@ -444,7 +436,7 @@ export function TagEditorModal({
                   accessibilityRole="button"
                   accessibilityLabel={t("common.cancel")}
                   disabled={saving}
-                  style={screenStyles.confirmChoiceSecondaryButton}
+                  style={screenStyles.formSheetCancel}
                   onPress={onCancel}
                 >
                   <Text
@@ -459,7 +451,7 @@ export function TagEditorModal({
             </YStack>
           </ScrollView>
         </View>
-      </View>
-    </View>
   );
+  if (embedded) return <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none"><View style={screenStyles.tagEditorKeyboardWrap}>{content}</View></View>;
+  return <FormBottomSheet title={t("tags.createTitle")} onClose={() => { if (!saving) onCancel(); }} avoidKeyboard>{content}</FormBottomSheet>;
 }

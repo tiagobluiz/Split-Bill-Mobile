@@ -1,3 +1,4 @@
+import { ActionListSheet } from "../shared/ActionListSheet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -133,8 +134,6 @@ import {
 } from "../shared/components";
 import { HomeTabBar, RecordRow, type HomeTabKey } from "../shared/homeParts";
 import {
-  ActionIconGridModal,
-  ActionSheetModal,
   ConfirmChoiceModal,
   SplitNoticeModal,
 } from "../shared/modals";
@@ -308,7 +307,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             onDismiss={() => setItemsNoticeMessages([])}
           />
           {selectedItemActionTarget ? (
-            <ActionIconGridModal
+            <ActionListSheet
+              visible
+              cancelLabel={t("common.cancel")}
+              bottomInset={insets.bottom}
               title={t("flow.items.rowActions.title")}
               options={[
                 {

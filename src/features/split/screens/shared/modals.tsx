@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { AccessibilityInfo, BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, BackHandler, Platform, Pressable, View } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
@@ -21,177 +21,6 @@ const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
-export function ActionSheetModal({
-  title,
-  options,
-  onDismiss,
-  scrollableOptions = false,
-}: {
-  title: string;
-  options: Array<{
-    label: string;
-    accessibilityLabel?: string;
-    description?: string;
-    onPress: () => void;
-    tone?: "default" | "danger";
-    selected?: boolean;
-    disabled?: boolean;
-  }>;
-  onDismiss: () => void;
-  scrollableOptions?: boolean;
-}) {
-  const optionNodes = options.map((option, index) => (
-    <Pressable
-      key={`${option.label}-${index}`}
-      accessibilityRole="button"
-      accessibilityLabel={option.accessibilityLabel ?? option.label}
-      accessibilityHint={option.description}
-      accessibilityState={{
-        selected: Boolean(option.selected),
-        disabled: Boolean(option.disabled),
-      }}
-      disabled={option.disabled}
-      style={[
-        screenStyles.actionSheetButton,
-        option.selected ? screenStyles.actionSheetButtonSelected : null,
-        option.tone === "danger" ? screenStyles.actionSheetButtonDanger : null,
-        option.disabled ? { opacity: 0.55 } : null,
-      ]}
-      onPress={option.disabled ? undefined : option.onPress}
-    >
-      <YStack gap="$1.5">
-        <Text
-          fontFamily={FONTS.bodyBold}
-          fontSize={15}
-          color={
-            option.disabled
-              ? PALETTE.onSurfaceVariant
-              : option.tone === "danger"
-                ? "#b43d29"
-                : PALETTE.primary
-          }
-        >
-          {option.label}
-        </Text>
-        {option.description ? (
-          <Text
-            fontFamily={FONTS.bodyMedium}
-            fontSize={13}
-            lineHeight={19}
-            color={PALETTE.onSurfaceVariant}
-          >
-            {option.description}
-          </Text>
-        ) : null}
-      </YStack>
-    </Pressable>
-  ));
-
-  return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissActionSheet")} style={screenStyles.splitNoticeBackdrop} onPress={onDismiss} />
-      <View style={screenStyles.actionSheetCard}>
-        <YStack gap="$2.5">
-          <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
-            {title}
-          </Text>
-          {scrollableOptions ? (
-            <ScrollView
-              style={screenStyles.actionSheetOptionsScroll}
-              contentContainerStyle={screenStyles.actionSheetOptionsContent}
-              showsVerticalScrollIndicator
-            >
-              {optionNodes}
-            </ScrollView>
-          ) : (
-            optionNodes
-          )}
-        </YStack>
-      </View>
-    </View>
-  );
-}
-
-export function ActionIconGridModal({
-  title,
-  options,
-  onDismiss,
-}: {
-  title: string;
-  options: Array<{
-    label: string;
-    accessibilityLabel?: string;
-    icon: ReactNode;
-    onPress: () => void;
-    tone?: "default" | "danger";
-    disabled?: boolean;
-  }>;
-  onDismiss: () => void;
-}) {
-  return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("modal.dismissActionSheet")}
-        style={screenStyles.splitNoticeBackdrop}
-        onPress={onDismiss}
-      />
-      <View style={screenStyles.actionSheetCard}>
-        <YStack gap="$3.5">
-          <Text
-            fontFamily={FONTS.headlineBold}
-            fontSize={22}
-            color={PALETTE.onSurface}
-          >
-            {title}
-          </Text>
-          <XStack style={screenStyles.actionIconGridRow}>
-            {options.map((option) => (
-              <Pressable
-                key={option.label}
-                accessibilityRole="button"
-                accessibilityLabel={option.accessibilityLabel ?? option.label}
-                accessibilityState={{ disabled: Boolean(option.disabled) }}
-                disabled={option.disabled}
-                style={[
-                  screenStyles.actionIconGridButton,
-                  option.tone === "danger"
-                    ? screenStyles.actionIconGridButtonDanger
-                    : null,
-                  option.disabled ? { opacity: 0.55 } : null,
-                ]}
-                onPress={option.disabled ? undefined : option.onPress}
-              >
-                <View
-                  style={[
-                    screenStyles.actionIconGridBadge,
-                    option.tone === "danger"
-                      ? screenStyles.actionIconGridBadgeDanger
-                      : null,
-                  ]}
-                >
-                  {option.icon}
-                </View>
-                <View style={screenStyles.actionIconGridLabelWrap}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={13}
-                    color={option.tone === "danger" ? PALETTE.danger : PALETTE.onSurface}
-                    lineHeight={17}
-                    textAlign="center"
-                  >
-                    {option.label}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
-          </XStack>
-        </YStack>
-      </View>
-    </View>
-  );
-}
-
 export function ConfirmChoiceModal({
   title,
   body,
@@ -212,49 +41,17 @@ export function ConfirmChoiceModal({
   onDiscard: () => void;
 }) {
   return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <View style={screenStyles.splitNoticeBackdrop} />
-      <View style={screenStyles.splitNoticeCard}>
-        <YStack gap="$3">
-          <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
-            {title}
-          </Text>
-          <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>
-            {body}
-          </Text>
-          <YStack gap="$2">
-            <Pressable accessibilityRole="button" accessibilityLabel={confirmLabel} style={[screenStyles.splitNoticeButton, confirmButtonVariant === "danger" ? screenStyles.confirmChoiceDangerButton : null]} onPress={onConfirm}>
-              <Text fontFamily={FONTS.bodyBold} fontSize={14} color={confirmButtonVariant === "danger" ? PALETTE.danger : PALETTE.onPrimary}>
-                {confirmLabel}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={discardLabel}
-              style={
-                discardButtonVariant === "secondaryPill"
-                  ? [screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonSecondary]
-                  : screenStyles.confirmChoiceSecondaryButton
-              }
-              onPress={onDiscard}
-            >
-              <Text
-                fontFamily={FONTS.bodyBold}
-                fontSize={14}
-                color={
-                  discardButtonVariant === "secondaryPill"
-                    ? PALETTE.onSecondaryContainer
-                    : PALETTE.primary
-                }
-                textAlign="center"
-              >
-                {discardLabel}
-              </Text>
-            </Pressable>
-          </YStack>
-        </YStack>
-      </View>
-    </View>
+    <FormBottomSheet title={title} onClose={onDiscard}>
+      <YStack gap="$3">
+        <Text fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>{body}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={confirmLabel} style={[screenStyles.splitNoticeButton, confirmButtonVariant === "danger" ? screenStyles.confirmChoiceDangerButton : null]} onPress={onConfirm}>
+          <Text fontFamily={FONTS.bodyBold} fontSize={14} color={confirmButtonVariant === "danger" ? PALETTE.danger : PALETTE.onPrimary}>{confirmLabel}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={discardLabel} style={discardButtonVariant === "secondaryPill" ? [screenStyles.splitNoticeButton, screenStyles.splitNoticeButtonSecondary] : screenStyles.formSheetCancel} onPress={onDiscard}>
+          <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.primary} textAlign="center">{discardLabel}</Text>
+        </Pressable>
+      </YStack>
+    </FormBottomSheet>
   );
 }
 
@@ -522,25 +319,13 @@ export function SplitNoticeModal({
   }
 
   return (
-    <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-      <View style={screenStyles.splitNoticeBackdrop} />
-      <View style={screenStyles.splitNoticeCard}>
-        <YStack gap="$3">
-          <Text fontFamily={FONTS.headlineBold} fontSize={22} color={PALETTE.onSurface}>
-            {title}
-          </Text>
-          {messages.map((message) => (
-            <Text key={message} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>
-              {message}
-            </Text>
-          ))}
-          <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissNotice")} style={screenStyles.splitNoticeButton} onPress={onDismiss}>
-            <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>
-              {t("common.ok")}
-            </Text>
-          </Pressable>
-        </YStack>
-      </View>
-    </View>
+    <FormBottomSheet title={title} onClose={onDismiss}>
+      <YStack gap="$3">
+        {messages.map((message) => <Text key={message} fontFamily={FONTS.bodyMedium} fontSize={15} lineHeight={22} color={PALETTE.onSurfaceVariant}>{message}</Text>)}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("modal.dismissNotice")} style={screenStyles.splitNoticeButton} onPress={onDismiss}>
+          <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.onPrimary}>{t("common.ok")}</Text>
+        </Pressable>
+      </YStack>
+    </FormBottomSheet>
   );
 }

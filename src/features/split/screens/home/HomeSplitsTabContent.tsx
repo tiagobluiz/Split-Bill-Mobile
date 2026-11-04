@@ -1,3 +1,4 @@
+import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { ChevronDown, Filter } from "lucide-react-native";
@@ -276,22 +277,8 @@ export function HomeSplitsTabContent({
         </YStack>
       </ScrollView>
       {tagFilterMenuOpen ? (
-        <View style={screenStyles.splitNoticeOverlay} pointerEvents="box-none">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("modal.dismissActionSheet")}
-            style={screenStyles.splitNoticeBackdrop}
-            onPress={() => setTagFilterMenuOpen(false)}
-          />
-          <View style={screenStyles.tagFilterCard}>
+        <FormBottomSheet title={t("home.filter.chooseTags")} onClose={() => setTagFilterMenuOpen(false)}>
             <YStack gap="$3.5">
-              <Text
-                fontFamily={FONTS.headlineBold}
-                fontSize={22}
-                color={PALETTE.onSurface}
-              >
-                {t("home.filter.chooseTags")}
-              </Text>
               <YStack gap="$2">
                 <FieldLabel>{t("home.filter.tagMatch")}</FieldLabel>
                 <ModePills
@@ -337,13 +324,13 @@ export function HomeSplitsTabContent({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("common.cancel")}
-                  style={screenStyles.tagFilterSecondaryButton}
+                  style={[screenStyles.tagFilterSecondaryButton, screenStyles.formSheetCancel, { borderWidth: 0 }]}
                   onPress={() => setTagFilterMenuOpen(false)}
                 >
                   <Text
                     fontFamily={FONTS.bodyBold}
                     fontSize={14}
-                    color={PALETTE.primary}
+                    color={PALETTE.onSurface}
                     textAlign="center"
                   >
                     {t("common.cancel")}
@@ -385,8 +372,7 @@ export function HomeSplitsTabContent({
                 </Pressable>
               </XStack>
             </YStack>
-          </View>
-        </View>
+        </FormBottomSheet>
       ) : null}
     </YStack>
   );
