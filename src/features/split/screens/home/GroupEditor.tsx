@@ -13,6 +13,7 @@ import { getPersonNameValidationMessage, normalizeGroupName, normalizePersonName
 import { createCustomTagIcon, type SplitTagColor, type SplitTagIcon } from "../../tags";
 import { screenStyles } from "../shared/styles";
 import { PhotoOptionsSheet } from "../shared/PhotoOptionsSheet";
+import { SplitNoticeModal } from "../shared/modals";
 import { GroupAvatar } from "../shared/GroupAvatar";
 import { discardTemporaryGroupPhoto, persistGroupPhoto, removeGroupPhoto } from "../../groupPhotos";
 import { getTagIcon } from "../shared/TagChips";
@@ -203,7 +204,6 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
             />)}
           </YStack>
         </>}
-        {error ? <Text color={PALETTE.danger} fontFamily={FONTS.bodyBold}>{error}</Text> : null}
       </ScrollView>
       <View style={[screenStyles.groupEditorFooter, { paddingBottom: insets.bottom + 8 }]}><Pressable disabled={busy} style={[screenStyles.splitNoticeButton, busy && { opacity: .55 }]} onPress={async () => {
         setError("");
@@ -231,6 +231,7 @@ export function GroupEditor({ group, initialStep = 1, people, allPeople, groups,
           setError(t("common.couldNotSaveSettings"));
         } finally { changeBusy(false); }
       }}><Text textAlign="center" color={PALETTE.onPrimary} fontFamily={FONTS.bodyBold} fontSize={15}>{t(step === 1 ? "groups.continueMembers" : "groups.finishGroup")}</Text></Pressable>{step === 2 ? <Pressable onPress={() => setStep(1)}><Text textAlign="center" color={PALETTE.primary} fontFamily={FONTS.bodyBold}>{t("groups.backToDetails")}</Text></Pressable> : null}</View>
+      <SplitNoticeModal title={t("common.almostThere")} messages={error ? [error] : []} onDismiss={() => setError("")} />
     </YStack>
   </KeyboardAvoidingView>;
 }

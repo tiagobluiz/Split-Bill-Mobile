@@ -208,10 +208,14 @@ describe("GroupEditor", () => {
     render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={groups} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("Continue to members"));
     expect(screen.getByText("Enter a group name.")).toBeTruthy();
+    expect(screen.getByText("Almost there")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    expect(screen.queryByText("Enter a group name.")).toBeNull();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), " roomies ");
     fireEvent.press(screen.getByText("Continue to members"));
     expect(screen.getByText("A group with this name already exists.")).toBeTruthy();
     expect(screen.queryByText("Add people who often split expenses in this group.")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Trip");
     fireEvent.press(screen.getByText("Continue to members"));
     expect(screen.getByText("Save group")).toBeTruthy();
