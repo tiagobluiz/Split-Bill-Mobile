@@ -7,6 +7,7 @@ export function useTimedUndoNotice<T>(
 ) {
   const [message, setMessage] = useState("");
   const [pendingItem, setPendingItem] = useState<T | null>(null);
+  const operationRef = useRef(0);
   const restoreRef = useRef(restore);
   restoreRef.current = restore;
 
@@ -20,6 +21,7 @@ export function useTimedUndoNotice<T>(
   }, [message, pendingItem]);
 
   const notify = (nextMessage: string, undoItem?: T) => {
+    operationRef.current += 1;
     setMessage(nextMessage);
     setPendingItem(undoItem ?? null);
   };
@@ -27,12 +29,13 @@ export function useTimedUndoNotice<T>(
   const undo = async () => {
     if (pendingItem === null) return;
     const item = pendingItem;
+    const operation = ++operationRef.current;
     setPendingItem(null);
     try {
       await restoreRef.current(item);
-      setMessage(restoredMessage);
+      if (operationRef.current === operation) setMessage(restoredMessage);
     } catch {
-      setMessage(restoreFailedMessage);
+      if (operationRef.current === operation) setMessage(restoreFailedMessage);
     }
   };
 

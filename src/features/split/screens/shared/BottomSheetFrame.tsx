@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Text as TamaguiText } from "tamagui";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
@@ -105,7 +105,11 @@ export function BottomSheetFrame({
           style={screenStyles.personPhotoSheetBackdrop}
           onPress={onDismiss}
         />
-        {contentOverride ?? (avoidKeyboard ? (
+        {contentOverride && avoidKeyboard ? (
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+            {contentOverride}
+          </KeyboardAvoidingView>
+        ) : contentOverride ?? (avoidKeyboard ? (
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={{ width: "100%", maxHeight: "96%", alignItems: "center" }}
