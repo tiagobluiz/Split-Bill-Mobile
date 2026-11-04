@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
+import { AccessibilityInfo, BackHandler, Platform, Pressable, ScrollView, View } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
@@ -477,6 +477,12 @@ export function ToastNotice({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const announcement = message.trim() && actionLabel && onAction ? `${message} ${actionLabel}` : message;
+  useEffect(() => {
+    if (Platform.OS === "ios" && announcement.trim()) {
+      AccessibilityInfo.announceForAccessibility(announcement);
+    }
+  }, [announcement]);
   if (!message.trim()) {
     return null;
   }
@@ -487,7 +493,7 @@ export function ToastNotice({
       style={[screenStyles.toastOverlay, { bottom: bottomOffset }]}
     >
       <View pointerEvents={onAction ? "auto" : "none"} style={[screenStyles.toastCard, onAction ? screenStyles.toastCardWithAction : null]}>
-        <Text style={onAction ? { flex: 1 } : undefined} fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onPrimary}>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" accessibilityLabel={announcement} style={onAction ? { flex: 1 } : undefined} fontFamily={FONTS.bodyBold} fontSize={13} color={PALETTE.onPrimary}>
           {message}
         </Text>
         {actionLabel && onAction ? (

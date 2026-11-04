@@ -928,6 +928,7 @@ describe("split screens", () => {
       "bruno",
     );
     expect(screen.getByText("Reminder deleted.")).toBeTruthy();
+    expect(screen.getByLabelText("Reminder deleted. Undo").props.accessibilityLiveRegion).toBe("assertive");
     expect(screen.getByLabelText("Undo")).toBeTruthy();
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Undo"));
