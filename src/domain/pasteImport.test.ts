@@ -7,6 +7,16 @@ describe("paste import parser", () => {
     expect(parsePastedItems(pasteFixture.input)).toEqual(pasteFixture.expected);
   });
 
+  it("explains missing, invalid and excessive prices separately", () => {
+    const result = parsePastedItems("Bread,\nMilk - 2..5\nTea - 1000001.00\nCoffee - 2.00");
+    expect(result.items).toEqual([{ name: "Coffee", price: "2.00" }]);
+    expect(result.ignoredLineDetails).toEqual([
+      { line: "Bread,", reason: "Missing item price" },
+      { line: "Milk - 2..5", reason: "Enter a valid item price" },
+      { line: "Tea - 1000001.00", reason: "The maximum value for an item is 1 000 000" },
+    ]);
+  });
+
   it("automatically skips zero-value items and reports why", () => {
     const result = parsePastedItems("Milk - 0.00\nBread - 2.00");
     expect(result.items).toEqual([{ name: "Bread", price: "2.00" }]);
@@ -108,7 +118,7 @@ describe("paste import parser", () => {
     );
     expect(result.ignoredLineDetails).toEqual(
       expect.arrayContaining([
-        { line: "Rice - EUR", reason: "Price is missing or invalid" },
+        { line: "Rice - EUR", reason: "Enter a valid item price" },
         { line: "Card 4.00", reason: "Looks like a total or payment summary" },
         { line: "Name,Amount", reason: "Header row" },
         { line: "* Water -", reason: "Missing item price" },
@@ -152,7 +162,7 @@ describe("paste import parser", () => {
     expect(result.items).toEqual([]);
     expect(result.ignoredLineDetails).toEqual([
       { line: "I2", reason: "Missing item price" },
-      { line: "I2 x", reason: "Price is missing or invalid" },
+      { line: "I2 x", reason: "Enter a valid item price" },
       { line: "Milk,", reason: "Missing item price" },
       { line: ",2.00", reason: "Missing item name" },
     ]);

@@ -9,13 +9,11 @@ import {
 } from "tamagui";
 
 import type { DraftRecord } from "../../../../storage/records";
-import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import type { SplitTag } from "../../tags";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { t } from "../../../../i18n";
-import { getSettlementPreview } from "../../store";
-import { buildRecordRoute, getRecordTitle } from "../../routes";
-import { getRecentRowMeta } from "./settlementUtils";
+import { buildRecordRoute } from "../../routes";
+import { createRecordRowModel, type RecordRowModel, type RecordRowSettings } from "./recordRowModel";
 import { screenStyles } from "./styles";
 import { TagChipRow } from "./TagChips";
 
@@ -91,23 +89,22 @@ export function RecordRow({
   ownerName,
   settings,
   onOpenActions,
+  onOpenRecord,
   reminderLabel,
 }: {
-  record: DraftRecord;
+  record: DraftRecord | RecordRowModel;
   ownerName: string;
-  settings: {
-    defaultCurrency?: string;
-    splitListAmountDisplay?: SplitListAmountDisplay;
-    customCurrencies?: Array<{ code: string; name: string; symbol: string }>;
+  settings: RecordRowSettings & {
     tags?: SplitTag[];
   };
   onOpenActions: (target: { id: string; title: string }) => void;
+  onOpenRecord?: (id: string) => void;
   reminderLabel?: string;
 }) {
-  const meta = getRecentRowMeta(record, ownerName, settings, getSettlementPreview);
-  const title = getRecordTitle(record);
+  const view = "values" in record ? createRecordRowModel(record, ownerName, settings) : record;
+  const { meta, title } = view;
   const didLongPressRef = useRef(false);
-  const showAmountBlock = record.status === "completed";
+  const showAmountBlock = view.status === "completed";
   const showSingleZeroState =
     showAmountBlock &&
     meta.amountDisplay.variant === "remaining" &&
@@ -164,7 +161,8 @@ export function RecordRow({
             didLongPressRef.current = false;
             return;
           }
-          router.push(buildRecordRoute(record));
+          if ("values" in record) router.push(buildRecordRoute(record));
+          else onOpenRecord?.(record.id);
         }}
         style={[screenStyles.recentRow, screenStyles.itemsListCard]}
       >
@@ -180,7 +178,7 @@ export function RecordRow({
             </Text>
             <TagChipRow
               tags={settings.tags ?? []}
-              selectedIds={record.values.tagIds ?? []}
+              selectedIds={view.tagIds}
             />
             <Text
               fontFamily={FONTS.bodyBold}

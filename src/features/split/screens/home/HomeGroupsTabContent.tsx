@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, BackHandler, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { EllipsisVertical, Pencil, Plus, Search, Trash2, Users, RotateCcw } from "lucide-react-native";
 import { Text as TText, XStack as TXStack, YStack as TYStack } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import { HomeMainHeader } from "./HomeMainHeader";
 import { GroupAvatar } from "../shared/GroupAvatar";
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { ConfirmChoiceModal } from "../shared/modals";
+import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import { screenStyles } from "../shared/styles";
 
@@ -32,7 +33,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
   records: DraftRecord[];
   onSavePerson: (details: PersonSaveDetails) => Promise<SavePersonResult>;
   onUpdateSettings: (partial: Partial<AppSettings>) => Promise<void>;
-  onGetPersonDeletionImpact: (personId: string) => { used: boolean; splitCount: number; groupCount: number };
+  onGetPersonDeletionImpact: (personId: string) => Promise<{ used: boolean; splitCount: number; groupCount: number }>;
   onRemovePerson: (personId: string) => Promise<"deleted" | "archived" | "missing">;
   onAddGroup: (name: string, ids: string[], details?: Partial<Pick<ParticipantGroup, "description" | "photoUri" | "icon" | "color">>, newNames?: string[]) => Promise<boolean>;
   onUpdateGroup: (groupId: string, details: Partial<ParticipantGroup> & { name: string; memberPersonIds: string[] }) => Promise<boolean>;
@@ -212,7 +213,7 @@ function HomeDirectoryOverlays({ personActionMenu, pendingDeletePerson, groupAct
   personActionMenu: SavedPerson | null; pendingDeletePerson: SavedPerson | null;
   groupActionMenu: ParticipantGroup | null; pendingDeleteGroup: ParticipantGroup | null;
   deletionError: boolean;
-  onGetPersonDeletionImpact: (personId: string) => { used: boolean; splitCount: number; groupCount: number };
+  onGetPersonDeletionImpact: (personId: string) => Promise<{ used: boolean; splitCount: number; groupCount: number }>;
   onRemovePerson: (personId: string) => Promise<"deleted" | "archived" | "missing">;
   onRemoveGroup: (groupId: string) => Promise<void>;
   onDismissPersonActions: () => void; onDismissGroupActions: () => void;
@@ -231,21 +232,45 @@ function HomeDirectoryOverlays({ personActionMenu, pendingDeletePerson, groupAct
   useEffect(() => { if (groupActionMenu) groupRef.current = groupActionMenu; }, [groupActionMenu]);
   const personTarget = personActionMenu ?? personRef.current;
   const groupTarget = groupActionMenu ?? groupRef.current;
+  const impactPersonId = pendingDeletePerson?.id ?? personActionMenu?.id;
+  const impactKey = impactPersonId ? `${pendingDeletePerson ? "confirm" : "menu"}:${impactPersonId}` : undefined;
+  const [impact, setImpact] = useState<{ key: string; used: boolean; splitCount: number; groupCount: number } | null>(null);
+  const impactCallbacks = useRef({ onDismissPersonActions, onPendingDeletePerson, t });
+  impactCallbacks.current = { onDismissPersonActions, onPendingDeletePerson, t };
+  useEffect(() => {
+    if (!impactPersonId || !impactKey) {
+      setImpact(null);
+      return;
+    }
+    let cancelled = false;
+    setImpact(null);
+    void onGetPersonDeletionImpact(impactPersonId).then((value) => {
+      if (!cancelled) setImpact({ key: impactKey, ...value });
+    }).catch(() => {
+      if (!cancelled) {
+        impactCallbacks.current.onDismissPersonActions();
+        impactCallbacks.current.onPendingDeletePerson(null);
+        Alert.alert(impactCallbacks.current.t("common.couldNotSaveSettings"), impactCallbacks.current.t("common.tryAgain"));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [impactPersonId, impactKey, onGetPersonDeletionImpact]);
   const finishAction = () => { const action = pendingAction.current; pendingAction.current = null; action?.(); };
   const deferPerson = (action: () => void) => { pendingAction.current = action; onDismissPersonActions(); };
   const deferGroup = (action: () => void) => { pendingAction.current = action; onDismissGroupActions(); };
-  const actionImpact = personTarget ? onGetPersonDeletionImpact(personTarget.id) : null;
-  const confirmImpact = pendingDeletePerson ? onGetPersonDeletionImpact(pendingDeletePerson.id) : null;
+  const actionImpact = impact?.key === `menu:${personTarget?.id}` ? impact : null;
+  const confirmImpact = impact?.key === `confirm:${pendingDeletePerson?.id}` ? impact : null;
   const destructiveAction = actionImpact?.used ? "people.archivePersonAction" : "people.deletePersonAction";
   const destructiveA11y = actionImpact?.used ? "people.archivePersonA11y" : "people.deletePersonA11y";
   return <>
     {personTarget ? <ActionListSheet visible={Boolean(personActionMenu)} onDismissComplete={finishAction} title={t("people.personActionsTitle", { person: personTarget.name })} cancelLabel={t("common.cancel")} bottomInset={insets.bottom} onDismiss={onDismissPersonActions} options={personTarget.archivedAt ? [
       { label: t("people.restorePerson"), accessibilityLabel: t("people.restorePersonA11y", { person: personTarget.name }), description: t("people.restorePersonDescription"), icon: <RotateCcw size={25} color={PALETTE.primary} />, onPress: () => deferPerson(() => onEditPerson(personTarget)) },
-      ...(!actionImpact?.used ? [{ label: t("people.deletePersonAction"), accessibilityLabel: t("people.deletePersonA11y", { person: personTarget.name }), description: t("people.deletePermanentlyDescription"), icon: <Trash2 size={25} color={PALETTE.danger} />, tone: "danger" as const, onPress: () => { deferPerson(() => onPendingDeletePerson(personTarget)); } }] : []),
+      ...(!actionImpact ? [{ label: t("people.checkingHistory"), icon: <Trash2 size={25} color={PALETTE.onSurfaceVariant} />, disabled: true, onPress: () => {} }] : !actionImpact.used ? [{ label: t("people.deletePersonAction"), accessibilityLabel: t("people.deletePersonA11y", { person: personTarget.name }), description: t("people.deletePermanentlyDescription"), icon: <Trash2 size={25} color={PALETTE.danger} />, tone: "danger" as const, onPress: () => { deferPerson(() => onPendingDeletePerson(personTarget)); } }] : []),
     ] : [
       { label: t("people.editPersonAction"), accessibilityLabel: t("people.editPersonA11y", { person: personTarget.name }), description: t("people.editPersonDescription"), icon: <Pencil size={25} color={PALETTE.primary} />, onPress: () => deferPerson(() => onEditPerson(personTarget)) },
-      { label: t(destructiveAction), accessibilityLabel: t(destructiveA11y, { person: personTarget.name }), description: t(actionImpact?.used ? "people.deletePersonArchiveDescription" : "people.deletePermanentlyDescription"), icon: <Trash2 size={25} color={PALETTE.danger} />, tone: "danger", onPress: () => { deferPerson(() => onPendingDeletePerson(personTarget)); } },
+      ...(actionImpact ? [{ label: t(destructiveAction), accessibilityLabel: t(destructiveA11y, { person: personTarget.name }), description: t(actionImpact.used ? "people.deletePersonArchiveDescription" : "people.deletePermanentlyDescription"), icon: <Trash2 size={25} color={PALETTE.danger} />, tone: "danger" as const, onPress: () => { deferPerson(() => onPendingDeletePerson(personTarget)); } }] : [{ label: t("people.checkingHistory"), icon: <Trash2 size={25} color={PALETTE.onSurfaceVariant} />, disabled: true, onPress: () => {} }]),
     ]} /> : null}
+    {pendingDeletePerson && !confirmImpact ? <FormBottomSheet title={t("people.checkingHistory")} onClose={() => onPendingDeletePerson(null)}><Pressable accessibilityRole="button" accessibilityLabel={t("common.cancel")} style={screenStyles.formSheetCancel} onPress={() => onPendingDeletePerson(null)}><Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.primary} textAlign="center">{t("common.cancel")}</Text></Pressable></FormBottomSheet> : null}
     {pendingDeletePerson && confirmImpact ? <ConfirmChoiceModal title={t(confirmImpact.used ? "people.archivePersonTitle" : "people.deletePersonTitle")} body={`${t(confirmImpact.used ? "people.deletePersonArchivePrompt" : "people.deletePersonPermanentPrompt", { person: pendingDeletePerson.name })}${deletionError ? `\n${t("common.couldNotSaveSettings")}` : ""}`} confirmLabel={t(confirmImpact.used ? "people.archivePersonAction" : "people.deletePersonAction")} confirmButtonVariant="danger" discardLabel={t("common.cancel")} onConfirm={() => { onDeletionError(false); void onRemovePerson(pendingDeletePerson.id).then(() => { onDeletionError(false); onPendingDeletePerson(null); }).catch(() => onDeletionError(true)); }} onDiscard={() => { onPendingDeletePerson(null); onDeletionError(false); }} /> : null}
     {groupTarget ? <ActionListSheet visible={Boolean(groupActionMenu)} onDismissComplete={finishAction} title={t("groups.actionsTitle")} cancelLabel={t("common.cancel")} bottomInset={insets.bottom} onDismiss={onDismissGroupActions} options={[
       { label: t("groups.editDetails"), accessibilityLabel: t("groups.openDetailsA11y", { group: groupTarget.name }), description: t("groups.editDetailsDescription"), icon: <Pencil color={PALETTE.primary} size={25} />, onPress: () => deferGroup(() => onEditGroup(groupTarget, 1)) },

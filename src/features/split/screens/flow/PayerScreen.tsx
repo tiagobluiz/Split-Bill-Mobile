@@ -99,7 +99,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
                 return;
               }
 
-              await setStep(4);
+              await setStep(4, draftId);
               await trackSplitStepCompleted({
                 step: "payer",
                 draftStatus: record.status,
@@ -147,7 +147,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
                     screenStyles.payerOptionRow,
                     selected ? screenStyles.payerOptionRowSelected : null,
                   ]}
-                  onPress={() => void setPayer(participant.id)}
+                  onPress={() => void setPayer(participant.id, draftId)}
                 >
                   <XStack alignItems="center" gap="$3.5" flex={1}>
                     <ParticipantAvatar

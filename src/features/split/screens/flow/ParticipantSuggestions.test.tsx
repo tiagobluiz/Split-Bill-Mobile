@@ -90,6 +90,16 @@ function view(
 }
 
 describe("participant suggestion modes", () => {
+  it("shows progress and permits retry when history cannot be read", () => {
+    const retry = jest.fn();
+    const renderPanel = (error: boolean) => <LocalizationProvider language="en" humour="plain"><ParticipantSuggestions records={[]} record={record} settings={settings} onAddFriend={jest.fn()} onAddGroup={jest.fn(async () => undefined)} frequentFriends={null} frequentError={error} onRetryFrequent={retry} /></LocalizationProvider>;
+    const { rerender } = render(renderPanel(false));
+    expect(screen.getByText("Loading frequent people…")).toBeTruthy();
+    rerender(renderPanel(true));
+    expect(screen.getByText(/Could not load frequent people/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Try again"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
   it("distinguishes when no frequent people exist yet", () => {
     render(view(record, undefined, settings, "en", []));
     expect(screen.getByText("No frequent people yet")).toBeTruthy();

@@ -29,7 +29,7 @@ const settings: AppSettings = {
 function renderDirectory(
   onRemoveGroup = jest.fn(async () => undefined),
   directorySettings = settings,
-  getDeletionImpact = jest.fn(() => ({ used: false, splitCount: 0, groupCount: 0 })),
+  getDeletionImpact: (personId: string) => Promise<{ used: boolean; splitCount: number; groupCount: number }> = jest.fn(async () => ({ used: false, splitCount: 0, groupCount: 0 })),
   handlers: {
     onSavePerson?: jest.Mock;
     onRemovePerson?: jest.Mock;
@@ -172,13 +172,13 @@ describe("HomeGroupsTabContent group actions", () => {
   it("opens the person actions on long press and explains archiving on delete", async () => {
     const person = { id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const directorySettings = { ...settings, people: [person], participantGroups: [{ ...group, memberPersonIds: [person.id] }] };
-    renderDirectory(undefined, directorySettings, jest.fn(() => ({ used: true, splitCount: 0, groupCount: 1 })));
+    renderDirectory(undefined, directorySettings, jest.fn(async () => ({ used: true, splitCount: 0, groupCount: 1 })));
     fireEvent.press(screen.getByText("People (2)"));
     fireEvent(screen.getByLabelText("Edit person Ana"), "longPress");
 
     expect(screen.getByText("Ana options")).toBeTruthy();
     expect(screen.getByText("Edit person")).toBeTruthy();
-    expect(screen.getByText("Archive person")).toBeTruthy();
+    expect(await screen.findByText("Archive person")).toBeTruthy();
     fireEvent.press(screen.getByText("Archive person"));
     await screen.findByText("Archive person?");
     expect(screen.getByText("Archive person?")).toBeTruthy();
@@ -264,7 +264,7 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("No people match your search.")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("Search people..."), "");
     fireEvent.press(screen.getByLabelText("Open actions for Ana"));
-    fireEvent.press(screen.getByText("Delete person"));
+    fireEvent.press(await screen.findByText("Delete person"));
     await screen.findByLabelText("Delete person");
     expect(screen.getByText("Delete Ana permanently? This person is not used in any group or split.")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByLabelText("Delete person")); });
@@ -286,13 +286,13 @@ describe("HomeGroupsTabContent group actions", () => {
   it("offers restore and permanent delete for an unused archived person", async () => {
     const archived = { id: "person-archived", name: "Nina", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" };
     const onRemovePerson = jest.fn(async () => "deleted" as const);
-    const getImpact = jest.fn(() => ({ used: false, splitCount: 0, groupCount: 0 }));
+    const getImpact = jest.fn(async () => ({ used: false, splitCount: 0, groupCount: 0 }));
     renderDirectory(undefined, { ...settings, people: [archived] }, getImpact, { onRemovePerson });
     fireEvent.press(screen.getByText("People (1)"));
     fireEvent.press(screen.getByText("Archived (1)"));
     fireEvent.press(screen.getByLabelText("Open actions for Nina"));
     expect(screen.getByText("Restore person")).toBeTruthy();
-    expect(screen.getByText("Delete person")).toBeTruthy();
+    expect(await screen.findByText("Delete person")).toBeTruthy();
     fireEvent.press(screen.getByText("Delete person"));
     await screen.findByLabelText("Delete person");
     expect(screen.getByText("Delete Nina permanently? This person is not used in any group or split.")).toBeTruthy();
@@ -301,24 +301,25 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(getImpact).toHaveBeenCalledWith(archived.id);
   });
 
-  it("hides permanent deletion for an archived person still referenced by a group", () => {
+  it("hides permanent deletion for an archived person still referenced by a group", async () => {
     const archived = { id: "person-archived", name: "Nina", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" };
     const directorySettings = { ...settings, people: [archived], participantGroups: [{ ...group, memberPersonIds: [archived.id] }] };
-    renderDirectory(undefined, directorySettings, jest.fn(() => ({ used: true, splitCount: 0, groupCount: 1 })));
+    renderDirectory(undefined, directorySettings, jest.fn(async () => ({ used: true, splitCount: 0, groupCount: 1 })));
     fireEvent.press(screen.getByText("People (1)"));
     fireEvent.press(screen.getByText("Archived (1)"));
     fireEvent.press(screen.getByLabelText("Open actions for Nina"));
     expect(screen.getByText("Restore person")).toBeTruthy();
+    await act(async () => {});
     expect(screen.queryByText("Delete person")).toBeNull();
   });
 
   it("retains person deletion confirmation after failure and retries the same identity", async () => {
     const person = { id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const onRemovePerson = jest.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValue("archived");
-    renderDirectory(undefined, { ...settings, people: [person] }, jest.fn(() => ({ used: true, splitCount: 1, groupCount: 0 })), { onRemovePerson });
+    renderDirectory(undefined, { ...settings, people: [person] }, jest.fn(async () => ({ used: true, splitCount: 1, groupCount: 0 })), { onRemovePerson });
     fireEvent.press(screen.getByText("People (2)"));
     fireEvent.press(screen.getByLabelText("Open actions for Ana"));
-    fireEvent.press(screen.getByText("Archive person"));
+    fireEvent.press(await screen.findByText("Archive person"));
     await screen.findByText("Archive person?");
     await act(async () => { fireEvent.press(screen.getByLabelText("Archive person")); });
     expect(screen.getByText(/Could not save settings/)).toBeTruthy();
@@ -326,6 +327,39 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(onRemovePerson).toHaveBeenCalledTimes(2);
     expect(onRemovePerson).toHaveBeenNthCalledWith(1, person.id);
     expect(onRemovePerson).toHaveBeenNthCalledWith(2, person.id);
+  });
+
+  it("does not apply an earlier person's delayed impact to the current menu", async () => {
+    const people = ["Ana", "Bruno"].map((name) => ({ id: name, name, createdAt: "now", updatedAt: "now" }));
+    let resolveAna!: (value: { used: boolean; splitCount: number; groupCount: number }) => void;
+    let resolveBruno!: (value: { used: boolean; splitCount: number; groupCount: number }) => void;
+    const getImpact = jest.fn((id: string) => new Promise<{ used: boolean; splitCount: number; groupCount: number }>((resolve) => {
+      if (id === "Ana") resolveAna = resolve; else resolveBruno = resolve;
+    }));
+    renderDirectory(undefined, { ...settings, people }, getImpact);
+    fireEvent.press(screen.getByLabelText("Open actions for Ana"));
+    fireEvent.press(screen.getByText("Cancel"));
+    fireEvent.press(screen.getByLabelText("Open actions for Bruno"));
+    await act(async () => resolveAna({ used: false, splitCount: 0, groupCount: 0 }));
+    expect(screen.queryByText("Delete person")).toBeNull();
+    await act(async () => resolveBruno({ used: true, splitCount: 1, groupCount: 0 }));
+    expect(screen.getByText("Archive person")).toBeTruthy();
+  });
+
+  it("lets the user cancel while the confirmation checks the latest history", async () => {
+    const person = { id: "ana", name: "Ana", createdAt: "now", updatedAt: "now" };
+    let finishCheck!: (value: { used: boolean; splitCount: number; groupCount: number }) => void;
+    const getImpact = jest.fn()
+      .mockResolvedValueOnce({ used: false, splitCount: 0, groupCount: 0 })
+      .mockReturnValueOnce(new Promise((resolve) => { finishCheck = resolve; }));
+    const { onRemovePerson } = renderDirectory(undefined, { ...settings, people: [person] }, getImpact);
+    fireEvent.press(screen.getByLabelText("Open actions for Ana"));
+    fireEvent.press(await screen.findByText("Delete person"));
+    await screen.findByText("Checking split history…");
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    await act(async () => finishCheck({ used: false, splitCount: 0, groupCount: 0 }));
+    expect(onRemovePerson).not.toHaveBeenCalled();
+    expect(screen.queryByText("Delete person?")).toBeNull();
   });
 
   it("excludes the owner's global person from the People directory", () => {

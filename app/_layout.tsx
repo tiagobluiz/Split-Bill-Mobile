@@ -18,6 +18,8 @@ import { normalizeInternalRoute } from "../src/lib/internalRoute";
 import { initializeTelemetry, recordError } from "../src/lib/telemetry";
 import { ProfileSetupGate } from "../src/features/split/screens/home/ProfileSetupGate";
 
+export const unstable_settings = { initialRouteName: "index" };
+
 void SplashScreen.preventAutoHideAsync();
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -222,7 +224,7 @@ export default function RootLayout() {
           backgroundColor={PALETTE.surface}
           translucent={false}
         />
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false, freezeOnBlur: true }} />
         <ProfileSetupGate />
       </LocalizationProvider>
     </AppThemeProvider>

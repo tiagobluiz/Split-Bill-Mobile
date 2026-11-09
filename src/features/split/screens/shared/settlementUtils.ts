@@ -1,5 +1,6 @@
 import { computeSettlement, formatMoney, parseMoneyToCents } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
+import type { FinancialProjection } from "../../../../storage/financialProjection";
 import type { SplitListAmountDisplay } from "../../../../storage/settings";
 import { getDeviceLocale } from "../../../../lib/device";
 import { PALETTE } from "../../../../theme/palette";
@@ -177,29 +178,93 @@ export function getRecordMoneyPreview(record: DraftRecord, ownerName: string, re
   };
 }
 
+type HomeBalancePreview = Pick<NonNullable<ReturnType<typeof getRecordMoneyPreview>>, "currency" | "ownerNetCents" | "ownerRelation">;
+export type HomeBalanceEntry = {
+  id: string;
+  createdAt: string;
+  splitDate?: string;
+  recordCurrency: string;
+  filterOwnerNetCents: number;
+  preview: HomeBalancePreview | null;
+};
+export type HomeBalanceCache = WeakMap<DraftRecord, {
+  ownerName: string;
+  resolver?: SettlementResolver;
+  preview: HomeBalancePreview | null;
+}>;
+
+/** Compute the compact financial data needed after a full record is released. */
+export function getHomeBalanceEntry(
+  record: DraftRecord,
+  ownerName: string,
+  preferredCurrency?: string,
+  resolver?: SettlementResolver,
+  cache?: HomeBalanceCache,
+): HomeBalanceEntry {
+  const cached = cache?.get(record);
+  let preview: HomeBalancePreview | null;
+  if (cached && cached.ownerName === ownerName && cached.resolver === resolver) {
+    preview = cached.preview;
+  } else {
+    const computed = getRecordMoneyPreview(record, ownerName, resolver);
+    preview = computed ? {
+      currency: computed.currency,
+      ownerNetCents: computed.ownerNetCents,
+      ownerRelation: computed.ownerRelation,
+    } : null;
+    cache?.set(record, { ownerName, resolver, preview });
+  }
+  const filterOwnerNetCents = preview?.ownerNetCents ?? 0;
+  if (preview) {
+    const { rate, hasMatchingFx } = getEffectiveRate(record, preferredCurrency);
+    preview = {
+      ...preview,
+      currency: preferredCurrency && hasMatchingFx ? preferredCurrency : preview.currency,
+      ownerNetCents: convertCents(preview.ownerNetCents, rate),
+    };
+  }
+  return { id: record.id, createdAt: record.createdAt, splitDate: record.values.splitDate, recordCurrency: record.values.currency, filterOwnerNetCents, preview };
+}
+
+/** Apply the current owner and currency to owner-independent stored financial data. */
+export function getProjectedHomeBalanceEntry(
+  row: { id: string; createdAt: string; projection: FinancialProjection },
+  ownerName: string,
+  preferredCurrency: string,
+): HomeBalanceEntry {
+  const projection = row.projection;
+  const record = {
+    id: row.id,
+    createdAt: row.createdAt,
+    values: { currency: projection.currency, splitDate: projection.splitDate, exchangeRate: projection.exchangeRate },
+    settlementState: { settledParticipantIds: projection.settledParticipantIds },
+  } as DraftRecord;
+  const settlement = projection.settlement;
+  return getHomeBalanceEntry(record, ownerName, preferredCurrency, () => settlement ? {
+    ok: true,
+    data: {
+      currency: settlement.currency,
+      people: settlement.people.map((person) => ({ ...person, paidCents: 0, consumedCents: 0 })),
+      itemBreakdown: [], transfers: [], totalCents: 0,
+    },
+  } : null);
+}
+
 export function getHomeBalanceCards(
   records: DraftRecord[],
   ownerName: string,
   preferredCurrency?: string,
-  resolver?: SettlementResolver
+  resolver?: SettlementResolver,
+  cache?: HomeBalanceCache,
 ) {
-  const previews = records
-    .map((record) => {
-      const preview = getRecordMoneyPreview(record, ownerName, resolver);
-      if (!preview) {
-        return null;
-      }
-      const { rate, hasMatchingFx } = getEffectiveRate(record, preferredCurrency);
-      return {
-        ...preview,
-        currency:
-          preferredCurrency && hasMatchingFx
-            ? preferredCurrency
-            : preview.currency,
-        ownerNetCents: convertCents(preview.ownerNetCents, rate),
-      };
-    })
-    .filter((preview): preview is NonNullable<ReturnType<typeof getRecordMoneyPreview>> => Boolean(preview));
+  return getHomeBalanceCardsFromEntries(
+    records.map((record) => getHomeBalanceEntry(record, ownerName, preferredCurrency, resolver, cache)),
+    preferredCurrency,
+  );
+}
+
+export function getHomeBalanceCardsFromEntries(entries: HomeBalanceEntry[], preferredCurrency?: string) {
+  const previews = entries.map((entry) => entry.preview).filter((preview): preview is HomeBalancePreview => Boolean(preview));
 
   const totalsByCurrency = new Map<string, { owedCents: number; oweCents: number }>();
 
@@ -225,7 +290,7 @@ export function getHomeBalanceCards(
       ? preferredKey
       : null) ??
     previews[0]?.currency ??
-    records[0]?.values.currency ??
+    entries[0]?.recordCurrency ??
     "USD";
   const totals = totalsByCurrency.get(currency.trim().toUpperCase()) ?? { owedCents: 0, oweCents: 0 };
 
@@ -242,7 +307,8 @@ export function getRecentRowMeta(
   },
   resolver?: SettlementResolver
 ) {
-  const preview = getRecordMoneyPreview(record, ownerName, resolver);
+  const settlement = resolveSettlement(record, resolver);
+  const preview = getRecordMoneyPreview(record, ownerName, () => settlement);
   const locale = getDeviceLocale();
   const appCurrency = normalizeCurrency(settings?.defaultCurrency);
   const { rate, hasMatchingFx } = getEffectiveRate(record, appCurrency);
@@ -250,7 +316,6 @@ export function getRecentRowMeta(
     appCurrency && hasMatchingFx
       ? appCurrency
       : preview?.currency || record.values.currency;
-  const settlement = resolveSettlement(record, resolver);
   const owner = settlement?.ok
     ? settlement.data.people.find((person) => isOwnerReference(person.name, ownerName))
     : null;

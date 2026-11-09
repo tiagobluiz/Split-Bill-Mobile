@@ -127,10 +127,7 @@ export async function migratePersonIdentity() {
       "SELECT version FROM identity_migrations WHERE version = ?",
       [PERSON_IDENTITY_VERSION],
     );
-    if (completed) {
-      await verifyPersonMemberships(db);
-      return;
-    }
+    if (completed) return;
     const started = Date.now();
     const snapshot = await readSnapshot(db);
     // Validate raw data before any normalizer has an opportunity to drop a row or person.

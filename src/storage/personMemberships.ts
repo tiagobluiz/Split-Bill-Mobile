@@ -6,6 +6,7 @@ import {
   type PersonMembership,
   type RawSplitRow,
 } from "./personIdentity";
+import { normalizePersonName } from "../features/split/people";
 
 export const MEMBERSHIP_SCHEMA = `
   CREATE TABLE IF NOT EXISTS split_person_memberships (
@@ -24,6 +25,14 @@ export async function replacePersonMemberships(
   splitId: string,
   memberships: PersonMembership[],
 ) {
+  const existing = await tx.getAllAsync<{ participant_id: string; person_id: string }>(
+    "SELECT participant_id, person_id FROM split_person_memberships WHERE split_id = ?",
+    [splitId],
+  );
+  const existingByParticipant = new Map(existing.map((entry) => [entry.participant_id, entry.person_id]));
+  if (existing.length === memberships.length && memberships.every(
+    (entry) => existingByParticipant.get(entry.participantId) === entry.personId,
+  )) return;
   await tx.runAsync("DELETE FROM split_person_memberships WHERE split_id = ?", [
     splitId,
   ]);
@@ -153,4 +162,65 @@ export async function countRecordsForPerson(
     ),
   );
   return row?.count ?? 0;
+}
+
+/** Include name-only legacy participants without transferring full split payloads. */
+export async function listLegacyRecordIdsForPerson(name: string, ownerName: string) {
+  const key = normalizePersonName(name).toLowerCase();
+  if (!key) return [];
+  const result: string[] = [];
+  let lastId = "";
+  while (true) {
+    const rows = await withAppDatabaseRetry((db) => db.getAllAsync<{ id: string; participants: string }>(
+      `SELECT id, CASE WHEN json_type(payload, '$.values') IS NOT NULL
+        THEN json_extract(payload, '$.values.participants') ELSE json_extract(payload, '$.participants') END AS participants
+       FROM split_records WHERE id > ? AND EXISTS (
+         SELECT 1 FROM json_each(CASE WHEN json_type(payload, '$.values') IS NOT NULL
+           THEN json_extract(payload, '$.values.participants') ELSE json_extract(payload, '$.participants') END) AS participant
+         WHERE participant.type = 'object' AND (json_type(participant.value, '$.personId') IS NULL OR json_extract(participant.value, '$.personId') IS NULL OR json_extract(participant.value, '$.personId') = '')
+       ) ORDER BY id LIMIT 100`,
+      [lastId],
+    ));
+    for (const row of rows) {
+      const participants = JSON.parse(row.participants) as { name?: unknown; personId?: unknown }[];
+      if (participants.some((participant) => {
+        if (participant.personId || typeof participant.name !== "string") return false;
+        const alias = participant.name.trim().toLowerCase();
+        return alias !== "you" && alias !== ownerName.trim().toLowerCase() && normalizePersonName(participant.name).toLowerCase() === key;
+      })) result.push(row.id);
+    }
+    if (rows.length < 100) break;
+    lastId = rows[rows.length - 1].id;
+  }
+  return result;
+}
+
+/** Project participant names in bounded batches for person-name validation. */
+export async function listPersonNameConflicts(name: string, excludedPersonId: string | null | undefined, ownerAliasName?: string) {
+  const nameKey = normalizePersonName(name).toLowerCase();
+  const ownerKey = ownerAliasName?.trim().toLowerCase();
+  const conflicts: { id: string; splitName: string }[] = [];
+  let lastId = "";
+  while (true) {
+    const rows = await withAppDatabaseRetry((db) => db.getAllAsync<{ id: string; participants: string | null; split_name: unknown }>(
+      `SELECT id,
+        CASE WHEN json_type(payload, '$.values') IS NOT NULL THEN json_extract(payload, '$.values.participants') ELSE json_extract(payload, '$.participants') END AS participants,
+        CASE WHEN json_type(payload, '$.values') IS NOT NULL THEN json_extract(payload, '$.values.splitName') ELSE json_extract(payload, '$.splitName') END AS split_name
+       FROM split_records WHERE id > ? ORDER BY id LIMIT 100`,
+      [lastId],
+    ));
+    for (const row of rows) {
+      const participants: unknown = row.participants ? JSON.parse(row.participants) : [];
+      if (!Array.isArray(participants)) throw new Error("Invalid split participants");
+      const conflict = participants.some((participant: { name?: unknown; personId?: unknown }) => {
+        if (!participant || participant.personId === excludedPersonId || typeof participant.name !== "string") return false;
+        const alias = participant.name.trim().toLowerCase();
+        return normalizePersonName(participant.name).toLowerCase() === nameKey || Boolean(ownerKey && (alias === ownerKey || alias === "you"));
+      });
+      if (conflict) conflicts.push({ id: row.id, splitName: typeof row.split_name === "string" ? row.split_name : "" });
+    }
+    if (rows.length < 100) break;
+    lastId = rows[rows.length - 1].id;
+  }
+  return conflicts;
 }

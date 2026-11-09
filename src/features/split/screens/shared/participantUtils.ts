@@ -108,8 +108,7 @@ export function getCurrencyOptionLabel(
   return getCurrencyOptions(settings).find((option) => option.code === normalized)?.label ?? normalized;
 }
 
-export function getFrequentFriends(
-  records: DraftRecord[],
+export function createFrequentFriendsAccumulator(
   activeDraftId: string,
   ownerName: string,
   options?: { people?: SavedPerson[]; limit?: number; ownerPersonId?: string },
@@ -123,7 +122,8 @@ export function getFrequentFriends(
     foreground: string;
   }>();
 
-  for (const record of records.filter((entry) => entry.id !== activeDraftId)) {
+  const add = (record: { id: string; values: { participants: Array<{ name: string; personId?: string }> } }) => {
+    if (record.id === activeDraftId) return;
     const seenInRecord = new Set<string>();
     for (const participant of record.values.participants as Array<{
       name: string;
@@ -166,8 +166,9 @@ export function getFrequentFriends(
 
       seenInRecord.add(key);
     }
-  }
+  };
 
+  const finish = () => {
   const mapped = [...candidates.values()]
     .sort((left, right) => {
       if (right.count !== left.count) {
@@ -209,6 +210,19 @@ export function getFrequentFriends(
     .map((entry) => ({ ...entry, selected: false }));
 
   return [ownerEntry, ...withoutOwner].slice(0, options?.limit ?? FREQUENT_ENTRY_LIMIT);
+  };
+  return { add, finish };
+}
+
+export function getFrequentFriends(
+  records: DraftRecord[],
+  activeDraftId: string,
+  ownerName: string,
+  options?: { people?: SavedPerson[]; limit?: number; ownerPersonId?: string },
+) {
+  const accumulator = createFrequentFriendsAccumulator(activeDraftId, ownerName, options);
+  records.forEach(accumulator.add);
+  return accumulator.finish();
 }
 
 export function getFrequentGroups(

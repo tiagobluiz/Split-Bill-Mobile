@@ -528,7 +528,7 @@ describe("splitter domain", () => {
           },
         ],
       }).map((entry) => entry.message)
-    ).toEqual(expect.arrayContaining(["Keep item names under 64 characters.", "Maximum is 1 000 000"]));
+    ).toEqual(expect.arrayContaining(["Keep item names under 64 characters.", "The maximum value for an item is 1 000 000"]));
   });
 
   it("rejects non-finite decimal inputs through the public validation and rebalance APIs", () => {

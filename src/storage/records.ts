@@ -1,9 +1,11 @@
-import { createId, validatePersonName, type SplitFormValues } from "../domain";
+import { createId, syncItemAllocations, validatePersonName, type SplitFormValues } from "../domain";
 import { isValidSplitDate, localDay } from "../domain/splitDate";
 import { compareSplitDates } from "../domain/splitDateOrder";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
 import { MEMBERSHIP_SCHEMA, replacePersonMemberships } from "./personMemberships";
+import { SPLIT_LIST_INDEX_SCHEMA } from "./splitList";
+import { createFinancialProjection, type FinancialProjection } from "./financialProjection";
 import { parseObject, readParticipants, planPersonIdentity, type IdentifiedParticipant, type RawSplitRow } from "./personIdentity";
 import type { AppSettings } from "./settings";
 import {
@@ -47,7 +49,12 @@ export async function initializeRecordsStorage() {
         completed_at TEXT
       );
       ${MEMBERSHIP_SCHEMA}
+      ${SPLIT_LIST_INDEX_SCHEMA}
     `);
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(split_records)");
+    if (!columns.some((column) => column.name === "financial_projection")) {
+      await db.execAsync("ALTER TABLE split_records ADD COLUMN financial_projection TEXT");
+    }
   });
 }
 
@@ -216,6 +223,117 @@ export async function getRecordById(id: string) {
   return row ? mapRow(row) : null;
 }
 
+/** Load only the records in a visible or background-processing batch. */
+export async function getRecordsByIds(ids: readonly string[]) {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+  if (uniqueIds.length > 100) throw new Error("Record batch exceeds 100 IDs");
+  const rows = await withAppDatabaseRetry((db) =>
+    db.getAllAsync<DatabaseRow>(
+      "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id IN (SELECT value FROM json_each(?) WHERE type = 'text')",
+      [JSON.stringify(uniqueIds)],
+    ),
+  );
+  const recordsById = new Map(rows.map(mapRow).filter((row): row is DraftRecord => Boolean(row)).map((row) => [row.id, row]));
+  return uniqueIds.flatMap((id) => {
+    const record = recordsById.get(id);
+    return record ? [record] : [];
+  });
+}
+
+/** Read compact financial data and backfill older rows in bounded transactions. */
+export async function getFinancialProjectionsByIds(ids: readonly string[]) {
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length) return [];
+  if (uniqueIds.length > 100) throw new Error("Financial projection batch exceeds 100 IDs");
+  type ProjectionRow = DatabaseRow & { financial_projection: string | null };
+  const rows = await withAppDatabaseRetry((db) => db.getAllAsync<ProjectionRow>(
+    `SELECT id, status, step, created_at, updated_at, completed_at, financial_projection,
+      CASE WHEN financial_projection IS NULL THEN payload ELSE NULL END AS payload
+      FROM split_records WHERE id IN (SELECT value FROM json_each(?) WHERE type = 'text')`,
+    [JSON.stringify(uniqueIds)],
+  ));
+  const projections = new Map<string, { id: string; createdAt: string; projection: FinancialProjection }>();
+  const missing: Array<{ row: ProjectionRow; projection: FinancialProjection }> = [];
+  for (const row of rows) {
+    const projection = row.financial_projection === null
+      ? createFinancialProjection(mapRow(row)!)
+      : JSON.parse(row.financial_projection) as FinancialProjection;
+    if (projection.version !== 1) throw new Error(`Unsupported financial projection (${row.id})`);
+    projections.set(row.id, { id: row.id, createdAt: row.created_at, projection });
+    if (row.financial_projection === null) missing.push({ row, projection });
+  }
+  if (missing.length) {
+    const staleIds = await withDatabaseTransaction(async (tx) => {
+      const stale: string[] = [];
+      for (const { row, projection } of missing) {
+        const result = await tx.runAsync(
+          "UPDATE split_records SET financial_projection = ? WHERE id = ? AND payload = ? AND financial_projection IS NULL",
+          [JSON.stringify(projection), row.id, row.payload],
+        );
+        if (result.changes !== 1) stale.push(row.id);
+      }
+      return stale;
+    });
+    for (const id of staleIds) {
+      const current = await getRecordById(id);
+      if (current) projections.set(id, { id, createdAt: current.createdAt, projection: createFinancialProjection(current) });
+      else projections.delete(id);
+    }
+  }
+  return uniqueIds.flatMap((id) => projections.has(id) ? [projections.get(id)!] : []);
+}
+
+export type ReminderRecordCandidate = { record: DraftRecord; rawPayload: string };
+
+/** Read bounded batches of records that may have reminders requiring reconciliation. */
+export async function listReminderRecordCandidates(afterId?: string, limit = 25) {
+  const bounded = Math.max(1, Math.min(100, Math.trunc(limit) || 25));
+  const rows = await withAppDatabaseRetry((db) => db.getAllAsync<DatabaseRow>(
+    `SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records
+     WHERE id > ? AND json_valid(payload) AND json_type(payload, '$.values') IS NOT NULL AND (
+       json_type(payload, '$.reminderState.splitReminder') = 'object' OR
+       (json_type(payload, '$.reminderState.participantDebtReminders') IN ('object', 'array') AND EXISTS (SELECT 1 FROM json_each(payload, '$.reminderState.participantDebtReminders')))
+     ) ORDER BY id LIMIT ?`,
+    [afterId ?? "", bounded + 1],
+  ));
+  const page = rows.slice(0, bounded);
+  return {
+    records: page.map((row) => ({ record: mapRow(row)!, rawPayload: row.payload })),
+    nextCursor: rows.length > bounded ? page[page.length - 1].id : null,
+  };
+}
+
+/** Replace only reminder metadata if no other write changed the split since it was read. */
+export async function replaceReminderStateIfUnchanged(id: string, rawPayload: string, reminderState: ReminderState) {
+  const payload = parseObject(rawPayload, "split");
+  if (!("values" in payload)) throw new Error("Cannot reconcile an unwrapped split reminder");
+  const next = JSON.stringify({ ...payload, reminderState });
+  return withDatabaseTransaction(async (tx) => {
+    const result = await tx.runAsync("UPDATE split_records SET payload = ? WHERE id = ? AND payload = ?", [next, id, rawPayload]);
+    return result.changes === 1;
+  });
+}
+
+/** Recheck a candidate under the write lock before cancelling its notifications. */
+export async function reconcileReminderCandidate(
+  candidate: ReminderRecordCandidate,
+  shouldProcess: () => boolean,
+  reconcile: (record: DraftRecord) => Promise<ReminderState | null>,
+) {
+  return withDatabaseTransaction(async (tx) => {
+    const current = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM split_records WHERE id = ?", [candidate.record.id]);
+    if (!current || current.payload !== candidate.rawPayload) return { status: "stale" as const };
+    if (!shouldProcess()) return { status: "skipped" as const };
+    const reminderState = await reconcile(candidate.record);
+    if (!reminderState) return { status: "unchanged" as const };
+    const payload = parseObject(current.payload, "split");
+    if (!("values" in payload)) throw new Error("Cannot reconcile an unwrapped split reminder");
+    const result = await tx.runAsync("UPDATE split_records SET payload = ? WHERE id = ? AND payload = ?", [JSON.stringify({ ...payload, reminderState }), candidate.record.id, current.payload]);
+    return result.changes === 1 ? { status: "updated" as const, reminderState } : { status: "stale" as const };
+  });
+}
+
 function toRawRow(record: DraftRecord): RawSplitRow {
   return { id: record.id, status: record.status, step: record.step,
     payload: JSON.stringify({ values: record.values, settlementState: record.settlementState ?? getDefaultSettlementState(), reminderState: record.reminderState ?? getDefaultReminderState() }),
@@ -282,7 +400,9 @@ async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], supplied
       created_at = excluded.created_at, updated_at = excluded.updated_at, completed_at = excluded.completed_at`,
     [row.id, row.status, row.step, row.payload, row.created_at, row.updated_at, row.completed_at]);
     await replacePersonMemberships(tx, row.id, membershipsBySplit.get(row.id) ?? []);
-    identified.push(mapRow(row as DatabaseRow) as IdentifiedRecord);
+    const savedRecord = mapRow(row as DatabaseRow) as IdentifiedRecord;
+    await tx.runAsync("UPDATE split_records SET financial_projection = ? WHERE id = ?", [JSON.stringify(createFinancialProjection(savedRecord)), row.id]);
+    identified.push(savedRecord);
   }
   return { records: identified, settings: plan.settings as unknown as AppSettings };
 }
@@ -332,7 +452,10 @@ export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGr
         : { ...payload, participants });
       await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ? WHERE id = ?", [nextPayload, person.updatedAt, row.id]);
       const updated = mapRow({ ...row, payload: nextPayload, updated_at: person.updatedAt });
-      if (updated) updatedRecords.push(updated);
+      if (updated) {
+        await tx.runAsync("UPDATE split_records SET financial_projection = ? WHERE id = ?", [JSON.stringify(createFinancialProjection(updated)), row.id]);
+        updatedRecords.push(updated);
+      }
     }
     return { settings: nextSettings as unknown as AppSettings, records: updatedRecords };
   });
@@ -340,6 +463,78 @@ export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGr
 
 export async function saveRecordsAndSettings(records: DraftRecord[], settings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
   return withDatabaseTransaction((tx) => writeRecords(tx, records, settings, pendingPeople, restorePersonIds, incrementGroupUsageId));
+}
+
+/** Update loaded edits and all other owner references in the same transaction. */
+export async function saveOwnerProfileAndLinkedRecords(records: DraftRecord[], settings: AppSettings, previousOwnerName: string) {
+  return withDatabaseTransaction(async (tx) => {
+    const saved = await writeRecords(tx, records, settings);
+    const ownerId = settings.ownerPersonId;
+    const nextName = settings.ownerName;
+    const previousKey = previousOwnerName.trim().toLowerCase();
+    let cursor = "";
+    while (true) {
+      const rows = ownerId
+        ? await tx.getAllAsync<{ id: string; payload: string }>(
+          `SELECT r.id, r.payload FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id
+           WHERE m.person_id = ? AND r.id > ? ORDER BY r.id LIMIT 100`, [ownerId, cursor],
+        )
+        : await tx.getAllAsync<{ id: string; payload: string }>(
+          "SELECT id, payload FROM split_records WHERE id > ? ORDER BY id LIMIT 100", [cursor],
+        );
+      for (const row of rows) {
+        const payload = parseObject(row.payload, "split");
+        const wrapped = "values" in payload;
+        const values = (wrapped ? payload.values : payload) as SplitFormValues;
+        let changed = false;
+        const participants = values.participants.map((participant) => {
+          const name = participant.name.trim().toLowerCase();
+          const isOwner = ownerId ? participant.personId === ownerId : name === previousKey || name === "you";
+          if (!isOwner || participant.name === nextName) return participant;
+          changed = true;
+          return { ...participant, name: nextName };
+        });
+        if (!changed) continue;
+        const nextValues = { ...values, participants, items: syncItemAllocations(Array.isArray(values.items) ? values.items : [], participants) };
+        const nextPayload = wrapped ? { ...payload, values: nextValues } : nextValues;
+        const projection = createFinancialProjection({
+          values: nextValues,
+          settlementState: wrapped && payload.settlementState ? payload.settlementState : getDefaultSettlementState(),
+        } as DraftRecord);
+        await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ?, financial_projection = ? WHERE id = ?", [JSON.stringify(nextPayload), new Date().toISOString(), JSON.stringify(projection), row.id]);
+      }
+      if (rows.length < 100) break;
+      cursor = rows[rows.length - 1].id;
+    }
+    return saved;
+  });
+}
+
+/** Remove a tag from settings and every stored split in the same transaction. */
+export async function removeSplitTagAndUpdateSettings(tagId: string, settings: AppSettings) {
+  return withDatabaseTransaction(async (tx) => {
+    const saved = await writeRecords(tx, [], settings);
+    let lastId = "";
+    const whitespace = "char(9,10,11,12,13,32,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288,65279)";
+    const tags = "CASE WHEN json_type(payload, '$.values') IS NOT NULL THEN CASE WHEN json_type(payload, '$.values.tagIds') = 'array' THEN json_extract(payload, '$.values.tagIds') ELSE '[]' END ELSE CASE WHEN json_type(payload, '$.tagIds') = 'array' THEN json_extract(payload, '$.tagIds') ELSE '[]' END END";
+    while (true) {
+      const rows = await tx.getAllAsync<{ id: string; payload: string }>(
+        `SELECT id, payload FROM split_records WHERE id > ? AND EXISTS (SELECT 1 FROM json_each(${tags}) AS tag WHERE tag.type = 'text' AND trim(tag.value, ${whitespace}) = ?) ORDER BY id LIMIT 100`,
+        [lastId, tagId],
+      );
+      for (const row of rows) {
+        const payload = parseObject(row.payload, "split");
+        const wrapped = "values" in payload;
+        const values = wrapped ? payload.values : payload;
+        const tagIds = normalizeTagIds(values.tagIds, settings.tags).filter((id) => id !== tagId);
+        const nextPayload = wrapped ? { ...payload, values: { ...values, tagIds } } : { ...payload, tagIds };
+        await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ? WHERE id = ?", [JSON.stringify(nextPayload), new Date().toISOString(), row.id]);
+      }
+      if (rows.length < 100) break;
+      lastId = rows[rows.length - 1].id;
+    }
+    return saved.settings;
+  });
 }
 
 export async function saveRecord(record: DraftRecord, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {

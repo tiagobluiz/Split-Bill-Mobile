@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   StyleSheet,
+  Pressable,
   Text as NativeText,
   View,
   useWindowDimensions,
@@ -34,6 +35,7 @@ type BalanceCardProps = {
   title: string;
   titleColor: string;
   amount: string;
+  loadingLabel?: string;
   amountFontSize: number;
   onContentLayout: (side: BalanceSide, event: LayoutChangeEvent) => void;
 };
@@ -43,6 +45,7 @@ function BalanceCard({
   title,
   titleColor,
   amount,
+  loadingLabel,
   amountFontSize,
   onContentLayout,
 }: BalanceCardProps) {
@@ -70,6 +73,7 @@ function BalanceCard({
           </Text>
           <Text
             testID={`home-balance-${side}-amount`}
+            accessibilityLabel={loadingLabel}
             fontFamily={FONTS.headlineBlack}
             fontSize={amountFontSize}
             color={PALETTE.onSurface}
@@ -89,26 +93,30 @@ export function HomeBalanceCards({
   locale,
   settings,
   showSeparator = false,
+  error = false,
+  onRetry,
 }: {
-  balances: HomeBalances;
+  balances: HomeBalances | null;
   locale: string;
   settings: AppSettings;
   showSeparator?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
 }) {
   const { t } = useTranslation();
   const { fontScale } = useWindowDimensions();
-  const owedAmount = formatAppMoney(
+  const owedAmount = balances ? formatAppMoney(
     balances.owedCents,
     balances.currency,
     locale,
     settings,
-  );
-  const oweAmount = formatAppMoney(
+  ) : "…";
+  const oweAmount = balances ? formatAppMoney(
     balances.oweCents,
     balances.currency,
     locale,
     settings,
-  );
+  ) : "…";
   const [contentWidths, setContentWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
   const [measuredWidths, setMeasuredWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
 
@@ -142,6 +150,8 @@ export function HomeBalanceCards({
     updateWidth(setContentWidths, side, event.nativeEvent.layout.width);
   };
 
+  if (error) return <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}><Text color={PALETTE.danger}>{t("home.balancesLoadFailed")} {t("app.error.retry")}</Text></Pressable>;
+
   return (
     <>
       <XStack gap="$4" alignItems="stretch">
@@ -150,6 +160,7 @@ export function HomeBalanceCards({
           title={t("home.youAreOwed")}
           titleColor={PALETTE.success}
           amount={owedAmount}
+          loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
           onContentLayout={handleContentLayout}
         />
@@ -158,6 +169,7 @@ export function HomeBalanceCards({
           title={t("home.youOwe")}
           titleColor={PALETTE.primary}
           amount={oweAmount}
+          loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
           onContentLayout={handleContentLayout}
         />

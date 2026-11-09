@@ -1,7 +1,7 @@
-import { createDefaultValues } from "../../../../domain";
+import { computeSettlement, createDefaultValues } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
 
-import { getRecordMoneyPreview } from "./settlementUtils";
+import { getHomeBalanceCards, getHomeBalanceCardsFromEntries, getHomeBalanceEntry, getRecordMoneyPreview, type HomeBalanceCache } from "./settlementUtils";
 
 function buildRecord(overrides?: Partial<DraftRecord>): DraftRecord {
   return {
@@ -18,6 +18,51 @@ function buildRecord(overrides?: Partial<DraftRecord>): DraftRecord {
 }
 
 describe("settlementUtils", () => {
+  it("keeps correct compact balances across payments, currencies and missing exchange rates", () => {
+    const values = {
+      ...createDefaultValues(), currency: "USD",
+      participants: [{ id: "owner", name: "You" }, { id: "friend", name: "Ana" }],
+      payerParticipantId: "owner",
+      items: [{ id: "i", name: "Dinner", price: "10.00", splitMode: "even" as const,
+        allocations: ["owner", "friend"].map((participantId) => ({ participantId, evenIncluded: true, shares: "1", percent: "50" })) }],
+    };
+    const converted = buildRecord({ id: "converted", values: { ...values, exchangeRate: { sourceCurrency: "USD", targetCurrency: "EUR", rate: 0.5 } } });
+    const unconverted = buildRecord({ id: "unconverted", values });
+    const paid = buildRecord({ id: "paid", values: converted.values, settlementState: { settledParticipantIds: ["friend"] } });
+    const invalid = buildRecord({ id: "invalid" });
+    const entries = [invalid, converted, unconverted, paid].map((record) => getHomeBalanceEntry(record, "You", "EUR"));
+    expect(getHomeBalanceCardsFromEntries(entries, "EUR")).toEqual({ currency: "EUR", owedCents: 250, oweCents: 0 });
+    const noMatchingRate = [invalid, converted, unconverted, paid].map((record) => getHomeBalanceEntry(record, "You", "GBP"));
+    expect(getHomeBalanceCardsFromEntries(noMatchingRate, "GBP")).toEqual({ currency: "USD", owedCents: 1000, oweCents: 0 });
+    expect(entries.map((entry) => entry.preview?.ownerNetCents ?? 0)).toEqual([0, 250, 500, 0]);
+    expect(entries.map((entry) => entry.filterOwnerNetCents)).toEqual([0, 500, 500, 0]);
+    const rounded = buildRecord({ id: "rounded", values: { ...values, exchangeRate: { sourceCurrency: "USD", targetCurrency: "EUR", rate: 0.0001 } } });
+    expect(getHomeBalanceEntry(rounded, "You", "EUR")).toMatchObject({ filterOwnerNetCents: 500, preview: { ownerNetCents: 0 } });
+  });
+  it("updates balances after payment while reusing unchanged split calculations", () => {
+    const values = {
+      ...createDefaultValues(),
+      currency: "EUR",
+      participants: [{ id: "owner", name: "You" }, { id: "friend", name: "Ana" }],
+      payerParticipantId: "owner",
+      items: [{
+        id: "item", name: "Dinner", price: "10.00", splitMode: "even" as const,
+        allocations: ["owner", "friend"].map((participantId) => ({ participantId, evenIncluded: true, shares: "1", percent: "50" })),
+      }],
+    };
+    const first = buildRecord({ id: "first", values });
+    const second = buildRecord({ id: "second", values });
+    const resolver = jest.fn((record: DraftRecord) => computeSettlement(record.values));
+    const cache: HomeBalanceCache = new WeakMap();
+
+    expect(getHomeBalanceCards([first, second], "You", "EUR", resolver, cache).owedCents).toBe(1000);
+    const paid = { ...first, settlementState: { settledParticipantIds: ["friend"] } };
+    expect(getHomeBalanceCards([paid, second], "You", "EUR", resolver, cache).owedCents).toBe(500);
+    expect(resolver).toHaveBeenCalledTimes(3);
+    getHomeBalanceCards([paid, second], "Ana", "EUR", resolver, cache);
+    expect(resolver).toHaveBeenCalledTimes(5);
+  });
+
   it("uses default settlement resolver when a custom resolver is not provided", () => {
     const preview = getRecordMoneyPreview(buildRecord(), "Ana");
     expect(preview).toBeNull();

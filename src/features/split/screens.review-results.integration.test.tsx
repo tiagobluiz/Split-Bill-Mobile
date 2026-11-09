@@ -40,7 +40,7 @@ import {
   SplitItemScreen,
 } from "./screens";
 
-const { mockPush, mockBack, mockReplace } = createRouterMocks();
+const { mockPush, mockBack, mockReplace, mockDismissTo } = createRouterMocks();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockShare = jest.fn(async (..._args: any[]) => undefined);
 const mockAlert = jest.fn();
@@ -62,13 +62,23 @@ const mockLaunchImageLibraryAsync = jest.fn(async () => ({
 let mockStoreState: any;
 
 jest.mock("expo-router", () => ({
-  useFocusEffect: jest.fn(),
+  useFocusEffect: (callback: () => void) => require("react").useEffect(callback, [callback]),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),
     replace: (value: any) => mockReplace(value),
+    dismissTo: (value: any) => mockDismissTo(value),
   },
 }));
+
+jest.mock("../../storage/splitList", () => ({
+  listSplitSummaries: jest.fn(async (query: any) => ({
+    records: mockStoreState.records.slice(0, query.limit).map((record: any) => ({ id: record.id, status: record.status, step: record.step, splitName: record.values.splitName, firstItemName: record.values.items[0]?.name ?? "", currency: record.values.currency, tagIds: record.values.tagIds ?? [], splitDate: record.values.splitDate ?? record.createdAt.slice(0, 10), createdAt: record.createdAt, updatedAt: record.updatedAt, completedAt: record.completedAt })),
+    nextCursor: null,
+  })),
+}));
+
+jest.mock("./screens/home/scanHomeBalances", () => ({ scanHomeBalances: jest.fn(async () => []) }));
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (value: string) => mockSetStringAsync(value),
@@ -188,6 +198,7 @@ describe("split screens", () => {
       return { action: "sharedAction" } as any;
     });
     mockStoreState = buildStore();
+    mockStoreState.openRecord.mockImplementation(async (id: string) => mockStoreState.records.find((record: any) => record.id === id) ?? null);
     const store = require("./store");
     applyDefaultStorePreviews(store);
   });
@@ -300,7 +311,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByText("Fix split"));
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/overview");
     fireEvent.press(screen.getByText("Back to home"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("uses exact even-mode bottom scroll padding for split item", () => {
@@ -499,7 +510,7 @@ describe("split screens", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("routes pending split drafts from home to review instead of jumping directly into an item", () => {
+  it("routes pending split drafts from home to review instead of jumping directly into an item", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "draft-pending-split",
@@ -522,7 +533,8 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    fireEvent.press(screen.getByText("Groceries"));
+    fireEvent.press(await screen.findByText("Groceries"));
+    await act(async () => {});
     expect(mockPush).toHaveBeenCalledWith("/split/draft-pending-split/items");
   });
 
@@ -532,7 +544,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Back"));
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/items");
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("renders review fallback labels and zero-progress states", () => {
@@ -593,7 +605,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByText("Finalize Bill"));
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/results");
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("renders reverse-settlement labels correctly in overview totals", () => {
@@ -664,7 +676,7 @@ describe("split screens", () => {
     expect(screen.getAllByText("0%").length).toBeGreaterThan(0);
   });
 
-  it("routes home drafts with no visible or no pending items back to review", () => {
+  it("routes home drafts with no visible or no pending items back to review", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "draft-no-visible-items",
@@ -688,8 +700,10 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    fireEvent.press(screen.getAllByText("Untitled split")[0]);
+    fireEvent.press((await screen.findAllByText("Untitled split"))[0]);
+    await act(async () => {});
     fireEvent.press(screen.getByText("Groceries"));
+    await act(async () => {});
     expect(mockPush).toHaveBeenCalledWith(
       "/split/draft-no-visible-items/items",
     );
@@ -839,9 +853,9 @@ describe("split screens", () => {
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getAllByText("Owes you")).toHaveLength(1);
     fireEvent.press(screen.getByText("Bruno"));
-    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
+    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno", "draft-1");
     fireEvent.press(screen.getByText("Zoe"));
-    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe");
+    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("zoe", "draft-1");
   });
 
   it("toggles participant paid state when pressing the participant row content", async () => {
@@ -857,7 +871,7 @@ describe("split screens", () => {
 
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByText("Bruno"));
-    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno");
+    expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno", "draft-1");
   });
 
   it("offers the matching payment action for a long-pressed debt", async () => {
@@ -869,7 +883,7 @@ describe("split screens", () => {
     expect(screen.queryByText("Set reminder")).toBeNull();
     expect(screen.queryByText("Edit reminder")).toBeNull();
     fireEvent.press(screen.getByText("Mark as unpaid"));
-    await waitFor(() => expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno"));
+    await waitFor(() => expect(mockStoreState.toggleParticipantPaid).toHaveBeenCalledWith("bruno", "draft-1"));
   });
 
   it("offers only reminders for a debt when payment tracking is disabled", () => {

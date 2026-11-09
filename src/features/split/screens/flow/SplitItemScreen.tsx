@@ -474,7 +474,7 @@ export function SplitItemScreen({
             }
           : item;
 
-      await saveItemSplit(item.id, committedItem);
+      await saveItemSplit(item.id, committedItem, draftId);
       void trackItemSplitModeUsedOnce({
         draftId,
         itemId: item.id,

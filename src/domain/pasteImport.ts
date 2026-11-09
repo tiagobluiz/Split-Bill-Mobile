@@ -273,7 +273,7 @@ export function parsePastedItems(input: string): ParsedPasteImportResult {
     }
 
     if (parsed && !validateItemNameAndAmount(parsed.name, parsed.price)) {
-      const reason = t("pasteImport.ignoreReason.invalidPrice");
+      const reason = t("pasteImport.ignoreReason.priceTooHigh");
       ignoredLines.push(line);
       ignoredLineDetails.push({ line, reason });
       lineDetails.push({ kind: "ignored", line, reason });

@@ -245,6 +245,13 @@ export async function cancelReminderState(reminderState?: ReminderState) {
   await Promise.allSettled(jobs);
 }
 
+export function hasReminderCleanup(record: { values: { participants: Array<{ id: string }> }; reminderState?: ReminderState }, nowMs = Date.now()) {
+  const state = normalizeReminderState(record.reminderState);
+  const participants = new Set(record.values.participants.map((participant) => participant.id));
+  if (state.splitReminder && new Date(state.splitReminder.scheduledForIso).getTime() <= nowMs) return true;
+  return Object.entries(state.participantDebtReminders).some(([id, reminder]) => !participants.has(id) || new Date(reminder.scheduledForIso).getTime() <= nowMs);
+}
+
 export async function reconcileScheduledReminders<
   T extends {
     id: string;
@@ -253,6 +260,7 @@ export async function reconcileScheduledReminders<
   },
 >(records: T[]) {
   let didChange = false;
+  const changedRecordIds = new Set<string>();
   const nowMs = Date.now();
   const nextRecords = await Promise.all(
     records.map(async (record) => {
@@ -270,6 +278,7 @@ export async function reconcileScheduledReminders<
           await cancelReminder(splitReminder.notificationId);
           splitReminder = undefined;
           didChange = true;
+          changedRecordIds.add(record.id);
         }
       }
 
@@ -284,6 +293,7 @@ export async function reconcileScheduledReminders<
             ) {
               await cancelReminder(reminder.notificationId);
               didChange = true;
+              changedRecordIds.add(record.id);
               return;
             }
             nextParticipantDebtReminders[participantId] = reminder;
@@ -305,6 +315,7 @@ export async function reconcileScheduledReminders<
         JSON.stringify(normalizedCurrent) !== JSON.stringify(nextReminderState);
       if (hasChanged) {
         didChange = true;
+        changedRecordIds.add(record.id);
         return {
           ...record,
           reminderState: nextReminderState,
@@ -321,5 +332,6 @@ export async function reconcileScheduledReminders<
   return {
     records: nextRecords,
     changed: didChange,
+    changedRecordIds: [...changedRecordIds],
   };
 }

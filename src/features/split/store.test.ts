@@ -1,10 +1,12 @@
 type LoadedStore = {
+  membershipMocks: { listRecordIdsForPerson: jest.Mock; listLegacyRecordIdsForPerson: jest.Mock; listPersonNameConflicts: jest.Mock };
   storeModule: typeof import("./store");
   storageMocks: {
     initializeRecordsStorage: jest.Mock;
     listRecords: jest.Mock;
     getRecordById: jest.Mock;
     saveRecord: jest.Mock;
+    removeSplitTagAndUpdateSettings: jest.Mock;
     deleteRecord: jest.Mock;
     initializeSettingsStorage: jest.Mock;
     getAppSettings: jest.Mock;
@@ -158,12 +160,15 @@ async function loadStore(options?: {
   const storageMocks = {
     initializeRecordsStorage: jest.fn(async () => undefined),
     listRecords: jest.fn(async () => options?.listRecords ?? []),
+    listReminderRecordCandidates: jest.fn(async () => ({ records: [], nextCursor: null })),
+    reconcileReminderCandidate: jest.fn(async () => ({ status: "unchanged" })),
     getRecordById: jest.fn(async (id: string) =>
       options?.recordById && options.recordById.id === id
         ? options.recordById
-        : null,
+        : options?.listRecords?.find((record) => record.id === id) ?? null,
     ),
     saveRecord: jest.fn(async (_record?: any) => undefined),
+    removeSplitTagAndUpdateSettings: jest.fn(async () => undefined),
     deleteRecord: jest.fn(async () => undefined),
     initializeSettingsStorage: jest.fn(async () => undefined),
     getAppSettings: jest.fn(async () => options?.settings ?? ({
@@ -181,6 +186,7 @@ async function loadStore(options?: {
       for (const record of records) await storageMocks.saveRecord(record);
       return { records, settings };
     }),
+    saveOwnerProfileAndLinkedRecords: jest.fn(async (records: any[], settings: any): Promise<any> => storageMocks.saveRecordsAndSettings(records, settings)),
     savePersonAndLinkedRecords: jest.fn(async (person: any, groupIds: string[], _requireExisting: boolean) => {
       const current = storeModule!.useSplitStore.getState().settings;
       const people = current.people ?? [];
@@ -317,12 +323,18 @@ async function loadStore(options?: {
   };
 
   jest.doMock("../../storage/records", () => storageMocks);
+  const membershipMocks = {
+    listRecordIdsForPerson: jest.fn(async () => []),
+    listLegacyRecordIdsForPerson: jest.fn(async () => []),
+    listPersonNameConflicts: jest.fn(async () => []),
+  };
+  jest.doMock("../../storage/personMemberships", () => membershipMocks);
   jest.doMock("../../storage/personIdentityMigration", () => ({ migratePersonIdentity: jest.fn(async () => undefined) }));
   jest.doMock("../../storage/personDeletion", () => ({ deleteSavedPerson: async (personId: string) => {
     const state = storeModule!.useSplitStore.getState();
     const person = state.settings.people?.find((entry: any) => entry.id === personId);
     if (!person) return { result: "missing" };
-    const used = state.getPersonDeletionImpact(personId).used;
+    const used = (await state.getPersonDeletionImpact(personId)).used;
     const people = used ? (state.settings.people ?? []).map((entry: any) => entry.id === personId ? { ...entry, archivedAt: "now" } : entry)
       : (state.settings.people ?? []).filter((entry: any) => entry.id !== personId);
     const settings = { ...state.settings, people };
@@ -360,6 +372,7 @@ async function loadStore(options?: {
   return {
     storeModule: storeModule!,
     storageMocks,
+    membershipMocks,
     domainMocks,
     reminderMocks,
     telemetryMocks,
@@ -520,9 +533,9 @@ describe("split store", () => {
     expect(storageMocks.initializeSettingsStorage).toHaveBeenCalledTimes(1);
     expect(storageMocks.initializeRecordsStorage).toHaveBeenCalledTimes(1);
     expect(storeModule.useSplitStore.getState().ready).toBe(true);
-    expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
-      "draft-existing",
-    );
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBeNull();
+    expect(storeModule.useSplitStore.getState().records).toEqual([]);
+    expect(storageMocks.listRecords).not.toHaveBeenCalled();
 
     const created = await storeModule.useSplitStore.getState().createDraft();
     expect(created.id).toBe("generated-1");
@@ -534,7 +547,7 @@ describe("split store", () => {
       .getState()
       .openRecord("draft-existing");
     expect(openedExisting?.id).toBe("draft-existing");
-    expect(storageMocks.getRecordById).not.toHaveBeenCalled();
+    expect(storageMocks.getRecordById).toHaveBeenCalledWith("draft-existing");
 
     const openedFetched = await storeModule.useSplitStore
       .getState()
@@ -547,6 +560,151 @@ describe("split store", () => {
 
     await storeModule.useSplitStore.getState().removeRecord("draft-existing");
     expect(storageMocks.deleteRecord).toHaveBeenCalledWith("draft-existing");
+  });
+
+  it("does not activate a draft if its screen loses focus while it loads", async () => {
+    const current = createRecord({ id: "current" });
+    const fetched = createRecord({ id: "other" });
+    const { storeModule, storageMocks } = await loadStore({ listRecords: [current] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().openRecord("current");
+    const deferred = createDeferred<any>();
+    storageMocks.getRecordById.mockReturnValueOnce(deferred.promise);
+    let focused = true;
+    const opening = storeModule.useSplitStore.getState().openRecord("other", () => focused);
+    focused = false;
+    deferred.resolve(fetched);
+    await opening;
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("current");
+  });
+
+  it("loads a record for actions without changing the active draft and keeps newer edits", async () => {
+    const current = createRecord({ id: "current" });
+    const fetched = createRecord({ id: "other" });
+    const { storeModule, storageMocks } = await loadStore();
+    storeModule.useSplitStore.setState({ records: [current], activeRecordId: current.id });
+    const pending = createDeferred<typeof fetched>();
+    storageMocks.getRecordById.mockReturnValueOnce(pending.promise);
+    const load = storeModule.useSplitStore.getState().loadRecord("other");
+    const edited = { ...fetched, values: { ...fetched.values, splitName: "Newer" } };
+    storeModule.useSplitStore.setState({ records: [current, edited] });
+    pending.resolve(fetched);
+    expect((await load)?.values.splitName).toBe("Newer");
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBe("current");
+  });
+
+  it("releases full records on Home while preserving writes that are still pending", async () => {
+    const record = createRecord({ id: "draft" });
+    const { storeModule, storageMocks } = await loadReadyStore({ record });
+    const pending = createDeferred<void>();
+    storageMocks.saveRecord.mockReturnValueOnce(pending.promise);
+    const saving = storeModule.useSplitStore.getState().updateParticipants((participants) => [...participants, { id: "carla", name: "Carla" }], record.id);
+    storeModule.useSplitStore.getState().releaseInactiveRecords();
+    expect(storeModule.useSplitStore.getState().records.map((entry) => entry.id)).toEqual([record.id]);
+    pending.resolve();
+    await saving;
+    storeModule.useSplitStore.getState().releaseInactiveRecords();
+    expect(storeModule.useSplitStore.getState().records).toEqual([]);
+    expect(storeModule.useSplitStore.getState().activeRecordId).toBeNull();
+  });
+
+  it("saves only records whose reminders changed during reconciliation", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule, storageMocks, reminderMocks } = await loadReadyStore({ listRecords: [first, second] });
+    const updated = { ...first, reminderState: { participantDebtReminders: {} } };
+    reminderMocks.reconcileScheduledReminders.mockResolvedValueOnce({ records: [updated, second], changed: true, changedRecordIds: ["first"] });
+    await storeModule.useSplitStore.getState().reconcileReminders();
+    expect(storageMocks.saveRecord).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(updated);
+    expect(storeModule.useSplitStore.getState().records.find((record) => record.id === "second")).toBe(second);
+  });
+
+  it("retries reminder reconciliation without overwriting a concurrent edit", async () => {
+    const first = createRecord({ id: "first" });
+    const { storeModule, storageMocks, reminderMocks } = await loadReadyStore({ record: first });
+    const deferred = createDeferred<any>();
+    reminderMocks.reconcileScheduledReminders.mockReturnValueOnce(deferred.promise);
+    const reconciling = storeModule.useSplitStore.getState().reconcileReminders();
+    const edited = { ...first, values: { ...first.values, splitName: "Edited" } };
+    storeModule.useSplitStore.setState({ records: [edited] });
+    deferred.resolve({ records: [{ ...first, reminderState: { participantDebtReminders: {} } }], changed: true, changedRecordIds: ["first"] });
+    await reconciling;
+    expect(storeModule.useSplitStore.getState().records[0].values.splitName).toBe("Edited");
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
+    expect(reminderMocks.reconcileScheduledReminders).toHaveBeenCalledTimes(2);
+  });
+
+  it("deletes an item from the requested draft after another draft becomes active", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule } = await loadStore({ listRecords: [first, second] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(first.id);
+    await storeModule.useSplitStore.getState().openRecord("second");
+    await storeModule.useSplitStore.getState().removeItem(first.values.items[0].id, "first");
+    const state = storeModule.useSplitStore.getState();
+    expect(state.activeRecordId).toBe("second");
+    expect(state.records.find((record) => record.id === "first")?.values.items.map((item) => item.id)).not.toContain(first.values.items[0].id);
+    expect(state.records.find((record) => record.id === "second")?.values.items).toHaveLength(second.values.items.length);
+  });
+
+  it("completes the requested draft even after another draft becomes active", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule } = await loadStore({ listRecords: [first, second] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(first.id);
+    await storeModule.useSplitStore.getState().openRecord("second");
+    await storeModule.useSplitStore.getState().markCompleted("first");
+    const state = storeModule.useSplitStore.getState();
+    expect(state.activeRecordId).toBe("second");
+    expect(state.records.find((record) => record.id === "first")?.status).toBe("completed");
+    expect(state.records.find((record) => record.id === "second")?.status).toBe(second.status);
+  });
+
+  it("changes the payer of the requested draft without changing the active draft", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule } = await loadStore({ listRecords: [first, second] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(first.id);
+    await storeModule.useSplitStore.getState().openRecord("second");
+    await storeModule.useSplitStore.getState().setPayer("bruno", "first");
+    const state = storeModule.useSplitStore.getState();
+    expect(state.activeRecordId).toBe("second");
+    expect(state.records.find((record) => record.id === "first")?.values.payerParticipantId).toBe("bruno");
+    expect(state.records.find((record) => record.id === "second")?.values.payerParticipantId).toBe(second.values.payerParticipantId);
+  });
+
+  it("saves items to their requested draft while another draft is active", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule } = await loadStore({ listRecords: [first, second] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(first.id);
+    await storeModule.useSplitStore.getState().openRecord("second");
+    const newItem = { ...first.values.items[0], id: "new-item", name: "New item" };
+    await storeModule.useSplitStore.getState().createItem(newItem, "first");
+    await storeModule.useSplitStore.getState().updateItemField("new-item", "price", "12.00", "first");
+    const state = storeModule.useSplitStore.getState();
+    expect(state.activeRecordId).toBe("second");
+    expect(state.records.find((record) => record.id === "first")?.values.items.find((item) => item.id === "new-item")?.price).toBe("12.00");
+    expect(state.records.find((record) => record.id === "second")?.values.items.some((item) => item.id === "new-item")).toBe(false);
+  });
+
+  it("updates participants in the requested draft while another draft is active", async () => {
+    const first = createRecord({ id: "first" });
+    const second = createRecord({ id: "second" });
+    const { storeModule } = await loadStore({ listRecords: [first, second] });
+    await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(first.id);
+    await storeModule.useSplitStore.getState().openRecord("second");
+    await storeModule.useSplitStore.getState().updateParticipants((participants) => participants.filter((participant) => participant.id !== "bruno"), "first");
+    const state = storeModule.useSplitStore.getState();
+    expect(state.activeRecordId).toBe("second");
+    expect(state.records.find((record) => record.id === "first")?.values.participants.map((person) => person.id)).toEqual(["ana"]);
+    expect(state.records.find((record) => record.id === "second")?.values.participants).toEqual(second.values.participants);
   });
 
   it("keeps activeRecordId valid when overlapping createDraft calls both fail", async () => {
@@ -572,6 +730,7 @@ describe("split store", () => {
       );
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().openRecord(existing.id);
     const firstDraftPromise = storeModule.useSplitStore
       .getState()
       .createDraft();
@@ -793,6 +952,7 @@ describe("split store", () => {
     );
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     const settingsUpdate = storeModule.useSplitStore
       .getState()
       .updateSettings({ ownerName: "Tiago" });
@@ -804,20 +964,38 @@ describe("split store", () => {
     await settingsUpdate;
     await tagRemove;
 
-    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(2);
-    expect(storageMocks.saveAppSettings).toHaveBeenNthCalledWith(
-      2,
+    expect(storageMocks.saveAppSettings).toHaveBeenCalledTimes(1);
+    expect(storageMocks.removeSplitTagAndUpdateSettings).toHaveBeenCalledWith(
+      "tag-groceries",
       expect.objectContaining({
         tags: expect.not.arrayContaining([
           expect.objectContaining({ id: "tag-groceries" }),
         ]),
       }),
     );
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        values: expect.objectContaining({ tagIds: [] }),
-      }),
-    );
+    expect(storeModule.useSplitStore.getState().records[0].values.tagIds).toEqual([]);
+  });
+
+  it("preserves concurrent record edits when tag deletion finishes", async () => {
+    const record = createRecord({ values: { ...createValues(), tagIds: ["tag-groceries"], splitName: "Before" } });
+    const { storeModule, storageMocks } = await loadReadyStore({ record });
+    const pending = createDeferred<void>();
+    storageMocks.removeSplitTagAndUpdateSettings.mockReturnValueOnce(pending.promise);
+    const removal = storeModule.useSplitStore.getState().removeTag("tag-groceries");
+    await Promise.resolve();
+    storeModule.useSplitStore.setState((state) => ({ records: state.records.map((entry) => ({ ...entry, values: { ...entry.values, splitName: "Changed while saving" } })) }));
+    pending.resolve();
+    await removal;
+    expect(storeModule.useSplitStore.getState().records[0].values).toMatchObject({ splitName: "Changed while saving", tagIds: [] });
+  });
+
+  it("keeps tag settings and loaded records intact after tag deletion fails", async () => {
+    const record = createRecord({ values: { ...createValues(), tagIds: ["tag-groceries"] } });
+    const { storeModule, storageMocks } = await loadReadyStore({ record });
+    storageMocks.removeSplitTagAndUpdateSettings.mockRejectedValueOnce(new Error("disk full"));
+    await expect(storeModule.useSplitStore.getState().removeTag("tag-groceries")).rejects.toThrow("disk full");
+    expect(storeModule.useSplitStore.getState().records[0].values.tagIds).toEqual(["tag-groceries"]);
+    expect(storeModule.useSplitStore.getState().settings.tags).toEqual(expect.arrayContaining([expect.objectContaining({ id: "tag-groceries" })]));
   });
 
   it("persists current records when a delayed owner-name settings save starts", async () => {
@@ -840,6 +1018,7 @@ describe("split store", () => {
     );
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     const firstUpdate = storeModule.useSplitStore
       .getState()
       .updateSettings({ defaultCurrency: "USD" });
@@ -890,6 +1069,7 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     await storeModule.useSplitStore.getState().updateSettings({
       ownerName: "Tiago Luiz",
     });
@@ -927,6 +1107,7 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     await expect(storeModule.useSplitStore.getState().updateSettings({
       ownerName: "   ",
     })).rejects.toThrow("Invalid person name: required");
@@ -974,6 +1155,7 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     await storeModule.useSplitStore.getState().updateSettings({
       ownerName: "Tiago Luiz",
     });
@@ -993,6 +1175,7 @@ describe("split store", () => {
     });
 
     await storeModule.useSplitStore.getState().bootstrap();
+    await storeModule.useSplitStore.getState().loadRecord(record.id);
     await storeModule.useSplitStore.getState().updateSettings({
       ownerName: "You",
       balanceFeatureEnabled: false,
@@ -1366,10 +1549,8 @@ describe("split store", () => {
     expect(
       storeModule.useSplitStore.getState().getActiveRecord()?.values.tagIds,
     ).toEqual([]);
-    expect(storageMocks.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        values: expect.objectContaining({ tagIds: [] }),
-      }),
+    expect(storageMocks.removeSplitTagAndUpdateSettings).toHaveBeenCalledWith(
+      "tag-groceries", expect.objectContaining({ tags: expect.not.arrayContaining([expect.objectContaining({ id: "tag-groceries" })]) }),
     );
   });
 
@@ -1441,6 +1622,55 @@ describe("split store", () => {
     expect(storeModule.useSplitStore.getState().activeRecordId).toBe(
       "draft-active",
     );
+  });
+
+  it("cleans up reminders for a deleted split that is not loaded in memory", async () => {
+    const archived = createRecord({ id: "archived" });
+    const { storeModule, storageMocks, reminderMocks } = await loadStore({ recordById: archived });
+    storeModule.useSplitStore.setState({ ready: true, records: [], activeRecordId: null });
+    await storeModule.useSplitStore.getState().removeRecord("archived");
+    expect(storageMocks.getRecordById).toHaveBeenCalledWith("archived");
+    expect(reminderMocks.cancelReminderState).toHaveBeenCalledWith(archived.reminderState);
+    expect(storageMocks.deleteRecord).toHaveBeenCalledWith("archived");
+  });
+
+  it("marks an owner rename as pending until its failed transaction rolls back", async () => {
+    const { storeModule, storageMocks } = await loadReadyStore();
+    const pending = createDeferred<void>();
+    storageMocks.saveAppSettings.mockReturnValueOnce(pending.promise);
+    const saving = storeModule.useSplitStore.getState().updateSettings({ ownerName: "Alex" });
+    expect(storeModule.useSplitStore.getState().ownerNameWritesPending).toBe(1);
+    pending.reject(new Error("disk full"));
+    await expect(saving).rejects.toThrow("disk full");
+    expect(storeModule.useSplitStore.getState().ownerNameWritesPending).toBe(0);
+    expect(storeModule.useSplitStore.getState().settings.ownerName).toBe("You");
+  });
+
+  it("counts archived references while honoring newer in-memory participant edits", async () => {
+    const { storeModule, membershipMocks: memberships } = await loadStore();
+    memberships.listRecordIdsForPerson.mockResolvedValue(["unloaded", "removed"]);
+    memberships.listLegacyRecordIdsForPerson.mockResolvedValue(["legacy"]);
+    const person = { id: "ana-person", name: "Ana", createdAt: "now", updatedAt: "now" };
+    const removed = createRecord({ id: "removed", values: { ...createValues(), participants: [{ id: "other", name: "Other", personId: "other" }] } });
+    const added = createRecord({ id: "added", values: { ...createValues(), participants: [{ id: "ana", name: "Ana", personId: person.id }] } });
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, people: [person] }, records: [removed, added] }));
+    await expect(storeModule.useSplitStore.getState().getPersonDeletionImpact(person.id)).resolves.toEqual({ used: true, splitCount: 3, groupCount: 0 });
+  });
+
+  it("rejects person names conflicting with unloaded history and reports the split name", async () => {
+    const { storeModule, membershipMocks } = await loadStore();
+    membershipMocks.listPersonNameConflicts.mockResolvedValue([{ id: "old", splitName: "Old dinner" }]);
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, people: [] }, records: [] }));
+    await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "Bruno", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "split-name-conflict", recordId: "old", splitName: "Old dinner" });
+  });
+
+  it("uses a newer loaded participant list when a stored conflict has been removed", async () => {
+    const { storeModule, membershipMocks } = await loadStore();
+    membershipMocks.listPersonNameConflicts.mockResolvedValue([{ id: "changed", splitName: "Dinner" }]);
+    const changed = createRecord({ id: "changed", values: { ...createValues(), participants: [{ id: "other", name: "Carla", personId: "carla" }] } });
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, people: [] }, records: [changed] }));
+    const result = await storeModule.useSplitStore.getState().savePerson({ personId: null, name: "Bruno", photoUri: null, color: "orange", groupIds: [] });
+    expect(result.ok).toBe(true);
   });
 
   it("reassigns the active record when the current one is removed and another record remains", async () => {

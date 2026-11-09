@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -136,8 +136,11 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     t("reminders.restored"),
     t("reminders.restoreFailed"),
   );
-  const settlement = getSettlementPreview(record);
-  const summary = getClipboardSummaryPreview(record, settings.defaultCurrency);
+  const settlement = useMemo(() => getSettlementPreview(record), [record, settings.language, settings.humour]);
+  const summary = useMemo(
+    () => getClipboardSummaryPreview(record, settings.defaultCurrency),
+    [record, settings.defaultCurrency, settings.language, settings.humour],
+  );
   const locale = getDeviceLocale();
   const use24HourClock = prefers24HourTime();
 
@@ -153,7 +156,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     }
     void (async () => {
       try {
-        await markCompleted();
+        await markCompleted(draftId);
         await trackSplitStepCompleted({
           step: "results",
           draftStatus: "completed",
@@ -166,7 +169,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         );
       }
     })();
-  }, [markCompleted, record, settlement, summary]);
+  }, [draftId, markCompleted, record, settlement, summary]);
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -231,7 +234,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={t("flow.results.invalidBackHomeA11y")}
                 style={screenStyles.resultsInvalidSecondaryButton}
-                onPress={() => router.replace("/")}
+                onPress={() => router.dismissTo("/")}
               >
                 <Text
                   fontFamily={FONTS.headlineBold}
@@ -496,7 +499,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       onPress: () => {
         setShowPaymentActions(false);
         void runPaymentAction(
-          markBillPaid,
+          () => markBillPaid(draftId),
           t("flow.results.markPaidFailed"),
         );
       },
@@ -509,7 +512,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       onPress: () => {
         setShowPaymentActions(false);
         void runPaymentAction(
-          revertBillPaid,
+          () => revertBillPaid(draftId),
           t("flow.results.markPaidFailed"),
         );
       },
@@ -594,7 +597,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
             bottomInset={insets.bottom}
             onDismiss={() => setDebtMenuVisible(false)}
             onDismissComplete={() => { const action = debtNextAction.current; debtNextAction.current = null; setDebtAction(null); action?.(); }}
-            onPayment={(target) => { debtNextAction.current = () => { void runPaymentAction(() => toggleParticipantPaid(target.id), t("flow.results.togglePaidFailed", { name: target.name })); }; setDebtMenuVisible(false); }}
+            onPayment={(target) => { debtNextAction.current = () => { void runPaymentAction(() => toggleParticipantPaid(target.id, draftId), t("flow.results.togglePaidFailed", { name: target.name })); }; setDebtMenuVisible(false); }}
             onReminder={(target) => { debtNextAction.current = () => { setDebtReminderErrorMessage(""); setDebtReminderPickerHasExisting(Boolean(record?.reminderState?.participantDebtReminders?.[target.id])); setDebtReminderPickerParticipantId(target.id); }; setDebtMenuVisible(false); }}
           />
           <ActionListSheet
@@ -974,7 +977,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
                     ]}
                     onPress={() =>
                       void runPaymentAction(
-                        () => toggleParticipantPaid(person.participantId),
+                        () => toggleParticipantPaid(person.participantId, draftId),
                         t("flow.results.togglePaidFailed", { name: person.name }),
                       )
                     }

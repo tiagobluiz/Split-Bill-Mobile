@@ -1,4 +1,5 @@
 import type { TranslationMap } from "./types";
+import { enSassy, enUnhinged } from "./enHumour";
 
 const enPlain = {
   "splitDetails.date": "Split date",
@@ -21,6 +22,7 @@ const enPlain = {
   "pdf.invoice": "Invoice",
   "pdf.exportedOn": "Exported on {date}",
   "flow.participants.frequentTab": "Frequent", "flow.participants.groupsTab": "Groups", "flow.participants.groupProgress": "{added} of {total} added", "flow.participants.addRemaining": "Add all ({count})", "flow.participants.allAdded": "All added",
+  "flow.participants.loadingFrequent": "Loading frequent people…", "flow.participants.frequentLoadFailed": "Could not load frequent people.",
   "flow.participants.selectGroupA11y": "Select group {group}", "flow.participants.addRemainingA11y": "Add {count} remaining members of {group}", "flow.participants.addMemberA11y": "Add {name} from {group}", "flow.participants.memberAddedA11y": "{name} already added from {group}", "flow.participants.memberAvatarA11y": "Group member avatar {name}",
   "flow.participants.addFrequentA11y": "Add frequent friend {name}", "flow.participants.frequentAvatarA11y": "Frequent friend avatar {name}", "flow.participants.noFrequentPeople": "No frequent people yet. People you add to splits will show up here.", "flow.participants.allFrequentPeopleAdded": "You’ve already added all your frequent people.", "flow.participants.noAvailableGroups": "No saved groups yet.",
   "flow.participants.noFrequentPeopleTitle": "No frequent people yet",
@@ -216,6 +218,7 @@ const enPlain = {
   "people.editPersonAction": "Edit person",
   "people.editPersonDescription": "Change name, photo or group memberships",
   "people.deletePersonAction": "Delete person",
+  "people.checkingHistory": "Checking split history…",
   "people.archivePersonAction": "Archive person",
   "people.archivePersonA11y": "Archive person {person}",
   "people.archivePersonTitle": "Archive person?",
@@ -360,7 +363,11 @@ const enPlain = {
   "home.editDetails.save": "Save details",
   "home.editDetails.nameRequired": "Split name is missing.",
   "home.editDetails.saveFailed": "Could not save split details. {error}",
+  "home.loadingSplits": "Loading splits…",
+  "home.splitsLoadFailed": "Could not load splits.",
+  "home.balancesLoadFailed": "Could not calculate balances.",
   "home.youAreOwed": "You are owed",
+  "home.calculatingBalances": "Calculating balances",
   "home.youOwe": "You owe",
   "home.recent": "Recent",
   "home.viewAll": "View All",
@@ -489,6 +496,10 @@ const enPlain = {
   "flow.items.nextA11y": "Next: Split Bill",
   "flow.items.nextHintReady": "Continues to split assignments.",
   "flow.items.nextHintBlocked": "Shows validation errors before continuing.",
+  "flow.items.errors.one": "{count} item needs attention",
+  "flow.items.errors.other": "{count} items need attention",
+  "flow.items.goToFirstError": "Go to first item",
+  "flow.items.numberedItem": "Item {count}",
   "flow.items.unnamed": "Unnamed item",
   "flow.items.delete": "Delete",
   "flow.items.rowActions.title": "Item actions",
@@ -726,7 +737,8 @@ const enPlain = {
   "pasteImport.ignoreReason.nameTooLong":
     "Item name is longer than {max} characters",
   "pasteImport.ignoreReason.missingPrice": "Missing item price",
-  "pasteImport.ignoreReason.invalidPrice": "Price is missing or invalid",
+  "pasteImport.ignoreReason.invalidPrice": "Enter a valid item price",
+  "pasteImport.ignoreReason.priceTooHigh": "The maximum value for an item is 1 000 000",
   "pasteImport.ignoreReason.zeroAmount": "Zero-value items are skipped",
   "pasteImport.ignoreReason.format":
     "Use one item per line with a name and price",
@@ -779,7 +791,7 @@ const enPlain = {
   "validation.itemNameRequiredWhenAmount": "This item needs a name.",
   "validation.itemNameMax": "Keep item names under {max} characters.",
   "validation.itemAmountInvalid": "Enter a valid amount different from zero.",
-  "validation.itemAmountTooHigh": "Maximum is 1 000 000",
+  "validation.itemAmountTooHigh": "The maximum value for an item is 1 000 000",
   "validation.itemDuplicate":
     "This item already exists. Change the name, price, or category.",
   "validation.splitEvenMin":
@@ -833,158 +845,6 @@ const enPlain = {
 } as const satisfies TranslationMap;
 
 export type TranslationKey = keyof typeof enPlain;
-
-const enSassy: Partial<Record<keyof typeof enPlain, string>> = {
-  "app.error.openTitle": "Wow. It broke.",
-  "app.error.openDescription": "Go on, try again.",
-  "app.error.retry": "Fix it",
-
-  "common.couldNotSaveSettings": "Couldn’t save. Shocking.",
-  "common.tryAgain": "Try harder",
-
-  "settings.ownerNameRequired": "You need a name. Any name.",
-  "settings.defaultCurrencyRequired": "Money exists. Pick a currency.",
-
-  "settings.trackPayments.title": "Track who’s broke",
-  "settings.balanceHelper.title": "Debt watcher",
-
-  "home.startSplit": "Start something you’ll regret",
-  "home.noSplitsTitle": "Empty. Like your wallet soon.",
-  "home.noSplitsDescription": "Splits will show up here. Eventually.",
-  "home.noSplitsFilteredTitle": "Still nothing. Impressive.",
-  "home.undoSplitDeleted": "Gone. Hope that was intentional.",
-  "home.youAreOwed": "They owe you. Good luck.",
-  "home.youOwe": "You owe. Pay up.",
-
-  "flow.setup.next": "Next: find people to blame",
-
-  "flow.participants.title": "Who’s responsible for this?",
-  "flow.participants.add": "Add another victim",
-  "flow.participants.next": "Next: who paid (probably not you)",
-
-  "flow.payer.title": "Who actually paid?",
-  "flow.payer.next": "Next: list the damage",
-
-  "flow.items.title": "What did you waste money on?",
-  "flow.items.import": "Let AI clean your mess",
-  "flow.items.addManual": "Do it the hard way",
-  "flow.items.itemDeleted": "Deleted. Like it never happened.",
-  "flow.items.runningTotal": "Total damage",
-
-  "flow.itemDetail.editTitle": "Fix your mistake",
-  "flow.itemDetail.nameRequired": "Name it. It’s not that hard.",
-  "flow.itemDetail.priceRequired": "Numbers. We need numbers.",
-  "flow.itemDetail.confirmDiscard.title": "Give up already?",
-  "flow.itemDetail.confirmDelete.title": "Delete it and pretend it’s fine?",
-
-  "flow.splitItem.title": "Who’s paying for this mess?",
-  "flow.splitItem.confirmNext": "Save and move on",
-  "flow.splitItem.confirmReview": "Save and judge everyone",
-
-  "flow.import.askAiTitle": "Let AI do your job",
-  "flow.import.afterAi": "Copy it properly this time",
-  "flow.import.copyPrompt": "Copy it. Carefully.",
-  "flow.import.alreadyHaveList": "Sure you do",
-
-  "flow.review.title": "Last chance to fix this",
-  "flow.overview.finalize": "Lock it in",
-
-  "flow.results.title": "Here’s the damage",
-  "flow.results.invalidTitle": "This makes no sense",
-  "flow.results.totalSettled": "All settled. Finally.",
-  "flow.results.markPaid": "Mark as paid (if true)",
-  "flow.results.revertMarkPaid": "Undo that lie",
-
-  "validation.participantsMin": "You need at least two people. Basic stuff.",
-  "validation.payerRequired": "Someone had to pay. Pick one.",
-  "validation.itemsMin": "No items? What are we doing here?",
-  "validation.itemAmountInvalid": "That number is not it",
-  "validation.percentTotal": "Make it 100. Not 99. Not 101.",
-
-  "friendly.itemsMin": "Add something before continuing",
-  "friendly.percentTotal": "It needs to be exactly 100",
-
-  "clipboard.payer.getBack": "{name}: paid {amount}, consumed {consumed}, should get back {net}.",
-  "clipboard.payer.stillOwes": "{name}: paid {amount}, consumed {consumed}, still owes {net}.",
-  "clipboard.person.owes": "{name}: owes {amount}",
-  "clipboard.person.getsBack": "{name}: gets back {amount}",
-  "reminders.notification.splitBody":
-    "Nudge: this split still needs attention.",
-  "reminders.notification.debtBodyNamed":
-    "{name} still has an open amount. Time to poke them.",
-  "reminders.notification.debtBodyUnnamed":
-    "Someone still has an open amount. Go poke them.",
-
-  "pdf.invalid": "No PDF. Fix your split first.",
-};
-
-const enUnhinged: Partial<Record<keyof typeof enPlain, string>> = {
-  "app.error.openTitle": "You broke it.",
-  "app.error.openDescription": "Do it again. But better.",
-  "app.error.retry": "Redeem yourself",
-  "common.couldNotSaveSettings": "Settings not saved. Try caring more.",
-  "common.tryAgain": "Again. With effort.",
-  "settings.ownerNameRequired": "No name? Bold strategy.",
-  "settings.defaultCurrencyRequired": "Pick a currency. This isn’t Monopoly.",
-  "settings.trackPayments.title": "Track the freeloaders",
-  "settings.balanceHelper.title": "Debt scoreboard",
-  "home.startSplit": "Start financial drama",
-  "home.noSplitsTitle": "Nothing here. Suspicious.",
-  "home.noSplitsDescription": "Don’t worry, chaos is coming.",
-  "home.noSplitsFilteredTitle": "Still empty. Impressive.",
-  "home.undoSplitDeleted": "Gone. Like your money soon.",
-  "home.youAreOwed": "They owe you. Chase them.",
-  "home.youOwe": "You owe. Pay up.",
-  "flow.setup.next": "Next: assemble the suspects",
-  "flow.participants.title": "Who’s involved in this disaster?",
-  "flow.participants.add": "Add another accomplice",
-  "flow.participants.next": "Next: who got stuck paying",
-  "flow.payer.title": "Who was the sugar daddy?",
-  "flow.payer.next": "Next: list your bad decisions",
-  "flow.items.title": "What did you waste money on?",
-  "flow.items.import": "Let AI deal with this mess",
-  "flow.items.addManual": "Fine, do it yourself",
-  "flow.items.itemDeleted": "Deleted. Just like that.",
-  "flow.items.runningTotal": "Total damage so far",
-  "flow.itemDetail.editTitle": "Fix your mess",
-  "flow.itemDetail.nameRequired": "Name it. It’s not invisible.",
-  "flow.itemDetail.priceRequired": "Numbers. We need numbers.",
-  "flow.itemDetail.confirmDiscard.title": "Rage quit?",
-  "flow.itemDetail.confirmDelete.title": "Delete and pretend it never existed?",
-  "flow.splitItem.title": "Who’s paying for this nonsense?",
-  "flow.splitItem.confirmNext": "Lock it and move on",
-  "flow.splitItem.confirmReview": "Lock it and judge",
-  "flow.import.askAiTitle": "Let AI save you",
-  "flow.import.afterAi": "Copy it correctly this time",
-  "flow.import.copyPrompt": "Copy it. Don’t mess it up.",
-  "flow.import.alreadyHaveList": "Sure you do",
-  "flow.review.title": "Last chance to not embarrass yourself",
-  "flow.overview.finalize": "Make it official. No takebacks.",
-  "flow.results.title": "Here’s the damage",
-  "flow.results.invalidTitle": "This makes zero sense",
-  "flow.results.totalSettled": "Finally. Peace.",
-  "flow.results.markPaid": "Mark as paid (be honest)",
-  "flow.results.revertMarkPaid": "Undo that lie",
-  "validation.participantsMin":
-    "You need at least two people. This isn’t solo mode.",
-  "validation.payerRequired": "Someone paid. Admit it.",
-  "validation.itemsMin": "No items? Then why are you here?",
-  "validation.itemAmountInvalid": "That number is illegal",
-  "validation.percentTotal": "Make it 100. It’s not optional.",
-  "friendly.itemsMin": "Add something before wasting more time",
-  "friendly.percentTotal": "It must be exactly 100. Not close.",
-  "clipboard.payer.getBack": "{name}: paid {amount}, consumed {consumed}, better get back {net}.",
-  "clipboard.payer.stillOwes": "{name}: paid {amount}, consumed {consumed}, still in debt {net}.",
-  "clipboard.person.owes": "{name}: owes {amount}. Pay them.",
-  "clipboard.person.getsBack": "{name}: gets back {amount}. Eventually.",
-  "reminders.notification.splitBody":
-    "This split is still open. Handle it before it haunts you.",
-  "reminders.notification.debtBodyNamed":
-    "{name} still owes money. Summon the payment.",
-  "reminders.notification.debtBodyUnnamed":
-    "A participant still owes money. Summon the payment.",
-  "pdf.invalid": "No PDF for this mess. Fix it first.",
-};
 
 export const enCatalog = {
   plain: enPlain,
