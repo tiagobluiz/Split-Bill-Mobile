@@ -475,12 +475,12 @@ export async function saveOwnerProfileAndLinkedRecords(records: DraftRecord[], s
     let cursor = "";
     while (true) {
       const rows = ownerId
-        ? await tx.getAllAsync<{ id: string; payload: string }>(
-          `SELECT r.id, r.payload FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id
+        ? await tx.getAllAsync<DatabaseRow>(
+          `SELECT r.id, r.status, r.step, r.payload, r.created_at, r.updated_at, r.completed_at FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id
            WHERE m.person_id = ? AND r.id > ? ORDER BY r.id LIMIT 100`, [ownerId, cursor],
         )
-        : await tx.getAllAsync<{ id: string; payload: string }>(
-          "SELECT id, payload FROM split_records WHERE id > ? ORDER BY id LIMIT 100", [cursor],
+        : await tx.getAllAsync<DatabaseRow>(
+          "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id > ? ORDER BY id LIMIT 100", [cursor],
         );
       for (const row of rows) {
         const payload = parseObject(row.payload, "split");
@@ -495,13 +495,13 @@ export async function saveOwnerProfileAndLinkedRecords(records: DraftRecord[], s
           return { ...participant, name: nextName };
         });
         if (!changed) continue;
-        const nextValues = { ...values, participants, items: syncItemAllocations(Array.isArray(values.items) ? values.items : [], participants) };
+        const normalized = mapRow(row)!;
+        const nextValues = { ...values, participants, items: syncItemAllocations(normalized.values.items, participants) };
         const nextPayload = wrapped ? { ...payload, values: nextValues } : nextValues;
-        const projection = createFinancialProjection({
-          values: nextValues,
-          settlementState: wrapped && payload.settlementState ? payload.settlementState : getDefaultSettlementState(),
-        } as DraftRecord);
-        await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ?, financial_projection = ? WHERE id = ?", [JSON.stringify(nextPayload), new Date().toISOString(), JSON.stringify(projection), row.id]);
+        const serialized = JSON.stringify(nextPayload);
+        const updatedAt = new Date().toISOString();
+        const projection = createFinancialProjection(mapRow({ ...row, payload: serialized, updated_at: updatedAt })!);
+        await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ?, financial_projection = ? WHERE id = ?", [serialized, updatedAt, JSON.stringify(projection), row.id]);
       }
       if (rows.length < 100) break;
       cursor = rows[rows.length - 1].id;

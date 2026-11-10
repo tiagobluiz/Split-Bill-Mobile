@@ -411,6 +411,7 @@ describe("split screens", () => {
       }),
     ];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
     await act(async () => {});
     await act(async () => {});
     expect(screen.getByText("Split Bill")).toBeTruthy();
@@ -520,6 +521,7 @@ describe("split screens", () => {
     };
     mockStoreState.records = [buildRecord({ id: "owner-missing" })];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
     await act(async () => {});
     await act(async () => {});
     expect(screen.getByText("Pending: Setup")).toBeTruthy();
@@ -636,6 +638,7 @@ describe("split screens", () => {
       buildRecord({ id: "owner-missing", status: "completed" }),
     ];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
     await act(async () => {});
     await act(async () => {});
 
@@ -1354,6 +1357,20 @@ describe("split screens", () => {
     expect(await screen.findByText("No splits here")).toBeTruthy();
   });
 
+  it("shows the empty state when a balance filter matches no archived splits", async () => {
+    const unpaid = buildRecord({ id: "unpaid-only", status: "completed", values: { ...buildRecord().values, splitName: "Unpaid only" } });
+    mockArchivedRecords = [unpaid];
+    mockStoreState.records = [];
+    const { getHomeBalanceEntry } = require("./screens/shared/settlementUtils");
+    require("./screens/home/scanHomeBalances").scanHomeBalances.mockResolvedValueOnce([getHomeBalanceEntry(unpaid, "Ana", "EUR", require("./store").getSettlementPreview)]);
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    await screen.findByLabelText("Open split Unpaid only");
+    fireEvent.press(screen.getByLabelText("Show filters"));
+    fireEvent.press(screen.getByLabelText("Nothing due"));
+    expect(await screen.findByText("No splits here")).toBeTruthy();
+  });
+
   it("requests five recent rows for Home in newest order", async () => {
     mockStoreState.records = Array.from({ length: 7 }, (_, index) => buildRecord({
       id: `recent-${index}`,
@@ -1376,6 +1393,29 @@ describe("split screens", () => {
     fireEvent.press(await screen.findByLabelText("Open split Older dinner"));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("/split/older/")));
     expect(mockStoreState.openRecord).toHaveBeenCalledWith("older", expect.any(Function));
+  });
+
+  it("keeps older pages visible while an action hydrates and releases a split", async () => {
+    mockArchivedRecords = Array.from({ length: 22 }, (_, index) => buildRecord({
+      id: `archived-${index}`,
+      createdAt: `2026-04-${String(22 - index).padStart(2, "0")}T10:00:00.000Z`,
+      values: { ...buildRecord().values, splitName: `Archived ${index}` },
+    }));
+    mockStoreState.records = [];
+    const old = mockArchivedRecords[20];
+    mockStoreState.loadRecord.mockResolvedValue(old);
+    const view = render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    await screen.findByLabelText("Open split Archived 0");
+    const list = view.UNSAFE_getByType(FlatList);
+    act(() => list.props.onScroll({ nativeEvent: { contentOffset: { y: 1000 }, layoutMeasurement: { height: 800 }, contentSize: { height: 1900 } } }));
+    await waitFor(() => expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id));
+    mockStoreState.records = [old];
+    view.rerender(<HomeScreen />);
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id);
+    mockStoreState.records = [];
+    view.rerender(<HomeScreen />);
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id);
   });
 
   it("shows balances and filters from older splits that are not loaded", async () => {

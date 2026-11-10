@@ -43,6 +43,17 @@ describe("usePageRowModels", () => {
     expect(result.current.rows[0].title).toBe("Updated dinner");
   });
 
+  it("retains the latest loaded row immediately when its record is released", async () => {
+    const entries = [summary("one")];
+    const loaded = record("one");
+    loaded.values.splitName = "Edited dinner";
+    const { result, rerender } = renderHook(({ records }) => usePageRowModels(entries, records, "Ana", settings, true), { initialProps: { records: [loaded] } });
+    expect(result.current.rows[0].title).toBe("Edited dinner");
+    rerender({ records: noLoaded });
+    expect(result.current.rows[0].title).toBe("Edited dinner");
+    expect(getRecordsByIds).not.toHaveBeenCalled();
+  });
+
   it("handles deleted rows and allows retry after a read failure", async () => {
     (getRecordsByIds as jest.Mock).mockRejectedValueOnce(new Error("read failed")).mockResolvedValueOnce([]);
     const { result } = renderHook(() => usePageRowModels([summary("deleted")], noLoaded, "Ana", settings, true));

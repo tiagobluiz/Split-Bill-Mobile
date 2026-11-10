@@ -29,7 +29,7 @@ export function useSplitListPages(query: PageQuery | null, revision: unknown, pa
 
   useEffect(() => {
     if (!currentQuery.current) return;
-    return subscribeArchiveChanges((change) => { if (change.type === "metadata") setAttempt((value) => value + 1); });
+    return subscribeArchiveChanges(() => setAttempt((value) => value + 1));
   }, [queryKey]);
 
   useEffect(() => {

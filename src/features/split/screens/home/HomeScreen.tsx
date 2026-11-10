@@ -202,7 +202,7 @@ export function HomeScreenView() {
   );
   const balances = balanceIndex.balances;
 
-  const recentPages = useSplitListPages(activeTab === "home" ? { order: "newest", excludedId: pendingDelete?.id } : null, records, 5);
+  const recentPages = useSplitListPages(activeTab === "home" ? { order: "newest", excludedId: pendingDelete?.id } : null, null, 5);
   const recentRows = usePageRowModels(recentPages.records, records, settings.ownerName, settings, activeTab === "home", `${settings.language}:${settings.humour}:${locale}`);
 
   const balanceEligibleIds = useMemo(() => {
@@ -222,7 +222,7 @@ export function HomeScreenView() {
     tagMode: activityTagFilterMode,
     eligibleIds: balanceEligibleIds,
     excludedId: pendingDelete?.id,
-  } : null, records);
+  } : null, null);
   const splitRows = usePageRowModels(splitPages.records, records, settings.ownerName, settings, activeTab === "splits", `${settings.language}:${settings.humour}:${locale}`);
   const splitReminderPickerRecord = records.find(
     (record) => record.id === splitReminderPickerRecordId,

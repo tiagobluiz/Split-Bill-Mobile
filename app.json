@@ -3,7 +3,7 @@
     "name": "Split Bill",
     "slug": "split-bill-mobile",
     "scheme": "split-bill-mobile",
-    "version": "2.6.1",
+    "version": "2.7.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

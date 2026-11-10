@@ -54,6 +54,27 @@ describe("useSplitListPages", () => {
     await waitFor(() => expect(result.current.records).toEqual([]));
   });
 
+  it("keeps loaded pages during record hydration and refreshes after an archive write", async () => {
+    const nextCursor = { id: "first", splitDate: "2026-01-01", createdAt: "2026-01-01" };
+    (listSplitSummaries as jest.Mock)
+      .mockResolvedValueOnce({ records: [summary("first")], nextCursor })
+      .mockResolvedValueOnce({ records: [summary("second")], nextCursor: null })
+      .mockResolvedValueOnce({ records: [summary("updated")], nextCursor: null });
+    const { result, rerender } = renderHook(({ records }) => {
+      void records;
+      return useSplitListPages({ order: "newest" }, null);
+    }, { initialProps: { records: [] as string[] } });
+    await waitFor(() => expect(result.current.records).toHaveLength(1));
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.records.map((row) => row.id)).toEqual(["first", "second"]));
+    rerender({ records: ["second"] });
+    rerender({ records: [] });
+    expect(result.current.records.map((row) => row.id)).toEqual(["first", "second"]);
+    expect(listSplitSummaries).toHaveBeenCalledTimes(2);
+    act(() => notifyArchiveChange({ type: "delete", id: "second" }));
+    await waitFor(() => expect(result.current.records.map((row) => row.id)).toEqual(["updated"]));
+  });
+
   it("ignores a page that finishes after the filters change", async () => {
     const old = deferred<{ records: SplitListSummary[]; nextCursor: null }>();
     const next = deferred<{ records: SplitListSummary[]; nextCursor: null }>();

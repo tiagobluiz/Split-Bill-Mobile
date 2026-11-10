@@ -536,6 +536,29 @@ describe("person identity SQLite migration and membership persistence", () => {
     expect((await records.getRecordById("unrelated"))?.values.participants[0].name).toBe("Ana");
   });
 
+  it.each([false, true])("normalizes legacy placeholders when renaming an unloaded owner (allocations: %s)", async (withAllocations) => {
+    const { createDefaultValues } = require("../domain") as typeof import("../domain");
+    const row = raw("legacy-balance", "You");
+    const values = { ...createDefaultValues(), currency: "EUR",
+      participants: [{ id: "owner", name: "You" }, { id: "friend", name: "Ana" }], payerParticipantId: "owner",
+      items: [{ id: "dinner", name: "Dinner", price: "10.00", splitMode: "even", allocations: ["owner", "friend"].map((participantId) => ({ participantId, evenIncluded: true, shares: "1", percent: "50" })) }],
+    };
+    row.payload = JSON.stringify({ values, settlementState: { settledParticipantIds: [] } });
+    await seed(row);
+    await migration.migratePersonIdentity();
+    const current = await database.getFirstAsync("SELECT payload FROM split_records WHERE id = ?", [row.id]);
+    const payload = JSON.parse(current.payload);
+    payload.values.items.push({ id: "placeholder", name: "Item", price: "", ...(withAllocations ? { allocations: [] } : {}) });
+    await database.runAsync("UPDATE split_records SET payload = ?, financial_projection = NULL WHERE id = ?", [JSON.stringify(payload), row.id]);
+    const store = await loadPersistedStore();
+    store.setState({ records: [], activeRecordId: null });
+    await store.getState().updateSettings({ ownerName: "Alex" });
+    const updated = (await records.getRecordById(row.id))!;
+    expect(updated.values.items.map((item) => item.id)).toEqual(["dinner"]);
+    const [{ projection }] = await records.getFinancialProjectionsByIds([row.id]);
+    expect(projection.settlement?.people.find((person) => person.name === "Alex")?.netCents).toBe(500);
+  });
+
   it("boots without loading saved splits and opens a requested split on demand", async () => {
     for (let index = 0; index < 120; index += 1) await seed(raw(`history-${String(index).padStart(3, "0")}`));
     await migration.migratePersonIdentity();

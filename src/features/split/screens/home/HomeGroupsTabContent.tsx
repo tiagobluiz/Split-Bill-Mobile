@@ -250,7 +250,7 @@ function HomeDirectoryOverlays({ personActionMenu, pendingDeletePerson, groupAct
       if (!cancelled) {
         impactCallbacks.current.onDismissPersonActions();
         impactCallbacks.current.onPendingDeletePerson(null);
-        Alert.alert(impactCallbacks.current.t("common.couldNotSaveSettings"), impactCallbacks.current.t("common.tryAgain"));
+        Alert.alert(impactCallbacks.current.t("home.splitsLoadFailed"), impactCallbacks.current.t("common.tryAgain"));
       }
     });
     return () => { cancelled = true; };

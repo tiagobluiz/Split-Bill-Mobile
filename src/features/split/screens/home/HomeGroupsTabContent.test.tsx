@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
 import type { AppSettings } from "../../../../storage/settings";
 import { HomeGroupsTabContent } from "./HomeGroupsTabContent";
@@ -344,6 +345,15 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.queryByText("Delete person")).toBeNull();
     await act(async () => resolveBruno({ used: true, splitCount: 1, groupCount: 0 }));
     expect(screen.getByText("Archive person")).toBeTruthy();
+  });
+
+  it("reports a history read failure when deletion impact cannot be loaded", async () => {
+    const person = { id: "ana", name: "Ana", createdAt: "now", updatedAt: "now" };
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    renderDirectory(undefined, { ...settings, people: [person] }, jest.fn(async () => { throw new Error("read failed"); }));
+    fireEvent.press(screen.getByLabelText("Open actions for Ana"));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Could not load splits.", expect.any(String)));
+    alert.mockRestore();
   });
 
   it("lets the user cancel while the confirmation checks the latest history", async () => {

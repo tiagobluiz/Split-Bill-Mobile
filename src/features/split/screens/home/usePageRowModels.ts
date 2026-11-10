@@ -25,7 +25,10 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
     }
     const currentIds = new Set(summaries.map((entry) => entry.id));
     for (const id of cache.current.keys()) if (!currentIds.has(id)) cache.current.delete(id);
-    for (const entry of summaries) if (loaded.has(entry.id)) cache.current.delete(entry.id);
+    for (const entry of summaries) {
+      const record = loaded.get(entry.id);
+      if (record) cache.current.set(entry.id, { updatedAt: entry.updatedAt, settingsKey, model: createRecordRowModel(record, ownerName, settings) });
+    }
     const missing = summaries.filter((entry) => {
       if (loaded.has(entry.id)) return false;
       const cached = cache.current.get(entry.id);
