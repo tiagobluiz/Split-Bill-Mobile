@@ -271,7 +271,7 @@ export function AssignItemScreen({
           name: trimmedItemName,
           price: normalizedItemPrice,
           category: effectiveCategory,
-        });
+        }, draftId);
         if (createdItemId) {
           rememberItemOrigins(draftId, [createdItemId], "manual");
         }
@@ -287,15 +287,15 @@ export function AssignItemScreen({
 
       const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
       if (persistedSourceItem.name !== trimmedItemName) {
-        await updateItemField(item.id, "name", trimmedItemName);
+        await updateItemField(item.id, "name", trimmedItemName, draftId);
       }
       if (
         normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice
       ) {
-        await updateItemField(item.id, "price", normalizedItemPrice);
+        await updateItemField(item.id, "price", normalizedItemPrice, draftId);
       }
       if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
-        await updateItemField(item.id, "category", effectiveCategory);
+        await updateItemField(item.id, "category", effectiveCategory, draftId);
       }
 
       router.back();
@@ -331,7 +331,7 @@ export function AssignItemScreen({
         return;
       }
       if (mergedCents === 0) {
-        await removeItem(targetItem.id);
+        await removeItem(targetItem.id, draftId);
         setMergeCandidateItemId("");
         router.back();
         return;
@@ -339,7 +339,7 @@ export function AssignItemScreen({
       const mergedPrice = normalizeMoneyInput(
         (mergedCents / 100).toFixed(2),
       );
-      await updateItemField(targetItem.id, "price", mergedPrice);
+      await updateItemField(targetItem.id, "price", mergedPrice, draftId);
       await trackEvent("item_insertion_success", {
         method: "manual",
         item_count: 1,
@@ -399,7 +399,7 @@ export function AssignItemScreen({
               onConfirm={async () => {
                 setShowDeleteItemModal(false);
                 try {
-                  await removeItem(item.id);
+                  await removeItem(item.id, draftId);
                   router.back();
                 } catch {
                   setAssignNoticeMessages([t("flow.itemDetail.saveFailed")]);

@@ -9,6 +9,7 @@ import {
 import {
   Alert,
   BackHandler,
+  FlatList,
   Keyboard,
   Share,
   StyleSheet,
@@ -56,15 +57,46 @@ const mockLaunchImageLibraryAsync = jest.fn(async () => ({
 }));
 
 let mockStoreState: any;
+let mockArchivedRecords: any[] | null = null;
 
 jest.mock("expo-router", () => ({
-  useFocusEffect: jest.fn(),
+  useFocusEffect: (callback: any) => require("react").useEffect(callback, [callback]),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),
     replace: (value: any) => mockReplace(value),
   },
 }));
+
+jest.mock("../../storage/splitList", () => ({
+  countSplitTagUsage: jest.fn(async (tagId: string, excludedIds: string[]) => (mockArchivedRecords ?? mockStoreState.records).filter((record: any) => !excludedIds.includes(record.id) && (record.values.tagIds ?? []).includes(tagId)).length),
+  listSplitSummaries: jest.fn(async (query: any) => {
+    const { compareSplitDates } = require("../../domain/splitDateOrder");
+    const records = [...(mockArchivedRecords ?? mockStoreState.records)].filter((record: any) => {
+      if (query.excludedId === record.id) return false;
+      if (query.status === "settled" && record.status !== "completed") return false;
+      if (query.status === "unsettled" && record.status === "completed") return false;
+      if (query.eligibleIds && !query.eligibleIds.includes(record.id)) return false;
+      const tags = record.values.tagIds ?? [];
+      if (query.tagIds?.length && !(query.tagMode === "any" ? query.tagIds.some((tag: string) => tags.includes(tag)) : query.tagIds.every((tag: string) => tags.includes(tag)))) return false;
+      return true;
+    }).sort((left: any, right: any) => compareSplitDates(left, right, query.order !== "oldest"));
+    const offset = query.cursor ? records.findIndex((record: any) => record.id === query.cursor.id) + 1 : 0;
+    const page = records.slice(offset, offset + query.limit);
+    const summaries = page.map((record: any) => ({ id: record.id, status: record.status, step: record.step, splitName: record.values.splitName, firstItemName: record.values.items[0]?.name ?? "", currency: record.values.currency, tagIds: record.values.tagIds ?? [], splitDate: record.values.splitDate ?? record.createdAt.slice(0, 10), createdAt: record.createdAt, updatedAt: record.updatedAt, completedAt: record.completedAt, splitReminder: record.reminderState?.splitReminder }));
+    return { records: summaries, nextCursor: offset + page.length < records.length ? summaries[summaries.length - 1] : null };
+  }),
+}));
+
+jest.mock("../../storage/records", () => ({
+  ...jest.requireActual("../../storage/records"),
+  getRecordsByIds: jest.fn(async (ids: string[]) => ids.flatMap((id) => {
+    const record = (mockArchivedRecords ?? mockStoreState.records).find((entry: any) => entry.id === id);
+    return record ? [record] : [];
+  })),
+}));
+
+jest.mock("./screens/home/scanHomeBalances", () => ({ scanHomeBalances: jest.fn(async () => []) }));
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (value: string) => mockSetStringAsync(value),
@@ -154,6 +186,9 @@ const buildStore = buildStoreFixture;
 
 describe("split screens", () => {
   beforeEach(() => {
+    require("../../storage/splitList").listSplitSummaries.mockClear();
+    require("./screens/home/scanHomeBalances").scanHomeBalances.mockReset().mockResolvedValue([]);
+    mockArchivedRecords = null;
     mockPush.mockReset();
     mockBack.mockReset();
     mockReplace.mockReset();
@@ -184,6 +219,7 @@ describe("split screens", () => {
       return { action: "sharedAction" } as any;
     });
     mockStoreState = buildStore();
+    mockStoreState.openRecord.mockImplementation(async (id: string) => mockStoreState.records.find((record: any) => record.id === id) ?? null);
     const store = require("./store");
     applyDefaultStorePreviews(store);
   });
@@ -192,9 +228,10 @@ describe("split screens", () => {
     jest.restoreAllMocks();
   });
 
-  it("renders home empty and populated states, and starts a new split", () => {
+  it("renders home empty and populated states, and starts a new split", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("No splits yet")).toBeTruthy();
     expect(
       screen.getByText("Your most recent splits will be shown here."),
@@ -374,6 +411,9 @@ describe("split screens", () => {
       }),
     ];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
+    await act(async () => {});
+    await act(async () => {});
     expect(screen.getByText("Split Bill")).toBeTruthy();
     expect(screen.getByText("Recent")).toBeTruthy();
     expect(screen.getByText("View All")).toBeTruthy();
@@ -397,7 +437,7 @@ describe("split screens", () => {
     expect(screen.queryByText("Owe")).toBeNull();
   });
 
-  it("computes home balances for a debtor owner and falls back to zero when the owner is not in a bill", () => {
+  it("computes home balances for a debtor owner and falls back to zero when the owner is not in a bill", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -470,6 +510,7 @@ describe("split screens", () => {
     };
     mockStoreState.records = [buildRecord({ id: "owner-debtor" })];
     const { rerender } = render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
     expect(screen.getByText("You owe")).toBeTruthy();
 
@@ -480,11 +521,14 @@ describe("split screens", () => {
     };
     mockStoreState.records = [buildRecord({ id: "owner-missing" })];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
+    await act(async () => {});
+    await act(async () => {});
     expect(screen.getByText("Pending: Setup")).toBeTruthy();
     expect(screen.getAllByText(/0,00|0.00/).length).toBeGreaterThan(0);
   });
 
-  it("handles missing settlement state, settled debtors, and zero-net owners on home balances", () => {
+  it("handles missing settlement state, settled debtors, and zero-net owners on home balances", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -542,6 +586,7 @@ describe("split screens", () => {
       }),
     ];
     const { rerender } = render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("You owe")).toBeTruthy();
     expect(
       screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
@@ -559,12 +604,13 @@ describe("split screens", () => {
       }),
     ];
     rerender(<HomeScreen />);
+    await act(async () => {});
     expect(
       screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
     ).toBeGreaterThan(0);
   });
 
-  it("renders combined and user-paid split row displays from the shared setting", () => {
+  it("renders combined and user-paid split row displays from the shared setting", async () => {
     mockStoreState.settings = {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
@@ -574,6 +620,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ status: "completed" })];
 
     const { rerender } = render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("Total")).toBeTruthy();
     expect(screen.getByText("Owed")).toBeTruthy();
     expect(screen.getByText(/9,00|EUR 9.00|9.00/)).toBeTruthy();
@@ -591,6 +638,9 @@ describe("split screens", () => {
       buildRecord({ id: "owner-missing", status: "completed" }),
     ];
     rerender(<HomeScreen />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
+    await act(async () => {});
+    await act(async () => {});
 
     expect(screen.getByText("You consumed")).toBeTruthy();
     expect(
@@ -598,7 +648,7 @@ describe("split screens", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows only nothing due on the outstanding side in total + outstanding mode", () => {
+  it("shows only nothing due on the outstanding side in total + outstanding mode", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
@@ -612,7 +662,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
 
-    expect(screen.getByText("Total")).toBeTruthy();
+    expect(await screen.findByText("Total")).toBeTruthy();
     expect(screen.getByText(/9,00|\u20AC9.00|EUR 9.00/)).toBeTruthy();
     const splitRow = screen.getByLabelText("Open split Groceries");
     expect(within(splitRow).getByText("Nothing")).toBeTruthy();
@@ -620,7 +670,7 @@ describe("split screens", () => {
     expect(within(splitRow).queryByText(/0,00|EUR 0.00/)).toBeNull();
   });
 
-  it("shows outstanding-only nothing due using two rows", () => {
+  it("shows outstanding-only nothing due using two rows", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
@@ -634,12 +684,12 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
 
-    const splitRow = screen.getByLabelText("Open split Groceries");
+    const splitRow = await screen.findByLabelText("Open split Groceries");
     expect(within(splitRow).getByText("Nothing")).toBeTruthy();
     expect(within(splitRow).getByText("due")).toBeTruthy();
   });
 
-  it("shows consumed share instead of paid amount in you consumed mode", () => {
+  it("shows consumed share instead of paid amount in you consumed mode", async () => {
     mockStoreState.settings = {
       ownerName: "Bruno",
       balanceFeatureEnabled: true,
@@ -649,6 +699,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ status: "completed" })];
 
     render(<HomeScreen />);
+    await act(async () => {});
 
     expect(screen.getByText("You consumed")).toBeTruthy();
     expect(
@@ -657,7 +708,7 @@ describe("split screens", () => {
     expect(screen.queryByText(/9,00|€9.00|EUR 9.00/)).toBeNull();
   });
 
-  it("preserves payer debt direction in home balances and recent rows when the payer owes others", () => {
+  it("preserves payer debt direction in home balances and recent rows when the payer owes others", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -709,12 +760,13 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "reverse-payer" })];
 
     render(<HomeScreen />);
+    await act(async () => {});
 
     expect(screen.getByText("You owe")).toBeTruthy();
     expect(screen.getAllByText(/1,50|1.50/).length).toBeGreaterThan(0);
   });
 
-  it("shows the owner as owed when a non-payer creditor is due money from the payer", () => {
+  it("shows the owner as owed when a non-payer creditor is due money from the payer", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -766,12 +818,13 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "reverse-creditor" })];
 
     render(<HomeScreen />);
+    await act(async () => {});
 
     expect(screen.getByText("You are owed")).toBeTruthy();
     expect(screen.getAllByText(/0,50|0.50/).length).toBeGreaterThan(0);
   });
 
-  it("scopes home balances to the selected default currency when records mix currencies", () => {
+  it("scopes home balances to the selected default currency when records mix currencies", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -852,6 +905,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getAllByText(/3,00|3.00/).length).toBeGreaterThan(0);
     expect(screen.queryByText("$12.00")).toBeNull();
   });
@@ -911,10 +965,11 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    fireEvent.press(screen.getByText("Groceries"));
+    await act(async () => {});
+    await act(async () => { fireEvent.press(screen.getByText("Groceries")); });
     expect(mockPush).toHaveBeenCalledWith("/split/draft-unknown/overview");
 
-    fireEvent.press(screen.getByText("Untitled split"));
+    await act(async () => { fireEvent.press(screen.getByText("Untitled split")); });
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
 
     await act(async () => {
@@ -952,7 +1007,7 @@ describe("split screens", () => {
     });
   });
 
-  it("routes completed home records straight to results", () => {
+  it("routes completed home records straight to results", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "completed-direct",
@@ -967,11 +1022,12 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
-    fireEvent.press(screen.getByText("Completed direct"));
+    await act(async () => {});
+    await act(async () => { fireEvent.press(screen.getByText("Completed direct")); });
     expect(mockPush).toHaveBeenCalledWith("/split/completed-direct/results");
   });
 
-  it("queues draft deletion from home, supports undo, and commits after the delay", () => {
+  it("queues draft deletion from home, supports undo, and commits after the delay", async () => {
     jest.useFakeTimers();
     mockStoreState.records = [
       buildRecord({
@@ -991,6 +1047,7 @@ describe("split screens", () => {
     ];
 
     const view = render(<HomeScreen />);
+    await act(async () => {});
     fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
     act(() => jest.advanceTimersByTime(350));
@@ -1002,6 +1059,7 @@ describe("split screens", () => {
     );
 
     fireEvent.press(screen.getByLabelText("Undo delete"));
+    await act(async () => {});
     expect(screen.queryByText("Split deleted")).toBeNull();
     expect(screen.getByLabelText("Open split Delete Me")).toBeTruthy();
     expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
@@ -1009,6 +1067,7 @@ describe("split screens", () => {
     fireEvent(screen.getByLabelText("Open split Delete Me"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Me"));
     act(() => jest.advanceTimersByTime(350));
+    await act(async () => {});
     fireEvent(screen.getByLabelText("Open split Delete Next"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Delete Next"));
     act(() => jest.advanceTimersByTime(350));
@@ -1039,6 +1098,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     fireEvent(screen.getByLabelText("Open split Expire Delete"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete split Expire Delete"));
     act(() => jest.advanceTimersByTime(350));
@@ -1056,7 +1116,7 @@ describe("split screens", () => {
     jest.useRealTimers();
   });
 
-  it("derives the home pending stage from current record validity instead of stale stored step metadata", () => {
+  it("derives the home pending stage from current record validity instead of stale stored step metadata", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "draft-stale-payer",
@@ -1070,15 +1130,16 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("Pending: Participants")).toBeTruthy();
 
-    fireEvent.press(screen.getByText("Groceries"));
+    await act(async () => { fireEvent.press(screen.getByText("Groceries")); });
     expect(mockPush).toHaveBeenCalledWith(
       "/split/draft-stale-payer/participants",
     );
   });
 
-  it("keeps a valid-but-not-advanced draft on participants from home until the user reaches payer", () => {
+  it("keeps a valid-but-not-advanced draft on participants from home until the user reaches payer", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "draft-not-advanced",
@@ -1096,13 +1157,14 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("Pending: Setup")).toBeTruthy();
 
-    fireEvent.press(screen.getByText("Untitled split"));
+    await act(async () => { fireEvent.press(screen.getByText("Untitled split")); });
     expect(mockPush).toHaveBeenCalledWith("/split/draft-not-advanced/setup");
   });
 
-  it("falls back to participants from home when a draft stores a non-finite step value", () => {
+  it("falls back to participants from home when a draft stores a non-finite step value", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "draft-nan-step",
@@ -1120,10 +1182,11 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getByText("Pending: Setup")).toBeTruthy();
   });
 
-  it("opens the splits tab from view all, filters records, and loads more rows on demand", () => {
+  it("opens the splits tab from view all, filters records, and loads more rows on demand", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) => {
       if (!record) {
@@ -1218,8 +1281,9 @@ describe("split screens", () => {
     expect(screen.getAllByText("Splits").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Show filters")).toBeTruthy();
     expect(screen.queryByText("Filters")).toBeNull();
-    expect(screen.getByText("Split 1")).toBeTruthy();
-    expect(screen.queryByText("Split 21")).toBeNull();
+    expect(await screen.findByText("Split 1")).toBeTruthy();
+    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledWith(expect.objectContaining({ limit: 20, order: "newest", status: "all" }));
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((record: any) => record.id)).not.toContain("split-21");
 
     let list = view.UNSAFE_root.find(
       (node: any) => typeof node.props.onScroll === "function",
@@ -1233,7 +1297,7 @@ describe("split screens", () => {
         },
       });
     });
-    expect(screen.queryByText("Split 21")).toBeNull();
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((record: any) => record.id)).not.toContain("split-21");
     act(() => {
       list.props.onScroll({
         nativeEvent: {
@@ -1243,7 +1307,7 @@ describe("split screens", () => {
         },
       });
     });
-    expect(screen.getByText("Split 21")).toBeTruthy();
+    await waitFor(() => expect(view.UNSAFE_getByType(FlatList).props.data.map((record: any) => record.id)).toContain("split-21"));
     act(() => {
       list.props.onScroll({
         nativeEvent: {
@@ -1262,36 +1326,150 @@ describe("split screens", () => {
     expect(screen.getByText("Filters")).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Settled"));
-    expect(screen.getByText("Split 1")).toBeTruthy();
+    expect(await screen.findByText("Split 1")).toBeTruthy();
+    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenLastCalledWith(expect.objectContaining({ status: "settled", limit: 20 }));
     expect(screen.queryByText("Split 2")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Unsettled"));
-    expect(screen.getByText("Split 2")).toBeTruthy();
+    expect(await screen.findByText("Split 2")).toBeTruthy();
     expect(screen.queryByText("Split 1")).toBeNull();
 
     fireEvent.press(screen.getAllByLabelText("All")[0]);
     fireEvent.press(screen.getByLabelText("Nothing due"));
-    expect(screen.getByText("Split 3")).toBeTruthy();
+    expect(await screen.findByText("Split 3")).toBeTruthy();
+    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenLastCalledWith(expect.objectContaining({ eligibleIds: ["split-3", "split-8"] }));
     expect(screen.getByText("Split 8")).toBeTruthy();
     expect(screen.queryByText("Split 1")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Something due"));
-    expect(screen.getByText("Split 1")).toBeTruthy();
+    expect(await screen.findByText("Split 1")).toBeTruthy();
     expect(screen.getByText("Split 2")).toBeTruthy();
     expect(screen.queryByText("Split 3")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Oldest"));
-    expect(screen.getByText("Split 22")).toBeTruthy();
+    expect(await screen.findByText("Split 22")).toBeTruthy();
   });
 
-  it("shows the empty state on the splits tab when no records match", () => {
+  it("shows the empty state on the splits tab when no records match", async () => {
     mockStoreState.records = [];
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
-    expect(screen.getByText("No splits here")).toBeTruthy();
+    expect(await screen.findByText("No splits here")).toBeTruthy();
   });
 
-  it("applies tag filters only after confirming the tag picker and supports all or any matching", () => {
+  it("shows the empty state when a balance filter matches no archived splits", async () => {
+    const unpaid = buildRecord({ id: "unpaid-only", status: "completed", values: { ...buildRecord().values, splitName: "Unpaid only" } });
+    mockArchivedRecords = [unpaid];
+    mockStoreState.records = [];
+    const { getHomeBalanceEntry } = require("./screens/shared/settlementUtils");
+    require("./screens/home/scanHomeBalances").scanHomeBalances.mockResolvedValueOnce([getHomeBalanceEntry(unpaid, "Ana", "EUR", require("./store").getSettlementPreview)]);
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    await screen.findByLabelText("Open split Unpaid only");
+    fireEvent.press(screen.getByLabelText("Show filters"));
+    fireEvent.press(screen.getByLabelText("Nothing due"));
+    expect(await screen.findByText("No splits here")).toBeTruthy();
+  });
+
+  it("requests five recent rows for Home in newest order", async () => {
+    mockStoreState.records = Array.from({ length: 7 }, (_, index) => buildRecord({
+      id: `recent-${index}`,
+      createdAt: `2026-04-${String(20 - index).padStart(2, "0")}T10:00:00.000Z`,
+      values: { ...buildRecord().values, splitName: `Recent ${index}` },
+    }));
+    render(<HomeScreen />);
+    expect(await screen.findByLabelText("Open split Recent 0")).toBeTruthy();
+    expect(screen.getByLabelText("Open split Recent 4")).toBeTruthy();
+    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledWith(expect.objectContaining({ order: "newest", limit: 5 }));
+  });
+
+  it("loads an older split for its row and opens that split by ID", async () => {
+    const old = buildRecord({ id: "older", values: { ...buildRecord().values, splitName: "Older dinner" } });
+    mockArchivedRecords = [old];
+    mockStoreState.records = [];
+    mockStoreState.openRecord.mockResolvedValueOnce(old);
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    fireEvent.press(await screen.findByLabelText("Open split Older dinner"));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("/split/older/")));
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("older", expect.any(Function));
+  });
+
+  it("keeps older pages visible while an action hydrates and releases a split", async () => {
+    mockArchivedRecords = Array.from({ length: 22 }, (_, index) => buildRecord({
+      id: `archived-${index}`,
+      createdAt: `2026-04-${String(22 - index).padStart(2, "0")}T10:00:00.000Z`,
+      values: { ...buildRecord().values, splitName: `Archived ${index}` },
+    }));
+    mockStoreState.records = [];
+    const old = mockArchivedRecords[20];
+    mockStoreState.loadRecord.mockResolvedValue(old);
+    const view = render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    await screen.findByLabelText("Open split Archived 0");
+    const list = view.UNSAFE_getByType(FlatList);
+    act(() => list.props.onScroll({ nativeEvent: { contentOffset: { y: 1000 }, layoutMeasurement: { height: 800 }, contentSize: { height: 1900 } } }));
+    await waitFor(() => expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id));
+    mockStoreState.records = [old];
+    view.rerender(<HomeScreen />);
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id);
+    mockStoreState.records = [];
+    view.rerender(<HomeScreen />);
+    expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id);
+  });
+
+  it("shows balances and filters from older splits that are not loaded", async () => {
+    const unpaid = buildRecord({ id: "unpaid", status: "completed", values: { ...buildRecord().values, splitName: "Unpaid" } });
+    const paid = buildRecord({ id: "paid", status: "completed", values: { ...buildRecord().values, splitName: "Paid" }, settlementState: { settledParticipantIds: ["bruno", "zoe"] } });
+    mockArchivedRecords = [unpaid, paid];
+    mockStoreState.records = [];
+    const { getHomeBalanceEntry } = require("./screens/shared/settlementUtils");
+    const resolve = require("./store").getSettlementPreview;
+    require("./screens/home/scanHomeBalances").scanHomeBalances.mockResolvedValueOnce([getHomeBalanceEntry(unpaid, "Ana", "EUR", resolve), getHomeBalanceEntry(paid, "Ana", "EUR", resolve)]);
+    render(<HomeScreen />);
+    await waitFor(() => expect(screen.getByTestId("home-balance-owed-amount").props.children).toMatch(/6,00|€6.00|EUR 6.00/));
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    await screen.findByLabelText("Open split Paid");
+    fireEvent.press(screen.getByLabelText("Show filters"));
+    fireEvent.press(screen.getByLabelText("Nothing due"));
+    expect(await screen.findByLabelText("Open split Paid")).toBeTruthy();
+    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenLastCalledWith(expect.objectContaining({ eligibleIds: ["paid"] }));
+  });
+
+  it("reports a failed balance scan and retries it", async () => {
+    require("./screens/home/scanHomeBalances").scanHomeBalances.mockRejectedValueOnce(new Error("read failed")).mockResolvedValueOnce([]);
+    render(<HomeScreen />);
+    expect(await screen.findByText(/Could not calculate balances/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Try again"));
+    await waitFor(() => expect(require("./screens/home/scanHomeBalances").scanHomeBalances).toHaveBeenCalledTimes(2));
+    expect(await screen.findByTestId("home-balance-owed-amount")).toBeTruthy();
+  });
+
+  it("shows a retry action when a page read fails and recovers", async () => {
+    render(<HomeScreen />);
+    await screen.findByLabelText("Open split Groceries");
+    require("../../storage/splitList").listSplitSummaries.mockRejectedValueOnce(new Error("read failed"));
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    expect(await screen.findByText(/Could not load splits/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Try again"));
+    expect(await screen.findByLabelText("Open split Groceries")).toBeTruthy();
+  });
+
+  it("excludes a pending deletion from paged results and restores it on Undo", async () => {
+    const record = buildRecord({ id: "delete-paged", values: { ...buildRecord().values, splitName: "Paged dinner" } });
+    mockStoreState.records = [record];
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    fireEvent(await screen.findByLabelText("Open split Paged dinner"), "longPress");
+    fireEvent.press(screen.getByLabelText("Delete split Paged dinner"));
+    await screen.findByLabelText("Undo delete");
+    await waitFor(() => expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenLastCalledWith(expect.objectContaining({ excludedId: "delete-paged" })));
+    fireEvent.press(screen.getByLabelText("Undo delete"));
+    expect(await screen.findByLabelText("Open split Paged dinner")).toBeTruthy();
+    expect(mockStoreState.removeRecord).not.toHaveBeenCalled();
+  });
+
+  it("applies tag filters only after confirming the tag picker and supports all or any matching", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "split-restaurant",
@@ -1334,7 +1512,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Restaurant"));
     fireEvent.press(screen.getByLabelText("Cancel"));
 
-    expect(screen.getByText("Dinner")).toBeTruthy();
+    expect(await screen.findByText("Dinner")).toBeTruthy();
     expect(screen.getByText("Market")).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Choose tag filters"));
@@ -1345,13 +1523,13 @@ describe("split screens", () => {
     expect(screen.getByText("2 tags selected")).toBeTruthy();
     expect(screen.queryByText("Dinner")).toBeNull();
     expect(screen.queryByText("Market")).toBeNull();
-    expect(screen.getByText("Dinner supplies")).toBeTruthy();
+    expect(await screen.findByText("Dinner supplies")).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText("Choose tag filters"));
     fireEvent.press(screen.getByLabelText("Any of"));
     fireEvent.press(screen.getByLabelText("Apply"));
 
-    expect(screen.getByText("Dinner")).toBeTruthy();
+    expect(await screen.findByText("Dinner")).toBeTruthy();
     expect(screen.getByText("Market")).toBeTruthy();
     expect(screen.getByText("Dinner supplies")).toBeTruthy();
   });
@@ -1445,7 +1623,7 @@ describe("split screens", () => {
     );
   });
 
-  it("shows how many splits use a tag before deleting it", () => {
+  it("shows how many splits use a tag before deleting it", async () => {
     mockStoreState.records = [
       buildRecord({
         id: "split-with-groceries",
@@ -1474,12 +1652,45 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Open Settings"));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
 
-    expect(screen.getByText("Delete tag?")).toBeTruthy();
+    expect(await screen.findByText("Delete tag?")).toBeTruthy();
     expect(
       screen.getByText(
         "This will remove Groceries from Settings and any existing splits that use it. Currently 2 splits use this tag.",
       ),
     ).toBeTruthy();
+  });
+
+  it("counts tag use in unloaded history along with the latest loaded edit", async () => {
+    const tagged = (id: string) => buildRecord({ id, values: { ...buildRecord().values, tagIds: ["tag-groceries"] } });
+    mockArchivedRecords = [tagged("loaded"), tagged("older"), tagged("oldest")];
+    mockStoreState.records = [buildRecord({ id: "loaded", values: { ...buildRecord().values, tagIds: [] } })];
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
+    expect(await screen.findByText(/Currently 2 splits use this tag/)).toBeTruthy();
+  });
+
+  it("reports a failed tag usage lookup and permits retry", async () => {
+    require("../../storage/splitList").countSplitTagUsage.mockRejectedValueOnce(new Error("read failed"));
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledWith("Could not load splits.", "Please try again.", undefined));
+    fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
+    expect(await screen.findByText("Delete tag?")).toBeTruthy();
+  });
+
+  it("keeps tag deletion available after a failed write and retries", async () => {
+    mockStoreState.removeTag.mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(undefined);
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
+    await screen.findByText("Delete tag?");
+    fireEvent.press(screen.getByLabelText("Delete tag"));
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledWith("Could not save settings", "Please try again.", undefined));
+    expect(screen.getByText("Delete tag?")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Delete tag"));
+    await waitFor(() => expect(mockStoreState.removeTag).toHaveBeenCalledTimes(2));
   });
 
   it("auto-saves profile and feature changes from settings", async () => {
@@ -1968,7 +2179,7 @@ describe("split screens", () => {
     expect(screen.getByText("Account")).toBeTruthy();
   });
 
-  it("formats custom-currency home balances through the fallback symbol path", () => {
+  it("formats custom-currency home balances through the fallback symbol path", async () => {
     const store = require("./store");
     store.getSettlementPreview.mockImplementation((record: any) =>
       record
@@ -2005,10 +2216,11 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getAllByText("P0.00").length).toBeGreaterThan(0);
   });
 
-  it("uses the chosen default currency for empty home balances", () => {
+  it("uses the chosen default currency for empty home balances", async () => {
     mockStoreState.settings = {
       ownerName: "Ana",
       ownerProfileImageUri: "",
@@ -2019,10 +2231,11 @@ describe("split screens", () => {
     mockStoreState.records = [];
 
     render(<HomeScreen />);
+    await act(async () => {});
     expect(screen.getAllByText("P0.00").length).toBeGreaterThan(0);
   });
 
-  it("falls back to a code label when home money formatting throws", () => {
+  it("falls back to a code label when home money formatting throws", async () => {
     const originalNumberFormat = Intl.NumberFormat;
     try {
       // @ts-expect-error test override
@@ -2039,6 +2252,7 @@ describe("split screens", () => {
       mockStoreState.records = [buildRecord()];
 
       render(<HomeScreen />);
+    await act(async () => {});
       expect(screen.getAllByText("EUR 6.00").length).toBeGreaterThan(0);
       expect(screen.getAllByText("EUR 0.00").length).toBeGreaterThan(0);
     } finally {
@@ -2048,6 +2262,7 @@ describe("split screens", () => {
 
   it("opens split reminder actions on long press and saves a reminder", async () => {
     render(<HomeScreen />);
+    await act(async () => {});
 
     fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
     expect(screen.getByText("Set reminder")).toBeTruthy();
@@ -2092,6 +2307,7 @@ describe("split screens", () => {
     ];
 
     render(<HomeScreen />);
+    await act(async () => {});
     fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
     fireEvent.press(screen.getByText("Edit reminder"));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
@@ -2136,6 +2352,7 @@ describe("split screens", () => {
     });
 
     render(<HomeScreen />);
+    await act(async () => {});
 
     fireEvent(screen.getByLabelText("Open split Old Dinner"), "onLongPress");
     expect(screen.getByText("Edit details")).toBeTruthy();
@@ -2216,6 +2433,7 @@ describe("split screens", () => {
     })];
 
     render(<HomeScreen />);
+    await act(async () => {});
     fireEvent(screen.getByLabelText("Open split Groceries"), "longPress");
     fireEvent.press(screen.getByText("Edit reminder"));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
@@ -2223,7 +2441,7 @@ describe("split screens", () => {
     expect(screen.getByLabelText("Update")).toBeTruthy();
   });
 
-  it("keeps split dates out of home split cards", () => {
+  it("keeps split dates out of home split cards", async () => {
     const record = buildRecordFixture({
       id: "dated-home-card",
       values: {
@@ -2235,6 +2453,7 @@ describe("split screens", () => {
     mockStoreState.records = [record];
 
     render(<HomeScreen />);
+    await act(async () => {});
 
     expect(screen.getByText("Dated dinner")).toBeTruthy();
     expect(screen.queryByText("2026-04-04")).toBeNull();

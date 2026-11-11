@@ -35,15 +35,17 @@ import {
   deleteRecord,
   getRecordById,
   initializeRecordsStorage,
-  listRecords,
+  removeSplitTagAndUpdateSettings,
   saveRecord,
   saveRecordsAndSettings,
+  saveOwnerProfileAndLinkedRecords,
   savePersonAndLinkedRecords,
   saveParticipantGroup,
   type DraftRecord,
 } from "../../storage/records";
 import { migratePersonIdentity } from "../../storage/personIdentityMigration";
 import { deleteSavedPerson } from "../../storage/personDeletion";
+import { listLegacyRecordIdsForPerson, listPersonNameConflicts, listRecordIdsForPerson } from "../../storage/personMemberships";
 import {
   getAppSettings,
   initializeSettingsStorage,
@@ -87,6 +89,8 @@ import {
   type ReminderState,
 } from "./reminders";
 import { buildRecordRoute } from "./routes";
+import { notifyArchiveChange } from "./archiveChanges";
+import { reconcileStoredReminders } from "./reconcileStoredReminders";
 import { resolveDraftStep } from "./splitFlow";
 
 type ImportMode = "append" | "replace";
@@ -97,7 +101,7 @@ type ParticipantsUpdater =
 
 export type SavePersonResult =
   | { ok: true; personId: string }
-  | { ok: false; reason: "invalid-name" | "duplicate" | "owner-alias" | "split-name-conflict" | "last-group-member" | "missing" | "persistence"; personId?: string; recordId?: string };
+  | { ok: false; reason: "invalid-name" | "duplicate" | "owner-alias" | "split-name-conflict" | "last-group-member" | "missing" | "persistence"; personId?: string; recordId?: string; splitName?: string };
 export type PersonSaveDetails = {
   personId: string | null;
   name: string;
@@ -111,16 +115,19 @@ type SplitStore = {
   ready: boolean;
   records: DraftRecord[];
   activeRecordId: string | null;
+  ownerNameWritesPending: number;
   settings: AppSettings;
   bootstrap: () => Promise<void>;
   createDraft: () => Promise<DraftRecord>;
-  openRecord: (id: string) => Promise<DraftRecord | null>;
+  openRecord: (id: string, shouldActivate?: () => boolean) => Promise<DraftRecord | null>;
+  loadRecord: (id: string, shouldKeep?: () => boolean) => Promise<DraftRecord | null>;
+  releaseInactiveRecords: () => void;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
   upsertPerson: (name: string) => Promise<string | null>;
   updatePerson: (personId: string, name: string) => Promise<boolean>;
   savePerson: (details: PersonSaveDetails) => Promise<SavePersonResult>;
-  getPersonDeletionImpact: (personId: string) => { used: boolean; splitCount: number; groupCount: number };
+  getPersonDeletionImpact: (personId: string) => Promise<{ used: boolean; splitCount: number; groupCount: number }>;
   removePerson: (personId: string) => Promise<"deleted" | "archived" | "missing">;
   addParticipantGroup: (
     name: string,
@@ -136,6 +143,7 @@ type SplitStore = {
   addParticipantsFromGroup: (
     groupId: string,
     personIds?: string[],
+    recordId?: string,
   ) => Promise<void>;
   addTag: (
     label: string,
@@ -157,21 +165,24 @@ type SplitStore = {
     invoicePhotoUri?: string | null,
     invoicePhotoName?: string | null,
     invoicePhotoSize?: number | null,
+    recordId?: string,
   ) => Promise<void>;
-  setStep: (step: number) => Promise<void>;
-  updateParticipants: (participants: ParticipantsUpdater) => Promise<void>;
-  setPayer: (participantId: string) => Promise<void>;
-  createItem: (item: DraftRecord["values"]["items"][number]) => Promise<string | null>;
+  setStep: (step: number, recordId?: string) => Promise<void>;
+  updateParticipants: (participants: ParticipantsUpdater, recordId?: string) => Promise<void>;
+  setPayer: (participantId: string, recordId?: string) => Promise<void>;
+  createItem: (item: DraftRecord["values"]["items"][number], recordId?: string) => Promise<string | null>;
   saveItemSplit: (
     itemId: string,
     item: DraftRecord["values"]["items"][number],
+    recordId?: string,
   ) => Promise<void>;
   updateItemField: (
     itemId: string,
     field: "name" | "price" | "category",
     value: string,
+    recordId?: string,
   ) => Promise<void>;
-  removeItem: (itemId: string) => Promise<void>;
+  removeItem: (itemId: string, recordId?: string) => Promise<void>;
   setItemSplitMode: (itemId: string, splitMode: SplitMode) => Promise<void>;
   toggleEvenIncluded: (itemId: string, participantId: string) => Promise<void>;
   setItemSharesValue: (
@@ -192,6 +203,7 @@ type SplitStore = {
   importPastedList: (
     rawInput: string,
     mode: ImportMode,
+    recordId?: string,
   ) => Promise<{
     warningMessages: string[];
     warningCodes: string[];
@@ -199,9 +211,9 @@ type SplitStore = {
     skippedDuplicateCount: number;
     importedItemIds: string[];
   }>;
-  markBillPaid: () => Promise<void>;
-  revertBillPaid: () => Promise<void>;
-  toggleParticipantPaid: (participantId: string) => Promise<void>;
+  markBillPaid: (recordId?: string) => Promise<void>;
+  revertBillPaid: (recordId?: string) => Promise<void>;
+  toggleParticipantPaid: (participantId: string, recordId?: string) => Promise<void>;
   setSplitReminder: (
     recordId: string,
     scheduledForIso: string,
@@ -217,7 +229,7 @@ type SplitStore = {
     participantId: string,
   ) => Promise<void>;
   reconcileReminders: () => Promise<void>;
-  markCompleted: () => Promise<void>;
+  markCompleted: (recordId?: string) => Promise<void>;
   getActiveRecord: () => DraftRecord | null;
 };
 
@@ -312,6 +324,7 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
     if (sequence >= writeState.confirmedSequence) {
       writeState.confirmedSequence = sequence;
       writeState.confirmedRecord = saved?.record ?? record;
+      notifyArchiveChange({ type: "upsert", record: writeState.confirmedRecord });
     }
     if (saved) {
       useSplitStore.setState((state) => {
@@ -372,6 +385,10 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
 function nextRecords(records: DraftRecord[], record: DraftRecord) {
   const otherRecords = records.filter((entry) => entry.id !== record.id);
   return [record, ...otherRecords].sort((left, right) => compareSplitDates(left, right, true));
+}
+
+function normalizeLoadedRecord(record: DraftRecord, settings: AppSettings): DraftRecord {
+  return { ...record, values: { ...record.values, tagIds: normalizeTagIds(record.values.tagIds, normalizeTags(settings.tags)) } };
 }
 
 function publishGroupSave(
@@ -454,9 +471,8 @@ function getCurrentDebtorIdSet(record: DraftRecord) {
   return new Set(getSettledDebtorIds(record.values));
 }
 
-function pruneReminderState(record: DraftRecord) {
+function pruneReminderState(record: DraftRecord, debtorIds = getCurrentDebtorIdSet(record)) {
   const normalized = normalizeReminderState(record.reminderState);
-  const debtorIds = getCurrentDebtorIdSet(record);
   const settledIds = new Set(
     record.settlementState?.settledParticipantIds ?? [],
   );
@@ -497,7 +513,9 @@ function normalizeActiveRecordMutation(
   },
 ) {
   const nextRecord = cloneDeep(record);
-  const previousValuesSnapshot = JSON.stringify({ ...record.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined });
+  const previousValuesSnapshot = options?.recomputeStatusOnValueChange && record.status === "completed"
+    ? JSON.stringify({ ...record.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined })
+    : null;
   if (!nextRecord.settlementState) {
     nextRecord.settlementState = {
       settledParticipantIds: [],
@@ -505,12 +523,9 @@ function normalizeActiveRecordMutation(
   }
   nextRecord.reminderState = normalizeReminderState(nextRecord.reminderState);
   mutator(nextRecord);
-  const hasValuesChanged =
-    previousValuesSnapshot !== JSON.stringify({ ...nextRecord.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined });
   if (
-    options?.recomputeStatusOnValueChange &&
-    record.status === "completed" &&
-    hasValuesChanged
+    previousValuesSnapshot !== null &&
+    previousValuesSnapshot !== JSON.stringify({ ...nextRecord.values, splitDate: undefined, invoicePhotoUri: undefined, invoicePhotoName: undefined, invoicePhotoSize: undefined })
   ) {
     nextRecord.status = "draft";
     nextRecord.completedAt = null;
@@ -521,7 +536,7 @@ function normalizeActiveRecordMutation(
       nextRecord.settlementState?.settledParticipantIds ?? []
     ).filter((participantId) => validSettledIds.has(participantId)),
   };
-  nextRecord.reminderState = pruneReminderState(nextRecord);
+  nextRecord.reminderState = pruneReminderState(nextRecord, validSettledIds);
   nextRecord.step = resolveDraftStep(nextRecord);
   nextRecord.updatedAt = nowIso();
   return nextRecord;
@@ -545,7 +560,7 @@ function normalizeActiveSettlementMutation(
       nextRecord.settlementState?.settledParticipantIds ?? []
     ).filter((participantId) => validSettledIds.has(participantId)),
   };
-  nextRecord.reminderState = pruneReminderState(nextRecord);
+  nextRecord.reminderState = pruneReminderState(nextRecord, validSettledIds);
   nextRecord.updatedAt = nowIso();
   return nextRecord;
 }
@@ -643,8 +658,9 @@ function renameOwnerReferences(
 function getActiveRecordMutation(
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
+  recordId?: string,
 ) {
-  const active = get().getActiveRecord();
+  const active = recordId ? get().records.find((record) => record.id === recordId) : get().getActiveRecord();
   if (!active) {
     return null;
   }
@@ -664,15 +680,16 @@ async function withActiveRecord(
   set: (partial: Partial<SplitStore>) => void,
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
+  recordId?: string,
 ) {
-  const mutation = getActiveRecordMutation(get, mutator);
+  const mutation = getActiveRecordMutation(get, mutator, recordId);
   if (!mutation) {
     return null;
   }
 
   const { active, nextRecord, removedNotificationIds } = mutation;
   set({
-    activeRecordId: nextRecord.id,
+    activeRecordId: recordId ? get().activeRecordId : nextRecord.id,
     records: nextRecords(get().records, nextRecord),
   });
   const saved = await persistRecord(nextRecord, [], active);
@@ -684,8 +701,9 @@ async function withOptimisticActiveRecord(
   set: (partial: Partial<SplitStore>) => void,
   get: () => SplitStore,
   mutator: (record: DraftRecord) => DraftRecord,
+  recordId?: string,
 ) {
-  const mutation = getActiveRecordMutation(get, mutator);
+  const mutation = getActiveRecordMutation(get, mutator, recordId);
   if (!mutation) {
     return null;
   }
@@ -738,6 +756,7 @@ async function withRecordById(
 
 let settingsPersistenceQueue = Promise.resolve();
 let bootstrapPromise: Promise<void> | null = null;
+let reminderReconciliationPromise: Promise<void> | null = null;
 let confirmedOwnerName: string | null = null;
 let confirmedOwnerPerson: SavedPerson | null = null;
 
@@ -782,6 +801,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   ready: false,
   records: [],
   activeRecordId: null,
+  ownerNameWritesPending: 0,
   settings: {
     ...getDefaultTranslationSettings(getDeviceLocale()),
     ownerName: "You",
@@ -797,6 +817,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     customCurrencies: [],
   },
   async bootstrap() {
+    if (get().ready) return;
     if (bootstrapPromise) return bootstrapPromise;
     bootstrapPromise = (async () => {
     let stage = "initialize storage";
@@ -809,11 +830,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       await migratePersonIdentity();
 
       stage = "load persisted data";
-      const [rawRecords, settings] = await Promise.all([
-        listRecords(),
-        getAppSettings(),
-      ]);
-      details.rawRecordCount = rawRecords.length;
+      const settings = await getAppSettings();
       details.settingsTagCount = settings.tags?.length ?? null;
       logBootstrapStep("loaded persisted data", details);
 
@@ -827,42 +844,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           normalizePeople(settings.people),
         ),
       };
-      const validTagIds = new Set(normalizedSettings.tags.map((tag) => tag.id));
       details.normalizedSettingsTagCount = normalizedSettings.tags.length;
-
-      stage = "normalize record tags";
-      const taggedRecords = rawRecords.map((record) => ({
-        ...record,
-        values: {
-          ...record.values,
-          tagIds: normalizeTagIds(
-            record.values.tagIds,
-            normalizedSettings.tags,
-          ),
-        },
-      }));
-
-      stage = "reconcile reminders";
-      const { records, changed } =
-        await reconcileScheduledReminders(taggedRecords);
-      details.reconciledRecordCount = records.length;
-      details.remindersChanged = changed;
-
-      stage = "persist reconciled reminders";
-      if (changed) {
-        await Promise.all(records.map((record) => saveRecord(record)));
-      }
-
-      stage = "prepare migrated records";
-      const taggedRecordsForState = records.map((record) => ({
-          ...record,
-          values: {
-            ...record.values,
-            tagIds: (record.values.tagIds ?? []).filter((tagId) =>
-              validTagIds.has(tagId),
-            ),
-          },
-        }));
       const finalSettings = normalizedSettings;
 
       stage = "commit store state";
@@ -870,14 +852,12 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       confirmedOwnerPerson = finalSettings.people?.find((person) => person.id === finalSettings.ownerPersonId) ?? null;
       set({
         ready: true,
-        records: taggedRecordsForState,
+        records: [],
         settings: finalSettings,
-        activeRecordId: records[0]?.id ?? null,
+        activeRecordId: null,
       });
-      logBootstrapStep("complete", {
-        recordCount: records.length,
-        activeRecordId: records[0]?.id ?? null,
-      });
+      logBootstrapStep("complete", { recordCount: 0, activeRecordId: null });
+      void get().reconcileReminders().catch((error) => console.warn("[Split Bill] Reminder reconciliation failed", error));
     } catch (error) {
       logBootstrapFailure(stage, error, details);
       throw createBootstrapError(stage, error);
@@ -918,30 +898,53 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     }
     return draft;
   },
-  async openRecord(id) {
+  async openRecord(id, shouldActivate) {
     const existing = get().records.find((record) => record.id === id);
     if (existing) {
-      set({ activeRecordId: id });
+      if (shouldActivate?.() !== false && get().activeRecordId !== id) set({ activeRecordId: id });
       return existing;
     }
 
-    const record = await getRecordById(id);
-    if (!record) {
+    const stored = await getRecordById(id);
+    if (!stored) {
       return null;
     }
+    const record = normalizeLoadedRecord(stored, get().settings);
 
+    if (shouldActivate?.() === false) return record;
+    const latest = get().records.find((entry) => entry.id === id) ?? record;
     set({
       activeRecordId: id,
-      records: nextRecords(get().records, record),
+      records: nextRecords(get().records, latest),
     });
+    return latest;
+  },
+  async loadRecord(id, shouldKeep) {
+    const existing = get().records.find((record) => record.id === id);
+    if (existing) return existing;
+    const stored = await getRecordById(id);
+    if (!stored) return null;
+    const record = normalizeLoadedRecord(stored, get().settings);
+    if (shouldKeep?.() === false) return record;
+    const latest = get().records.find((entry) => entry.id === id);
+    if (latest) return latest;
+    set({ records: nextRecords(get().records, record) });
     return record;
   },
+  releaseInactiveRecords() {
+    set((state) => {
+      const records = state.records.filter((record) => recordWriteStates.has(record.id));
+      if (records.length === state.records.length && (state.activeRecordId === null || records.some((record) => record.id === state.activeRecordId))) return {};
+      return { records, activeRecordId: state.activeRecordId && records.some((record) => record.id === state.activeRecordId) ? state.activeRecordId : null };
+    });
+  },
   async removeRecord(id) {
-    const existing = get().records.find((record) => record.id === id);
+    const existing = get().records.find((record) => record.id === id) ?? await getRecordById(id);
     if (existing?.reminderState) {
       await cancelReminderState(existing.reminderState);
     }
     await deleteRecord(id);
+    notifyArchiveChange({ type: "delete", id });
     await removeInvoicePhoto(existing?.values.invoicePhotoUri);
     const next = get().records.filter((record) => record.id !== id);
     set({
@@ -979,7 +982,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       confirmedOwnerPerson = before.settings.people?.find((person) => person.id === before.settings.ownerPersonId) ?? null;
     }
     const optimisticRecords = optimisticOwnerChanged ? before.records.map((record) => renameOwnerReferences(record, before.settings.ownerName, optimisticOwnerName, normalizedOptimistic.ownerPersonId)) : before.records;
-    set({ settings: normalizedOptimistic, records: optimisticRecords });
+    set((state) => ({ settings: normalizedOptimistic, records: optimisticRecords, ownerNameWritesPending: state.ownerNameWritesPending + (optimisticOwnerChanged ? 1 : 0) }));
     try {
       await enqueueSettingsPersistence(async () => {
     const latest = get();
@@ -1023,7 +1026,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       normalizeOwnerName(previousOwnerName) !==
       normalizeOwnerName(nextOwnerName);
     if (ownerNameChanged) {
-      await saveRecordsAndSettings(nextRecords, nextSettings);
+      await saveOwnerProfileAndLinkedRecords(nextRecords, nextSettings, previousOwnerName);
+      notifyArchiveChange({ type: "invalidate" });
       const persistedOwner = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId);
       if (persistedOwner) {
         set((current) => normalizeOwnerName(current.settings.ownerName || "") === normalizeOwnerName(nextOwnerName)
@@ -1083,6 +1087,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         };
       });
       throw error;
+    } finally {
+      if (optimisticOwnerChanged) set((state) => ({ ownerNameWritesPending: Math.max(0, state.ownerNameWritesPending - 1) }));
     }
   },
   async upsertPerson(name) {
@@ -1138,17 +1144,21 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (nameValidation?.reason === "duplicate") return { ok: false, reason: "duplicate", personId: nameValidation.person.id };
     if (nameValidation) return { ok: false, reason: "invalid-name" };
     const renaming = Boolean(current && normalizePersonName(current.name).toLowerCase() !== normalizedName.toLowerCase());
-    if (renaming && isOwnerAlias(normalizedName, state.settings.ownerName)) {
-      const conflict = state.records.find((record) => record.values.participants.some((participant) =>
-        participant.personId !== details.personId && isOwnerAlias(participant.name, state.settings.ownerName),
-      ));
-      if (conflict) return { ok: false, reason: "split-name-conflict", recordId: conflict.id };
-    }
     const nameKey = normalizedName.toLowerCase();
-    const conflictRecord = (renaming || !current) ? state.records.find((record) => record.values.participants.some((participant) =>
-      participant.personId !== details.personId && normalizePersonName(participant.name).toLowerCase() === nameKey,
-    )) : undefined;
-    if (conflictRecord) return { ok: false, reason: "split-name-conflict", recordId: conflictRecord.id };
+    if (renaming || !current) {
+      const ownerAlias = renaming && isOwnerAlias(normalizedName, state.settings.ownerName);
+      const storedConflicts = await listPersonNameConflicts(normalizedName, details.personId, ownerAlias ? state.settings.ownerName : undefined);
+      const conflicts = new Map(storedConflicts.map((entry) => [entry.id, entry.splitName]));
+      const latestRecords = get().records;
+      for (const record of latestRecords) {
+        const matches = record.values.participants.some((participant) =>
+          participant.personId !== details.personId && (normalizePersonName(participant.name).toLowerCase() === nameKey || (ownerAlias && isOwnerAlias(participant.name, state.settings.ownerName))),
+        );
+        if (matches) conflicts.set(record.id, record.values.splitName ?? ""); else conflicts.delete(record.id);
+      }
+      const conflict = conflicts.entries().next().value;
+      if (conflict) return { ok: false, reason: "split-name-conflict", recordId: conflict[0], ...(latestRecords.some((record) => record.id === conflict[0]) ? {} : { splitName: conflict[1] }) };
+    }
 
     const groups = state.settings.participantGroups ?? [];
     const groupIds = new Set(details.groupIds);
@@ -1178,6 +1188,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           updatedAt: timestamp,
         };
     const persisted = await savePersonAndLinkedRecords(person, [...groupIds], Boolean(current));
+    if (renaming) notifyArchiveChange({ type: "invalidate" });
     set((latest) => {
       const latestPeople = latest.settings.people ?? [];
       const latestGroups = latest.settings.participantGroups ?? [];
@@ -1222,15 +1233,25 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       return { ok: false, reason: "persistence" };
     }
   },
-  getPersonDeletionImpact(personId) {
+  async getPersonDeletionImpact(personId) {
     const state = get();
     const person = (state.settings.people ?? []).find((entry) => entry.id === personId);
     if (!person) return { used: false, splitCount: 0, groupCount: 0 };
     const nameKey = normalizePersonName(person.name).toLowerCase();
-    const splitCount = state.records.filter((record) => record.values.participants.some((participant) =>
-      participant.personId === personId || (!participant.personId && !isOwnerAlias(participant.name, state.settings.ownerName) && normalizePersonName(participant.name).toLowerCase() === nameKey),
-    )).length;
-    const groupCount = (state.settings.participantGroups ?? []).filter((group) => group.memberPersonIds.includes(personId)).length;
+    const [linked, legacy] = await Promise.all([
+      listRecordIdsForPerson(personId),
+      listLegacyRecordIdsForPerson(person.name, state.settings.ownerName),
+    ]);
+    const ids = new Set([...linked, ...legacy]);
+    const latest = get();
+    for (const record of latest.records) {
+      const matches = record.values.participants.some((participant) =>
+        participant.personId === personId || (!participant.personId && !isOwnerAlias(participant.name, latest.settings.ownerName) && normalizePersonName(participant.name).toLowerCase() === nameKey),
+      );
+      if (matches) ids.add(record.id); else ids.delete(record.id);
+    }
+    const splitCount = ids.size;
+    const groupCount = (latest.settings.participantGroups ?? []).filter((group) => group.memberPersonIds.includes(personId)).length;
     return { used: splitCount > 0 || groupCount > 0, splitCount, groupCount };
   },
   async removePerson(personId) {
@@ -1282,7 +1303,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       await removeGroupPhoto(removedPhoto);
     });
   },
-  async addParticipantsFromGroup(groupId, personIds) {
+  async addParticipantsFromGroup(groupId, personIds, recordId) {
     const settings = get().settings;
     const groups = settings.participantGroups ?? [];
     const people = settings.people ?? [];
@@ -1297,7 +1318,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (peopleToAdd.length === 0) {
       return;
     }
-    const before = get().records.find((record) => record.id === get().activeRecordId);
+    const before = get().records.find((record) => record.id === (recordId ?? get().activeRecordId));
     if (!before || peopleToAdd.every((person) => getLinkedParticipant(before.values.participants, person))) return;
     const mutation = getActiveRecordMutation(get, (record) =>
       normalizeActiveRecordMutation(
@@ -1310,10 +1331,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           draft.values = ensureItemsAligned(draft.values);
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
     if (!mutation || mutation.active.id !== before.id) return;
-    set({ activeRecordId: mutation.nextRecord.id, records: nextRecords(get().records, mutation.nextRecord) });
+    set({ activeRecordId: recordId ? get().activeRecordId : mutation.nextRecord.id, records: nextRecords(get().records, mutation.nextRecord) });
     await persistRecord(mutation.nextRecord, [], before, [], groupId);
     await Promise.allSettled(mutation.removedNotificationIds.map((notificationId) => cancelReminder(notificationId)));
   },
@@ -1340,23 +1361,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   async removeTag(tagId) {
     const removedTag = await enqueueSettingsPersistence(async () => {
     const currentState = get();
-    const previousRecords = currentState.records;
     const removed = normalizeTags(currentState.settings.tags).find((tag) => tag.id === tagId);
     const nextSettings = { ...currentState.settings, tags: normalizeTags(currentState.settings.tags).filter((tag) => tag.id !== tagId) };
-    const nextRecords = previousRecords.map((record) => {
-      const hadTag = (record.values.tagIds ?? []).includes(tagId);
-      return {
-        ...record,
-        values: {
-          ...record.values,
-          tagIds: (record.values.tagIds ?? []).filter((id) => id !== tagId),
-        },
-        updatedAt: hadTag ? nowIso() : record.updatedAt,
-      };
-    });
-    const changedRecords = nextRecords.filter((record, index) => record !== previousRecords[index]);
-    await saveRecordsAndSettings(changedRecords, nextSettings);
-    set({ settings: nextSettings, records: nextRecords });
+    await removeSplitTagAndUpdateSettings(tagId, nextSettings);
+    set((latest) => ({
+      settings: { ...latest.settings, tags: nextSettings.tags },
+      records: latest.records.map((record) => (record.values.tagIds ?? []).includes(tagId)
+        ? { ...record, values: { ...record.values, tagIds: (record.values.tagIds ?? []).filter((id) => id !== tagId) }, updatedAt: nowIso() }
+        : record),
+    }));
     return removed;
     });
     if (removedTag && isDefaultSplitTag(removedTag)) {
@@ -1391,6 +1404,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     invoicePhotoUri,
     invoicePhotoName,
     invoicePhotoSize,
+    recordId,
   ) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
@@ -1412,18 +1426,18 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           }
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
   },
-  async setStep(step) {
+  async setStep(step, recordId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.step = step;
-      }),
+      }), recordId,
     );
   },
-  async updateParticipants(participants) {
-    const target = get().getActiveRecord();
+  async updateParticipants(participants, recordId) {
+    const target = recordId ? get().records.find((record) => record.id === recordId) : get().getActiveRecord();
     if (!target) return;
     const currentParticipants = target.values.participants;
     const requested = typeof participants === "function" ? participants(currentParticipants) : participants;
@@ -1451,7 +1465,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await persistRecord(nextRecord, [...pending.values()], target, [...restorePersonIds]);
     await Promise.allSettled(removedReminderIds.map((notificationId) => cancelReminder(notificationId)));
   },
-  async setPayer(participantId) {
+  async setPayer(participantId, recordId) {
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
@@ -1459,10 +1473,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           draft.values.payerParticipantId = participantId;
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
   },
-  async createItem(item) {
+  async createItem(item, recordId) {
     let createdItemId: string | null = null;
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
@@ -1484,11 +1498,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           draft.values.items.push(syncedItem);
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
     return createdItemId;
   },
-  async saveItemSplit(itemId, item) {
+  async saveItemSplit(itemId, item, recordId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
@@ -1512,10 +1526,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           );
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
   },
-  async updateItemField(itemId, field, value) {
+  async updateItemField(itemId, field, value, recordId) {
     await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
@@ -1540,11 +1554,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           );
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
   },
-  async removeItem(itemId) {
-    const updatedRecord = await withActiveRecord(set, get, (record) =>
+  async removeItem(itemId, recordId) {
+    const mutate = (record: DraftRecord) =>
       normalizeActiveRecordMutation(
         record,
         (draft) => {
@@ -1553,8 +1567,10 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           );
         },
         { recomputeStatusOnValueChange: true },
-      ),
-    );
+      );
+    const updatedRecord = recordId
+      ? await withRecordById(set, get, recordId, mutate)
+      : await withActiveRecord(set, get, mutate);
     if (updatedRecord) {
       syncDraftItemOrigins(
         updatedRecord.id,
@@ -1761,7 +1777,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       ),
     );
   },
-  async importPastedList(rawInput, mode) {
+  async importPastedList(rawInput, mode, recordId) {
     const parsed = parsePastedItems(rawInput);
     let importedCount = 0;
     let importedItemIds: string[] = [];
@@ -1860,7 +1876,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               : [...existingItems, ...importedItems];
         },
         { recomputeStatusOnValueChange: true },
-      ),
+      ), recordId,
     );
     if (updatedRecord) {
       syncDraftItemOrigins(
@@ -1885,24 +1901,24 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       importedItemIds,
     };
   },
-  async markBillPaid() {
+  async markBillPaid(recordId) {
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = getSettledDebtorIds(
           draft.values,
         );
         draft.reminderState = createEmptyReminderState();
-      }),
+      }), recordId,
     );
   },
-  async revertBillPaid() {
+  async revertBillPaid(recordId) {
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = [];
-      }),
+      }), recordId,
     );
   },
-  async toggleParticipantPaid(participantId) {
+  async toggleParticipantPaid(participantId, recordId) {
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         const debtorIds = new Set(getSettledDebtorIds(draft.values));
@@ -1916,7 +1932,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           settledIds.add(participantId);
         }
         draft.settlementState.settledParticipantIds = [...settledIds];
-      }),
+      }), recordId,
     );
   },
   async setSplitReminder(recordId, scheduledForIso) {
@@ -2046,30 +2062,62 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async reconcileReminders() {
     if (!get().ready) return;
+    if (reminderReconciliationPromise) return reminderReconciliationPromise;
+    reminderReconciliationPromise = (async () => {
+    let retry: boolean;
+    do {
+    retry = false;
     const currentRecords = get().records;
-    const { records: reconciledRecords, changed } =
+    const { records: reconciledRecords, changed, changedRecordIds } =
       await reconcileScheduledReminders(currentRecords);
-    if (!changed) {
-      return;
+    if (changed) {
+      const changedIds = new Set(changedRecordIds);
+      const originals = new Map(currentRecords.map((record) => [record.id, record]));
+      const replacements = new Map(reconciledRecords.filter((record) => changedIds.has(record.id)).map((record) => [record.id, record]));
+      const toSave: DraftRecord[] = [];
+      set((state) => ({ records: state.records.map((record) => {
+        const replacement = replacements.get(record.id);
+        if (!replacement) return record;
+        if (originals.get(record.id) !== record) { retry = true; return record; }
+        toSave.push(replacement);
+        return replacement;
+      }) }));
+      await Promise.all(toSave.map((record) => saveRecord(record)));
     }
-    set({
-      records: reconciledRecords,
-      activeRecordId: reconciledRecords.some(
-        (record) => record.id === get().activeRecordId,
-      )
-        ? get().activeRecordId
-        : (reconciledRecords[0]?.id ?? null),
+    const stored = await reconcileStoredReminders({
+      isLoaded: (id) => get().records.some((record) => record.id === id),
+      onBatchChanged: () => notifyArchiveChange({ type: "metadata" }),
+      onUpdated: (original, reminderState) => {
+        if (!get().records.some((record) => record.id === original.id)) return true;
+        let consistent = true;
+        set((state) => ({ records: state.records.map((record) => {
+          if (record.id !== original.id) return record;
+          if (JSON.stringify(record.reminderState) !== JSON.stringify(original.reminderState) ||
+              JSON.stringify(record.values.participants.map((person) => person.id)) !== JSON.stringify(original.values.participants.map((person) => person.id))) {
+            consistent = false;
+            return record;
+          }
+          return { ...record, reminderState };
+        }) }));
+        return consistent;
+      },
     });
-    await Promise.all(reconciledRecords.map((record) => saveRecord(record)));
+    retry ||= stored.retry;
+    if (retry) await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    } while (retry && get().ready);
+    })();
+    try { await reminderReconciliationPromise; } finally { reminderReconciliationPromise = null; }
   },
-  async markCompleted() {
-    const completedRecord = await withActiveRecord(set, get, (record) =>
+  async markCompleted(recordId) {
+    const mutate = (record: DraftRecord) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.status = "completed";
         draft.completedAt = draft.completedAt ?? nowIso();
         draft.step = 6;
-      }),
-    );
+      });
+    const completedRecord = recordId
+      ? await withRecordById(set, get, recordId, mutate)
+      : await withActiveRecord(set, get, mutate);
     if (!completedRecord) {
       return;
     }

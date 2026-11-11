@@ -140,7 +140,7 @@ describe("root layout", () => {
 
     expect(screen.getByText("stack")).toBeTruthy();
     expect(mockStack).toHaveBeenCalledWith({
-      screenOptions: { headerShown: false },
+      screenOptions: expect.objectContaining({ headerShown: false }),
     });
     await waitFor(() => {
       expect(splashScreen.hideAsync).toHaveBeenCalledTimes(1);

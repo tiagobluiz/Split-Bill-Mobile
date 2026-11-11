@@ -33,12 +33,18 @@ export function ParticipantSuggestions({
   settings,
   onAddFriend,
   onAddGroup,
+  frequentFriends: providedFrequentFriends,
+  frequentError = false,
+  onRetryFrequent,
 }: {
   records: DraftRecord[];
   record: DraftRecord;
   settings: AppSettings;
   onAddFriend: (name: string, personId?: string) => void;
   onAddGroup: (groupId: string, personIds: string[]) => Promise<void>;
+  frequentFriends?: ReturnType<typeof getFrequentFriends> | null;
+  frequentError?: boolean;
+  onRetryFrequent?: () => void;
 }) {
   const { t } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
@@ -59,11 +65,11 @@ export function ParticipantSuggestions({
   );
   const isAdded = (person: Pick<SavedPerson, "id" | "name">) =>
     currentIds.has(person.id) || participantNames.has(nameKey(person.name));
-  const frequentFriends = getFrequentFriends(records, record.id, settings.ownerName, {
+  const frequentFriends = providedFrequentFriends === undefined ? getFrequentFriends(records, record.id, settings.ownerName, {
     people,
     limit: FREQUENT_ENTRY_LIMIT,
     ownerPersonId: settings.ownerPersonId,
-  });
+  }) : providedFrequentFriends ?? [];
   const hasHistoricalFrequentPeople = frequentFriends.some(
     (friend) => !isOwnerReference(friend.name, settings.ownerName),
   );
@@ -139,7 +145,10 @@ export function ParticipantSuggestions({
       </View>
       {mode === "frequent" ? (
         <View style={styles.frequentContent}>
-          {friends.length ? (
+          {providedFrequentFriends === null ? (
+            frequentError ? <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetryFrequent}><Text style={styles.frequentEmptyDescription}>{t("flow.participants.frequentLoadFailed")} {t("app.error.retry")}</Text></Pressable>
+              : <Text accessibilityRole="text" style={styles.frequentEmptyDescription}>{t("flow.participants.loadingFrequent")}</Text>
+          ) : friends.length ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

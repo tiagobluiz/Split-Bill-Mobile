@@ -523,6 +523,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       savedPhoto,
       invoicePhotoUri ? invoicePhotoName : null,
       invoicePhotoUri ? invoicePhotoSize : null,
+      draftId,
     );
     } catch (error) {
       if (!areSameInvoicePhotos(savedPhoto, record?.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
@@ -539,7 +540,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       customTagCount: selectedTags.filter((tag) => !isDefaultSplitTag(tag))
         .length,
     });
-    await setStep(2);
+    await setStep(2, draftId);
     const currentStatus = getActiveRecord()?.status ?? record.status;
     await trackSplitStepCompleted({
       step: "setup",
@@ -651,7 +652,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       >
         <FlowScreenHeader
           title={t("flow.setup.title", undefined, { maxLength: 16 })}
-          onBack={() => router.replace("/")}
+          onBack={() => router.dismissTo("/")}
         />
       </View>
       <ScrollView

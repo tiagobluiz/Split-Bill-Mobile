@@ -11,6 +11,7 @@ import type { AppSettings } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { RecordRow } from "../shared/homeParts";
+import type { RecordRowModel } from "../shared/recordRowModel";
 import { HomeMainHeader } from "./HomeMainHeader";
 import { HomeBalanceCards } from "./HomeBalanceCards";
 import type { HomeBalances, HomeRecord, RecordActionTarget } from "./homeTypes";
@@ -32,18 +33,32 @@ export function HomeHomeTabContent({
   onViewAllSplits,
   getSplitReminderLabel,
   onOpenActions,
+  onOpenRecord,
+  getModelReminderLabel,
+  listLoading = false,
+  listError = false,
+  onRetry,
+  balanceError = false,
+  onRetryBalances,
 }: {
   topInset: number;
   footerInsetBottom: number;
   isCreatingSplit: boolean;
   onStartSplit: () => Promise<void>;
   settings: AppSettings;
-  balances: HomeBalances;
+  balances: HomeBalances | null;
   locale: string;
-  recentRecords: HomeRecord[];
+  recentRecords: (HomeRecord | RecordRowModel)[];
   onViewAllSplits: () => void;
   getSplitReminderLabel: (record: HomeRecord) => string | undefined;
   onOpenActions: (target: RecordActionTarget) => void;
+  onOpenRecord?: (id: string) => void;
+  getModelReminderLabel?: (id: string) => string | undefined;
+  listLoading?: boolean;
+  listError?: boolean;
+  onRetry?: () => void;
+  balanceError?: boolean;
+  onRetryBalances?: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -94,6 +109,8 @@ export function HomeHomeTabContent({
               balances={balances}
               locale={locale}
               settings={settings}
+              error={balanceError}
+              onRetry={onRetryBalances}
             />
           ) : null}
           <YStack gap="$5">
@@ -120,7 +137,13 @@ export function HomeHomeTabContent({
                 </Text>
               </Pressable>
             </XStack>
-            {recentRecords.length === 0 ? (
+            {listLoading && recentRecords.length === 0 ? (
+              <Text accessibilityRole="text" color={PALETTE.onSurfaceVariant}>{t("home.loadingSplits")}</Text>
+            ) : listError ? (
+              <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
+                <Text color={PALETTE.danger}>{t("home.splitsLoadFailed")} {t("app.error.retry")}</Text>
+              </Pressable>
+            ) : recentRecords.length === 0 ? (
               <EmptyState
                 title={t("home.noSplitsTitle")}
                 description={t("home.noSplitsDescription")}
@@ -133,8 +156,9 @@ export function HomeHomeTabContent({
                     record={record}
                     ownerName={settings.ownerName}
                     settings={settings}
-                    reminderLabel={getSplitReminderLabel(record)}
+                    reminderLabel={"values" in record ? getSplitReminderLabel(record) : getModelReminderLabel?.(record.id)}
                     onOpenActions={onOpenActions}
+                    onOpenRecord={onOpenRecord}
                   />
                 ))}
               </YStack>

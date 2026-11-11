@@ -406,7 +406,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     importPreviewRecordRef.current = record;
     setImportApplyPending(true);
     try {
-      const result = await importPastedList(input, mode);
+      const result = await importPastedList(input, mode, draftId);
       const suppressedWarningCodes = new Set([
         "no-items-detected",
         "ignored-paste-lines",

@@ -19,7 +19,7 @@ export function FlowScreenHeader({
   onClose?: () => void;
 }) {
   const { t } = useTranslation();
-  const handleClose = onClose ?? (() => router.replace("/"));
+  const handleClose = onClose ?? (() => router.dismissTo("/"));
 
   return (
     <XStack alignItems="center" justifyContent="space-between">

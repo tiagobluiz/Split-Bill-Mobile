@@ -83,6 +83,7 @@ import type { ParticipantFormValue } from "../../../../domain/splitter";
 import { getDeviceLocale } from "../../../../lib/device";
 import { trackSplitStepCompleted } from "../../../../lib/telemetry";
 import type { DraftRecord } from "../../../../storage/records";
+import { useFrequentFriends } from "./useFrequentFriends";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import {
@@ -189,6 +190,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     })),
   );
   const [name, setName] = useState("");
+  const frequentFriends = useFrequentFriends(draftId, records, settings);
   const [participantsNoticeMessages, setParticipantsNoticeMessages] = useState<
     string[]
   >([]);
@@ -246,7 +248,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
             ...(options?.personId ? { personId: options.personId } : {}),
           },
         ];
-      });
+      }, draftId);
     } catch (error) {
       console.warn("Failed to add participant", error);
         setParticipantsNoticeMessages([
@@ -292,7 +294,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
     );
   const addGroupPeople = async (groupId: string, personIds?: string[]) => {
     try {
-      await addParticipantsFromGroup(groupId, personIds);
+      await addParticipantsFromGroup(groupId, personIds, draftId);
       setParticipantsNoticeMessages([]);
     } catch (error) {
       console.warn("Failed to add group participant", error);
@@ -328,7 +330,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                 ]);
                 return;
               }
-              await setStep(3);
+              await setStep(3, draftId);
               await trackSplitStepCompleted({
                 step: "participants",
                 draftStatus: record.status,
@@ -362,6 +364,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         <YStack gap="$5">
           <ParticipantSuggestions
             records={records} record={record} settings={settings}
+            frequentFriends={frequentFriends.friends} frequentError={frequentFriends.error} onRetryFrequent={frequentFriends.retry}
             onAddFriend={(name, personId) => { void addParticipant(name, { keepKeyboardOpen: false, personId }); }}
             onAddGroup={addGroupPeople}
           />
@@ -461,7 +464,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                         void updateParticipants((participants) =>
                           participants.filter(
                             (entry) => entry.id !== participant.id,
-                          ),
+                          ), draftId,
                         ).catch((error) => {
                           console.warn("Failed to remove participant", error);
                           setParticipantsNoticeMessages([

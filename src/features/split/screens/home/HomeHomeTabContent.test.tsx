@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { HomeHomeTabContent } from "./HomeHomeTabContent";
+import { createRecordRowModel } from "../shared/recordRowModel";
+import { buildRecordFixture } from "../../integrationTestUtils";
+import type { DraftRecord } from "../../../../storage/records";
 
 const props = {
   topInset: 0,
@@ -47,4 +50,15 @@ it("uses the retry message when split creation rejects without an Error", async 
   expect(alert).toHaveBeenCalledWith("Could not create split", "Please try again.");
   alert.mockRestore();
   warn.mockRestore();
+});
+
+it("opens a compact recent split by its ID and shows its reminder", () => {
+  const record = buildRecordFixture({ id: "recent" }) as unknown as DraftRecord;
+  record.values.splitName = "Lunch";
+  const model = createRecordRowModel(record, "Ana", props.settings);
+  const openRecord = jest.fn();
+  render(<HomeHomeTabContent {...props} onStartSplit={async () => undefined} recentRecords={[model]} onOpenRecord={openRecord} getModelReminderLabel={() => "Reminder set"} />);
+  fireEvent.press(screen.getByLabelText("Open split Lunch"));
+  expect(openRecord).toHaveBeenCalledWith("recent");
+  expect(screen.getByText("Reminder set")).toBeTruthy();
 });

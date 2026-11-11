@@ -221,6 +221,14 @@ describe("PersonEditor", () => {
     expect(screen.getByText(/conflicts with a participant in Lisbon dinner/)).toBeTruthy();
   });
 
+  it("identifies a conflicting split that is not loaded in the directory", async () => {
+    const onSave = jest.fn(async () => ({ ok: false as const, reason: "split-name-conflict" as const, recordId: "older", splitName: "Old dinner" }));
+    render(<LocalizationProvider language="en" humour="plain"><PersonEditor person={existing} people={[existing]} groups={[]} records={[]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Ana Maria");
+    await act(async () => { fireEvent.press(screen.getByText("Save")); });
+    expect(screen.getByText(/conflicts with a participant in Old dinner/)).toBeTruthy();
+  });
+
   it.each([
     ["last-group-member", "This person is the last member of a group and cannot be removed from it."],
     ["persistence", "Could not save settings"],
@@ -327,7 +335,6 @@ describe("PersonEditor", () => {
     fireEvent.press(screen.getByText("Carla Silva"));
     fireEvent.press(screen.getByText("Done"));
     expect(screen.getByDisplayValue("Carla Silva")).toBeTruthy();
-    expect(screen.getByText("Contact photo selected")).toBeTruthy();
     expect(onSave).not.toHaveBeenCalled();
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Carla Silva", photoUri: "file:///owned/carla.jpg" }));

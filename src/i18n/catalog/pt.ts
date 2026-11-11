@@ -178,6 +178,9 @@ const ptPlain: Record<TranslationKey, string> = {
   "people.archived": "Arquivado",
   "people.deletePersonA11y": "Eliminar pessoa {person}",
   "people.editPersonA11y": "Editar pessoa {person}",
+  "home.loadingSplits": "A carregar divisões…", "home.splitsLoadFailed": "Não foi possível carregar as divisões.", "home.balancesLoadFailed": "Não foi possível calcular os saldos.",
+  "flow.participants.loadingFrequent": "A carregar pessoas frequentes…", "flow.participants.frequentLoadFailed": "Não foi possível carregar as pessoas frequentes.",
+  "people.checkingHistory": "A verificar o histórico de divisões…",
   "people.openPersonActionsA11y": "Abrir ações de {person}", "people.personActionsTitle": "Opções de {person}", "people.editPersonAction": "Editar pessoa", "people.editPersonDescription": "Alterar nome, fotografia ou grupos", "people.deletePersonAction": "Eliminar pessoa", "people.archivePersonAction": "Arquivar pessoa", "people.archivePersonA11y": "Arquivar pessoa {person}", "people.archivePersonTitle": "Arquivar pessoa?", "people.deletePersonArchiveDescription": "Arquivar esta pessoa e manter o histórico das divisões", "people.deletePermanentlyDescription": "Remover esta pessoa permanentemente", "people.restorePerson": "Restaurar pessoa", "people.restorePersonDescription": "Tornar esta pessoa ativa novamente", "people.restoreAndSave": "Restaurar e guardar", "people.restorePersonA11y": "Restaurar {person}", "people.filterActive": "Ativas ({count})", "people.filterArchived": "Arquivadas ({count})",
   "people.emptyActiveTitle": "Ainda não há outras pessoas guardadas", "people.emptyActive": "Adiciona as pessoas com quem divides despesas com frequência para as encontrares facilmente da próxima vez.", "people.emptyArchived": "Não há pessoas arquivadas.", "people.noSearchMatches": "Não foram encontradas pessoas.", "people.personDetailsTitle": "Detalhes da pessoa", "people.personDetailsDescription": "Escolhe um nome e uma aparência para esta pessoa.", "people.choosePhoto": "Escolher fotografia da pessoa", "people.photoOptions": "Fotografia da pessoa", "people.ownerAliasReserved": "Esse nome está reservado para o teu perfil. Escolhe outro nome.", "people.importContact": "Importar dos contactos", "people.importContactTitle": "Escolher contacto", "people.searchContacts": "Pesquisar contactos", "people.noContacts": "Não há contactos disponíveis.", "people.noContactMatches": "Não foram encontrados contactos.",
   "people.assignGroups": "Adicionar a grupos existentes", "people.noGroupsAvailable": "Ainda não há grupos.", "people.lastGroupMember": "Única pessoa", "people.lastGroupMemberError": "Esta pessoa é o último membro de um grupo e não pode ser removida.", "people.activeDuplicate": "Já existe uma pessoa chamada {person}.", "people.archivedDuplicate": "Já existe uma pessoa arquivada chamada {person}.", "people.editExisting": "Editar pessoa existente", "people.restoreAndEdit": "Restaurar e editar pessoa", "people.contactPhotoImported": "Fotografia do contacto selecionada", "people.useContactPhoto": "Usar fotografia deste contacto", "people.selectColorA11y": "Selecionar cor {color} para o avatar",
@@ -213,6 +216,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "home.editDetails.nameRequired": "Falta o nome da divisão.",
   "home.editDetails.saveFailed": "Não foi possível guardar os detalhes da divisão. {error}",
   "home.youAreOwed": "Devem-te",
+  "home.calculatingBalances": "A calcular saldos",
   "home.youOwe": "Deves",
   "home.recent": "Recentes",
   "home.viewAll": "Ver tudo",
@@ -336,6 +340,10 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.items.nextHintReady": "Continua para a divisão dos itens.",
   "flow.items.nextHintBlocked":
     "Mostra os erros de validação antes de continuar.",
+  "flow.items.errors.one": "{count} item precisa de atenção",
+  "flow.items.errors.other": "{count} itens precisam de atenção",
+  "flow.items.goToFirstError": "Ir para o primeiro item",
+  "flow.items.numberedItem": "Item {count}",
   "flow.items.unnamed": "Item sem nome",
   "flow.items.delete": "Apagar",
   "flow.items.rowActions.title": "Ações do item",
@@ -572,7 +580,8 @@ const ptPlain: Record<TranslationKey, string> = {
     "O nome do item tem mais de {max} caracteres",
   "pasteImport.ignoreReason.missingPrice": "Falta o preço do item",
   "pasteImport.ignoreReason.invalidPrice":
-    "O preço está em falta ou é inválido",
+    "Introduz um preço válido para o item",
+  "pasteImport.ignoreReason.priceTooHigh": "O valor máximo de um item é 1 000 000",
   "pasteImport.ignoreReason.zeroAmount": "Os artigos com valor zero são ignorados",
   "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
   "pasteImport.invalidMergeAmountTooHigh":
@@ -627,7 +636,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "validation.itemNameMax":
     "Mantém os nomes dos itens abaixo de {max} caracteres.",
   "validation.itemAmountInvalid": "Insere um valor válido diferente de zero.",
-  "validation.itemAmountTooHigh": "O máximo é 1 000 000",
+  "validation.itemAmountTooHigh": "O valor máximo de um item é 1 000 000",
   "validation.itemDuplicate":
     "Este item já existe. Muda o nome, o preço ou a categoria.",
   "validation.splitEvenMin":

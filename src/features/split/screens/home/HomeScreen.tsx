@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
@@ -17,12 +17,7 @@ import {
 } from "../../../../lib/telemetry";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { getSettlementPreview, useSplitStore } from "../../store";
-import { compareSplitDates } from "../../splitDateOrder";
-import {
-  getRecordMoneyPreview,
-  getHomeBalanceCards,
-} from "../shared/settlementUtils";
+import { useSplitStore } from "../../store";
 import { HomeTabBar, type HomeTabKey } from "../shared/homeParts";
 import { HomeHomeTabContent } from "./HomeHomeTabContent";
 import { HomeGroupsTabContent } from "./HomeGroupsTabContent";
@@ -38,6 +33,12 @@ import type {
   RecordActionTarget,
 } from "./homeTypes";
 import { useHomeSettingsDraftController } from "./useHomeSettingsDraftController";
+import { useArchiveBalances } from "./useArchiveBalances";
+import { useSplitListPages } from "./useSplitListPages";
+import { usePageRowModels } from "./usePageRowModels";
+import { countSplitTagUsage } from "../../../../storage/splitList";
+import { buildRecordRoute } from "../../routes";
+import type { ReminderEntry } from "../../reminders";
 import { useTimedUndoNotice } from "../shared/useTimedUndoNotice";
 import { screenStyles } from "../shared/styles";
 import {
@@ -55,7 +56,11 @@ export function HomeScreenView() {
   const { t } = useTranslation();
   const {
     records,
+    ownerNameWritesPending,
     createDraft,
+    openRecord,
+    loadRecord,
+    releaseInactiveRecords,
     removeRecord,
     settings,
     updateSettings,
@@ -73,7 +78,11 @@ export function HomeScreenView() {
   } = useSplitStore(
     useShallow((state) => ({
       records: state.records,
+      ownerNameWritesPending: state.ownerNameWritesPending,
       createDraft: state.createDraft,
+      openRecord: state.openRecord,
+      loadRecord: state.loadRecord,
+      releaseInactiveRecords: state.releaseInactiveRecords,
       removeRecord: state.removeRecord,
       settings: state.settings,
       updateSettings: state.updateSettings,
@@ -118,7 +127,6 @@ export function HomeScreenView() {
   const [activityTagFilterMode, setActivityTagFilterMode] =
     useState<ActivityTagFilterMode>("all");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [visibleSplitCount, setVisibleSplitCount] = useState(20);
 
   const [splitReminderPickerRecordId, setSplitReminderPickerRecordId] =
     useState("");
@@ -129,7 +137,7 @@ export function HomeScreenView() {
     useState("");
   const reminderUndo = useTimedUndoNotice<SplitReminderUndoItem>(
     async (item) => {
-      const currentRecord = records.find((record) => record.id === item.recordId);
+      const currentRecord = records.find((record) => record.id === item.recordId) ?? await loadRecord(item.recordId);
       if (!currentRecord || currentRecord.reminderState?.splitReminder) {
         throw new Error("split-reminder-not-restorable");
       }
@@ -139,12 +147,21 @@ export function HomeScreenView() {
     t("reminders.restoreFailed"),
   );
   const [pendingTagDeleteId, setPendingTagDeleteId] = useState("");
+  const [tagUsage, setTagUsage] = useState<{ id: string; records: typeof records; count: number } | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
 
   const [isCreatingSplit, setIsCreatingSplit] = useState(false);
   const creatingSplitRef = useRef(false);
   const deleteTimeoutRef = useRef<any>(null);
   const pendingDeleteRef = useRef<RecordActionTarget | null>(null);
+  const homeFocusedRef = useRef(false);
+  const actionRequestRef = useRef(0);
+
+  useEffect(() => {
+    if ((activeTab === "home" || activeTab === "splits") && !selectedRecordActionTarget && !quickEditRecordId && !splitReminderPickerRecordId) {
+      releaseInactiveRecords();
+    }
+  }, [activeTab, selectedRecordActionTarget, quickEditRecordId, splitReminderPickerRecordId, releaseInactiveRecords]);
 
   const settingsController = useHomeSettingsDraftController({
     settings,
@@ -153,86 +170,60 @@ export function HomeScreenView() {
 
   useFocusEffect(
     useCallback(() => {
+      homeFocusedRef.current = true;
+      releaseInactiveRecords();
       creatingSplitRef.current = false;
       setIsCreatingSplit(false);
-    }, []),
+      return () => { homeFocusedRef.current = false; actionRequestRef.current += 1; };
+    }, [releaseInactiveRecords]),
   );
 
-  const visibleRecords = pendingDelete
-    ? records.filter((record) => record.id !== pendingDelete.id)
-    : records;
-  const tagUsageCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    records.forEach((record) => {
-      const uniqueTagIds = new Set(record.values.tagIds ?? []);
-      uniqueTagIds.forEach((tagId) => {
-        counts.set(tagId, (counts.get(tagId) ?? 0) + 1);
-      });
+  useEffect(() => {
+    if (!pendingTagDeleteId) { setTagUsage(null); return; }
+    let cancelled = false;
+    const loadedCount = records.filter((record) => (record.values.tagIds ?? []).includes(pendingTagDeleteId)).length;
+    void countSplitTagUsage(pendingTagDeleteId, records.map((record) => record.id)).then((storedCount) => {
+      if (!cancelled) setTagUsage({ id: pendingTagDeleteId, records, count: storedCount + loadedCount });
+    }).catch(() => {
+      if (!cancelled) {
+        setPendingTagDeleteId("");
+        Alert.alert(t("home.splitsLoadFailed"), t("common.tryAgain"));
+      }
     });
-    return counts;
-  }, [records]);
+    return () => { cancelled = true; };
+  }, [pendingTagDeleteId, records, t]);
 
-  const balances = getHomeBalanceCards(
-    visibleRecords,
+  const balanceIndex = useArchiveBalances(
+    records,
     settings.ownerName,
     settings.defaultCurrency,
-    getSettlementPreview,
+    ownerNameWritesPending === 0 && (settings.balanceFeatureEnabled !== false || (activeTab === "splits" && activityBalanceFilter !== "all")),
+    pendingDelete?.id,
   );
+  const balances = balanceIndex.balances;
 
-  const recentRecords = [...visibleRecords]
-    .sort((left, right) => compareSplitDates(left, right, true))
-    .slice(0, 5);
+  const recentPages = useSplitListPages(activeTab === "home" ? { order: "newest", excludedId: pendingDelete?.id } : null, null, 5);
+  const recentRows = usePageRowModels(recentPages.records, records, settings.ownerName, settings, activeTab === "home", `${settings.language}:${settings.humour}:${locale}`);
 
-  const filteredSplitRecords = useMemo(() => {
-    const byState = visibleRecords.filter((record) => {
-      if (activityStateFilter === "settled") {
-        return record.status === "completed";
-      }
-      if (activityStateFilter === "unsettled") {
-        return record.status !== "completed";
-      }
-      return true;
-    });
-
-    const byBalance = byState.filter((record) => {
-      if (activityBalanceFilter === "all") {
-        return true;
-      }
-
-      const preview = getRecordMoneyPreview(
-        record,
-        settings.ownerName,
-        getSettlementPreview,
-      );
-
-      const ownerNetCents = preview?.ownerNetCents ?? 0;
+  const balanceEligibleIds = useMemo(() => {
+    if (activeTab !== "splits" || activityBalanceFilter === "all") return undefined;
+    return balanceIndex.entries?.filter((entry) => {
+      const ownerNetCents = entry.filterOwnerNetCents;
       return activityBalanceFilter === "nothingDue"
         ? ownerNetCents === 0
         : ownerNetCents > 0;
-    });
-
-    const byTags =
-      activityTagFilterIds.length === 0
-        ? byBalance
-        : byBalance.filter((record) => {
-            const recordTagIds = new Set(record.values.tagIds ?? []);
-            return activityTagFilterMode === "all"
-              ? activityTagFilterIds.every((tagId) => recordTagIds.has(tagId))
-              : activityTagFilterIds.some((tagId) => recordTagIds.has(tagId));
-          });
-
-    return [...byTags].sort((left, right) => compareSplitDates(left, right, activityDateFilter === "newest"));
-  }, [
-    activityBalanceFilter,
-    activityDateFilter,
-    activityStateFilter,
-    activityTagFilterIds,
-    activityTagFilterMode,
-    settings.ownerName,
-    visibleRecords,
-  ]);
-
-  const pagedSplitRecords = filteredSplitRecords.slice(0, visibleSplitCount);
+    }).map((entry) => entry.id);
+  }, [activeTab, activityBalanceFilter, balanceIndex.entries]);
+  const balanceFilterWaiting = activityBalanceFilter !== "all" && !balanceIndex.entries;
+  const splitPages = useSplitListPages(activeTab === "splits" && !balanceFilterWaiting ? {
+    order: activityDateFilter,
+    status: activityStateFilter,
+    tagIds: activityTagFilterIds,
+    tagMode: activityTagFilterMode,
+    eligibleIds: balanceEligibleIds,
+    excludedId: pendingDelete?.id,
+  } : null, null);
+  const splitRows = usePageRowModels(splitPages.records, records, settings.ownerName, settings, activeTab === "splits", `${settings.language}:${settings.humour}:${locale}`);
   const splitReminderPickerRecord = records.find(
     (record) => record.id === splitReminderPickerRecordId,
   );
@@ -280,15 +271,6 @@ export function HomeScreenView() {
     };
   }, [removeRecord]);
 
-  useEffect(() => {
-    setVisibleSplitCount(20);
-  }, [
-    activityBalanceFilter,
-    activityDateFilter,
-    activityStateFilter,
-    activityTagFilterIds,
-  ]);
-
   const startSplit = async () => {
     if (creatingSplitRef.current) {
       return;
@@ -332,8 +314,7 @@ export function HomeScreenView() {
   const hideHomeFooter =
     (activeTab === "settings" && tagEditorOpen) || Boolean(quickEditRecord) || ownerProfileEditorActive;
 
-  const getSplitReminderLabel = (record: HomeRecord) => {
-    const reminder = record.reminderState?.splitReminder;
+  const getReminderLabel = (reminder?: ReminderEntry) => {
     if (!reminder?.scheduledForIso) {
       return undefined;
     }
@@ -356,6 +337,30 @@ export function HomeScreenView() {
       hourCycle: use24HourClock ? "h23" : "h12",
     }).format(reminderDate);
     return t("reminders.rowSetAt", { date: formattedDate });
+  };
+  const getSplitReminderLabel = (record: HomeRecord) => getReminderLabel(record.reminderState?.splitReminder);
+  const getModelReminderLabel = (id: string) => {
+    const loaded = records.find((record) => record.id === id);
+    return loaded ? getSplitReminderLabel(loaded) : getReminderLabel((activeTab === "home" ? recentPages.records : splitPages.records).find((record) => record.id === id)?.splitReminder);
+  };
+  const openListRecord = (id: string) => {
+    const request = ++actionRequestRef.current;
+    const stillFocused = () => homeFocusedRef.current && actionRequestRef.current === request;
+    void openRecord(id, stillFocused).then((record) => {
+      if (!stillFocused()) return;
+      if (record) router.push(buildRecordRoute(record));
+      else Alert.alert(t("home.splitsLoadFailed"), t("common.tryAgain"));
+    }).catch(() => { if (stillFocused()) Alert.alert(t("home.splitsLoadFailed"), t("common.tryAgain")); });
+  };
+  const openListActions = (target: RecordActionTarget) => {
+    const request = ++actionRequestRef.current;
+    if (records.some((record) => record.id === target.id)) { setSelectedRecordActionTarget(target); return; }
+    const stillCurrent = () => homeFocusedRef.current && actionRequestRef.current === request;
+    void loadRecord(target.id, stillCurrent).then((record) => {
+      if (!stillCurrent()) return;
+      if (record) setSelectedRecordActionTarget(target);
+      else Alert.alert(t("home.splitsLoadFailed"), t("common.tryAgain"));
+    }).catch(() => { if (stillCurrent()) Alert.alert(t("home.splitsLoadFailed"), t("common.tryAgain")); });
   };
 
   const handleSaveSplitReminder = async (
@@ -626,10 +631,17 @@ export function HomeScreenView() {
           settings={settings}
           balances={balances}
           locale={locale}
-          recentRecords={recentRecords}
+          recentRecords={recentRows.rows}
           onViewAllSplits={() => setActiveTab("splits")}
           getSplitReminderLabel={getSplitReminderLabel}
-          onOpenActions={(target) => setSelectedRecordActionTarget(target)}
+          getModelReminderLabel={getModelReminderLabel}
+          onOpenRecord={openListRecord}
+          onOpenActions={openListActions}
+          listLoading={recentPages.loading || recentRows.loading}
+          listError={recentPages.error || recentRows.error}
+          onRetry={recentRows.error ? recentRows.retry : recentPages.reload}
+          balanceError={balanceIndex.error}
+          onRetryBalances={balanceIndex.retry}
         />
       ) : null}
       {activeTab === "splits" ? (
@@ -651,14 +663,20 @@ export function HomeScreenView() {
           setActivityTagFilterIds={setActivityTagFilterIds}
           activityTagFilterMode={activityTagFilterMode}
           setActivityTagFilterMode={setActivityTagFilterMode}
-          visibleSplitCount={visibleSplitCount}
-          filteredSplitRecordsLength={filteredSplitRecords.length}
-          onIncreaseVisibleCount={() =>
-            setVisibleSplitCount((current) => current + 20)
-          }
-          pagedSplitRecords={pagedSplitRecords}
+          visibleSplitCount={splitRows.rows.length}
+          filteredSplitRecordsLength={splitRows.rows.length}
+          onIncreaseVisibleCount={splitPages.loadMore}
+          pagedSplitRecords={splitRows.rows}
           getSplitReminderLabel={getSplitReminderLabel}
-          onOpenActions={(target) => setSelectedRecordActionTarget(target)}
+          getModelReminderLabel={getModelReminderLabel}
+          onOpenRecord={openListRecord}
+          onOpenActions={openListActions}
+          listLoading={splitPages.loading || splitRows.loading || (balanceFilterWaiting && !balanceIndex.error)}
+          listError={splitPages.error || splitRows.error || (balanceFilterWaiting && balanceIndex.error)}
+          hasMore={Boolean(splitPages.nextCursor)}
+          onRetry={balanceFilterWaiting && balanceIndex.error ? balanceIndex.retry : splitRows.error ? splitRows.retry : splitPages.nextCursor ? splitPages.loadMore : splitPages.reload}
+          balanceError={balanceIndex.error}
+          onRetryBalances={balanceIndex.retry}
         />
       ) : null}
       {activeTab === "groups" ? (
@@ -723,9 +741,11 @@ export function HomeScreenView() {
           setTagEditorOpen={setTagEditorOpen}
           pendingTagDeleteId={pendingTagDeleteId}
           setPendingTagDeleteId={setPendingTagDeleteId}
-          getTagUsageCount={(tagId) => tagUsageCounts.get(tagId) ?? 0}
+          getTagUsageCount={(tagId) => tagUsage?.id === tagId && tagUsage.records === records ? tagUsage.count : null}
           onConfirmDeleteTag={(tagId) => {
-            void removeTag(tagId).then(() => setPendingTagDeleteId(""));
+            void removeTag(tagId).then(() => setPendingTagDeleteId("")).catch(() => {
+              Alert.alert(t("common.couldNotSaveSettings"), t("common.tryAgain"));
+            });
           }}
         />
       ) : null}

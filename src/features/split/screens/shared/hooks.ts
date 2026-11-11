@@ -1,35 +1,21 @@
-import { useEffect, useRef } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 
 import { useSplitStore } from "../../store";
 
 export function useRecord(draftId: string) {
-  const { records, activeRecordId, openRecord } = useSplitStore(useShallow((state) => ({
-    records: state.records,
-    activeRecordId: state.activeRecordId,
-    openRecord: state.openRecord,
-  })));
-  const requestedDraftIdRef = useRef<string | null>(null);
-  const record = records.find((item) => item.id === draftId) ?? null;
+  const record = useSplitStore((state) => state.records.find((item) => item.id === draftId) ?? null);
+  const openRecord = useSplitStore((state) => state.openRecord);
 
-  useEffect(() => {
-    if (!draftId || activeRecordId === draftId || requestedDraftIdRef.current === draftId) {
-      return;
+  useFocusEffect(useCallback(() => {
+    let focused = true;
+    if (draftId) {
+      void openRecord(draftId, () => focused).catch((error) => {
+        console.warn("Failed to open split", error);
+      });
     }
-
-    requestedDraftIdRef.current = draftId;
-    void openRecord(draftId).finally(() => {
-      if (requestedDraftIdRef.current === draftId) {
-        requestedDraftIdRef.current = null;
-      }
-    });
-  }, [activeRecordId, draftId, openRecord]);
-
-  useEffect(() => {
-    if (record) {
-      requestedDraftIdRef.current = null;
-    }
-  }, [record]);
+    return () => { focused = false; };
+  }, [draftId, openRecord]));
 
   return record;
 }

@@ -29,6 +29,7 @@ import {
 import type { SplitListAmountDisplayOption } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 import { ConfirmChoiceModal } from "../shared/modals";
+import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
 
@@ -104,7 +105,7 @@ export function HomeSettingsTabContent({
   setTagEditorOpen: (value: boolean) => void;
   pendingTagDeleteId: string;
   setPendingTagDeleteId: (tagId: string) => void;
-  getTagUsageCount: (tagId: string) => number;
+  getTagUsageCount: (tagId: string) => number | null;
   onConfirmDeleteTag: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
@@ -488,7 +489,13 @@ export function HomeSettingsTabContent({
           </YStack>
         </YStack>
       </ScrollView>
-      {pendingDeleteTag ? (
+      {pendingDeleteTag && pendingDeleteTagUsageCount === null ? (
+        <FormBottomSheet title={t("home.loadingSplits")} onClose={() => setPendingTagDeleteId("")}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("common.cancel")} style={screenStyles.formSheetCancel} onPress={() => setPendingTagDeleteId("")}>
+            <Text fontFamily={FONTS.bodyBold} fontSize={14} color={PALETTE.primary} textAlign="center">{t("common.cancel")}</Text>
+          </Pressable>
+        </FormBottomSheet>
+      ) : pendingDeleteTag ? (
         <ConfirmChoiceModal
           title={t("tags.confirmDeleteTitle")}
           body={t("tags.confirmDeleteBody", {
@@ -497,7 +504,7 @@ export function HomeSettingsTabContent({
               pendingDeleteTagUsageCount === 1
                 ? "tags.confirmDeleteUsageSingular"
                 : "tags.confirmDeleteUsagePlural",
-              { count: pendingDeleteTagUsageCount },
+              { count: pendingDeleteTagUsageCount ?? 0 },
             ),
           })}
           confirmLabel={t("tags.confirmDelete")}

@@ -38,7 +38,7 @@ import {
   SplitItemScreen,
 } from "./screens";
 
-const { mockPush, mockBack, mockReplace } = createRouterMocks();
+const { mockPush, mockBack, mockReplace, mockDismissTo } = createRouterMocks();
 const mockSetStringAsync = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenURL = jest.fn(async (..._args: any[]) => undefined);
 const mockOpenApplication = jest.fn(async (..._args: any[]) => undefined);
@@ -86,12 +86,20 @@ const originalPlatformOsDescriptor = Object.getOwnPropertyDescriptor(
 );
 
 jest.mock("expo-router", () => ({
-  useFocusEffect: jest.fn(),
+  useFocusEffect: (callback: () => void) => require("react").useEffect(callback, [callback]),
   router: {
     push: (value: any) => mockPush(value),
     back: () => mockBack(),
     replace: (value: any) => mockReplace(value),
+    dismissTo: (value: any) => mockDismissTo(value),
   },
+}));
+
+jest.mock("./screens/flow/scanFrequentFriends", () => ({
+  scanFrequentFriends: jest.fn(async (options: any) => require("./screens/shared/participantUtils").getFrequentFriends(
+    mockStoreState.records, options.activeDraftId, options.ownerName,
+    { people: options.people, ownerPersonId: options.ownerPersonId },
+  )),
 }));
 
 jest.mock("expo-clipboard", () => ({
@@ -319,13 +327,13 @@ describe("split screens", () => {
       null,
       null,
       null,
-    );
+     "draft-1");
     expect(mockTrackSplitTagsUsed).toHaveBeenCalledWith({
       tagCount: 2,
       builtInTagCount: 2,
       customTagCount: 0,
     });
-    expect(mockStoreState.setStep).toHaveBeenCalledWith(2);
+    expect(mockStoreState.setStep).toHaveBeenCalledWith(2, "draft-1");
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/participants");
   });
 
@@ -350,7 +358,7 @@ describe("split screens", () => {
       null,
       null,
       null,
-    );
+     "draft-1");
   });
 
   it("renders the setup loading state and opens the currency dropdown", async () => {
@@ -447,7 +455,7 @@ describe("split screens", () => {
     expect(screen.getByText("British Pound (£)")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Back"));
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("renders participants loading state and participant management", async () => {
@@ -542,7 +550,7 @@ describe("split screens", () => {
     );
 
     const { rerender } = render(<ParticipantsScreen draftId="draft-1" />);
-    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1", expect.any(Function));
     await act(async () => {
       resolveOpenRecord?.(buildRecord());
       await Promise.resolve();
@@ -566,7 +574,7 @@ describe("split screens", () => {
     );
 
     render(<ParticipantsScreen draftId="draft-1" />);
-    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1", expect.any(Function));
 
     await act(async () => {
       resolveOpenRecord?.(buildRecord());
@@ -581,7 +589,7 @@ describe("split screens", () => {
     mockStoreState.activeRecordId = "other-draft";
 
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
-    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1");
+    expect(mockStoreState.openRecord).toHaveBeenCalledWith("draft-1", expect.any(Function));
 
     fireEvent.changeText(
       screen.getByPlaceholderText("e.g. Truffle Pasta"),
@@ -599,7 +607,7 @@ describe("split screens", () => {
         price: "2.50",
         category: "General",
       }),
-    );
+     "draft-1");
   });
 
   it("handles participants validation and suggestion actions", async () => {
@@ -621,6 +629,7 @@ describe("split screens", () => {
       }),
     ];
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.queryByText("Almost there")).toBeNull();
     fireEvent.press(screen.getByText("Next: Select Payer"));
     expect(screen.getByText("Almost there")).toBeTruthy();
@@ -674,6 +683,7 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     const priorCalls = mockStoreState.updateParticipants.mock.calls.length;
     expect(screen.queryByLabelText("Add frequent friend Elena")).toBeNull();
     await act(async () => {
@@ -707,7 +717,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Next: Select Payer"));
     });
     await waitFor(() => {
-      expect(mockStoreState.setStep).toHaveBeenCalledWith(3);
+      expect(mockStoreState.setStep).toHaveBeenCalledWith(3, "draft-1");
       expect(mockPush).toHaveBeenCalledWith("/split/draft-1/payer");
     });
   });
@@ -822,13 +832,24 @@ describe("split screens", () => {
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/setup");
   });
 
+  it("offers a frequent person found only in unloaded history", async () => {
+    const active = buildRecord();
+    const historical = buildRecord({ id: "old", values: { ...buildRecord().values, participants: [{ id: "elena", name: "Elena" }] } });
+    mockStoreState.records = [active];
+    const { getFrequentFriends } = require("./screens/shared/participantUtils");
+    require("./screens/flow/scanFrequentFriends").scanFrequentFriends.mockResolvedValueOnce(getFrequentFriends([historical, active], active.id, mockStoreState.settings.ownerName));
+    render(<ParticipantsScreen draftId="draft-1" />);
+    fireEvent.press(await screen.findByLabelText("Add frequent friend Elena"));
+    expect(mockStoreState.updateParticipants).toHaveBeenCalled();
+  });
+
   it("routes the participants close header action to home", () => {
     render(<ParticipantsScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
-  it("always shows the phone owner in frequent friends when not already added and dedupes/caps history suggestions", () => {
+  it("always shows the phone owner in frequent friends when not already added and dedupes/caps history suggestions", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
@@ -844,6 +865,7 @@ describe("split screens", () => {
       }),
     ];
     const view = render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.queryByText("Frequent Participants")).toBeNull();
     expect(screen.getByLabelText("Add frequent friend Tiago")).toBeTruthy();
 
@@ -895,6 +917,8 @@ describe("split screens", () => {
     ];
 
     view.rerender(<ParticipantsScreen draftId="draft-1" />);
+    act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
+    await act(async () => {});
     expect(screen.queryByText("Frequent Participants")).toBeNull();
     const labels = Array.from(
       new Set(
@@ -917,7 +941,7 @@ describe("split screens", () => {
     expect(screen.queryByLabelText("Add frequent friend Zoe")).toBeNull();
   });
 
-  it("injects the phone owner into frequent friends when missing from history", () => {
+  it("injects the phone owner into frequent friends when missing from history", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
@@ -934,10 +958,11 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.getByLabelText("Add frequent friend Tiago")).toBeTruthy();
   });
 
-  it("skips blank and duplicate names when building frequent friends from history", () => {
+  it("skips blank and duplicate names when building frequent friends from history", async () => {
     mockStoreState.records = [
       buildRecord(),
       buildRecord({
@@ -956,12 +981,13 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.getByLabelText("Add frequent friend Elena")).toBeTruthy();
     expect(screen.getByLabelText("Add frequent friend Marcus")).toBeTruthy();
     expect(screen.queryByLabelText("Add frequent friend ")).toBeNull();
   });
 
-  it("orders frequent friends by appearance count, then alphabetical", () => {
+  it("orders frequent friends by appearance count, then alphabetical", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1022,6 +1048,7 @@ describe("split screens", () => {
     ];
 
     const view = render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     const labels = Array.from(
       new Set(
         view.UNSAFE_root.findAll(
@@ -1040,7 +1067,7 @@ describe("split screens", () => {
     ]);
   });
 
-  it("returns mapped frequent friends without injecting the owner when they already exist in history", () => {
+  it("returns mapped frequent friends without injecting the owner when they already exist in history", async () => {
     mockStoreState.settings = {
       ownerName: "Sarah",
       balanceFeatureEnabled: true,
@@ -1068,11 +1095,12 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.getByLabelText("Add frequent friend Sarah")).toBeTruthy();
     expect(screen.getByLabelText("Add frequent friend Maria")).toBeTruthy();
   });
 
-  it("keeps avatar colors deterministic for the same non-organizer participant across sections", () => {
+  it("keeps avatar colors deterministic for the same non-organizer participant across sections", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1095,6 +1123,7 @@ describe("split screens", () => {
     ];
 
     const { rerender } = render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     const frequentAvatar = screen.getByLabelText(
       "Frequent friend avatar Tiago",
     );
@@ -1127,6 +1156,7 @@ describe("split screens", () => {
     ];
 
     rerender(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     const participantAvatar = screen.getByLabelText("Participant avatar Tiago");
 
     expect(frequentColor).toBe(
@@ -1134,7 +1164,7 @@ describe("split screens", () => {
     );
   });
 
-  it("removes already-selected frequent friends from the suggestion strip", () => {
+  it("removes already-selected frequent friends from the suggestion strip", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1157,11 +1187,12 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.queryByLabelText("Add frequent friend Tiago")).toBeNull();
     expect(screen.getByLabelText("Add frequent friend Rodrigo")).toBeTruthy();
   });
 
-  it("returns only history-based frequent friends when the owner name is blank", () => {
+  it("returns only history-based frequent friends when the owner name is blank", async () => {
     mockStoreState.settings = {
       ownerName: "",
       balanceFeatureEnabled: true,
@@ -1186,6 +1217,7 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(screen.getByLabelText("Add frequent friend Maya")).toBeTruthy();
     expect(screen.queryByLabelText("Add frequent friend ")).toBeNull();
   });
@@ -1210,13 +1242,14 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Add frequent friend Maya"));
     });
     expect(Keyboard.dismiss).toHaveBeenCalled();
   });
 
-  it("uses the current owner profile name for frequent participants and owner labels", () => {
+  it("uses the current owner profile name for frequent participants and owner labels", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago Luiz",
       ownerProfileImageUri: "",
@@ -1251,6 +1284,7 @@ describe("split screens", () => {
     ];
 
     const { unmount } = render(<ParticipantsScreen draftId="draft-current" />);
+    await act(async () => {});
     expect(screen.getByText("Tiago Luiz")).toBeTruthy();
     expect(screen.queryByText(/^You$/)).toBeNull();
 
@@ -1362,12 +1396,12 @@ describe("split screens", () => {
     expect(screen.queryByText("One payer only")).toBeNull();
     expect(screen.getByLabelText("Next: Add Items")).toBeEnabled();
     fireEvent.press(screen.getByLabelText("Choose payer Bruno"));
-    expect(mockStoreState.setPayer).toHaveBeenCalledWith("bruno");
+    expect(mockStoreState.setPayer).toHaveBeenCalledWith("bruno", "draft-1");
     await act(async () => {
       fireEvent.press(screen.getByText("Next: Add Items"));
     });
     await waitFor(() => {
-      expect(mockStoreState.setStep).toHaveBeenCalledWith(4);
+      expect(mockStoreState.setStep).toHaveBeenCalledWith(4, "draft-1");
       expect(mockPush).toHaveBeenCalledWith("/split/draft-1/items");
     });
   });
@@ -1394,7 +1428,7 @@ describe("split screens", () => {
     });
   });
 
-  it("uses the saved owner photo in the frequent participants strip", () => {
+  it("uses the saved owner photo in the frequent participants strip", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///owner-photo.png",
@@ -1424,6 +1458,7 @@ describe("split screens", () => {
     ];
 
     render(<ParticipantsScreen draftId="draft-1" />);
+    await act(async () => {});
     expect(
       screen.getByLabelText("Frequent friend avatar Tiago").props.source,
     ).toEqual({ uri: "file:///owner-photo.png" });
@@ -1459,7 +1494,7 @@ describe("split screens", () => {
   it("routes the payer close header action to home", () => {
     render(<PayerScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("renders items flow and paste navigation", async () => {
@@ -1483,7 +1518,7 @@ describe("split screens", () => {
     expect(mockStoreState.addItem).not.toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/assign/new");
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("keeps the items scroll-cue slot mounted while overflow exists and toggles cue visibility", () => {
@@ -1594,7 +1629,7 @@ describe("split screens", () => {
       jest.advanceTimersByTime(4000);
       await Promise.resolve();
     });
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
     expect(screen.queryByText("Item deleted")).toBeNull();
     jest.useRealTimers();
   });
@@ -1726,7 +1761,7 @@ describe("split screens", () => {
 
     fireEvent(screen.getByLabelText("Open item Bread"), "longPress");
     fireEvent.press(screen.getByLabelText("Delete item Bread"));
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
     expect(screen.queryByLabelText("Delete item Bread")).toBeNull();
 
     await act(async () => {
@@ -1734,7 +1769,7 @@ describe("split screens", () => {
       await Promise.resolve();
     });
 
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-2");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-2", "draft-1");
     expect(screen.queryByText("Item deleted")).toBeNull();
 
     mockStoreState.removeItem.mockClear();
@@ -1744,7 +1779,22 @@ describe("split screens", () => {
     act(() => {
       jest.advanceTimersByTime(4000);
     });
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
+    jest.useRealTimers();
+  });
+
+  it("does not commit a deletion twice when the screen closes during the save", async () => {
+    jest.useFakeTimers();
+    let finishDelete!: () => void;
+    mockStoreState.removeItem.mockImplementationOnce(() => new Promise<void>((resolve) => { finishDelete = resolve; }));
+    const view = render(<ItemsScreen draftId="draft-1" />);
+    fireEvent(screen.getByLabelText("Open item Groceries"), "longPress");
+    fireEvent.press(screen.getByLabelText("Delete item Groceries"));
+    act(() => { jest.advanceTimersByTime(4000); });
+    view.unmount();
+    expect(mockStoreState.removeItem).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
+    await act(async () => { finishDelete(); await Promise.resolve(); });
     jest.useRealTimers();
   });
 
@@ -1777,15 +1827,29 @@ describe("split screens", () => {
     ];
 
     render(<ItemsScreen draftId="draft-1" />);
-    expect(screen.getByText("Unnamed item")).toBeTruthy();
+    expect(screen.getByText("Item 1")).toBeTruthy();
     expect(screen.getByText("SERVICE")).toBeTruthy();
     expect(
       screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByLabelText("Open item Unnamed item")).toBeTruthy();
-    fireEvent(screen.getByLabelText("Open item Unnamed item"), "longPress");
-    fireEvent.press(screen.getByLabelText("Delete item Unnamed item"));
+    expect(screen.getByLabelText(/Open item Item 1/)).toBeTruthy();
+    fireEvent(screen.getByLabelText(/Open item Item 1/), "longPress");
+    fireEvent.press(screen.getByLabelText("Delete item Item 1"));
     expect(screen.getByText("Item deleted")).toBeTruthy();
+  });
+
+  it("identifies each invalid item and counts items rather than errors", () => {
+    const base = buildRecord();
+    mockStoreState.records = [buildRecord({ values: { ...base.values, items: [
+      { ...base.values.items[0], id: "bad-1", name: "", price: "" },
+      { ...base.values.items[0], id: "bad-2", name: "Bread", price: "0" },
+    ] } })];
+    render(<ItemsScreen draftId="draft-1" />);
+    expect(screen.getByText("2 items need attention")).toBeTruthy();
+    expect(screen.getByText("Item 1")).toBeTruthy();
+    expect(screen.getByLabelText(/Open item Bread/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(/Open item Bread/));
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/assign/bad-2");
   });
 
   it("creates a new item from inside the editor route instead of pre-creating it on the items screen", async () => {
@@ -1807,7 +1871,7 @@ describe("split screens", () => {
         price: "12.50",
         category: "General",
       }),
-    );
+     "draft-1");
     expect(mockRememberItemOrigins).toHaveBeenCalledWith(
       "draft-1",
       ["created-item-id"],
@@ -1834,7 +1898,7 @@ describe("split screens", () => {
         name: "Water",
         price: "1.00",
       }),
-    );
+     "draft-1");
   });
 
   it("prompts to merge duplicate manual items and can cancel back to editing", async () => {
@@ -1869,7 +1933,7 @@ describe("split screens", () => {
       "item-1",
       "price",
       "11.50",
-    );
+     "draft-1");
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
   });
@@ -1935,7 +1999,7 @@ describe("split screens", () => {
       "item-2",
       "price",
       "9.00",
-    );
+     "draft-1");
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -1968,7 +2032,7 @@ describe("split screens", () => {
     });
 
     expect(mockStoreState.updateItemField).not.toHaveBeenCalled();
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
     expect(mockTrackEvent).not.toHaveBeenCalledWith(
       "item_insertion_success",
       expect.anything(),
@@ -1987,7 +2051,7 @@ describe("split screens", () => {
       "item-1",
       "price",
       "1.00",
-    );
+     "draft-1");
   });
 
   it("allows item names up to 64 characters before saving", async () => {
@@ -2006,7 +2070,7 @@ describe("split screens", () => {
       expect.objectContaining({
         name: "123456789012345678901234567890",
       }),
-    );
+     "draft-1");
   });
 
   it("shows General as the default category and lets existing items be deleted from the editor", async () => {
@@ -2021,7 +2085,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Delete item"));
     });
 
-    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1");
+    expect(mockStoreState.removeItem).toHaveBeenCalledWith("item-1", "draft-1");
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -2043,7 +2107,7 @@ describe("split screens", () => {
       "item-1",
       "category",
       "General",
-    );
+     "draft-1");
   });
 
   it("does not overwrite a chosen category when saving an existing categorized item", async () => {
@@ -2291,7 +2355,7 @@ describe("split screens", () => {
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith(
       "Milk - 3.40",
       "replace",
-    );
+     "draft-1");
     expect(mockTrackEvent).toHaveBeenCalledWith("item_insertion_success", {
       method: "ai_handover",
       item_count: 1,
@@ -2799,7 +2863,7 @@ describe("split screens", () => {
     expect(mockStoreState.importPastedList).toHaveBeenCalledWith(
       "Tea - 1.25",
       "append",
-    );
+     "draft-1");
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -2856,7 +2920,7 @@ describe("split screens", () => {
       expect(mockStoreState.importPastedList).toHaveBeenCalledWith(
         "",
         "append",
-      );
+       "draft-1");
       expect(mockBack).toHaveBeenCalled();
     });
   });
@@ -2895,7 +2959,7 @@ describe("split screens", () => {
       expect(mockStoreState.importPastedList).toHaveBeenCalledWith(
         "not a valid line",
         "append",
-      );
+       "draft-1");
     });
   });
 
@@ -2942,7 +3006,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Back"));
     expect(mockReplace).toHaveBeenCalledWith("/split/draft-1/items");
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("routes the paste step 2 back header action to step 1", () => {
@@ -2970,17 +3034,17 @@ describe("split screens", () => {
       "item-1",
       "name",
       "Bread",
-    );
+     "draft-1");
     expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
       "item-1",
       "price",
       "12.00",
-    );
+     "draft-1");
     expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
       "item-1",
       "category",
       "Produce",
-    );
+     "draft-1");
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -3018,7 +3082,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Back"));
     expect(mockBack).toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
@@ -3344,7 +3408,7 @@ describe("split screens", () => {
           }),
         ]),
       }),
-    );
+     "draft-1");
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-2");
   });
 
@@ -3396,7 +3460,7 @@ describe("split screens", () => {
     expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-2",
       expect.objectContaining({ id: "item-2" }),
-    );
+     "draft-1");
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/split/item-3");
   });
 
@@ -3579,7 +3643,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("Include all split participants"));
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
 
     await act(async () => {
       fireEvent.press(screen.getByText("Confirm & Review"));
@@ -3587,7 +3651,7 @@ describe("split screens", () => {
     expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
       expect.objectContaining({ splitMode: "shares" }),
-    );
+     "draft-1");
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
   });
 
@@ -4681,7 +4745,7 @@ describe("split screens", () => {
           expect.objectContaining({ participantId: "bruno", percent: "98" }),
         ]),
       }),
-    );
+     "draft-1");
   });
 
   it("shows a dedicated message for negative percentage values", async () => {
@@ -4854,7 +4918,7 @@ describe("split screens", () => {
     expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
       expect.objectContaining({ id: "item-1" }),
-    );
+     "draft-1");
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/overview");
   });
 

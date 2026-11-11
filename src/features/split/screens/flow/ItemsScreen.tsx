@@ -2,6 +2,8 @@ import { ActionListSheet } from "../shared/ActionListSheet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  AccessibilityInfo,
+  findNodeHandle,
   FlatList,
   Image,
   Keyboard,
@@ -187,7 +189,14 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
   >(null);
   const longPressItemIdRef = useRef<string | null>(null);
   const itemDeleteTimeoutRef = useRef<any>(null);
+  const itemDeletesInFlightRef = useRef(new Map<string, Promise<void>>());
   const itemsScrollRef = useRef<ScrollView | null>(null);
+  const summaryRef = useRef<View | null>(null);
+  const itemRefs = useRef<Record<string, View | null>>({});
+  const scrollToView = (view: View | null) => {
+    const handle = findNodeHandle(itemsScrollRef.current);
+    if (view && handle) view.measureLayout(handle, (_x, y) => itemsScrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }), () => {});
+  };
   const pendingItemDeleteRef = useRef<null | { id: string; title: string }>(
     null,
   );
@@ -205,12 +214,12 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       }
       const pendingDelete = pendingItemDeleteRef.current;
       if (pendingDelete) {
-        void removeItem(pendingDelete.id).catch((error) => {
+        void removeItem(pendingDelete.id, draftId).catch((error) => {
           console.warn("Failed to remove pending item on unmount", error);
         });
       }
     };
-  }, [removeItem]);
+  }, [draftId, removeItem]);
   if (!record) {
     return (
       <AppScreen scroll={false}>
@@ -233,18 +242,21 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
         },
       }
     : record;
-  const stepTwoErrors = [
-    ...new Set(validateStepTwo(record.values).map((error) => error.message)),
-  ];
-  const visibleItems =
-    effectiveRecordForStep.values.items.filter(isVisibleItem);
-  const effectiveStepTwoErrors = [
-    ...new Set(
-      validateStepTwo(effectiveRecordForStep.values).map(
-        (error) => error.message,
-      ),
-    ),
-  ];
+  const validationErrors = validateStepTwo(effectiveRecordForStep.values);
+  const itemErrors: Record<string, string[]> = {};
+  for (const error of validationErrors) {
+    const match = /^items\.(\d+)\./.exec(error.path);
+    if (!match) continue;
+    const item = effectiveRecordForStep.values.items[Number(match[1])];
+    if (!item) continue;
+    const messages = itemErrors[item.id] ?? (itemErrors[item.id] = []);
+    const message = getFriendlySplitMessage(error);
+    if (!messages.includes(message)) messages.push(message);
+  }
+  const visibleItems = effectiveRecordForStep.values.items.filter((item) => isVisibleItem(item) || itemErrors[item.id]);
+  const errorCount = Object.keys(itemErrors).length;
+  const errorSummary = t(errorCount === 1 ? "flow.items.errors.one" : "flow.items.errors.other", { count: errorCount });
+  const effectiveStepTwoErrors = validationErrors;
   const isItemsStepReady = effectiveStepTwoErrors.length === 0;
   const runningTotal = formatMoney(
     visibleItems.reduce(
@@ -269,16 +281,25 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       clearTimeout(itemDeleteTimeoutRef.current);
       itemDeleteTimeoutRef.current = null;
     }
-    await removeItem(nextPending.id);
     if (pendingItemDeleteRef.current?.id === nextPending.id) {
       pendingItemDeleteRef.current = null;
-      setPendingItemDelete(null);
+    }
+    const existing = itemDeletesInFlightRef.current.get(nextPending.id);
+    const deletion = existing ?? removeItem(nextPending.id, draftId);
+    if (!existing) itemDeletesInFlightRef.current.set(nextPending.id, deletion);
+    try {
+      await deletion;
+      setPendingItemDelete((current) => current?.id === nextPending.id ? null : current);
+    } finally {
+      if (itemDeletesInFlightRef.current.get(nextPending.id) === deletion) {
+        itemDeletesInFlightRef.current.delete(nextPending.id);
+      }
     }
   };
   const queueItemDelete = (itemId: string, title: string) => {
     const pendingDelete = pendingItemDeleteRef.current;
     if (pendingDelete?.id && pendingDelete.id !== itemId) {
-      void removeItem(pendingDelete.id).catch((error) => {
+      void removeItem(pendingDelete.id, draftId).catch((error) => {
         console.warn("Failed to remove previously pending item", error);
       });
     }
@@ -291,8 +312,10 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     itemDeleteTimeoutRef.current = setTimeout(() => {
       void commitPendingItemDelete(nextPending).catch((error) => {
         console.warn("Failed to remove pending item after undo window", error);
-        pendingItemDeleteRef.current = null;
-        setPendingItemDelete(null);
+        if (pendingItemDeleteRef.current?.id === nextPending.id) {
+          pendingItemDeleteRef.current = null;
+        }
+        setPendingItemDelete((current) => current?.id === nextPending.id ? null : current);
         setItemsNoticeMessages([t("flow.items.deleteFailed")]);
       });
     }, 4000);
@@ -456,11 +479,12 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                   label={t("flow.items.next", undefined, { maxLength: 18 })}
                   onPress={async () => {
                     if (!isItemsStepReady) {
-                      setItemsNoticeMessages([
-                        ...new Set(
-                          effectiveStepTwoErrors.map(getFriendlySplitMessage),
-                        ),
-                      ]);
+                      if (errorCount) {
+                        scrollToView(summaryRef.current);
+                        AccessibilityInfo.announceForAccessibility(errorSummary);
+                      } else {
+                        setItemsNoticeMessages(effectiveStepTwoErrors.map(getFriendlySplitMessage));
+                      }
                       return;
                     }
                     if (pendingItemDelete) {
@@ -477,7 +501,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                         return;
                       }
                     }
-                    await setStep(5);
+                    await setStep(5, draftId);
                     const currentStatus =
                       getActiveRecord()?.status ?? record.status;
                     await trackSplitStepCompleted({
@@ -571,16 +595,21 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             </Pressable>
           </View>
           <View style={screenStyles.itemsSectionSeparator} />
+          {errorCount > 0 ? <View ref={summaryRef} style={{ padding: 16, borderRadius: 16, backgroundColor: PALETTE.dangerSurface }}>
+            <Text color={PALETTE.danger} fontFamily={FONTS.bodyBold}>{errorSummary}</Text>
+            <Pressable accessibilityRole="button" onPress={() => scrollToView(itemRefs.current[visibleItems.find((item) => itemErrors[item.id])?.id ?? ""] ?? null)}><Text color={PALETTE.danger} fontFamily={FONTS.bodyBold}>{t("flow.items.goToFirstError")}</Text></Pressable>
+          </View> : null}
           <YStack gap="$3.5">
             <YStack gap="$3">
               {visibleItems.map((item) => {
-                const itemTitle = item.name.trim() || t("flow.items.unnamed");
+                const itemTitle = item.name.trim() || t("flow.items.numberedItem", { count: effectiveRecordForStep.values.items.indexOf(item) + 1 });
+                const errors = itemErrors[item.id] ?? [];
                 return (
-                  <View key={item.id} style={screenStyles.swipeableVisibleContainer}>
+                  <View key={item.id} ref={(view) => { itemRefs.current[item.id] = view; }} style={screenStyles.swipeableVisibleContainer}>
                     <View style={screenStyles.recentShadowWrap}>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={`Open item ${itemTitle}`}
+                        accessibilityLabel={[`Open item ${itemTitle}`, ...errors].join(". ")}
                         accessibilityActions={[
                           { name: "delete", label: `Delete item ${itemTitle}` },
                         ]}
@@ -596,7 +625,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                             title: itemTitle,
                           });
                         }}
-                        style={screenStyles.itemsListCard}
+                        style={[screenStyles.itemsListCard, errors.length > 0 && { borderWidth: 1, borderColor: PALETTE.danger }]}
                         onPress={() => {
                           if (longPressItemIdRef.current === item.id) {
                             longPressItemIdRef.current = null;
@@ -640,6 +669,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                           )}
                         </Text>
                       </XStack>
+                      {errors.map((message) => <XStack key={message} gap="$2" alignItems="center" marginTop="$2"><AlertTriangle size={16} color={PALETTE.danger} /><Text flex={1} color={PALETTE.danger} fontFamily={FONTS.bodyMedium}>{message}</Text></XStack>)}
                       </Pressable>
                     </View>
                   </View>

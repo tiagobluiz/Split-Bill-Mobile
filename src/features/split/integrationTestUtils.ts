@@ -62,6 +62,7 @@ export function createRouterMocks() {
     mockPush: jest.fn(),
     mockBack: jest.fn(),
     mockReplace: jest.fn(),
+    mockDismissTo: jest.fn(),
   };
 }
 
@@ -70,6 +71,7 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
     ready: true,
     records: [buildRecordFixture()],
     activeRecordId: "draft-1",
+    ownerNameWritesPending: 0,
     settings: {
       ownerName: "Ana",
       ownerProfileImageUri: "",
@@ -98,6 +100,8 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
     bootstrap: jest.fn(),
     createDraft: jest.fn(async () => buildRecordFixture({ id: "draft-2" })),
     openRecord: jest.fn(async () => buildRecordFixture()),
+    loadRecord: jest.fn(async () => buildRecordFixture()),
+    releaseInactiveRecords: jest.fn(),
     removeRecord: jest.fn(async () => undefined),
     setStep: jest.fn(async () => undefined),
     updateParticipants: jest.fn(async () => undefined),

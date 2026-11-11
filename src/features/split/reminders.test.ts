@@ -142,6 +142,7 @@ describe("reminder persistence and notification behavior", () => {
     }];
     const result = await reconcileScheduledReminders(records);
     expect(result.changed).toBe(true);
+    expect(result.changedRecordIds).toEqual(["d1"]);
     expect(result.records[0].reminderState).toEqual({ participantDebtReminders: { ana: reminder({ notificationId: "valid-debt" }) } });
     expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(3);
   });
