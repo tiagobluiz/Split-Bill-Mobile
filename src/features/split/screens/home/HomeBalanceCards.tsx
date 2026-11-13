@@ -23,9 +23,10 @@ import { screenStyles } from "../shared/styles";
 const Text = TamaguiText as any;
 const XStack = TamaguiXStack as any;
 
-const AMOUNT_BASE_FONT_SIZE = 27;
-const AMOUNT_MINIMUM_FONT_SCALE = 0.6;
-const AMOUNT_MINIMUM_FONT_SIZE = AMOUNT_BASE_FONT_SIZE * AMOUNT_MINIMUM_FONT_SCALE;
+const AMOUNT_BASE_FONT_SIZE = 24;
+const AMOUNT_MINIMUM_FONT_SIZE = 16;
+const CARD_PADDING = 24;
+const CARD_GAP = 18;
 
 type BalanceSide = "owed" | "owe";
 type SideWidths = Record<BalanceSide, number>;
@@ -38,6 +39,7 @@ type BalanceCardProps = {
   loadingLabel?: string;
   amountFontSize: number;
   onContentLayout: (side: BalanceSide, event: LayoutChangeEvent) => void;
+  stacked: boolean;
 };
 
 function BalanceCard({
@@ -48,10 +50,11 @@ function BalanceCard({
   loadingLabel,
   amountFontSize,
   onContentLayout,
+  stacked,
 }: BalanceCardProps) {
   return (
-    <View style={screenStyles.homeBalanceCardWrap}>
-      <SectionCard fill testID={`home-balance-${side}-card`}>
+    <View style={stacked ? { width: "100%" } : screenStyles.homeBalanceCardWrap}>
+      <SectionCard fill testID={`home-balance-${side}-card`} backgroundColor={side === "owed" ? "#eaf5ee" : "#fff0e4"}>
         <View
           testID={`home-balance-${side}-content`}
           style={screenStyles.homeBalanceCardContent}
@@ -119,6 +122,10 @@ export function HomeBalanceCards({
   ) : "…";
   const [contentWidths, setContentWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
   const [measuredWidths, setMeasuredWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
+  const [containerWidth, setContainerWidth] = useState(0);
+  const widestAmount = Math.max(measuredWidths.owed, measuredWidths.owe);
+  const compactWidth = containerWidth > 0 ? (containerWidth - CARD_GAP) / 2 - CARD_PADDING * 2 : Math.min(contentWidths.owed, contentWidths.owe);
+  const stacked = compactWidth > 0 && widestAmount > 0 && widestAmount * AMOUNT_MINIMUM_FONT_SIZE / AMOUNT_BASE_FONT_SIZE > compactWidth;
 
   const amountFontSize = useMemo(() => {
     const availableWidths = Object.values(contentWidths).filter((width) => width > 0);
@@ -127,7 +134,7 @@ export function HomeBalanceCards({
       return AMOUNT_BASE_FONT_SIZE;
     }
 
-    const availableWidth = Math.min(...availableWidths);
+    const availableWidth = stacked && containerWidth > 0 ? containerWidth - CARD_PADDING * 2 : compactWidth || Math.min(...availableWidths);
     const widestAmount = Math.max(...amountWidths);
     const fittedSize = Math.floor(
       AMOUNT_BASE_FONT_SIZE * (availableWidth / widestAmount) * 10,
@@ -136,7 +143,7 @@ export function HomeBalanceCards({
       AMOUNT_MINIMUM_FONT_SIZE,
       Math.min(AMOUNT_BASE_FONT_SIZE, fittedSize),
     );
-  }, [contentWidths, measuredWidths]);
+  }, [contentWidths, measuredWidths, compactWidth, stacked, containerWidth]);
 
   const updateWidth = (
     setter: React.Dispatch<React.SetStateAction<SideWidths>>,
@@ -154,7 +161,7 @@ export function HomeBalanceCards({
 
   return (
     <>
-      <XStack gap="$4" alignItems="stretch">
+      <XStack testID="home-balance-cards" gap="$4" alignItems="stretch" flexDirection={stacked ? "column" : "row"} onLayout={(event: LayoutChangeEvent) => setContainerWidth(event.nativeEvent.layout.width)}>
         <BalanceCard
           side="owed"
           title={t("home.youAreOwed")}
@@ -163,6 +170,7 @@ export function HomeBalanceCards({
           loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
           onContentLayout={handleContentLayout}
+          stacked={stacked}
         />
         <BalanceCard
           side="owe"
@@ -172,6 +180,7 @@ export function HomeBalanceCards({
           loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
           onContentLayout={handleContentLayout}
+          stacked={stacked}
         />
       </XStack>
       <View pointerEvents="none" accessible={false} style={styles.measureHost}>

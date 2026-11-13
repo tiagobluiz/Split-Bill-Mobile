@@ -576,7 +576,7 @@ export function HomeScreenView() {
       }
       footer={
         hideHomeFooter ? null : (
-          <StackedFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+          <StackedFloatingFooter attached onMeasuredHeight={onMeasuredHeight}>
             {pendingDelete ? (
               <View style={screenStyles.undoBanner}>
                 <YStack flex={1} gap="$1">

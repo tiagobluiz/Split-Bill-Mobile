@@ -1,13 +1,12 @@
-import { useMemo } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { BackHandler, Image, Pressable, ScrollView, Switch, View } from "react-native";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, Volume2, List, CircleCheck, ChartNoAxesColumn } from "lucide-react-native";
 import {
   Text as TamaguiText,
-  XStack as TamaguiXStack,
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import { FieldLabel, SectionEyebrow } from "../../../../components/ui";
+
 import type { AppSettings } from "../../../../storage/settings";
 import {
   getSplitTagDisplayLabel,
@@ -22,7 +21,7 @@ import {
   getCurrencyOptionLabel,
   getInitials,
 } from "../shared/participantUtils";
-import { HomeMainHeader } from "./HomeMainHeader";
+
 import {
   isBalanceDependentSplitListAmountDisplay,
 } from "./useHomeSettingsDraftController";
@@ -32,9 +31,9 @@ import { ConfirmChoiceModal } from "../shared/modals";
 import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
+import { HomeMainHeader } from "./HomeMainHeader";
 
 const Text = TamaguiText as any;
-const XStack = TamaguiXStack as any;
 const YStack = TamaguiYStack as any;
 
 export function HomeSettingsTabContent({
@@ -109,6 +108,15 @@ export function HomeSettingsTabContent({
   onConfirmDeleteTag: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
+  const [page, setPage] = useState<"overview" | "tags">("overview");
+  useEffect(() => {
+    if (page === "overview" || tagEditorOpen || pendingTagDeleteId) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      setPage("overview");
+      return true;
+    });
+    return () => subscription.remove();
+  }, [page, tagEditorOpen, pendingTagDeleteId]);
   const orderedTags = useMemo(
     () => sortTagsAlphabetically(tags, (tag) => getSplitTagDisplayLabel(tag, t)),
     [tags, t],
@@ -134,31 +142,11 @@ export function HomeSettingsTabContent({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <YStack gap="$5">
-          <YStack gap="$3">
-            <SectionEyebrow>{t("settings.userProfile")}</SectionEyebrow>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${settings.ownerName}, ${t("settings.editProfile")}`}
-              onPress={onEditProfile}
-              style={{ minHeight: 88, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 22, backgroundColor: PALETTE.surfaceContainerLow, flexDirection: "row", alignItems: "center", gap: 14 }}
-            >
-              {settings.ownerProfileImageUri ? (
-                <Image source={{ uri: settings.ownerProfileImageUri }} style={{ width: 56, height: 56, borderRadius: 28 }} />
-              ) : (
-                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: PALETTE.brandOverlayStrong, borderWidth: 1, borderColor: PALETTE.outlineVariant, alignItems: "center", justifyContent: "center" }}>
-                  <Text fontFamily={FONTS.headlineBlack} fontSize={20} color={PALETTE.primary}>{getInitials(settings.ownerName)}</Text>
-                </View>
-              )}
-              <YStack flex={1} gap="$0.5">
-                <Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface} numberOfLines={1}>{settings.ownerName}</Text>
-                <Text fontFamily={FONTS.bodyMedium} fontSize={14} color={PALETTE.onSurfaceVariant}>{t("settings.editProfile")}</Text>
-              </YStack>
-              <ChevronRight size={22} color={PALETTE.onSurfaceVariant} />
-            </Pressable>
-          </YStack>
+        {page !== "overview" ? (
           <YStack gap="$4">
-            <SectionEyebrow>{t("tags.settingsTitle")}</SectionEyebrow>
+            <Pressable testID="settings-back" accessibilityRole="button" accessibilityLabel={t("settings.back")} onPress={() => setPage("overview")} style={{ flexDirection: "row", alignItems: "center" }}><ChevronLeft color={PALETTE.primary} size={22} /><Text color={PALETTE.primary} fontFamily={FONTS.bodyBold}>{t("settings.title")}</Text></Pressable>
+            <Text fontFamily={FONTS.headlineBlack} fontSize={28} color={PALETTE.onSurface}>{t("tags.settingsTitle")}</Text>
+            <YStack gap="$4">
             <Text
               fontFamily={FONTS.bodyMedium}
               fontSize={14}
@@ -198,296 +186,37 @@ export function HomeSettingsTabContent({
                 </View>
               ))}
             </YStack>
-          </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
-          <YStack gap="$4">
-            <SectionEyebrow>{t("settings.defaultCurrency")}</SectionEyebrow>
-            <Text
-              fontFamily={FONTS.bodyMedium}
-              fontSize={14}
-              lineHeight={21}
-              color={PALETTE.onSurfaceVariant}
-            >
-              {t("settings.defaultCurrencyDescription")}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("settings.currencyPicker")}
-              style={screenStyles.selectRow}
-              onPress={() => setCurrencyMenuOpen(true)}
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                gap="$3"
-              >
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={17}
-                  color={PALETTE.onSurface}
-                >
-                  {getCurrencyOptionLabel(defaultCurrencyDraft, {
-                    customCurrencies: customCurrenciesDraft,
-                  })}
-                </Text>
-                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-              </XStack>
-            </Pressable>
-          </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
-          <YStack gap="$4">
-            <SectionEyebrow>{t("settings.voice")}</SectionEyebrow>
-            <YStack gap="$3">
-              <FieldLabel>{t("settings.language")}</FieldLabel>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("settings.pickLanguage")}
-                style={screenStyles.selectRow}
-                onPress={() => setLanguageMenuOpen(true)}
-              >
-                <XStack
-                  alignItems="center"
-                  justifyContent="space-between"
-                  gap="$3"
-                >
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={17}
-                    color={PALETTE.onSurface}
-                  >
-                    {t(
-                      languageDraft === "pt"
-                        ? "settings.language.pt"
-                        : "settings.language.en",
-                    )}
-                  </Text>
-                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-                </XStack>
-              </Pressable>
-            </YStack>
-            <YStack gap="$3">
-              <FieldLabel>{t("settings.tone")}</FieldLabel>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("settings.pickTone")}
-                style={screenStyles.selectRow}
-                onPress={() => setHumourMenuOpen(true)}
-              >
-                <XStack
-                  alignItems="center"
-                  justifyContent="space-between"
-                  gap="$3"
-                >
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={17}
-                    color={PALETTE.onSurface}
-                  >
-                    {t(
-                      humourDraft === "sassy"
-                        ? "settings.humour.sassy"
-                        : humourDraft === "unhinged"
-                          ? "settings.humour.unhinged"
-                          : "settings.humour.plain",
-                    )}
-                  </Text>
-                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-                </XStack>
-              </Pressable>
             </YStack>
           </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
-          <YStack gap="$4">
-            <SectionEyebrow>{t("settings.splitRows")}</SectionEyebrow>
-            <Text
-              fontFamily={FONTS.bodyMedium}
-              fontSize={14}
-              lineHeight={21}
-              color={PALETTE.onSurfaceVariant}
-            >
-              {t("settings.splitRowsDescription")}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("settings.splitRowsPicker")}
-              style={screenStyles.selectRow}
-              onPress={() => setSplitListAmountDisplayMenuOpen(true)}
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                gap="$3"
-              >
-                <YStack flex={1} gap="$1">
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={16}
-                    color={PALETTE.onSurface}
-                  >
-                    {
-                      splitListAmountDisplayOptions.find(
-                        (option) => option.key === splitListAmountDisplayDraft,
-                      )?.label
-                    }
-                  </Text>
-                  <Text
-                    fontFamily={FONTS.bodyMedium}
-                    fontSize={13}
-                    lineHeight={18}
-                    color={PALETTE.onSurfaceVariant}
-                  >
-                    {
-                      splitListAmountDisplayOptions.find(
-                        (option) => option.key === splitListAmountDisplayDraft,
-                      )?.summary
-                    }
-                  </Text>
-                </YStack>
-                <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-              </XStack>
-            </Pressable>
-          </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
-          <YStack gap="$4">
-            <SectionEyebrow>{t("settings.features")}</SectionEyebrow>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={18}
-                  color={PALETTE.onSurface}
-                >
-                  {t("settings.trackPayments.title")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={14}
-                  lineHeight={21}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("settings.trackPayments.description")}
-                </Text>
-              </YStack>
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityLabel={t("settings.trackPayments.toggleA11y")}
-                accessibilityState={{
-                  checked: trackPaymentsFeatureEnabledDraft,
-                }}
-                style={[
-                  screenStyles.settingsFeatureToggle,
-                  trackPaymentsFeatureEnabledDraft
-                    ? screenStyles.settingsFeatureToggleActive
-                    : null,
-                ]}
-                onPress={() => {
-                  const nextTrackPayments = !trackPaymentsFeatureEnabledDraft;
-                  setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
-                  setBalanceFeatureEnabledDraft((value) =>
-                    nextTrackPayments ? value : false,
-                  );
-                  if (
-                    !nextTrackPayments &&
-                    isBalanceDependentSplitListAmountDisplay(
-                      splitListAmountDisplayDraft,
-                    )
-                  ) {
-                    setSplitListAmountDisplayDraft("total");
-                  }
-                }}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={
-                    trackPaymentsFeatureEnabledDraft
-                      ? PALETTE.onPrimary
-                      : PALETTE.primary
-                  }
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {trackPaymentsFeatureEnabledDraft
-                    ? t("common.on")
-                    : t("common.off")}
-                </Text>
+        ) : (
+          <YStack style={{ gap: 20 }}>
+            <SettingsSection title={t("settings.userProfile")}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${settings.ownerName}, ${t("settings.editProfile")}`} onPress={onEditProfile} style={rowStyle}>
+                {settings.ownerProfileImageUri ? <Image source={{ uri: settings.ownerProfileImageUri }} style={avatarStyle} /> : <View style={[avatarStyle, { backgroundColor: PALETTE.primaryContainer, alignItems: "center", justifyContent: "center" }]}><Text fontFamily={FONTS.bodyBold} color={PALETTE.primary} fontSize={18}>{getInitials(settings.ownerName)}</Text></View>}
+                <View style={{ flex: 1 }}><Text fontFamily={FONTS.bodyBold} fontSize={16} color={PALETTE.onSurface}>{settings.ownerName}</Text><Text color={PALETTE.onSurfaceVariant} fontSize={13}>{t("settings.editProfile")}</Text></View><ChevronRight color={PALETTE.onSurfaceVariant} size={20} />
               </Pressable>
-            </View>
-            <View style={screenStyles.settingsFeatureRow}>
-              <YStack gap="$2.5" flex={1}>
-                <Text
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={18}
-                  color={PALETTE.onSurface}
-                >
-                  {t("settings.balanceHelper.title")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={14}
-                  lineHeight={21}
-                  color={PALETTE.onSurfaceVariant}
-                >
-                  {t("settings.balanceHelper.description")}
-                </Text>
-              </YStack>
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityLabel={t("settings.balanceHelper.toggleA11y")}
-                accessibilityState={{ checked: balanceFeatureEnabledDraft }}
-                style={[
-                  screenStyles.settingsFeatureToggle,
-                  balanceFeatureEnabledDraft
-                    ? screenStyles.settingsFeatureToggleActive
-                    : null,
-                ]}
-                onPress={() => {
-                  const nextBalance = !balanceFeatureEnabledDraft;
-                  setBalanceFeatureEnabledDraft(nextBalance);
-                  if (
-                    !nextBalance &&
-                    isBalanceDependentSplitListAmountDisplay(
-                      splitListAmountDisplayDraft,
-                    )
-                  ) {
-                    setSplitListAmountDisplayDraft("total");
-                  }
-                  setTrackPaymentsFeatureEnabledDraft((value) =>
-                    nextBalance ? true : value,
-                  );
-                }}
-              >
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={12}
-                  color={
-                    balanceFeatureEnabledDraft
-                      ? PALETTE.onPrimary
-                      : PALETTE.primary
-                  }
-                  textTransform="uppercase"
-                  letterSpacing={1.6}
-                >
-                  {balanceFeatureEnabledDraft
-                    ? t("common.on")
-                    : t("common.off")}
-                </Text>
-              </Pressable>
-            </View>
+            </SettingsSection>
+            <SettingsSection title={t("settings.organization")}>
+              <SettingsRow icon={Tag} label={t("tags.settingsTitle")} value={t(tags.length === 1 ? "settings.tagCountOne" : "settings.tagCount", { count: tags.length })} badge onPress={() => setPage("tags")} />
+            </SettingsSection>
+            <SettingsSection title={t("settings.preferences")}>
+              <SettingsRow icon={Coins} label={t("settings.defaultCurrency")} value={getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })} accessibilityLabel={t("settings.currencyPicker")} onPress={() => setCurrencyMenuOpen(true)} />
+              <SettingsRow divider icon={Globe} label={t("settings.language")} value={t(languageDraft === "pt" ? "settings.language.pt" : "settings.language.en")} accessibilityLabel={t("settings.pickLanguage")} onPress={() => setLanguageMenuOpen(true)} />
+              <SettingsRow divider icon={Volume2} label={t("settings.tone")} value={t(humourDraft === "sassy" ? "settings.humour.sassy" : humourDraft === "unhinged" ? "settings.humour.unhinged" : "settings.humour.plain")} accessibilityLabel={t("settings.pickTone")} onPress={() => setHumourMenuOpen(true)} />
+              <SettingsRow divider icon={List} label={t("settings.splitRows")} value={splitListAmountDisplayOptions.find((option) => option.key === splitListAmountDisplayDraft)?.label} accessibilityLabel={t("settings.splitRowsPicker")} onPress={() => setSplitListAmountDisplayMenuOpen(true)} />
+            </SettingsSection>
+            <SettingsSection title={t("settings.features")}>
+              <SettingsSwitch icon={CircleCheck} label={t("settings.trackPayments.title")} description={t("settings.trackPayments.shortDescription")} accessibilityLabel={t("settings.trackPayments.toggleA11y")} value={trackPaymentsFeatureEnabledDraft} onChange={(next) => { setTrackPaymentsFeatureEnabledDraft(next); if (!next) { setBalanceFeatureEnabledDraft(false); if (isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)) setSplitListAmountDisplayDraft("total"); } }} />
+              <SettingsSwitch divider icon={ChartNoAxesColumn} label={t("settings.balanceHelper.title")} description={t("settings.balanceHelper.shortDescription")} accessibilityLabel={t("settings.balanceHelper.toggleA11y")} value={balanceFeatureEnabledDraft} onChange={(next) => { setBalanceFeatureEnabledDraft(next); if (next) setTrackPaymentsFeatureEnabledDraft(true); else if (isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)) setSplitListAmountDisplayDraft("total"); }} />
+            </SettingsSection>
+            <SettingsSection title={t("settings.data")}>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+                <Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>{t("settings.aboutData")}</Text>
+                <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={20} color={PALETTE.onSurfaceVariant}>{t("settings.disclaimer.body")}</Text>
+              </View>
+            </SettingsSection>
           </YStack>
-          <View style={screenStyles.itemsSectionSeparator} />
-          <YStack gap="$4">
-            <SectionEyebrow>{t("settings.disclaimer.title")}</SectionEyebrow>
-            <Text
-              fontFamily={FONTS.bodyMedium}
-              fontSize={14}
-              lineHeight={21}
-              color={PALETTE.onSurfaceVariant}
-            >
-              {t("settings.disclaimer.body")}
-            </Text>
-          </YStack>
-        </YStack>
+        )}
       </ScrollView>
       {pendingDeleteTag && pendingDeleteTagUsageCount === null ? (
         <FormBottomSheet title={t("home.loadingSplits")} onClose={() => setPendingTagDeleteId("")}>
@@ -528,4 +257,16 @@ export function HomeSettingsTabContent({
       ) : null}
     </YStack>
   );
+}
+
+const rowStyle = { minHeight: 56, paddingHorizontal: 16, paddingVertical: 6, flexDirection: "row" as const, alignItems: "center" as const, gap: 12 };
+const avatarStyle = { width: 48, height: 48, borderRadius: 24 };
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <View style={{ gap: 10 }}><Text fontFamily={FONTS.bodyBold} fontSize={12} letterSpacing={1} textTransform="uppercase" color={PALETTE.onSurfaceVariant}>{title}</Text><View style={{ backgroundColor: PALETTE.surfaceContainerLowest, borderRadius: 18, shadowColor: PALETTE.primary, shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 2 }}><View style={{ borderRadius: 18, overflow: "hidden" }}>{children}</View></View></View>;
+}
+function SettingsRow({ icon: Icon, label, subtitle, value, badge, divider, accessibilityLabel, onPress }: { icon: any; label: string; subtitle?: string; value?: string; badge?: boolean; divider?: boolean; accessibilityLabel?: string; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} onPress={onPress} style={[rowStyle, { borderTopWidth: divider ? 0.5 : 0, borderColor: PALETTE.outlineVariant }]}><Icon size={22} color={PALETTE.primary} /><View style={{ flex: 1 }}><Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>{label}</Text>{subtitle ? <Text fontSize={12} color={PALETTE.onSurfaceVariant}>{subtitle}</Text> : null}</View>{value ? <Text fontSize={13} color={badge ? PALETTE.primary : PALETTE.onSurfaceVariant} style={{ flexShrink: 0, maxWidth: "45%", ...(badge ? { backgroundColor: PALETTE.secondaryContainer, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4, overflow: "hidden" } : {}) }}>{value}</Text> : null}<ChevronRight size={18} color={PALETTE.onSurfaceVariant} /></Pressable>;
+}
+function SettingsSwitch({ icon: Icon, label, description, accessibilityLabel, value, onChange, divider }: { icon: any; label: string; description: string; divider?: boolean; accessibilityLabel: string; value: boolean; onChange: (value: boolean) => void }) {
+  return <View style={[rowStyle, { borderTopWidth: divider ? 0.5 : 0, borderColor: PALETTE.outlineVariant }]}><Icon size={22} color={PALETTE.primary} /><View style={{ flex: 1 }}><Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>{label}</Text><Text fontSize={12} color={PALETTE.onSurfaceVariant}>{description}</Text></View><Switch accessibilityLabel={accessibilityLabel} value={value} onValueChange={onChange} trackColor={{ false: PALETTE.track, true: PALETTE.primary }} thumbColor={PALETTE.onPrimary} /></View>;
 }

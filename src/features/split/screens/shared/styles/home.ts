@@ -35,7 +35,8 @@ export const homeStyles = {
       padding: 8,
     },
   homeCta: {
-      minHeight: 148,
+      minHeight: 124,
+      paddingVertical: 12,
       borderRadius: 30,
       backgroundColor: PALETTE.tertiary,
       alignItems: "center",
@@ -176,7 +177,7 @@ export const homeStyles = {
       alignItems: "center",
       justifyContent: "center",
     },
-  groupsCompactRow: commonStyles.participantPill,
+  groupsCompactRow: { ...commonStyles.participantPill, elevation: 2 },
   groupSearchShell: { minHeight: 54, borderRadius: 20, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: PALETTE.surfaceContainerLow },
   groupSearchInput: { minHeight: 44, flex: 1, paddingVertical: 0, fontFamily: "Inter_500Medium", fontSize: 14, color: PALETTE.onSurface },
   peopleFilterPills: {
