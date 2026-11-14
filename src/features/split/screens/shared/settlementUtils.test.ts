@@ -1,7 +1,7 @@
 import { computeSettlement, createDefaultValues } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
 
-import { getHomeBalanceCards, getHomeBalanceCardsFromEntries, getHomeBalanceEntry, getRecordMoneyPreview, type HomeBalanceCache } from "./settlementUtils";
+import { getHomeBalanceCards, getHomeBalanceCardsFromEntries, getHomeBalanceEntry, getRecentRowMeta, getRecordMoneyPreview, type HomeBalanceCache } from "./settlementUtils";
 
 function buildRecord(overrides?: Partial<DraftRecord>): DraftRecord {
   return {
@@ -18,6 +18,19 @@ function buildRecord(overrides?: Partial<DraftRecord>): DraftRecord {
 }
 
 describe("settlementUtils", () => {
+  it("shows a personal balance only when the owner participates, even when others owe money", () => {
+    const values = {
+      ...createDefaultValues(), currency: "EUR",
+      participants: [{ id: "payer", name: "Maya" }, { id: "other", name: "Alex" }],
+      payerParticipantId: "payer",
+      items: [{ id: "item", name: "Item", price: "202000.00", splitMode: "even" as const,
+        allocations: ["payer", "other"].map((participantId) => ({ participantId, evenIncluded: true, shares: "1", percent: "50" })) }],
+    };
+    const record = buildRecord({ status: "completed", values, settlementState: { settledParticipantIds: [] } });
+    expect(getRecordMoneyPreview(record, "Tiago")).toMatchObject({ totalDebtCents: 10100000, unsettledDebtCents: 10100000, ownerNetCents: 0, ownerRelation: "none" });
+    expect(getRecentRowMeta(record, "Tiago", { defaultCurrency: "EUR", splitListAmountDisplay: "remaining" }).amountDisplay).toMatchObject({ primaryKind: "nothingDue" });
+    expect(getRecordMoneyPreview(record, "Alex")).toMatchObject({ ownerNetCents: 10100000, ownerRelation: "debtor" });
+  });
   it("keeps correct compact balances across payments, currencies and missing exchange rates", () => {
     const values = {
       ...createDefaultValues(), currency: "USD",

@@ -168,7 +168,7 @@ const ptUnhinged: Partial<Record<TranslationKey, string>> = {
     "Zero itens válidos. Usa `Bananas - 2.49`, não poesia.",
 
   "record.title.untitled": "Divisão sem nome. Bravo.",
-  "record.status.pending": "Pendente: {step}",
+  "record.status.pending": "Rasc. · {step}",
   "record.status.settled": "Resolvido. Finalmente.",
   "record.amount.owe": "Deves",
   "record.amount.owed": "Devem-te",

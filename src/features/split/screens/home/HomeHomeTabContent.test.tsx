@@ -62,3 +62,14 @@ it("opens a compact recent split by its ID and shows its reminder", () => {
   expect(openRecord).toHaveBeenCalledWith("recent");
   expect(screen.getByText("Reminder set")).toBeTruthy();
 });
+
+it("shows accessible loading skeletons until recent splits are ready", () => {
+  const record = buildRecordFixture({ id: "recent", status: "completed" }) as unknown as DraftRecord;
+  const model = createRecordRowModel(record, "You", props.settings);
+  const { rerender } = render(<HomeHomeTabContent {...props} listLoading onStartSplit={async () => undefined} />);
+  expect(screen.getByRole("progressbar", { name: "Loading splits…" })).toBeTruthy();
+  expect(screen.getAllByTestId("split-loading-card", { includeHiddenElements: true })).toHaveLength(4);
+  rerender(<HomeHomeTabContent {...props} recentRecords={[model]} onStartSplit={async () => undefined} />);
+  expect(screen.queryByTestId("split-list-loading")).toBeNull();
+  expect(screen.getByLabelText(`Open split ${model.title}`)).toBeTruthy();
+});

@@ -1,5 +1,5 @@
 import { Alert, Pressable, ScrollView, View } from "react-native";
-import { Plus } from "lucide-react-native";
+import { ArrowRight, Plus } from "lucide-react-native";
 import {
   Text as TamaguiText,
   XStack as TamaguiXStack,
@@ -14,6 +14,7 @@ import { RecordRow } from "../shared/homeParts";
 import type { RecordRowModel } from "../shared/recordRowModel";
 import { HomeMainHeader } from "./HomeMainHeader";
 import { HomeBalanceCards } from "./HomeBalanceCards";
+import { SplitListLoading } from "./SplitListLoading";
 import type { HomeBalances, HomeRecord, RecordActionTarget } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 
@@ -113,11 +114,11 @@ export function HomeHomeTabContent({
               onRetry={onRetryBalances}
             />
           ) : null}
-          <YStack gap="$5">
-            <XStack justifyContent="space-between" alignItems="flex-end">
+          <YStack gap="$4">
+            <XStack justifyContent="space-between" alignItems="center">
               <Text
                 fontFamily={FONTS.headlineBlack}
-                fontSize={34}
+                fontSize={28}
                 color={PALETTE.onSurfaceVariant}
                 letterSpacing={-1.2}
               >
@@ -127,6 +128,7 @@ export function HomeHomeTabContent({
                 accessibilityRole="button"
                 accessibilityLabel={t("home.viewAllSplits")}
                 onPress={onViewAllSplits}
+                style={{ flexDirection: "row", alignItems: "center", gap: 5, minHeight: 44 }}
               >
                 <Text
                   fontFamily={FONTS.bodyBold}
@@ -135,10 +137,11 @@ export function HomeHomeTabContent({
                 >
                   {t("home.viewAll")}
                 </Text>
+                <ArrowRight color={PALETTE.primary} size={19} />
               </Pressable>
             </XStack>
             {listLoading && recentRecords.length === 0 ? (
-              <Text accessibilityRole="text" color={PALETTE.onSurfaceVariant}>{t("home.loadingSplits")}</Text>
+              <SplitListLoading />
             ) : listError ? (
               <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
                 <Text color={PALETTE.danger}>{t("home.splitsLoadFailed")} {t("app.error.retry")}</Text>

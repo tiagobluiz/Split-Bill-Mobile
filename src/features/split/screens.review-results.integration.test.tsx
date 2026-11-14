@@ -1162,10 +1162,10 @@ describe("split screens", () => {
   it("shows the new feature rows in settings and auto-saves both balance toggles", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
-    fireEvent.press(screen.getByLabelText("Toggle balance helper"));
-    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
+    fireEvent(screen.getByLabelText("Toggle track payments"), "valueChange", false);
     expect(screen.queryByText("Backup data")).toBeNull();
-    expect(screen.getByText("Disclaimer about your data")).toBeTruthy();
+    expect(screen.getByText("About your data")).toBeTruthy();
     expect(
       screen.getByText(
         "We do not store your data in the cloud. Deleting this app data will permanently delete everything.",
@@ -1195,7 +1195,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
 
-    fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+    fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1205,7 +1205,7 @@ describe("split screens", () => {
       );
     });
 
-    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    fireEvent(screen.getByLabelText("Toggle track payments"), "valueChange", false);
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1228,7 +1228,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
-    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    fireEvent(screen.getByLabelText("Toggle track payments"), "valueChange", false);
 
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
@@ -1252,7 +1252,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
-    fireEvent.press(screen.getByLabelText("Toggle track payments"));
+    fireEvent(screen.getByLabelText("Toggle track payments"), "valueChange", true);
 
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
@@ -1296,13 +1296,15 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
-    expect(screen.getAllByText("On")).toHaveLength(2);
+    expect(screen.getByLabelText("Toggle balance helper").props.value).toBe(true);
+    expect(screen.getByLabelText("Toggle track payments").props.value).toBe(true);
     expect(screen.getByLabelText(/Edit your profile$/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
     fireEvent.press(screen.getByText("Settings"));
     expect(screen.getByLabelText(/Edit your profile$/)).toBeTruthy();
-    expect(screen.getAllByText("On")).toHaveLength(2);
+    expect(screen.getByLabelText("Toggle balance helper").props.value).toBe(true);
+    expect(screen.getByLabelText("Toggle track payments").props.value).toBe(true);
   });
 
   it("hides split balances when the balance feature is disabled", () => {
