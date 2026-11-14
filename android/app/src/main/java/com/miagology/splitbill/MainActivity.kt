@@ -4,6 +4,7 @@ import expo.modules.splashscreen.SplashScreenManager
 import android.os.Build
 import android.os.Bundle
 import android.app.AlertDialog
+import android.app.Activity
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -22,9 +23,9 @@ class MainActivity : ReactActivity() {
   private var checkingUpdate = false
   private var updateFlowOpen = false
   private var requiredDialog: AlertDialog? = null
-  private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+  private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
     updateFlowOpen = false
-    showRequiredUpdateDialog()
+    if (result.resultCode != Activity.RESULT_OK) showRequiredUpdateDialog()
   }
 
   override fun onResume() {
@@ -32,7 +33,7 @@ class MainActivity : ReactActivity() {
     if (!BuildConfig.DEBUG && !updateFlowOpen && requiredDialog == null) checkForUpdate()
   }
 
-  private fun checkForUpdate(retry: Boolean = false) {
+  private fun checkForUpdate() {
     if (checkingUpdate || updateFlowOpen) return
     checkingUpdate = true
     updateManager.appUpdateInfo.addOnSuccessListener { info ->
@@ -64,7 +65,8 @@ class MainActivity : ReactActivity() {
       }
     }.addOnFailureListener {
       checkingUpdate = false
-      if (retry && !isFinishing && !isDestroyed) showRequiredUpdateDialog()
+      requiredDialog?.dismiss()
+      requiredDialog = null
     }
   }
 
@@ -78,7 +80,7 @@ class MainActivity : ReactActivity() {
       .setNegativeButton(R.string.update_close) { _, _ -> finish() }
       .create().also { dialog ->
         dialog.show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { checkForUpdate(retry = true) }
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { checkForUpdate() }
       }
   }
   override fun onCreate(savedInstanceState: Bundle?) {
