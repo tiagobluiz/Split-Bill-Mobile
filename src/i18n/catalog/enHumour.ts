@@ -19,8 +19,8 @@ export const enSassy: Partial<Record<TranslationKey, string>> = {
   "home.noSplitsDescription": "Splits will show up here. Eventually.",
   "home.noSplitsFilteredTitle": "Still nothing. Impressive.",
   "home.undoSplitDeleted": "Gone. Hope that was intentional.",
-  "home.youAreOwed": "They owe you. Good luck.",
-  "home.youOwe": "You owe. Pay up.",
+  "home.youAreOwed": "To receive",
+  "home.youOwe": "To pay",
 
   "flow.setup.next": "Next: find people to blame",
 
@@ -99,8 +99,8 @@ export const enUnhinged: Partial<Record<TranslationKey, string>> = {
   "home.noSplitsDescription": "Don’t worry, chaos is coming.",
   "home.noSplitsFilteredTitle": "Still empty. Impressive.",
   "home.undoSplitDeleted": "Gone. Like your money soon.",
-  "home.youAreOwed": "They owe you. Chase them.",
-  "home.youOwe": "You owe. Pay up.",
+  "home.youAreOwed": "To receive",
+  "home.youOwe": "To pay",
   "flow.setup.next": "Next: assemble the suspects",
   "flow.participants.title": "Who’s involved in this disaster?",
   "flow.participants.add": "Add another accomplice",

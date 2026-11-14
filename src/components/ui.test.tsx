@@ -39,7 +39,7 @@ describe("ui primitives", () => {
     expect(styles.overlayHost.elevation).toBeGreaterThan(styles.footerHost.elevation as number);
     expect(styles.footerHost.overflow).toBe("visible");
     expect(styles.footerHost.backgroundColor).toBe("transparent");
-    expect(styles.footerBubble.borderRadius).toBe(32);
+    expect(styles.attachedFlowFooter.borderTopWidth).toBeGreaterThan(0);
     expect(styles.footerFrame.paddingHorizontal).toBe(20);
   });
 
@@ -236,6 +236,6 @@ describe("ui primitives", () => {
     expect(screen.getByText("CD")).toBeTruthy();
     expect(screen.getByText("Settled")).toBeTruthy();
     expect(screen.getByText("5")).toBeTruthy();
-    expect(styles.footerBubble.borderRadius).toBe(32);
+    expect(styles.footerBubble.width).toBe("100%");
   });
 });

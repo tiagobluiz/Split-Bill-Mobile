@@ -1320,8 +1320,8 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Splits"));
     expect(screen.getByLabelText("Show filters")).toBeTruthy();
-    expect(screen.queryByText("You are owed")).toBeNull();
-    expect(screen.queryByText("You owe")).toBeNull();
+    expect(screen.queryByTestId("home-balance-owed-title")).toBeNull();
+    expect(screen.queryByTestId("home-balance-owe-title")).toBeNull();
   });
 
   it("shows split balances when the balance feature flag is missing and falls back to on", () => {
@@ -1335,8 +1335,8 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Splits"));
     expect(screen.getByLabelText("Show filters")).toBeTruthy();
-    expect(screen.getByText("You are owed")).toBeTruthy();
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owed-title")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
   });
 
   it("renders the full bill as settled when nobody owes anything", async () => {
@@ -1401,13 +1401,13 @@ describe("split screens", () => {
     expect(screen.getAllByText(/0[,.]00|€\s?0[,.]00|EUR\s?0[,.]00/).length).toBeGreaterThan(0);
   });
 
-  it("returns to the originating screen when closing results", async () => {
+  it("returns home when closing results", async () => {
     render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
       expect(mockStoreState.markCompleted).toHaveBeenCalled();
     });
     fireEvent.press(screen.getByLabelText("Close"));
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockDismissTo).toHaveBeenCalledWith("/");
   });
 
   it("routes the results back action to review overview", async () => {

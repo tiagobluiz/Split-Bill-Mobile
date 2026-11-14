@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, BackHandler, Pressable, ToastAndroid, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
@@ -169,6 +169,9 @@ export function HomeScreenView() {
     settings,
     updateSettings,
   });
+  const backStateRef = useRef({ activeTab, canLeaveSettings: settingsController.canLeaveSettings, exitMessage: t("home.backToExit") });
+  backStateRef.current = { activeTab, canLeaveSettings: settingsController.canLeaveSettings, exitMessage: t("home.backToExit") };
+  const lastBackPressRef = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -176,8 +179,31 @@ export function HomeScreenView() {
       releaseInactiveRecords();
       creatingSplitRef.current = false;
       setIsCreatingSplit(false);
-      return () => { homeFocusedRef.current = false; actionRequestRef.current += 1; };
+      return () => { homeFocusedRef.current = false; actionRequestRef.current += 1; lastBackPressRef.current = 0; setSelectedRecordActionTarget(null); };
     }, [releaseInactiveRecords]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        const { activeTab: tab, canLeaveSettings, exitMessage } = backStateRef.current;
+        if (tab !== "home") {
+          lastBackPressRef.current = 0;
+          if (tab !== "settings" || canLeaveSettings()) setActiveTab("home");
+          return true;
+        }
+        const now = Date.now();
+        if (lastBackPressRef.current && now - lastBackPressRef.current < 2000) {
+          lastBackPressRef.current = 0;
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPressRef.current = now;
+        ToastAndroid.show(exitMessage, ToastAndroid.SHORT);
+        return true;
+      });
+      return () => subscription.remove();
+    }, []),
   );
 
   useEffect(() => {
@@ -486,6 +512,7 @@ export function HomeScreenView() {
             setSelectedRecordActionTarget(null)
           }
           onRecordActionReminder={() => {
+            if (!homeFocusedRef.current) return;
             const target = selectedRecordActionTarget;
             if (!target) {
               return;
@@ -502,6 +529,7 @@ export function HomeScreenView() {
             setSplitReminderPickerRecordId(target.id);
           }}
           onRecordActionEditDetails={() => {
+            if (!homeFocusedRef.current) return;
             const target = selectedRecordActionTarget;
             if (!target) {
               return;
@@ -510,6 +538,7 @@ export function HomeScreenView() {
             setQuickEditRecordId(target.id);
           }}
           onRecordActionDelete={() => {
+            if (!homeFocusedRef.current) return;
             const target = selectedRecordActionTarget;
             if (!target) {
               return;

@@ -51,16 +51,29 @@ describe("HomeBalanceCards", () => {
     }
   });
 
-  it("limits titles to two word-wrapped lines", () => {
+  it("keeps titles on one line", () => {
     renderBalances(0, 0);
 
     for (const id of ["home-balance-owed-title", "home-balance-owe-title"]) {
       const title = screen.getByTestId(id);
-      expect(title.props.numberOfLines).toBe(2);
+      expect(title.props.numberOfLines).toBe(1);
       expect(title.props.lineHeight).toBe(16);
       expect(title.props.textBreakStrategy).toBe("simple");
       expect(title.props.android_hyphenationFrequency).toBe("none");
     }
+  });
+
+  it("shrinks titles and stacks when the minimum size cannot fit", () => {
+    renderBalances(0, 0);
+    fireEvent(screen.getByTestId("home-balance-cards"), "layout", { nativeEvent: { layout: { width: 318 } } });
+    fireEvent(screen.getByTestId("home-balance-owed-title-measure-11"), "textLayout", { nativeEvent: { lines: [{ width: 110 }] } });
+    fireEvent(screen.getByTestId("home-balance-owed-title-measure-9"), "textLayout", { nativeEvent: { lines: [{ width: 95 }] } });
+    expect(screen.getByTestId("home-balance-cards").props.flexDirection).toBe("row");
+    expect(screen.getByTestId("home-balance-owed-title").props.fontSize).toBeLessThan(11);
+    fireEvent(screen.getByTestId("home-balance-owed-title-measure-9"), "textLayout", { nativeEvent: { lines: [{ width: 110 }] } });
+    expect(screen.getByTestId("home-balance-cards").props.flexDirection).toBe("column");
+    fireEvent(screen.getByTestId("home-balance-cards"), "layout", { nativeEvent: { layout: { width: 600 } } });
+    expect(screen.getByTestId("home-balance-cards").props.flexDirection).toBe("row");
   });
 
   it("starts both amounts at the 24px default size", () => {

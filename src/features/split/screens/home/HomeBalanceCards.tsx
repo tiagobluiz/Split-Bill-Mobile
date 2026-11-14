@@ -25,6 +25,8 @@ const XStack = TamaguiXStack as any;
 
 const AMOUNT_BASE_FONT_SIZE = 24;
 const AMOUNT_MINIMUM_FONT_SIZE = 16;
+const TITLE_BASE_FONT_SIZE = 11;
+const TITLE_MINIMUM_FONT_SIZE = 9;
 const CARD_PADDING = 24;
 const CARD_GAP = 18;
 
@@ -38,6 +40,7 @@ type BalanceCardProps = {
   amount: string;
   loadingLabel?: string;
   amountFontSize: number;
+  titleFontSize: number;
   onContentLayout: (side: BalanceSide, event: LayoutChangeEvent) => void;
   stacked: boolean;
 };
@@ -49,6 +52,7 @@ function BalanceCard({
   amount,
   loadingLabel,
   amountFontSize,
+  titleFontSize,
   onContentLayout,
   stacked,
 }: BalanceCardProps) {
@@ -63,12 +67,12 @@ function BalanceCard({
           <Text
             testID={`home-balance-${side}-title`}
             fontFamily={FONTS.bodyBold}
-            fontSize={11}
+            fontSize={titleFontSize}
             lineHeight={16}
             color={titleColor}
             textTransform="uppercase"
             letterSpacing={2}
-            numberOfLines={2}
+            numberOfLines={stacked ? undefined : 1}
             textBreakStrategy="simple"
             android_hyphenationFrequency="none"
           >
@@ -122,10 +126,20 @@ export function HomeBalanceCards({
   ) : "…";
   const [contentWidths, setContentWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
   const [measuredWidths, setMeasuredWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
+  const [titleWidths, setTitleWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
+  const [minimumTitleWidths, setMinimumTitleWidths] = useState<SideWidths>({ owed: 0, owe: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
   const widestAmount = Math.max(measuredWidths.owed, measuredWidths.owe);
   const compactWidth = containerWidth > 0 ? (containerWidth - CARD_GAP) / 2 - CARD_PADDING * 2 : Math.min(contentWidths.owed, contentWidths.owe);
-  const stacked = compactWidth > 0 && widestAmount > 0 && widestAmount * AMOUNT_MINIMUM_FONT_SIZE / AMOUNT_BASE_FONT_SIZE > compactWidth;
+  const stacked = compactWidth > 0 && (widestAmount * AMOUNT_MINIMUM_FONT_SIZE / AMOUNT_BASE_FONT_SIZE > compactWidth || Math.max(minimumTitleWidths.owed, minimumTitleWidths.owe) > compactWidth);
+  const titleAvailableWidth = stacked && containerWidth > 0 ? containerWidth - CARD_PADDING * 2 : compactWidth;
+  const titleFontSize = (["owed", "owe"] as const).reduce((size, side) => {
+    const baseWidth = titleWidths[side];
+    const minimumWidth = minimumTitleWidths[side];
+    if (!titleAvailableWidth || !baseWidth || !minimumWidth || baseWidth <= minimumWidth) return size;
+    const fitted = TITLE_MINIMUM_FONT_SIZE + (TITLE_BASE_FONT_SIZE - TITLE_MINIMUM_FONT_SIZE) * (titleAvailableWidth - minimumWidth) / (baseWidth - minimumWidth);
+    return Math.min(size, Math.max(TITLE_MINIMUM_FONT_SIZE, fitted));
+  }, TITLE_BASE_FONT_SIZE);
 
   const amountFontSize = useMemo(() => {
     const availableWidths = Object.values(contentWidths).filter((width) => width > 0);
@@ -169,6 +183,7 @@ export function HomeBalanceCards({
           amount={owedAmount}
           loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
+          titleFontSize={titleFontSize}
           onContentLayout={handleContentLayout}
           stacked={stacked}
         />
@@ -179,6 +194,7 @@ export function HomeBalanceCards({
           amount={oweAmount}
           loadingLabel={balances ? undefined : t("home.calculatingBalances")}
           amountFontSize={amountFontSize}
+          titleFontSize={titleFontSize}
           onContentLayout={handleContentLayout}
           stacked={stacked}
         />
@@ -205,6 +221,22 @@ export function HomeBalanceCards({
             {side === "owed" ? owedAmount : oweAmount}
           </NativeText>
         ))}
+        {(["owed", "owe"] as const).flatMap((side) => ([TITLE_BASE_FONT_SIZE, TITLE_MINIMUM_FONT_SIZE].map((size) => (
+          <NativeText
+            key={`${side}-${size}`}
+            testID={`home-balance-${side}-title-measure-${size}`}
+            accessible={false}
+            allowFontScaling={false}
+            numberOfLines={1}
+            style={{ alignSelf: "flex-start", fontFamily: FONTS.bodyBold, fontSize: size * fontScale, letterSpacing: 2, textTransform: "uppercase" }}
+            onTextLayout={(event) => {
+              const width = event.nativeEvent.lines[0]?.width;
+              if (typeof width === "number") updateWidth(size === TITLE_BASE_FONT_SIZE ? setTitleWidths : setMinimumTitleWidths, side, width);
+            }}
+          >
+            {t(side === "owed" ? "home.youAreOwed" : "home.youOwe")}
+          </NativeText>
+        ))))}
       </View>
       {showSeparator ? <View style={screenStyles.itemsSectionSeparator} /> : null}
     </>

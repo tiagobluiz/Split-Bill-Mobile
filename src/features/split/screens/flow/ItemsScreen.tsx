@@ -23,7 +23,6 @@ import {
   ArrowLeft,
   ArrowRight,
   AlertTriangle,
-  ChevronDown,
   Check,
   ClipboardCopy,
   Equal,
@@ -201,9 +200,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     null,
   );
   const insets = useSafeAreaInsets();
-  const [itemsViewportHeight, setItemsViewportHeight] = useState(0);
-  const [itemsContentHeight, setItemsContentHeight] = useState(0);
-  const [isNearBottom, setIsNearBottom] = useState(false);
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 206 });
   useEffect(() => {
@@ -266,9 +262,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
     record.values.currency,
     locale,
   );
-  const hasOverflow =
-    itemsViewportHeight > 0 && itemsContentHeight > itemsViewportHeight + 1;
-  const showMoreBelowCue = hasOverflow && !isNearBottom;
   const addManualItem = async () => {
     setItemsNoticeMessages([]);
     router.push(`/split/${draftId}/assign/new`);
@@ -362,35 +355,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
           <YStack gap="$2">
-            {hasOverflow ? (
-              <View
-                testID="items-scroll-cue-slot"
-                pointerEvents="box-none"
-                style={screenStyles.itemsScrollCueSlot}
-              >
-                <Pressable
-                  testID="items-scroll-cue-button"
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flow.items.scrollToBottom")}
-                  accessibilityElementsHidden={!showMoreBelowCue}
-                  importantForAccessibility={
-                    showMoreBelowCue ? "auto" : "no-hide-descendants"
-                  }
-                  pointerEvents={showMoreBelowCue ? "auto" : "none"}
-                  style={[
-                    screenStyles.itemsScrollCueButton,
-                    !showMoreBelowCue
-                      ? screenStyles.itemsScrollCueButtonHidden
-                      : null,
-                  ]}
-                  onPress={() => {
-                    itemsScrollRef.current?.scrollToEnd({ animated: true });
-                  }}
-                >
-                  <ChevronDown color={PALETTE.onSurfaceVariant} size={18} />
-                </Pressable>
-              </View>
-            ) : null}
             {pendingItemDelete ? (
               <View style={screenStyles.undoBanner}>
                 <YStack flex={1} gap="$1">
@@ -435,15 +399,29 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
             <FooterBubble>
               <YStack gap="$3.5">
                 <YStack style={screenStyles.itemsFooterInlineSummary}>
-                  <Text
-                    fontFamily={FONTS.bodyBold}
-                    fontSize={10}
-                    color={PALETTE.onSurfaceVariant}
-                    textTransform="uppercase"
-                    letterSpacing={2.1}
-                  >
-                    {t("flow.items.runningTotal")}
-                  </Text>
+                  <XStack justifyContent="space-between" alignItems="center" gap="$2">
+                    <Text
+                      fontFamily={FONTS.bodyBold}
+                      fontSize={10}
+                      color={PALETTE.onSurfaceVariant}
+                      textTransform="uppercase"
+                      letterSpacing={2.1}
+                    >
+                      {t("flow.items.runningTotal")}
+                    </Text>
+                    <Text
+                      fontFamily={FONTS.bodyMedium}
+                      fontSize={14}
+                      color={PALETTE.onSurfaceVariant}
+                    >
+                      {t(
+                        visibleItems.length === 1
+                          ? "flow.items.itemCount.one"
+                          : "flow.items.itemCount.other",
+                        { count: visibleItems.length },
+                      )}
+                    </Text>
+                  </XStack>
                   <XStack alignItems="flex-end" gap="$2.5">
                     <Text
                       fontFamily={FONTS.headlineBlack}
@@ -452,19 +430,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                       letterSpacing={-1.2}
                     >
                       {runningTotal}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={14}
-                      color={PALETTE.onSurfaceVariant}
-                      paddingBottom="$1"
-                    >
-                      {t(
-                        visibleItems.length === 1
-                          ? "flow.items.itemCount.one"
-                          : "flow.items.itemCount.other",
-                        { count: visibleItems.length },
-                      )}
                     </Text>
                   </XStack>
                 </YStack>
@@ -539,22 +504,6 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
         testID="items-scroll"
         ref={itemsScrollRef}
         style={screenStyles.flex}
-        onLayout={(event) => {
-          setItemsViewportHeight(event.nativeEvent.layout.height);
-        }}
-        onContentSizeChange={(_, contentHeight) => {
-          setItemsContentHeight(contentHeight);
-        }}
-        onScroll={({ nativeEvent }) => {
-          const distanceFromBottom =
-            nativeEvent.contentSize.height -
-            (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
-          const nextIsNearBottom = distanceFromBottom <= 20;
-          setIsNearBottom((current) =>
-            current === nextIsNearBottom ? current : nextIsNearBottom,
-          );
-        }}
-        scrollEventThrottle={16}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           { paddingBottom: footerInsetBottom, gap: 22 },

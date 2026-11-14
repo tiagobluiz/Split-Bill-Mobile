@@ -14,6 +14,7 @@ import {
   Share,
   StyleSheet,
   TextInput,
+  ToastAndroid,
 } from "react-native";
 import * as domain from "../../domain";
 import {
@@ -236,8 +237,8 @@ describe("split screens", () => {
     expect(
       screen.getByText("Your most recent splits will be shown here."),
     ).toBeTruthy();
-    expect(screen.getByText("You are owed")).toBeTruthy();
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owed-title")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
     expect(screen.getByText("Splits")).toBeTruthy();
     expect(screen.getByText("Settings")).toBeTruthy();
 
@@ -422,7 +423,7 @@ describe("split screens", () => {
     expect(screen.getAllByText("Draft · Split").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Draft · Payer").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/84/).length).toBeGreaterThan(0);
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
   });
 
   it("hides home balances when the balance feature is disabled", () => {
@@ -433,7 +434,7 @@ describe("split screens", () => {
     };
 
     render(<HomeScreen />);
-    expect(screen.queryByText("You are owed")).toBeNull();
+    expect(screen.queryByTestId("home-balance-owed-title")).toBeNull();
     expect(screen.queryByText("Owe")).toBeNull();
   });
 
@@ -512,7 +513,7 @@ describe("split screens", () => {
     const { rerender } = render(<HomeScreen />);
     await act(async () => {});
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
 
     mockStoreState.settings = {
       ownerName: "Tiago",
@@ -587,7 +588,7 @@ describe("split screens", () => {
     ];
     const { rerender } = render(<HomeScreen />);
     await act(async () => {});
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
     expect(
       screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
     ).toBeGreaterThan(0);
@@ -760,7 +761,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     await act(async () => {});
 
-    expect(screen.getByText("You owe")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
     expect(screen.getAllByText(/1,50|1.50/).length).toBeGreaterThan(0);
   });
 
@@ -818,7 +819,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     await act(async () => {});
 
-    expect(screen.getByText("You are owed")).toBeTruthy();
+    expect(screen.getByTestId("home-balance-owed-title")).toBeTruthy();
     expect(screen.getAllByText(/0,50|0.50/).length).toBeGreaterThan(0);
   });
 
@@ -1548,6 +1549,47 @@ describe("split screens", () => {
     expect(screen.getByText("Dinner supplies")).toBeTruthy();
   });
 
+  it("returns from View all splits to Home on Android back", async () => {
+    let backHandler: (() => boolean | null | undefined) | undefined;
+    const remove = jest.fn();
+    const backSpy = jest.spyOn(BackHandler, "addEventListener").mockImplementation((eventName, handler) => {
+      if (eventName === "hardwareBackPress") backHandler = handler;
+      return { remove };
+    });
+    render(<HomeScreen />);
+    await act(async () => {});
+    fireEvent.press(screen.getByLabelText("View all splits"));
+    expect(screen.getByLabelText("Show filters")).toBeTruthy();
+    act(() => { expect(backHandler?.()).toBe(true); });
+    expect(screen.getByLabelText("View all splits")).toBeTruthy();
+    backSpy.mockRestore();
+  });
+
+  it("returns from People and Settings and exits only after two Home back presses", async () => {
+    let backHandler: (() => boolean | null | undefined) | undefined;
+    const backSpy = jest.spyOn(BackHandler, "addEventListener").mockImplementation((_eventName, handler) => {
+      backHandler = handler;
+      return { remove: jest.fn() };
+    });
+    const exit = jest.spyOn(BackHandler, "exitApp").mockImplementation(() => {});
+    const toast = jest.spyOn(ToastAndroid, "show").mockImplementation(() => {});
+    render(<HomeScreen />);
+    await act(async () => {});
+    for (const label of ["Open People", "Open Settings"]) {
+      fireEvent.press(screen.getByLabelText(label));
+      act(() => { expect(backHandler?.()).toBe(true); });
+      expect(screen.getByLabelText("View all splits")).toBeTruthy();
+    }
+    act(() => { expect(backHandler?.()).toBe(true); });
+    expect(exit).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalled();
+    act(() => { expect(backHandler?.()).toBe(true); });
+    expect(exit).toHaveBeenCalledTimes(1);
+    backSpy.mockRestore();
+    exit.mockRestore();
+    toast.mockRestore();
+  });
+
   it("opens Tags and returns using Android back, with the data notice on Settings", () => {
     const handlers: Array<() => boolean | null | undefined> = [];
     const backSpy = jest.spyOn(BackHandler, "addEventListener").mockImplementation((eventName, handler) => {
@@ -1959,7 +2001,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     expect(screen.getByLabelText("Toggle balance helper").props.value).toBe(false);
-    expect(screen.queryByText("You are owed")).toBeNull();
+    expect(screen.queryByTestId("home-balance-owed-title")).toBeNull();
     await act(async () => {
       fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
     });
@@ -2314,7 +2356,9 @@ describe("split screens", () => {
 
     fireEvent(screen.getByLabelText("Open split Groceries"), "onLongPress");
     expect(screen.getByText("Set reminder")).toBeTruthy();
+    mockStoreState.releaseInactiveRecords.mockClear();
     fireEvent.press(screen.getByText("Set reminder"));
+    expect(mockStoreState.releaseInactiveRecords).not.toHaveBeenCalled();
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
     expect(screen.queryByLabelText("Next: choose time")).toBeNull();
     await act(async () => {
@@ -2404,7 +2448,9 @@ describe("split screens", () => {
 
     fireEvent(screen.getByLabelText("Open split Old Dinner"), "onLongPress");
     expect(screen.getByText("Edit details")).toBeTruthy();
+    mockStoreState.releaseInactiveRecords.mockClear();
     fireEvent.press(screen.getByText("Edit details"));
+    expect(mockStoreState.releaseInactiveRecords).not.toHaveBeenCalled();
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)); });
 
     expect(screen.getByText("Edit split details")).toBeTruthy();

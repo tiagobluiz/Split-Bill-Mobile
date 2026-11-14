@@ -23,8 +23,8 @@ const ptUnhinged: Partial<Record<TranslationKey, string>> = {
   "home.noSplitsDescription": "Calma, a desgraça chega.",
   "home.noSplitsFilteredTitle": "Zero. Impressionante.",
   "home.undoSplitDeleted": "Foi-se. Como o dinheiro.",
-  "home.youAreOwed": "Devem-te. Cobra.",
-  "home.youOwe": "Deves.\nPaga.",
+  "home.youAreOwed": "A receber",
+  "home.youOwe": "A pagar",
   "home.filter.nothingDue": "Milagre",
   "home.filter.somethingDue": "Há dívidas",
 
