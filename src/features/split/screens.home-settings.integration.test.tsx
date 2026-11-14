@@ -418,9 +418,9 @@ describe("split screens", () => {
     expect(screen.getByText("Recent")).toBeTruthy();
     expect(screen.getByText("View All")).toBeTruthy();
     expect(screen.getAllByText("Settled").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Pending: Items").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Pending: Split").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Pending: Payer").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Draft · Items").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Draft · Split").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Draft · Payer").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/84/).length).toBeGreaterThan(0);
     expect(screen.getByText("You owe")).toBeTruthy();
   });
@@ -524,7 +524,7 @@ describe("split screens", () => {
     act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
     await act(async () => {});
     await act(async () => {});
-    expect(screen.getByText("Pending: Setup")).toBeTruthy();
+    expect(screen.getByText("Draft · Setup")).toBeTruthy();
     expect(screen.getAllByText(/0,00|0.00/).length).toBeGreaterThan(0);
   });
 
@@ -665,12 +665,11 @@ describe("split screens", () => {
     expect(await screen.findByText("Total")).toBeTruthy();
     expect(screen.getByText(/9,00|\u20AC9.00|EUR 9.00/)).toBeTruthy();
     const splitRow = screen.getByLabelText("Open split Groceries");
-    expect(within(splitRow).getByText("Nothing")).toBeTruthy();
-    expect(within(splitRow).getByText("due")).toBeTruthy();
+    expect(within(splitRow).getByText("Nothing due")).toBeTruthy();
     expect(within(splitRow).queryByText(/0,00|EUR 0.00/)).toBeNull();
   });
 
-  it("shows outstanding-only nothing due using two rows", async () => {
+  it("shows outstanding-only nothing due", async () => {
     mockStoreState.settings = {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
@@ -685,8 +684,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByLabelText("View all splits"));
 
     const splitRow = await screen.findByLabelText("Open split Groceries");
-    expect(within(splitRow).getByText("Nothing")).toBeTruthy();
-    expect(within(splitRow).getByText("due")).toBeTruthy();
+    expect(within(splitRow).getByText("Nothing due")).toBeTruthy();
   });
 
   it("shows consumed share instead of paid amount in you consumed mode", async () => {
@@ -1131,7 +1129,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     await act(async () => {});
-    expect(screen.getByText("Pending: Participants")).toBeTruthy();
+    expect(screen.getByText("Draft · People")).toBeTruthy();
 
     await act(async () => { fireEvent.press(screen.getByText("Groceries")); });
     expect(mockPush).toHaveBeenCalledWith(
@@ -1158,7 +1156,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     await act(async () => {});
-    expect(screen.getByText("Pending: Setup")).toBeTruthy();
+    expect(screen.getByText("Draft · Setup")).toBeTruthy();
 
     await act(async () => { fireEvent.press(screen.getByText("Untitled split")); });
     expect(mockPush).toHaveBeenCalledWith("/split/draft-not-advanced/setup");
@@ -1183,7 +1181,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     await act(async () => {});
-    expect(screen.getByText("Pending: Setup")).toBeTruthy();
+    expect(screen.getByText("Draft · Setup")).toBeTruthy();
   });
 
   it("opens the splits tab from view all, filters records, and loads more rows on demand", async () => {
@@ -1507,6 +1505,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
+    await waitFor(() => expect(screen.getByLabelText("Show filters").props.accessibilityState.disabled).toBe(false));
     fireEvent.press(screen.getByLabelText("Show filters"));
     fireEvent.press(screen.getByLabelText("Choose tag filters"));
     fireEvent.press(screen.getByLabelText("Restaurant"));
@@ -1534,9 +1533,35 @@ describe("split screens", () => {
     expect(screen.getByText("Dinner supplies")).toBeTruthy();
   });
 
+  it("opens Tags and returns using Android back, with the data notice on Settings", () => {
+    const handlers: Array<() => boolean | null | undefined> = [];
+    const backSpy = jest.spyOn(BackHandler, "addEventListener").mockImplementation((eventName, handler) => {
+      if (eventName === "hardwareBackPress") handlers.push(handler);
+      return { remove: jest.fn() };
+    });
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
+    expect(screen.getByLabelText("Add tag")).toBeTruthy();
+    act(() => { expect(handlers[handlers.length - 1]()).toBe(true); });
+    expect(screen.getByText("Organization")).toBeTruthy();
+    expect(screen.getByText(/Deleting this app data/)).toBeTruthy();
+    expect(screen.queryByLabelText("About your data")).toBeNull();
+    backSpy.mockRestore();
+  });
+
+  it("uses the shared app header without a redundant Settings heading", () => {
+    render(<HomeScreen />);
+    const homeTitleSize = screen.getByText("Split Bill").props.fontSize;
+    fireEvent.press(screen.getByLabelText("Open Settings"));
+    expect(screen.getByText("Split Bill").props.fontSize).toBe(homeTitleSize);
+    expect(within(screen.getByTestId("settings-tab-scroll")).queryByText("Settings")).toBeNull();
+  });
+
   it("does not show a settings save button and still hides navigation while the tag editor is open", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
 
     expect(screen.queryByText("Save Settings")).toBeNull();
     expect(screen.getByLabelText("Open Home")).toBeTruthy();
@@ -1557,6 +1582,7 @@ describe("split screens", () => {
   it("creates a custom tag without an icon from settings", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Add tag"));
     fireEvent.press(screen.getByLabelText("No icon"));
     fireEvent.press(screen.getByLabelText("Select clay color"));
@@ -1576,6 +1602,7 @@ describe("split screens", () => {
   it("shows a specific error when a tag name is missing", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Add tag"));
 
     await act(async () => {
@@ -1589,6 +1616,7 @@ describe("split screens", () => {
   it("shows a specific error when a tag name already exists", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Add tag"));
     fireEvent.changeText(screen.getByPlaceholderText("Tag name"), "Restaurant");
 
@@ -1605,6 +1633,7 @@ describe("split screens", () => {
   it("creates a custom tag with a user-defined icon and color from settings", async () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Add tag"));
     fireEvent.press(screen.getByLabelText("Add custom icon"));
     fireEvent.press(screen.getByLabelText("Mock system emoji picker"));
@@ -1650,6 +1679,7 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
 
     expect(await screen.findByText("Delete tag?")).toBeTruthy();
@@ -1666,6 +1696,7 @@ describe("split screens", () => {
     mockStoreState.records = [buildRecord({ id: "loaded", values: { ...buildRecord().values, tagIds: [] } })];
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
     expect(await screen.findByText(/Currently 2 splits use this tag/)).toBeTruthy();
   });
@@ -1674,6 +1705,7 @@ describe("split screens", () => {
     require("../../storage/splitList").countSplitTagUsage.mockRejectedValueOnce(new Error("read failed"));
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
     await waitFor(() => expect(mockAlert).toHaveBeenCalledWith("Could not load splits.", "Please try again.", undefined));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
@@ -1684,6 +1716,7 @@ describe("split screens", () => {
     mockStoreState.removeTag.mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(undefined);
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
+    fireEvent.press(screen.getByLabelText("Tags"));
     fireEvent.press(screen.getByLabelText("Delete tag Groceries"));
     await screen.findByText("Delete tag?");
     fireEvent.press(screen.getByLabelText("Delete tag"));
@@ -1711,7 +1744,7 @@ describe("split screens", () => {
     ));
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
     });
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
@@ -1737,7 +1770,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Total + outstanding"));
     });
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
     });
 
     await waitFor(() => {
@@ -1815,7 +1848,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
     });
     expect(
       screen.getByText("Please choose a default currency first."),
@@ -1910,10 +1943,10 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    expect(screen.getByText("Off")).toBeTruthy();
+    expect(screen.getByLabelText("Toggle balance helper").props.value).toBe(false);
     expect(screen.queryByText("You are owed")).toBeNull();
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
     });
     fireEvent.press(screen.getByLabelText("Open Splits"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
@@ -1930,7 +1963,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Save"));
     });
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Toggle balance helper"));
+      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
     });
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.queryByText("Save your changes?")).toBeNull();

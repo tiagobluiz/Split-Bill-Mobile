@@ -63,13 +63,13 @@ describe("HomeBalanceCards", () => {
     }
   });
 
-  it("starts both amounts at the reduced 27px default size", () => {
+  it("starts both amounts at the 24px default size", () => {
     renderBalances(0, 0);
 
     for (const id of ["home-balance-owed-amount", "home-balance-owe-amount"]) {
       const amount = screen.getByTestId(id);
       expect(amount.props.numberOfLines).toBe(1);
-      expect(amount.props.fontSize).toBe(27);
+      expect(amount.props.fontSize).toBe(24);
       expect(amount.props.adjustsFontSizeToFit).toBeUndefined();
     }
   });
@@ -82,7 +82,7 @@ describe("HomeBalanceCards", () => {
       const measurement = screen.getByTestId(id);
       expect(measurement.props.allowFontScaling).toBe(false);
       expect(StyleSheet.flatten(measurement.props.style).fontSize).toBeCloseTo(
-        27 * fontScale,
+        24 * fontScale,
       );
     }
   });
@@ -95,7 +95,7 @@ describe("HomeBalanceCards", () => {
     fireEvent(screen.getByTestId("home-balance-owed-measure"), "textLayout", {
       nativeEvent: { lines: [] },
     });
-    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(27);
+    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(24);
   });
 
   it("applies one shared font size based on the wider formatted amount", () => {
@@ -108,17 +108,18 @@ describe("HomeBalanceCards", () => {
       nativeEvent: { layout: { width: 200 } },
     });
     fireEvent(screen.getByTestId("home-balance-owed-measure"), "textLayout", {
-      nativeEvent: { lines: [{ width: 300 }] },
+      nativeEvent: { lines: [{ width: 240 }] },
     });
     fireEvent(screen.getByTestId("home-balance-owe-measure"), "textLayout", {
       nativeEvent: { lines: [{ width: 80 }] },
     });
 
-    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(18);
-    expect(screen.getByTestId("home-balance-owe-amount").props.fontSize).toBe(18);
+    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(20);
+    expect(screen.getByTestId("home-balance-owe-amount").props.fontSize).toBe(20);
+    expect(screen.getByTestId("home-balance-cards").props.flexDirection).toBe("row");
   });
 
-  it("uses the shared 60% floor for extreme values", () => {
+  it("uses the 16sp floor and stacks extreme values for extreme values", () => {
     renderBalances(100_000_000, 0);
 
     for (const side of ["owed", "owe"]) {
@@ -133,7 +134,8 @@ describe("HomeBalanceCards", () => {
       nativeEvent: { lines: [{ width: 80 }] },
     });
 
-    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(16.2);
-    expect(screen.getByTestId("home-balance-owe-amount").props.fontSize).toBe(16.2);
+    expect(screen.getByTestId("home-balance-owed-amount").props.fontSize).toBe(16);
+    expect(screen.getByTestId("home-balance-owe-amount").props.fontSize).toBe(16);
+    expect(screen.getByTestId("home-balance-cards").props.flexDirection).toBe("column");
   });
 });

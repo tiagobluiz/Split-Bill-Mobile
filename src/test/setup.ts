@@ -111,6 +111,7 @@ jest.mock("lucide-react-native", () => {
   const Icon = (props: any) => React.createElement(View, props);
 
   return {
+    SlidersHorizontal: Icon, Layers: Icon, Shield: Icon, Globe: Icon, Volume2: Icon, List: Icon, CircleCheck: Icon, ChartNoAxesColumn: Icon, ChevronLeft: Icon,
     AlertTriangle: Icon,
     ArchiveRestore: Icon,
     ArrowLeft: Icon,

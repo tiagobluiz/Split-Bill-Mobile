@@ -131,11 +131,12 @@ export function SectionCard({
   soft = false,
   fill = false,
   testID,
-}: PropsWithChildren<{ soft?: boolean; fill?: boolean; testID?: string }>) {
+  backgroundColor,
+}: PropsWithChildren<{ soft?: boolean; fill?: boolean; testID?: string; backgroundColor?: string }>) {
   return (
     <YStack
       testID={testID}
-      backgroundColor={soft ? PALETTE.surfaceContainerLow : PALETTE.surfaceContainerLowest}
+      backgroundColor={backgroundColor ?? (soft ? PALETTE.surfaceContainerLow : PALETTE.surfaceContainerLowest)}
       padding="$5"
       borderRadius={24}
       gap="$4"
@@ -318,7 +319,8 @@ export function MeasuredFloatingFooter({
 export function StackedFloatingFooter({
   children,
   onMeasuredHeight,
-}: PropsWithChildren<{ onMeasuredHeight?: (height: number) => void }>) {
+  attached = false,
+}: PropsWithChildren<{ onMeasuredHeight?: (height: number) => void; attached?: boolean }>) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -328,6 +330,7 @@ export function StackedFloatingFooter({
       }}
       style={[
         styles.footerFrame,
+        attached ? { paddingHorizontal: 0, paddingTop: 0, backgroundColor: PALETTE.surfaceContainerLowest } : undefined,
         { paddingBottom: Math.max(insets.bottom, FOOTER_BOTTOM_MIN_INSET) },
       ]}
     >

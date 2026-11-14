@@ -23,6 +23,7 @@ import { RecordRow } from "../shared/homeParts";
 import type { RecordRowModel } from "../shared/recordRowModel";
 import { TagChip } from "../shared/TagChips";
 import { HomeBalanceCards } from "./HomeBalanceCards";
+import { SplitListLoading } from "./SplitListLoading";
 import { HomeMainHeader } from "./HomeMainHeader";
 import type {
   ActivityBalanceFilter,
@@ -160,9 +161,9 @@ export function HomeSplitsTabContent({
             onOpenRecord={onOpenRecord}
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 13 }} />}
         ListEmptyComponent={listLoading ? (
-          <Text accessibilityRole="text" color={PALETTE.onSurfaceVariant}>{t("home.loadingSplits")}</Text>
+          <SplitListLoading />
         ) : listError ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
             <Text color={PALETTE.danger}>{t("home.splitsLoadFailed")} {t("app.error.retry")}</Text>
@@ -173,10 +174,10 @@ export function HomeSplitsTabContent({
             description={t("home.noSplitsDescription")}
           />
         )}
-        ListFooterComponent={pagedSplitRecords.length && (listError || listLoading) ? (
-          <Pressable accessibilityRole={listError ? "button" : "text"} accessibilityLabel={listError ? t("app.error.retry") : t("home.loadingSplits")} disabled={!listError} onPress={onRetry}>
-            <Text color={listError ? PALETTE.danger : PALETTE.onSurfaceVariant}>{listError ? `${t("home.splitsLoadFailed")} ${t("app.error.retry")}` : t("home.loadingSplits")}</Text>
-          </Pressable>
+        ListFooterComponent={pagedSplitRecords.length > 0 && (listError || listLoading) ? (
+          listError ? <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
+            <Text color={PALETTE.danger}>{`${t("home.splitsLoadFailed")} ${t("app.error.retry")}`}</Text>
+          </Pressable> : <SplitListLoading compact />
         ) : null}
         style={screenStyles.flex}
         showsVerticalScrollIndicator={false}
@@ -195,11 +196,12 @@ export function HomeSplitsTabContent({
           }
         }}
         contentContainerStyle={[
-          screenStyles.homeScrollContent,
+          screenStyles.mainTabScrollContent,
           { paddingBottom: footerInsetBottom },
         ]}
+        ListHeaderComponentStyle={{ marginBottom: 20 }}
         ListHeaderComponent={(
-        <YStack gap="$5" paddingBottom="$5">
+        <YStack gap="$4">
           {(settings.balanceFeatureEnabled ?? true) ? (
             <HomeBalanceCards
               balances={balances}
@@ -216,11 +218,14 @@ export function HomeSplitsTabContent({
               accessibilityLabel={
                 filtersExpanded ? t("home.hideFilters") : t("home.showFilters")
               }
+              accessibilityState={{ disabled: listLoading }}
+              disabled={listLoading}
               style={[
                 screenStyles.settingsInlineAction,
                 filtersExpanded
                   ? screenStyles.settingsInlineActionActive
                   : null,
+                listLoading ? { opacity: 0.45 } : null,
               ]}
               onPress={() => setFiltersExpanded((value) => !value)}
             >
