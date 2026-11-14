@@ -1364,6 +1364,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     const removed = normalizeTags(currentState.settings.tags).find((tag) => tag.id === tagId);
     const nextSettings = { ...currentState.settings, tags: normalizeTags(currentState.settings.tags).filter((tag) => tag.id !== tagId) };
     await removeSplitTagAndUpdateSettings(tagId, nextSettings);
+    notifyArchiveChange({ type: "metadata" });
     set((latest) => ({
       settings: { ...latest.settings, tags: nextSettings.tags },
       records: latest.records.map((record) => (record.values.tagIds ?? []).includes(tagId)
@@ -2083,6 +2084,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         return replacement;
       }) }));
       await Promise.all(toSave.map((record) => saveRecord(record)));
+      if (toSave.length) notifyArchiveChange({ type: "metadata" });
     }
     const stored = await reconcileStoredReminders({
       isLoaded: (id) => get().records.some((record) => record.id === id),

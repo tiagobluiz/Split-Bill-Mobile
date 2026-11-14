@@ -73,3 +73,13 @@ it("shows accessible loading skeletons until recent splits are ready", () => {
   expect(screen.queryByTestId("split-list-loading")).toBeNull();
   expect(screen.getByLabelText(`Open split ${model.title}`)).toBeTruthy();
 });
+
+it("keeps recent rows visible with a retry after a later page fails", () => {
+  const record = buildRecordFixture({ id: "recent" }) as unknown as DraftRecord;
+  const model = createRecordRowModel(record, "You", props.settings);
+  const retry = jest.fn();
+  render(<HomeHomeTabContent {...props} onStartSplit={async () => undefined} recentRecords={[model]} listError onRetry={retry} />);
+  expect(screen.getByLabelText(`Open split ${model.title}`)).toBeTruthy();
+  fireEvent.press(screen.getByLabelText("Try again"));
+  expect(retry).toHaveBeenCalledTimes(1);
+});

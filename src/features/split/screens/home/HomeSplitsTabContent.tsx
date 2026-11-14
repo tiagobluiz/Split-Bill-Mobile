@@ -1,6 +1,6 @@
 import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { ChevronDown, Filter } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -9,7 +9,6 @@ import {
 } from "tamagui";
 
 import {
-  EmptyState,
   FieldLabel,
   SectionCard,
   SectionEyebrow,
@@ -19,11 +18,10 @@ import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { getSplitTagDisplayLabel, sortTagsAlphabetically } from "../../tags";
 import { ModePills } from "../shared/components";
-import { RecordRow } from "../shared/homeParts";
 import type { RecordRowModel } from "../shared/recordRowModel";
 import { TagChip } from "../shared/TagChips";
 import { HomeBalanceCards } from "./HomeBalanceCards";
-import { SplitListLoading } from "./SplitListLoading";
+import { SplitList } from "./SplitList";
 import { HomeMainHeader } from "./HomeMainHeader";
 import type {
   ActivityBalanceFilter,
@@ -147,42 +145,23 @@ export function HomeSplitsTabContent({
   return (
     <YStack flex={1}>
       <HomeMainHeader topInset={topInset} />
-      <FlatList
-        testID="splits-tab-scroll"
-        data={pagedSplitRecords}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <RecordRow
-            record={item}
-            ownerName={settings.ownerName}
-            settings={settings}
-            reminderLabel={"values" in item ? getSplitReminderLabel(item) : getModelReminderLabel?.(item.id)}
-            onOpenActions={onOpenActions}
-            onOpenRecord={onOpenRecord}
-          />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: 13 }} />}
-        ListEmptyComponent={listLoading ? (
-          <SplitListLoading />
-        ) : listError ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
-            <Text color={PALETTE.danger}>{t("home.splitsLoadFailed")} {t("app.error.retry")}</Text>
-          </Pressable>
-        ) : (
-          <EmptyState
-            title={t("home.noSplitsFilteredTitle")}
-            description={t("home.noSplitsDescription")}
-          />
-        )}
-        ListFooterComponent={pagedSplitRecords.length > 0 && (listError || listLoading) ? (
-          listError ? <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
-            <Text color={PALETTE.danger}>{`${t("home.splitsLoadFailed")} ${t("app.error.retry")}`}</Text>
-          </Pressable> : <SplitListLoading compact />
-        ) : null}
-        style={screenStyles.flex}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={({ nativeEvent }) => {
+      <SplitList
+        records={pagedSplitRecords}
+        settings={settings}
+        getSplitReminderLabel={getSplitReminderLabel}
+        getModelReminderLabel={getModelReminderLabel}
+        onOpenActions={onOpenActions}
+        onOpenRecord={onOpenRecord}
+        loading={listLoading}
+        error={listError}
+        onRetry={onRetry}
+        emptyTitle={t("home.noSplitsFilteredTitle")}
+        listProps={{
+        testID: "splits-tab-scroll",
+        style: screenStyles.flex,
+        showsVerticalScrollIndicator: false,
+        scrollEventThrottle: 16,
+        onScroll: ({ nativeEvent }) => {
           const distanceFromBottom =
             nativeEvent.contentSize.height -
             (nativeEvent.contentOffset.y +
@@ -194,13 +173,13 @@ export function HomeSplitsTabContent({
           ) {
             onIncreaseVisibleCount();
           }
-        }}
-        contentContainerStyle={[
+        },
+        contentContainerStyle: [
           screenStyles.mainTabScrollContent,
           { paddingBottom: footerInsetBottom },
-        ]}
-        ListHeaderComponentStyle={{ marginBottom: 20 }}
-        ListHeaderComponent={(
+        ],
+        ListHeaderComponentStyle: { marginBottom: 20 },
+        ListHeaderComponent: (
         <YStack gap="$4">
           {(settings.balanceFeatureEnabled ?? true) ? (
             <HomeBalanceCards
@@ -310,7 +289,8 @@ export function HomeSplitsTabContent({
             </SectionCard>
           ) : null}
         </YStack>
-        )}
+        ),
+        }}
       />
       {tagFilterMenuOpen ? (
         <FormBottomSheet title={t("home.filter.chooseTags")} onClose={() => setTagFilterMenuOpen(false)}>

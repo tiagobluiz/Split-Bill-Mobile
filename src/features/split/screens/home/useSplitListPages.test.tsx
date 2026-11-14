@@ -20,6 +20,39 @@ function deferred<T>() {
 describe("useSplitListPages", () => {
   beforeEach(() => jest.resetAllMocks());
 
+  it("refreshes both retained tab queries after an archive change", async () => {
+    (listSplitSummaries as jest.Mock).mockResolvedValue({ records: [summary("one")], nextCursor: null });
+    const { result } = renderHook(() => ({
+      home: useSplitListPages({ order: "newest" }, null, 5),
+      splits: useSplitListPages({ order: "newest", status: "all" }, null, 20),
+    }));
+    await waitFor(() => expect(result.current.splits.records).toHaveLength(1));
+    expect(listSplitSummaries).toHaveBeenCalledTimes(2);
+    act(() => notifyArchiveChange({ type: "delete", id: "one" }));
+    await waitFor(() => expect(listSplitSummaries).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(result.current.home.records).toHaveLength(1));
+  });
+
+  it("reuses a loaded page after a tab switch and reloads after a hidden change", async () => {
+    (listSplitSummaries as jest.Mock)
+      .mockResolvedValueOnce({ records: [summary("first")], nextCursor: null })
+      .mockResolvedValueOnce({ records: [summary("updated")], nextCursor: null });
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useSplitListPages({ order: "newest" }, null, 5, enabled),
+      { initialProps: { enabled: true } },
+    );
+    await waitFor(() => expect(result.current.records[0]?.id).toBe("first"));
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    expect(result.current.records[0]?.id).toBe("first");
+    expect(listSplitSummaries).toHaveBeenCalledTimes(1);
+    rerender({ enabled: false });
+    act(() => notifyArchiveChange({ type: "delete", id: "first" }));
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.records[0]?.id).toBe("updated"));
+    expect(listSplitSummaries).toHaveBeenCalledTimes(2);
+  });
+
   it("requests only five records for the Home preview", async () => {
     (listSplitSummaries as jest.Mock).mockResolvedValueOnce({ records: [summary("recent")], nextCursor: null });
     const { result } = renderHook(() => useSplitListPages({ order: "newest" }, 0, 5));

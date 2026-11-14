@@ -1280,7 +1280,7 @@ describe("split screens", () => {
     expect(screen.getByLabelText("Show filters")).toBeTruthy();
     expect(screen.queryByText("Filters")).toBeNull();
     expect(await screen.findByText("Split 1")).toBeTruthy();
-    expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledWith(expect.objectContaining({ limit: 20, order: "newest", status: "all" }));
+    await waitFor(() => expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledWith(expect.objectContaining({ limit: 15, order: "newest", cursor: expect.objectContaining({ id: "split-5" }) })));
     expect(view.UNSAFE_getByType(FlatList).props.data.map((record: any) => record.id)).not.toContain("split-21");
 
     let list = view.UNSAFE_root.find(
@@ -1405,6 +1405,7 @@ describe("split screens", () => {
     const view = render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("View all splits"));
     await screen.findByLabelText("Open split Archived 0");
+    await waitFor(() => expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain("archived-19"));
     const list = view.UNSAFE_getByType(FlatList);
     act(() => list.props.onScroll({ nativeEvent: { contentOffset: { y: 1000 }, layoutMeasurement: { height: 800 }, contentSize: { height: 1900 } } }));
     await waitFor(() => expect(view.UNSAFE_getByType(FlatList).props.data.map((row: any) => row.id)).toContain(old.id));
@@ -1443,11 +1444,25 @@ describe("split screens", () => {
     expect(await screen.findByTestId("home-balance-owed-amount")).toBeTruthy();
   });
 
-  it("shows a retry action when a page read fails and recovers", async () => {
+  it("keeps a later-page retry on Splits while Home displays its cached rows", async () => {
+    mockStoreState.records = Array.from({ length: 6 }, (_, index) => buildRecord({ id: `retry-${index}` }));
     render(<HomeScreen />);
-    await screen.findByLabelText("Open split Groceries");
+    await screen.findAllByLabelText("Open split Groceries");
     require("../../storage/splitList").listSplitSummaries.mockRejectedValueOnce(new Error("read failed"));
     fireEvent.press(screen.getByLabelText("View all splits"));
+    expect(await screen.findByText(/Could not load splits/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Open Home"));
+    expect(screen.getAllByLabelText("Open split Groceries")).toHaveLength(5);
+    expect(screen.queryByLabelText("Try again")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Open Splits"));
+    fireEvent.press(screen.getByLabelText("Try again"));
+    await waitFor(() => expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(screen.queryByText(/Could not load splits/)).toBeNull());
+  });
+
+  it("offers retry on Home when the shared first page fails", async () => {
+    require("../../storage/splitList").listSplitSummaries.mockRejectedValueOnce(new Error("read failed"));
+    render(<HomeScreen />);
     expect(await screen.findByText(/Could not load splits/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Try again"));
     expect(await screen.findByLabelText("Open split Groceries")).toBeTruthy();
