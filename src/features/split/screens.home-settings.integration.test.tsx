@@ -1444,15 +1444,28 @@ describe("split screens", () => {
     expect(await screen.findByTestId("home-balance-owed-amount")).toBeTruthy();
   });
 
-  it("shows a retry action when a page read fails and recovers", async () => {
+  it("keeps a later-page retry on Splits while Home displays its cached rows", async () => {
     mockStoreState.records = Array.from({ length: 6 }, (_, index) => buildRecord({ id: `retry-${index}` }));
     render(<HomeScreen />);
     await screen.findAllByLabelText("Open split Groceries");
     require("../../storage/splitList").listSplitSummaries.mockRejectedValueOnce(new Error("read failed"));
     fireEvent.press(screen.getByLabelText("View all splits"));
     expect(await screen.findByText(/Could not load splits/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Open Home"));
+    expect(screen.getAllByLabelText("Open split Groceries")).toHaveLength(5);
+    expect(screen.queryByLabelText("Try again")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Open Splits"));
     fireEvent.press(screen.getByLabelText("Try again"));
     await waitFor(() => expect(require("../../storage/splitList").listSplitSummaries).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(screen.queryByText(/Could not load splits/)).toBeNull());
+  });
+
+  it("offers retry on Home when the shared first page fails", async () => {
+    require("../../storage/splitList").listSplitSummaries.mockRejectedValueOnce(new Error("read failed"));
+    render(<HomeScreen />);
+    expect(await screen.findByText(/Could not load splits/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Try again"));
+    expect(await screen.findByLabelText("Open split Groceries")).toBeTruthy();
   });
 
   it("excludes a pending deletion from paged results and restores it on Undo", async () => {

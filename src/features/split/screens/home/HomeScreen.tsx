@@ -654,9 +654,9 @@ export function HomeScreenView() {
           getModelReminderLabel={getModelReminderLabel}
           onOpenRecord={openListRecord}
           onOpenActions={openListActions}
-          listLoading={recentPages.loading || recentRows.loading}
-          listError={recentPages.error || recentRows.error}
-          onRetry={recentRows.error ? recentRows.retry : recentPages.nextCursor ? () => recentPages.loadMore(20) : recentPages.reload}
+          listLoading={recentRows.loading || (!recentPages.nextCursor && recentPages.loading)}
+          listError={recentRows.error || (!recentPages.nextCursor && recentPages.error)}
+          onRetry={recentRows.error ? recentRows.retry : recentPages.reload}
           balanceError={balanceIndex.error}
           onRetryBalances={balanceIndex.retry}
         />
