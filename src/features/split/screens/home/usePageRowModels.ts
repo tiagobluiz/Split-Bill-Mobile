@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getRecordsByIds, type DraftRecord } from "../../../../storage/records";
 import type { SplitListSummary } from "../../../../storage/splitList";
+import { subscribeArchiveChanges } from "../../archiveChanges";
 import { createRecordRowModel, type RecordRowModel, type RecordRowSettings } from "../shared/recordRowModel";
 
 type CachedRow = { updatedAt: string; settingsKey: string; model: RecordRowModel | null };
@@ -15,16 +16,20 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
   const settingsKey = JSON.stringify([ownerName, settings.defaultCurrency, settings.splitListAmountDisplay, settings.customCurrencies, displayRevision]);
   const summaryKey = JSON.stringify(summaries.map((entry) => [entry.id, entry.updatedAt]));
 
+  useEffect(() => subscribeArchiveChanges((change) => {
+    if (change.type !== "metadata") {
+      if (change.type === "invalidate") cache.current.clear();
+      else cache.current.delete(change.type === "upsert" ? change.record.id : change.id);
+      setRevision((value) => value + 1);
+    }
+  }), []);
+
   useEffect(() => {
     let cancelled = false;
     if (!enabled) {
-      cache.current.clear();
       setError(false);
-      setRevision((value) => value + 1);
       return;
     }
-    const currentIds = new Set(summaries.map((entry) => entry.id));
-    for (const id of cache.current.keys()) if (!currentIds.has(id)) cache.current.delete(id);
     for (const entry of summaries) {
       const record = loaded.get(entry.id);
       if (record) cache.current.set(entry.id, { updatedAt: entry.updatedAt, settingsKey, model: createRecordRowModel(record, ownerName, settings) });

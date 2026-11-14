@@ -6,15 +6,13 @@ import {
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import { EmptyState } from "../../../../components/ui";
 import type { AppSettings } from "../../../../storage/settings";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
-import { RecordRow } from "../shared/homeParts";
 import type { RecordRowModel } from "../shared/recordRowModel";
 import { HomeMainHeader } from "./HomeMainHeader";
 import { HomeBalanceCards } from "./HomeBalanceCards";
-import { SplitListLoading } from "./SplitListLoading";
+import { SplitList } from "./SplitList";
 import type { HomeBalances, HomeRecord, RecordActionTarget } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 
@@ -140,32 +138,9 @@ export function HomeHomeTabContent({
                 <ArrowRight color={PALETTE.primary} size={19} />
               </Pressable>
             </XStack>
-            {listLoading && recentRecords.length === 0 ? (
-              <SplitListLoading />
-            ) : listError ? (
-              <Pressable accessibilityRole="button" accessibilityLabel={t("app.error.retry")} onPress={onRetry}>
-                <Text color={PALETTE.danger}>{t("home.splitsLoadFailed")} {t("app.error.retry")}</Text>
-              </Pressable>
-            ) : recentRecords.length === 0 ? (
-              <EmptyState
-                title={t("home.noSplitsTitle")}
-                description={t("home.noSplitsDescription")}
-              />
-            ) : (
-              <YStack gap="$3">
-                {recentRecords.map((record) => (
-                  <RecordRow
-                    key={record.id}
-                    record={record}
-                    ownerName={settings.ownerName}
-                    settings={settings}
-                    reminderLabel={"values" in record ? getSplitReminderLabel(record) : getModelReminderLabel?.(record.id)}
-                    onOpenActions={onOpenActions}
-                    onOpenRecord={onOpenRecord}
-                  />
-                ))}
-              </YStack>
-            )}
+            <SplitList records={recentRecords} settings={settings} getSplitReminderLabel={getSplitReminderLabel}
+              getModelReminderLabel={getModelReminderLabel} onOpenActions={onOpenActions} onOpenRecord={onOpenRecord}
+              loading={listLoading} error={listError} onRetry={onRetry} emptyTitle={t("home.noSplitsTitle")} />
           </YStack>
         </YStack>
       </ScrollView>

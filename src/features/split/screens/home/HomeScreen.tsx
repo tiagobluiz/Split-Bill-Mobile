@@ -108,6 +108,8 @@ export function HomeScreenView() {
   const use24HourClock = prefers24HourTime();
 
   const [activeTab, setActiveTab] = useState<HomeTabKey>("home");
+  const splitsVisited = useRef(false);
+  if (activeTab === "splits") splitsVisited.current = true;
   const [ownerProfileEditRequest, setOwnerProfileEditRequest] = useState(0);
   const [ownerProfileEditorActive, setOwnerProfileEditorActive] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<RecordActionTarget | null>(
@@ -202,28 +204,42 @@ export function HomeScreenView() {
   );
   const balances = balanceIndex.balances;
 
-  const recentPages = useSplitListPages(activeTab === "home" ? { order: "newest", excludedId: pendingDelete?.id } : null, null, 5);
-  const recentRows = usePageRowModels(recentPages.records, records, settings.ownerName, settings, activeTab === "home", `${settings.language}:${settings.humour}:${locale}`);
+  const recentPages = useSplitListPages({ order: "newest", excludedId: pendingDelete?.id }, null, 5);
 
   const balanceEligibleIds = useMemo(() => {
-    if (activeTab !== "splits" || activityBalanceFilter === "all") return undefined;
+    if (activityBalanceFilter === "all") return undefined;
     return balanceIndex.entries?.filter((entry) => {
       const ownerNetCents = entry.filterOwnerNetCents;
       return activityBalanceFilter === "nothingDue"
         ? ownerNetCents === 0
         : ownerNetCents > 0;
     }).map((entry) => entry.id);
-  }, [activeTab, activityBalanceFilter, balanceIndex.entries]);
+  }, [activityBalanceFilter, balanceIndex.entries]);
   const balanceFilterWaiting = activityBalanceFilter !== "all" && !balanceIndex.entries;
-  const splitPages = useSplitListPages(activeTab === "splits" && !balanceFilterWaiting ? {
+  const useRecentQuery = activityDateFilter === "newest" && activityStateFilter === "all" && activityTagFilterIds.length === 0 && activityBalanceFilter === "all";
+  const filteredPages = useSplitListPages(!useRecentQuery && !balanceFilterWaiting ? {
     order: activityDateFilter,
     status: activityStateFilter,
     tagIds: activityTagFilterIds,
     tagMode: activityTagFilterMode,
     eligibleIds: balanceEligibleIds,
     excludedId: pendingDelete?.id,
-  } : null, null);
-  const splitRows = usePageRowModels(splitPages.records, records, settings.ownerName, settings, activeTab === "splits", `${settings.language}:${settings.humour}:${locale}`);
+  } : null, null, undefined, splitsVisited.current && !useRecentQuery);
+  const splitPages = useRecentQuery ? recentPages : filteredPages;
+  useEffect(() => {
+    if (splitsVisited.current && useRecentQuery && !recentPages.loading && !recentPages.error && recentPages.nextCursor && recentPages.records.length < 20) {
+      recentPages.loadMore(20 - recentPages.records.length);
+    }
+  }, [activeTab, useRecentQuery, recentPages.loading, recentPages.error, recentPages.nextCursor, recentPages.records.length, recentPages.loadMore]);
+  const sharedSummaries = useMemo(() => {
+    const entries = new Map(recentPages.records.map((entry) => [entry.id, entry]));
+    for (const entry of filteredPages.records) entries.set(entry.id, entry);
+    return [...entries.values()];
+  }, [recentPages.records, filteredPages.records]);
+  const sharedRows = usePageRowModels(sharedSummaries, records, settings.ownerName, settings, true, `${settings.language}:${settings.humour}:${locale}`);
+  const rowsById = new Map(sharedRows.rows.map((row) => [row.id, row]));
+  const recentRows = { ...sharedRows, rows: recentPages.records.slice(0, 5).flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
+  const splitRows = { ...sharedRows, rows: splitPages.records.flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
   const splitReminderPickerRecord = records.find(
     (record) => record.id === splitReminderPickerRecordId,
   );
@@ -665,7 +681,7 @@ export function HomeScreenView() {
           setActivityTagFilterMode={setActivityTagFilterMode}
           visibleSplitCount={splitRows.rows.length}
           filteredSplitRecordsLength={splitRows.rows.length}
-          onIncreaseVisibleCount={splitPages.loadMore}
+          onIncreaseVisibleCount={() => splitPages.loadMore(20)}
           pagedSplitRecords={splitRows.rows}
           getSplitReminderLabel={getSplitReminderLabel}
           getModelReminderLabel={getModelReminderLabel}
@@ -674,7 +690,7 @@ export function HomeScreenView() {
           listLoading={splitPages.loading || splitRows.loading || (balanceFilterWaiting && !balanceIndex.error)}
           listError={splitPages.error || splitRows.error || (balanceFilterWaiting && balanceIndex.error)}
           hasMore={Boolean(splitPages.nextCursor)}
-          onRetry={balanceFilterWaiting && balanceIndex.error ? balanceIndex.retry : splitRows.error ? splitRows.retry : splitPages.nextCursor ? splitPages.loadMore : splitPages.reload}
+          onRetry={balanceFilterWaiting && balanceIndex.error ? balanceIndex.retry : splitRows.error ? splitRows.retry : splitPages.nextCursor ? () => splitPages.loadMore(20) : splitPages.reload}
           balanceError={balanceIndex.error}
           onRetryBalances={balanceIndex.retry}
         />

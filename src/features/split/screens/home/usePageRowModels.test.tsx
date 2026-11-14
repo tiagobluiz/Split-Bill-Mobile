@@ -14,7 +14,7 @@ const noLoaded: DraftRecord[] = [];
 describe("usePageRowModels", () => {
   beforeEach(() => jest.resetAllMocks());
 
-  it("loads only newly requested page records and releases models when disabled", async () => {
+  it("loads only newly requested page records and retains models when disabled", async () => {
     (getRecordsByIds as jest.Mock).mockImplementation(async (ids: string[]) => ids.map(record));
     const first = [summary("one")];
     const both = [...first, summary("two")];
@@ -28,7 +28,7 @@ describe("usePageRowModels", () => {
     expect(result.current.rows).toEqual([]);
     rerender({ entries: first, enabled: true });
     await waitFor(() => expect(result.current.rows.map((row) => row.id)).toEqual(["one"]));
-    expect(getRecordsByIds).toHaveBeenCalledTimes(3);
+    expect(getRecordsByIds).toHaveBeenCalledTimes(2);
   });
 
   it("uses newer loaded edits and ignores a stale database result", async () => {
