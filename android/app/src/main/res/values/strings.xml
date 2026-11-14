@@ -1,5 +1,9 @@
 <resources>
   <string name="app_name">Split Bill</string>
+  <string name="update_required_title">Update required</string>
+  <string name="update_required_message">Please update Split Bill to continue.</string>
+  <string name="update_retry">Retry update</string>
+  <string name="update_close">Close app</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
 </resources>

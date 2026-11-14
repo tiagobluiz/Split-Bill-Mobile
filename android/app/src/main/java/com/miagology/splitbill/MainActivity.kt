@@ -3,6 +3,12 @@ import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.os.Bundle
+import android.app.AlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -12,6 +18,69 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
+  private val updateManager by lazy { AppUpdateManagerFactory.create(this) }
+  private var checkingUpdate = false
+  private var updateFlowOpen = false
+  private var requiredDialog: AlertDialog? = null
+  private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+    updateFlowOpen = false
+    showRequiredUpdateDialog()
+  }
+
+  override fun onResume() {
+    super.onResume()
+    if (!BuildConfig.DEBUG && !updateFlowOpen && requiredDialog == null) checkForUpdate()
+  }
+
+  private fun checkForUpdate(retry: Boolean = false) {
+    if (checkingUpdate || updateFlowOpen) return
+    checkingUpdate = true
+    updateManager.appUpdateInfo.addOnSuccessListener { info ->
+      checkingUpdate = false
+      if (isFinishing || isDestroyed) return@addOnSuccessListener
+      val inProgress = info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
+      val required = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+        (info.clientVersionStalenessDays() ?: -1) >= 30 &&
+        info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+      if (inProgress || required) {
+        requiredDialog?.dismiss()
+        requiredDialog = null
+        updateFlowOpen = true
+        try {
+          val started = updateManager.startUpdateFlowForResult(
+            info, updateLauncher, AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+          )
+          if (!started) {
+            updateFlowOpen = false
+            showRequiredUpdateDialog()
+          }
+        } catch (_: Exception) {
+          updateFlowOpen = false
+          showRequiredUpdateDialog()
+        }
+      } else {
+        requiredDialog?.dismiss()
+        requiredDialog = null
+      }
+    }.addOnFailureListener {
+      checkingUpdate = false
+      if (retry && !isFinishing && !isDestroyed) showRequiredUpdateDialog()
+    }
+  }
+
+  private fun showRequiredUpdateDialog() {
+    if (isFinishing || isDestroyed || requiredDialog?.isShowing == true) return
+    requiredDialog = AlertDialog.Builder(this)
+      .setTitle(R.string.update_required_title)
+      .setMessage(R.string.update_required_message)
+      .setCancelable(false)
+      .setPositiveButton(R.string.update_retry, null)
+      .setNegativeButton(R.string.update_close) { _, _ -> finish() }
+      .create().also { dialog ->
+        dialog.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { checkForUpdate(retry = true) }
+      }
+  }
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
