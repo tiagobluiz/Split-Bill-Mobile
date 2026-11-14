@@ -248,67 +248,70 @@ export function RecordRow({
 
   return (
     <View style={screenStyles.recentShadowWrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("home.openSplitA11y", { title })}
-        onLongPress={() => {
-          didLongPressRef.current = true;
-          onOpenActions({ id: record.id, title });
-        }}
-        onPress={() => {
-          if (didLongPressRef.current) {
-            didLongPressRef.current = false;
-            return;
-          }
-          if ("values" in record) router.push(buildRecordRoute(record));
-          else onOpenRecord?.(record.id);
-        }}
-        style={[screenStyles.recentRow, screenStyles.itemsListCard]}
-      >
-        <YStack width="100%">
-          <XStack alignItems="stretch" justifyContent="space-between" gap="$3">
-            <YStack flex={1} justifyContent="center" gap="$1" minWidth={0}>
-              <Text
-                fontFamily={FONTS.headlineBold}
-                fontSize={18}
-                color={PALETTE.onSurface}
-                numberOfLines={2}
-                flexShrink={1}
-                paddingRight={44}
-              >
-                {title}
-              </Text>
-              <TagChipRow
-                tags={settings.tags ?? []}
-                selectedIds={view.tagIds}
-              />
-              {reminderLabel ? (
-                <XStack alignItems="center" gap="$1.5" marginTop={4}>
-                  <Bell color="#706b68" size={12} />
-                  <Text fontFamily={FONTS.bodyBold} fontSize={11} color="#706b68" numberOfLines={1}>{reminderLabel}</Text>
-                </XStack>
-              ) : null}
-            </YStack>
-          </XStack>
-          {renderExpandedAmount()}
-          {isCompleted ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={{ position: "absolute", left: -10000, width: 10000, opacity: 0 }}>
-            {statusOptions.map((label) => (
-              <NativeText key={label} testID="split-card-status-measure" accessible={false} numberOfLines={1} style={{ alignSelf: "flex-start", fontFamily: FONTS.bodyBold, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.8 }} onLayout={(event) => {
-                const width = event.nativeEvent.layout.width;
-                if (width != null) setStatusWidths((current) => current[label] === width ? current : { ...current, [label]: width });
-              }}>{label}</NativeText>
-            ))}
-          </View> : null}
-        </YStack>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("home.splitActionsA11y", { title })}
-        onPress={() => onOpenActions({ id: record.id, title })}
-        style={{ position: "absolute", right: 12, top: 6, width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-      >
-        <EllipsisVertical color={PALETTE.onSurfaceVariant} size={20} />
-      </Pressable>
+      {/* Keep elevation on the shared surface so Android cannot draw it over the menu. */}
+      <View style={screenStyles.splitCardSurface}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("home.openSplitA11y", { title })}
+          onLongPress={() => {
+            didLongPressRef.current = true;
+            onOpenActions({ id: record.id, title });
+          }}
+          onPress={() => {
+            if (didLongPressRef.current) {
+              didLongPressRef.current = false;
+              return;
+            }
+            if ("values" in record) router.push(buildRecordRoute(record));
+            else onOpenRecord?.(record.id);
+          }}
+          style={screenStyles.splitCardContent}
+        >
+          <YStack width="100%">
+            <XStack alignItems="stretch" justifyContent="space-between" gap="$3">
+              <YStack flex={1} justifyContent="center" gap="$1" minWidth={0}>
+                <Text
+                  fontFamily={FONTS.headlineBold}
+                  fontSize={18}
+                  color={PALETTE.onSurface}
+                  numberOfLines={2}
+                  flexShrink={1}
+                  paddingRight={44}
+                >
+                  {title}
+                </Text>
+                <TagChipRow
+                  tags={settings.tags ?? []}
+                  selectedIds={view.tagIds}
+                />
+                {reminderLabel ? (
+                  <XStack alignItems="center" gap="$1.5" marginTop={4}>
+                    <Bell color="#706b68" size={12} />
+                    <Text fontFamily={FONTS.bodyBold} fontSize={11} color="#706b68" numberOfLines={1}>{reminderLabel}</Text>
+                  </XStack>
+                ) : null}
+              </YStack>
+            </XStack>
+            {renderExpandedAmount()}
+            {isCompleted ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={{ position: "absolute", left: -10000, width: 10000, opacity: 0 }}>
+              {statusOptions.map((label) => (
+                <NativeText key={label} testID="split-card-status-measure" accessible={false} numberOfLines={1} style={{ alignSelf: "flex-start", fontFamily: FONTS.bodyBold, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.8 }} onLayout={(event) => {
+                  const width = event.nativeEvent.layout.width;
+                  if (width != null) setStatusWidths((current) => current[label] === width ? current : { ...current, [label]: width });
+                }}>{label}</NativeText>
+              ))}
+            </View> : null}
+          </YStack>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("home.splitActionsA11y", { title })}
+          onPress={() => onOpenActions({ id: record.id, title })}
+          style={screenStyles.splitCardActions}
+        >
+          <EllipsisVertical color={PALETTE.onSurfaceVariant} size={20} />
+        </Pressable>
+      </View>
     </View>
   );
 }

@@ -1,6 +1,16 @@
 import { FONTS, PALETTE } from "../../../../../theme/palette";
 import { StyleSheet } from "react-native";
 
+const listCardSurface = {
+  borderRadius: 24,
+  backgroundColor: PALETTE.surfaceContainerLowest,
+  shadowColor: PALETTE.primary,
+  shadowOpacity: 0.05,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 2,
+};
+
 export const commonStyles = {
   participantPill: {
     minHeight: 72,
@@ -278,8 +288,19 @@ export const commonStyles = {
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  recentRow: {
-    paddingVertical: 0,
+  splitCardSurface: listCardSurface,
+  splitCardContent: {
+    padding: 18,
+  },
+  splitCardActions: {
+    position: "absolute" as const,
+    top: 6,
+    right: 6,
+    width: 44,
+    height: 44,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    zIndex: 1,
   },
   homeTabShell: {
     backgroundColor: PALETTE.surfaceContainerLowest,
@@ -305,15 +326,9 @@ export const commonStyles = {
     marginTop: 4,
   },
   itemsListCard: {
-    borderRadius: 24,
-    backgroundColor: PALETTE.surfaceContainerLowest,
+    ...listCardSurface,
     paddingHorizontal: 18,
     paddingVertical: 18,
-    shadowColor: PALETTE.primary,
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
   },
   assignInputShell: {
     minHeight: 78,
