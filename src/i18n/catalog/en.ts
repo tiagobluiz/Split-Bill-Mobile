@@ -1,5 +1,4 @@
 import type { TranslationMap } from "./types";
-import { enSassy, enUnhinged } from "./enHumour";
 
 const enPlain = {
   "splitDetails.date": "Split date",
@@ -105,14 +104,9 @@ const enPlain = {
     "Please allow photo access to choose a profile picture.",
   "settings.voice": "App voice",
   "settings.language": "Language",
-  "settings.tone": "Tone",
   "settings.language.en": "English",
   "settings.language.pt": "Portuguese",
-  "settings.humour.plain": "Plain",
-  "settings.humour.sassy": "Sassy",
-  "settings.humour.unhinged": "Unhinged",
   "settings.pickLanguage": "Choose app language",
-  "settings.pickTone": "Choose app tone",
   "settings.currencyPicker": "Choose default currency",
   "settings.currencyPickerOther": "Choose other currency",
   "settings.currencyAddTitle": "Add a currency",
@@ -856,14 +850,4 @@ const enPlain = {
 
 export type TranslationKey = keyof typeof enPlain;
 
-export const enCatalog = {
-  plain: enPlain,
-  sassy: {
-    ...enPlain,
-    ...enSassy,
-  },
-  unhinged: {
-    ...enPlain,
-    ...enUnhinged,
-  },
-} as const;
+export const enCatalog = enPlain;

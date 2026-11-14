@@ -1954,7 +1954,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       splitName: record.values.splitName?.trim(),
       translation: {
         language: get().settings.language,
-        humour: get().settings.humour,
       },
       url: reminderUrl,
       scheduledForIso,
@@ -2015,7 +2014,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       participantName,
       translation: {
         language: get().settings.language,
-        humour: get().settings.humour,
       },
       url: `/split/${record.id}/results`,
       scheduledForIso,

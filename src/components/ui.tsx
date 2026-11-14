@@ -529,8 +529,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: FOOTER_SIDE_PADDING,
     paddingTop: 16,
     backgroundColor: PALETTE.surfaceContainerLowest,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: PALETTE.outlineVariant,
+    borderTopWidth: 1,
+    borderTopColor: PALETTE.divider,
   },
   input: {
     minHeight: 56,

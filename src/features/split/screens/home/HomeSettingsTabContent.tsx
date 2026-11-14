@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Image, Pressable, ScrollView, Switch, View } from "react-native";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, Volume2, List, CircleCheck, ChartNoAxesColumn } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, List, CircleCheck, ChartNoAxesColumn } from "lucide-react-native";
 import {
   Text as TamaguiText,
   YStack as TamaguiYStack,
@@ -47,11 +47,9 @@ export function HomeSettingsTabContent({
   setTrackPaymentsFeatureEnabledDraft,
   defaultCurrencyDraft,
   setLanguageMenuOpen,
-  setHumourMenuOpen,
   setCurrencyMenuOpen,
   setSplitListAmountDisplayMenuOpen,
   languageDraft,
-  humourDraft,
   splitListAmountDisplayOptions,
   splitListAmountDisplayDraft,
   setSplitListAmountDisplayDraft,
@@ -79,11 +77,9 @@ export function HomeSettingsTabContent({
   ) => void;
   defaultCurrencyDraft: string;
   setLanguageMenuOpen: (value: boolean) => void;
-  setHumourMenuOpen: (value: boolean) => void;
   setCurrencyMenuOpen: (value: boolean) => void;
   setSplitListAmountDisplayMenuOpen: (value: boolean) => void;
   languageDraft: "en" | "pt";
-  humourDraft: "plain" | "sassy" | "unhinged";
   splitListAmountDisplayOptions: SplitListAmountDisplayOption[];
   splitListAmountDisplayDraft:
     | "remaining"
@@ -202,7 +198,6 @@ export function HomeSettingsTabContent({
             <SettingsSection title={t("settings.preferences")}>
               <SettingsRow icon={Coins} label={t("settings.defaultCurrency")} value={getCurrencyOptionLabel(defaultCurrencyDraft, { customCurrencies: customCurrenciesDraft })} accessibilityLabel={t("settings.currencyPicker")} onPress={() => setCurrencyMenuOpen(true)} />
               <SettingsRow divider icon={Globe} label={t("settings.language")} value={t(languageDraft === "pt" ? "settings.language.pt" : "settings.language.en")} accessibilityLabel={t("settings.pickLanguage")} onPress={() => setLanguageMenuOpen(true)} />
-              <SettingsRow divider icon={Volume2} label={t("settings.tone")} value={t(humourDraft === "sassy" ? "settings.humour.sassy" : humourDraft === "unhinged" ? "settings.humour.unhinged" : "settings.humour.plain")} accessibilityLabel={t("settings.pickTone")} onPress={() => setHumourMenuOpen(true)} />
               <SettingsRow divider icon={List} label={t("settings.splitRows")} value={splitListAmountDisplayOptions.find((option) => option.key === splitListAmountDisplayDraft)?.label} accessibilityLabel={t("settings.splitRowsPicker")} onPress={() => setSplitListAmountDisplayMenuOpen(true)} />
             </SettingsSection>
             <SettingsSection title={t("settings.features")}>

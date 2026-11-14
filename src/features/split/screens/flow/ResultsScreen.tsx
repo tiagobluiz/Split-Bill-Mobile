@@ -136,10 +136,10 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     t("reminders.restored"),
     t("reminders.restoreFailed"),
   );
-  const settlement = useMemo(() => getSettlementPreview(record), [record, settings.language, settings.humour]);
+  const settlement = useMemo(() => getSettlementPreview(record), [record, settings.language]);
   const summary = useMemo(
     () => getClipboardSummaryPreview(record, settings.defaultCurrency),
-    [record, settings.defaultCurrency, settings.language, settings.humour],
+    [record, settings.defaultCurrency, settings.language],
   );
   const locale = getDeviceLocale();
   const use24HourClock = prefers24HourTime();

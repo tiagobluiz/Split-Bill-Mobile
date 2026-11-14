@@ -150,7 +150,6 @@ export default function RootLayout() {
       <AppThemeProvider>
         <LocalizationProvider
           language={fallbackSettings.language}
-          humour={fallbackSettings.humour}
         >
           <StatusBar
             style="dark"
@@ -210,14 +209,12 @@ export default function RootLayout() {
   const resolvedTranslationSettings = {
     ...getDefaultTranslationSettings(getDeviceLocale()),
     language: settings?.language ?? getDefaultTranslationSettings(getDeviceLocale()).language,
-    humour: settings?.humour ?? getDefaultTranslationSettings(getDeviceLocale()).humour,
   };
 
   return (
     <AppThemeProvider>
       <LocalizationProvider
         language={resolvedTranslationSettings.language}
-        humour={resolvedTranslationSettings.humour}
       >
         <StatusBar
           style="dark"

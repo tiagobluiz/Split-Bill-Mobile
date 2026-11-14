@@ -19,9 +19,7 @@ const settings: AppSettings = {
   balanceFeatureEnabled: true,
   trackPaymentsFeatureEnabled: true,
   defaultCurrency: "EUR",
-  language: "en",
-  humour: "plain",
-  splitListAmountDisplay: "remaining",
+  language: "en", splitListAmountDisplay: "remaining",
   customCurrencies: [],
   people: [],
   participantGroups: [group],
@@ -52,7 +50,7 @@ function renderDirectory(
     onUpdateGroup,
     onUpdateSettings,
     ...render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <HomeGroupsTabContent
           topInset={0}
           footerInsetBottom={0}

@@ -448,7 +448,7 @@ describe("split store", () => {
     storeModule.useSplitStore.setState({
       ready: true,
       records: [record],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people: [person], participantGroups: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [person], participantGroups: [] },
     } as any);
 
     const result = await storeModule.useSplitStore.getState().savePerson({ personId: person.id, name: "Ana Maria", photoUri: "file:///ana.jpg", color: "#12abef", groupIds: [] });
@@ -473,7 +473,7 @@ describe("split store", () => {
     ];
     storeModule.useSplitStore.setState({
       ready: true, records: [record],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people, participantGroups: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people, participantGroups: [] },
     } as any);
 
     await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "  CARLA ", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "duplicate", personId: "person-old" });
@@ -507,7 +507,7 @@ describe("split store", () => {
     const group = { id: "g1", name: "Roomies", memberPersonIds: ["used", "unused"], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     storeModule.useSplitStore.setState({
       ready: true, records: [],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [], people: [used, unused, free], participantGroups: [group] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [used, unused, free], participantGroups: [group] },
     } as any);
 
     await expect(storeModule.useSplitStore.getState().removePerson("used")).resolves.toBe("archived");
@@ -1259,9 +1259,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "GBP",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -1332,9 +1330,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
         tags: [
           {
@@ -1413,9 +1409,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
         tags: [
           {
@@ -1479,9 +1473,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
         tags: [
           {
@@ -2296,9 +2288,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2682,9 +2672,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2724,9 +2712,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2802,9 +2788,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2836,9 +2820,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2874,9 +2856,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });
@@ -2932,9 +2912,7 @@ describe("split store", () => {
         balanceFeatureEnabled: true,
         trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
-        language: "en",
-        humour: "plain",
-        splitListAmountDisplay: "remaining",
+        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
       },
     });

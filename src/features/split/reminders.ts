@@ -161,9 +161,7 @@ function buildReminderContent(input: ReminderScheduleInput) {
       | "reminders.notification.debtBodyUnnamed",
     params?: Record<string, string>,
   ) =>
-    translateWithSettings(input.translation, key, params, {
-      fallbackTone: "plain",
-    });
+    translateWithSettings(input.translation, key, params);
 
   if (input.target === "participantDebt") {
     const fallbackTitle = translate("reminders.notification.debtFallbackTitle");

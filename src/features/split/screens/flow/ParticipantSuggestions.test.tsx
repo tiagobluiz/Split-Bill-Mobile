@@ -77,7 +77,7 @@ function view(
   sourceRecords: DraftRecord[] = [history, current],
 ) {
   return (
-    <LocalizationProvider language={language} humour="plain">
+    <LocalizationProvider language={language}>
       <ParticipantSuggestions
         records={sourceRecords}
         record={current}
@@ -92,7 +92,7 @@ function view(
 describe("participant suggestion modes", () => {
   it("shows progress and permits retry when history cannot be read", () => {
     const retry = jest.fn();
-    const renderPanel = (error: boolean) => <LocalizationProvider language="en" humour="plain"><ParticipantSuggestions records={[]} record={record} settings={settings} onAddFriend={jest.fn()} onAddGroup={jest.fn(async () => undefined)} frequentFriends={null} frequentError={error} onRetryFrequent={retry} /></LocalizationProvider>;
+    const renderPanel = (error: boolean) => <LocalizationProvider language="en"><ParticipantSuggestions records={[]} record={record} settings={settings} onAddFriend={jest.fn()} onAddGroup={jest.fn(async () => undefined)} frequentFriends={null} frequentError={error} onRetryFrequent={retry} /></LocalizationProvider>;
     const { rerender } = render(renderPanel(false));
     expect(screen.getByText("Loading frequent people…")).toBeTruthy();
     rerender(renderPanel(true));

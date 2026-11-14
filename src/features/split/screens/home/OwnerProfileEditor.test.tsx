@@ -39,9 +39,7 @@ function profileSettings(photoUri: string): AppSettings {
     balanceFeatureEnabled: true,
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
-    language: "en",
-    humour: "plain",
-    splitListAmountDisplay: "remaining",
+    language: "en", splitListAmountDisplay: "remaining",
     customCurrencies: [],
   };
 }

@@ -129,7 +129,7 @@ function getBuiltInTagLabels() {
       return;
     }
     Object.values(translationCatalog).forEach((catalog) => {
-      const label = catalog.plain[labelKey];
+      const label = catalog[labelKey];
       if (label) {
         labels.add(label.trim().toLowerCase());
       }

@@ -63,17 +63,15 @@ it.each(["total", "totalAndRemaining"] as const)("stacks a long completed status
   expect(screen.getByText("Total")).toBeTruthy();
 });
 
-it("uses the agreed draft labels in both languages and tones", () => {
+it("uses the agreed draft labels in both languages", () => {
   const keys = ["record.step.setup", "record.step.participants", "record.step.payer", "record.step.items", "record.step.split", "record.step.settle"] as const;
   for (const [language, expected] of [
     ["en", ["Setup", "People", "Payer", "Items", "Split", "Settle"]],
     ["pt", ["Início", "Pessoas", "Pagador", "Itens", "Divisão", "Acerto"]],
   ] as const) {
-    for (const humour of ["plain", "unhinged"] as const) {
-      const settings = { language, humour };
+      const settings = { language };
       expect(keys.map((key) => translateWithSettings(settings, "record.status.pending", { step: translateWithSettings(settings, key) }))).toEqual(
         expected.map((step) => `${language === "en" ? "Draft" : "Rasc."} · ${step}`),
       );
-    }
   }
 });
