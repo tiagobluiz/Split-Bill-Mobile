@@ -122,8 +122,11 @@ export function RecordRow({
   const { meta, title } = view;
   const didLongPressRef = useRef(false);
   const [statusWidths, setStatusWidths] = useState<Record<string, number>>({});
+  const [statusRowWidth, setStatusRowWidth] = useState(0);
   const statusOptions = [t("record.status.settled")];
-  const statusWidth = Math.max(0, ...statusOptions.map((label) => statusWidths[label] ?? 0)) + 2;
+  const measuredStatusWidth = statusWidths[statusOptions[0]];
+  const statusWidth = measuredStatusWidth == null ? undefined : measuredStatusWidth + 2;
+  const stackAmount = statusRowWidth > 0 && statusWidth != null && statusWidth + 168 > statusRowWidth;
   const isCompleted = view.status === "completed";
   const showSingleZeroState =
     meta.amountDisplay.variant === "remaining" &&
@@ -152,10 +155,7 @@ export function RecordRow({
       color={color}
       textAlign="right"
       marginLeft="auto"
-      numberOfLines={1}
       flexShrink={1}
-      adjustsFontSizeToFit
-      minimumFontScale={16 / AMOUNT_FONT_SIZE}
     >
       {value}
     </Text>
@@ -172,13 +172,13 @@ export function RecordRow({
           marginBottom: 10,
         }}
       />
-      <XStack alignItems="stretch" width="100%">
-        <View style={isCompleted ? { width: statusWidth, justifyContent: "center", marginRight: 10 } : { justifyContent: "center" }}>
-          <Text fontFamily={FONTS.bodyBold} fontSize={12} color={meta.statusColor} textTransform="uppercase" letterSpacing={1.8} numberOfLines={1}>
+      <XStack testID="split-card-status-row" alignItems="stretch" width="100%" flexDirection={stackAmount && isCompleted ? "column" : "row"} onLayout={(event: { nativeEvent: { layout: { width: number } } }) => setStatusRowWidth(event.nativeEvent.layout.width)}>
+        <View style={isCompleted && !stackAmount ? { width: statusWidth, justifyContent: "center", marginRight: 10 } : { justifyContent: "center" }}>
+          <Text fontFamily={FONTS.bodyBold} fontSize={12} color={meta.statusColor} textTransform="uppercase" letterSpacing={1.8} numberOfLines={stackAmount ? undefined : 1}>
             {meta.statusLabel}
           </Text>
         </View>
-        {isCompleted ? <YStack testID="split-card-amount" flex={1} minWidth={0} justifyContent="center" borderLeftWidth={1} borderColor={PALETTE.outlineVariant} paddingLeft="$2" gap="$1">
+        {isCompleted ? <YStack testID="split-card-amount" flex={1} minWidth={0} justifyContent="center" borderLeftWidth={stackAmount ? 0 : 1} borderTopWidth={stackAmount ? 1 : 0} borderColor={PALETTE.outlineVariant} paddingLeft={stackAmount ? 0 : "$2"} paddingTop={stackAmount ? 8 : 0} marginTop={stackAmount ? 8 : 0} gap="$1">
         {showSingleZeroState ? (
           <XStack alignItems="center" justifyContent="space-between" gap="$2" flexWrap="wrap">
             {renderNothingDueRows("flex-start")}
@@ -293,8 +293,8 @@ export function RecordRow({
           {renderExpandedAmount()}
           {isCompleted ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={{ position: "absolute", left: -10000, width: 10000, opacity: 0 }}>
             {statusOptions.map((label) => (
-              <NativeText key={label} accessible={false} numberOfLines={1} style={{ alignSelf: "flex-start", fontFamily: FONTS.bodyBold, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.8 }} onTextLayout={(event) => {
-                const width = event.nativeEvent.lines[0]?.width;
+              <NativeText key={label} testID="split-card-status-measure" accessible={false} numberOfLines={1} style={{ alignSelf: "flex-start", fontFamily: FONTS.bodyBold, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.8 }} onLayout={(event) => {
+                const width = event.nativeEvent.layout.width;
                 if (width != null) setStatusWidths((current) => current[label] === width ? current : { ...current, [label]: width });
               }}>{label}</NativeText>
             ))}

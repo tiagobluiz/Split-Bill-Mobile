@@ -40,6 +40,29 @@ it("only shows the amount and its divider for completed splits", () => {
   expect(screen.getByText("Total")).toBeTruthy();
 });
 
+it.each(["total", "totalAndRemaining"] as const)("stacks a long completed status above %s amounts on a narrow screen", (mode) => {
+  const settings = { defaultCurrency: "EUR", splitListAmountDisplay: mode, tags: [] };
+  const record = buildRecordFixture({ status: "completed" }) as DraftRecord;
+  const model = createRecordRowModel(record, "Ana", settings);
+  model.meta.amountDisplay.primaryValue = "€1,250,000.00";
+  if (model.meta.amountDisplay.variant === "totalAndRemaining") {
+    model.meta.amountDisplay.secondaryLabel = "Owe";
+    model.meta.amountDisplay.secondaryValue = "€420,000.00";
+    model.meta.amountDisplay.secondaryKind = "owe";
+  }
+  render(<RecordRow record={model} ownerName="Ana" settings={settings} onOpenActions={jest.fn()} />);
+
+  const row = screen.getByTestId("split-card-status-row");
+  expect(row.props.flexDirection).toBe("row");
+  fireEvent(screen.getByTestId("split-card-status-measure", { includeHiddenElements: true }), "layout", { nativeEvent: { layout: { width: 180 } } });
+  fireEvent(row, "layout", { nativeEvent: { layout: { width: 280 } } });
+  expect(screen.getByTestId("split-card-status-row").props.flexDirection).toBe("column");
+  expect(screen.getByTestId("split-card-amount").props.borderTopWidth).toBe(1);
+  expect(screen.getByText(model.meta.amountDisplay.primaryValue).props.numberOfLines).toBeUndefined();
+  if (mode === "totalAndRemaining") expect(screen.getByText("€420,000.00").props.numberOfLines).toBeUndefined();
+  expect(screen.getByText("Total")).toBeTruthy();
+});
+
 it("uses the agreed draft labels in both languages and tones", () => {
   const keys = ["record.step.setup", "record.step.participants", "record.step.payer", "record.step.items", "record.step.split", "record.step.settle"] as const;
   for (const [language, expected] of [
