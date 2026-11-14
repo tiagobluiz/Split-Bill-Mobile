@@ -238,8 +238,9 @@ export function HomeScreenView() {
   }, [recentPages.records, filteredPages.records]);
   const sharedRows = usePageRowModels(sharedSummaries, records, settings.ownerName, settings, true, `${settings.language}:${settings.humour}:${locale}`);
   const rowsById = new Map(sharedRows.rows.map((row) => [row.id, row]));
-  const recentRows = { ...sharedRows, rows: recentPages.records.slice(0, 5).flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
-  const splitRows = { ...sharedRows, rows: splitPages.records.flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
+  const recentSummaries = recentPages.records.slice(0, 5);
+  const recentRows = { ...sharedRows, ...sharedRows.statusFor(recentSummaries), rows: recentSummaries.flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
+  const splitRows = { ...sharedRows, ...sharedRows.statusFor(splitPages.records), rows: splitPages.records.flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
   const splitReminderPickerRecord = records.find(
     (record) => record.id === splitReminderPickerRecordId,
   );
@@ -655,7 +656,7 @@ export function HomeScreenView() {
           onOpenActions={openListActions}
           listLoading={recentPages.loading || recentRows.loading}
           listError={recentPages.error || recentRows.error}
-          onRetry={recentRows.error ? recentRows.retry : recentPages.reload}
+          onRetry={recentRows.error ? recentRows.retry : recentPages.nextCursor ? () => recentPages.loadMore(20) : recentPages.reload}
           balanceError={balanceIndex.error}
           onRetryBalances={balanceIndex.retry}
         />

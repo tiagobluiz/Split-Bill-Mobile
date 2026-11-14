@@ -51,8 +51,7 @@ export function SplitList({ records, settings, getSplitReminderLabel, getModelRe
 
   if (!listProps) {
     if (!records.length) return empty;
-    if (error) return retry;
-    return <YStack gap="$3">{records.map((record) => <View key={record.id}>{row(record)}</View>)}</YStack>;
+    return <YStack gap="$3">{records.map((record) => <View key={record.id}>{row(record)}</View>)}{error ? retry : null}</YStack>;
   }
 
   return (

@@ -3,6 +3,7 @@ import { getRecordsByIds, type DraftRecord } from "../../../../storage/records";
 import type { SplitListSummary } from "../../../../storage/splitList";
 import { buildRecordFixture } from "../../integrationTestUtils";
 import { usePageRowModels } from "./usePageRowModels";
+import { notifyArchiveChange } from "../../archiveChanges";
 
 jest.mock("../../../../storage/records", () => ({ getRecordsByIds: jest.fn() }));
 
@@ -13,6 +14,30 @@ const noLoaded: DraftRecord[] = [];
 
 describe("usePageRowModels", () => {
   beforeEach(() => jest.resetAllMocks());
+
+  it("scopes a failed hydration to the affected summaries", async () => {
+    (getRecordsByIds as jest.Mock).mockResolvedValueOnce([record("one")]).mockRejectedValueOnce(new Error("read failed"));
+    const first = [summary("one")];
+    const both = [...first, summary("two")];
+    const { result, rerender } = renderHook(({ entries }) => usePageRowModels(entries, noLoaded, "Ana", settings, true), { initialProps: { entries: first } });
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
+    rerender({ entries: both });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(result.current.statusFor(first)).toEqual({ loading: false, error: false });
+    rerender({ entries: first });
+    expect(result.current.error).toBe(false);
+    act(() => result.current.retry());
+    expect(result.current.error).toBe(false);
+  });
+
+  it("rehydrates unchanged summaries after invalidation", async () => {
+    (getRecordsByIds as jest.Mock).mockImplementation(async (ids: string[]) => ids.map(record));
+    const { result } = renderHook(() => usePageRowModels([summary("one")], noLoaded, "Ana", settings, true));
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
+    act(() => notifyArchiveChange({ type: "invalidate" }));
+    await waitFor(() => expect(getRecordsByIds).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
+  });
 
   it("loads only newly requested page records and retains models when disabled", async () => {
     (getRecordsByIds as jest.Mock).mockImplementation(async (ids: string[]) => ids.map(record));

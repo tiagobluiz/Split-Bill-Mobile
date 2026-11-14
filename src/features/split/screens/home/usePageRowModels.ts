@@ -10,7 +10,7 @@ type CachedRow = { updatedAt: string; settingsKey: string; model: RecordRowModel
 export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: DraftRecord[], ownerName: string, settings: RecordRowSettings, enabled: boolean, displayRevision?: string) {
   const cache = useRef(new Map<string, CachedRow>());
   const [revision, setRevision] = useState(0);
-  const [error, setError] = useState(false);
+  const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
   const [attempt, setAttempt] = useState(0);
   const loaded = useMemo(() => new Map(loadedRecords.map((record) => [record.id, record])), [loadedRecords]);
   const settingsKey = JSON.stringify([ownerName, settings.defaultCurrency, settings.splitListAmountDisplay, settings.customCurrencies, displayRevision]);
@@ -20,6 +20,8 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
     if (change.type !== "metadata") {
       if (change.type === "invalidate") cache.current.clear();
       else cache.current.delete(change.type === "upsert" ? change.record.id : change.id);
+      setFailedIds(new Set());
+      setAttempt((value) => value + 1);
       setRevision((value) => value + 1);
     }
   }), []);
@@ -27,7 +29,6 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
   useEffect(() => {
     let cancelled = false;
     if (!enabled) {
-      setError(false);
       return;
     }
     for (const entry of summaries) {
@@ -40,7 +41,7 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
       return !cached || cached.updatedAt !== entry.updatedAt || cached.settingsKey !== settingsKey;
     });
     if (!missing.length) return;
-    setError(false);
+    setFailedIds(new Set());
     void (async () => {
       for (let offset = 0; offset < missing.length; offset += 100) {
         const batch = missing.slice(offset, offset + 100);
@@ -53,7 +54,7 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
         }
         setRevision((value) => value + 1);
       }
-    })().catch(() => { if (!cancelled) setError(true); });
+    })().catch(() => { if (!cancelled) setFailedIds(new Set(missing.map((entry) => entry.id))); });
     return () => { cancelled = true; };
   }, [enabled, summaryKey, loaded, ownerName, settingsKey, attempt]);
 
@@ -66,10 +67,14 @@ export function usePageRowModels(summaries: SplitListSummary[], loadedRecords: D
       return cached && cached.updatedAt === entry.updatedAt && cached.settingsKey === settingsKey && cached.model ? [cached.model] : [];
     });
   }, [enabled, summaries, loaded, ownerName, settingsKey, revision]);
-  const loading = enabled && !error && summaries.some((entry) => {
-    if (loaded.has(entry.id)) return false;
-    const cached = cache.current.get(entry.id);
-    return !cached || cached.updatedAt !== entry.updatedAt || cached.settingsKey !== settingsKey;
-  });
-  return { rows, loading, error, retry: () => setAttempt((value) => value + 1) };
+  const statusFor = (entries: SplitListSummary[]) => {
+    const missing = entries.filter((entry) => {
+      if (loaded.has(entry.id)) return false;
+      const cached = cache.current.get(entry.id);
+      return !cached || cached.updatedAt !== entry.updatedAt || cached.settingsKey !== settingsKey;
+    });
+    const error = enabled && missing.some((entry) => failedIds.has(entry.id));
+    return { error, loading: enabled && !error && missing.length > 0 };
+  };
+  return { rows, ...statusFor(summaries), statusFor, retry: () => setAttempt((value) => value + 1) };
 }
