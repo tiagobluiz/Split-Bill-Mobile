@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 import {
-  ArrowRight,
   Bell,
   Check,
   FileJson,
@@ -45,6 +44,7 @@ import {
   useSplitStore,
 } from "../../store";
 import { FlowScreenHeader } from "../shared/flowComponents";
+import { FlowContinueButton } from "../shared/components";
 import { useRecord } from "../shared/hooks";
 import {
   getParticipantDisplayName,
@@ -612,30 +612,12 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       )}
       footer={
           <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
-            <Pressable
-              accessibilityRole="button"
+            <FlowContinueButton
               accessibilityLabel={t("flow.results.actionsCtaA11y")}
-              style={screenStyles.resultsPrimaryButton}
+              label={t("flow.results.actionsCta")}
+              leadingIcon={<Share2 color={PALETTE.onPrimary} size={20} />}
               onPress={() => setShowResultsActions(true)}
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                width="100%"
-              >
-                <Share2 color={PALETTE.onPrimary} size={18} />
-                <Text
-                  flex={1}
-                  fontFamily={FONTS.headlineBold}
-                  fontSize={15}
-                  color={PALETTE.onPrimary}
-                  textAlign="center"
-                >
-                  {t("flow.results.actionsCta")}
-                </Text>
-                <ArrowRight color={PALETTE.onPrimary} size={18} />
-              </XStack>
-            </Pressable>
+            />
           </MeasuredFloatingFooter>
         }
       >
@@ -648,7 +630,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         <FlowScreenHeader
           title={t("flow.results.title")}
           onBack={() => router.replace(`/split/${draftId}/overview`)}
-          onClose={() => router.back()}
         />
       </View>
       <View style={screenStyles.participantsScrollContent}>

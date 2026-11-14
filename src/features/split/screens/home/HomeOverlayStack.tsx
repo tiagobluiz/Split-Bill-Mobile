@@ -1,4 +1,4 @@
-import { useRef, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Bell, Pencil, Trash2 } from "lucide-react-native";
 import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
@@ -168,9 +168,17 @@ export function HomeOverlayStack({
   const { t } = useTranslation();
   const openCurrencyAfterDismiss = useRef(false);
   const deferredAction = useRef<(() => void) | null>(null);
+  const [recordActionsClosing, setRecordActionsClosing] = useState(false);
+  const closingRef = useRef(false);
+  const dismissActions = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setRecordActionsClosing(true);
+  };
   const deferAction = (action: () => void) => {
+    if (closingRef.current) return;
     deferredAction.current = action;
-    onDismissRecordActionTarget();
+    dismissActions();
   };
 
   return (
@@ -181,7 +189,7 @@ export function HomeOverlayStack({
         onDismiss={onDismissSettingsNotice}
       /> : null}
       <ActionListSheet
-          visible={Boolean(selectedRecordActionTarget)}
+          visible={Boolean(selectedRecordActionTarget) && !recordActionsClosing}
           title={t("home.rowActions.title")}
           cancelLabel={t("common.cancel")}
           bottomInset={safeAreaBottomInset}
@@ -211,12 +219,14 @@ export function HomeOverlayStack({
               onPress: () => deferAction(onRecordActionDelete),
             },
           ]}
-          onDismiss={onDismissRecordActionTarget}
+          onDismiss={dismissActions}
           onDismissComplete={() => {
-            onDismissRecordActionTarget();
             const action = deferredAction.current;
             deferredAction.current = null;
             action?.();
+            onDismissRecordActionTarget();
+            closingRef.current = false;
+            setRecordActionsClosing(false);
           }}
         />
       {quickEditRecord ? (

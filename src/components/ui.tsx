@@ -307,7 +307,7 @@ export function MeasuredFloatingFooter({
         onMeasuredHeight?.(event.nativeEvent.layout.height);
       }}
       style={[
-        styles.footerFrame,
+        styles.attachedFlowFooter,
         { paddingBottom: Math.max(insets.bottom, FOOTER_BOTTOM_MIN_INSET) },
       ]}
     >
@@ -523,17 +523,14 @@ export const styles = StyleSheet.create({
     paddingBottom: FOOTER_BOTTOM_MIN_INSET,
   },
   footerBubble: {
+    width: "100%",
+  },
+  attachedFlowFooter: {
+    paddingHorizontal: FOOTER_SIDE_PADDING,
+    paddingTop: 16,
     backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: PALETTE.outlineVariant,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: PALETTE.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 5,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: PALETTE.outlineVariant,
   },
   input: {
     minHeight: 56,

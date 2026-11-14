@@ -1,4 +1,5 @@
 import { Pressable, View } from "react-native";
+import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react-native";
 import {
   Paragraph as TamaguiParagraph,
@@ -21,12 +22,14 @@ export function FlowContinueButton({
   disabled,
   accessibilityLabel,
   accessibilityHint,
+  leadingIcon,
 }: {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  leadingIcon?: ReactNode;
 }) {
   const foregroundColor = disabled
     ? PALETTE.onSurfaceVariant
@@ -45,7 +48,7 @@ export function FlowContinueButton({
       ]}
     >
       <View style={screenStyles.flowContinueButtonContent}>
-        <View style={screenStyles.flowContinueButtonIconSlot} />
+        <View style={screenStyles.flowContinueButtonIconSlot}>{leadingIcon}</View>
         <Text
           fontFamily={FONTS.headlineBlack}
           fontSize={18}

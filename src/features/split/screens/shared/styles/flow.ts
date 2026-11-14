@@ -163,7 +163,7 @@ export const flowStyles = {
     },
   itemsManualAddButton: {
       minHeight: 70,
-      borderRadius: 999,
+      borderRadius: 24,
       borderWidth: 1.5,
       borderStyle: "dashed",
       borderColor: PALETTE.outline,
@@ -454,20 +454,6 @@ export const flowStyles = {
   resultsStatusIconSettled: {
       backgroundColor: PALETTE.success,
     },
-  resultsPrimaryButton: {
-      flex: 1,
-      minHeight: 58,
-      borderRadius: 999,
-      backgroundColor: PALETTE.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 14,
-      shadowColor: PALETTE.primary,
-      shadowOpacity: 0.12,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 5,
-    },
   splitFooterInlineSummary: {
       gap: 4,
       marginTop: 4,
@@ -492,29 +478,6 @@ export const flowStyles = {
   itemsFooterInlineSummary: {
       gap: 4,
       marginTop: 4,
-    },
-  itemsScrollCueSlot: {
-      minHeight: 34,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-  itemsScrollCueButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: "rgba(255,253,250,0.96)",
-      borderWidth: 1,
-      borderColor: PALETTE.outlineVariant,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: PALETTE.primary,
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-    },
-  itemsScrollCueButtonHidden: {
-      opacity: 0,
     },
   resultsInvalidCard: {
       marginTop: 24,
