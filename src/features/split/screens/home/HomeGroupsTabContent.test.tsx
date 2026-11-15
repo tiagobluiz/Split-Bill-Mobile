@@ -17,7 +17,6 @@ const settings: AppSettings = {
   ownerName: "You",
   ownerProfileImageUri: "",
   balanceFeatureEnabled: true,
-  trackPaymentsFeatureEnabled: true,
   defaultCurrency: "EUR",
   language: "en", splitListAmountDisplay: "remaining",
   customCurrencies: [],

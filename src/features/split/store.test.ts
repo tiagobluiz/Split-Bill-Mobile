@@ -175,7 +175,6 @@ async function loadStore(options?: {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -346,8 +345,6 @@ async function loadStore(options?: {
     initializeSettingsStorage: storageMocks.initializeSettingsStorage,
     getAppSettings: storageMocks.getAppSettings,
     saveAppSettings: storageMocks.saveAppSettings,
-    normalizeFeatureFlags: jest.requireActual("../../storage/settings")
-      .normalizeFeatureFlags,
   }));
   const actualDevice = jest.requireActual("../../lib/device");
   jest.doMock("../../lib/device", () => ({
@@ -414,8 +411,7 @@ describe("split store", () => {
     const { storeModule, storageMocks } = await loadStore();
     storeModule.useSplitStore.setState({
       settings: {
-        ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR",
+        ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR",
         splitListAmountDisplay: "remaining", customCurrencies: [], people: [],
       },
     } as any);
@@ -448,7 +444,7 @@ describe("split store", () => {
     storeModule.useSplitStore.setState({
       ready: true,
       records: [record],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [person], participantGroups: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [person], participantGroups: [] },
     } as any);
 
     const result = await storeModule.useSplitStore.getState().savePerson({ personId: person.id, name: "Ana Maria", photoUri: "file:///ana.jpg", color: "#12abef", groupIds: [] });
@@ -473,7 +469,7 @@ describe("split store", () => {
     ];
     storeModule.useSplitStore.setState({
       ready: true, records: [record],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people, participantGroups: [] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people, participantGroups: [] },
     } as any);
 
     await expect(storeModule.useSplitStore.getState().savePerson({ personId: null, name: "  CARLA ", photoUri: null, color: "orange", groupIds: [] })).resolves.toEqual({ ok: false, reason: "duplicate", personId: "person-old" });
@@ -507,7 +503,7 @@ describe("split store", () => {
     const group = { id: "g1", name: "Roomies", memberPersonIds: ["used", "unused"], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     storeModule.useSplitStore.setState({
       ready: true, records: [],
-      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [used, unused, free], participantGroups: [group] },
+      settings: { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], people: [used, unused, free], participantGroups: [group] },
     } as any);
 
     await expect(storeModule.useSplitStore.getState().removePerson("used")).resolves.toBe("archived");
@@ -763,7 +759,6 @@ describe("split store", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -773,7 +768,6 @@ describe("split store", () => {
         ownerName: "Tiago",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: false,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -806,7 +800,6 @@ describe("split store", () => {
         people: [owner],
         participantGroups: [group],
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -1209,7 +1202,6 @@ describe("split store", () => {
         ownerName: undefined,
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -1218,7 +1210,6 @@ describe("split store", () => {
 
     await storeModule.useSplitStore.getState().updateSettings({
       balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: false,
     });
     expect(storeModule.useSplitStore.getState().records[0]).toEqual(record);
 
@@ -1257,7 +1248,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "GBP",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -1328,7 +1318,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -1407,7 +1396,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -1471,7 +1459,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2286,7 +2273,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2298,6 +2284,13 @@ describe("split store", () => {
       storeModule.useSplitStore.getState().getActiveRecord()?.settlementState
         .settledParticipantIds,
     ).toEqual(["bruno"]);
+
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, balanceFeatureEnabled: false } }));
+    await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
+    await storeModule.useSplitStore.getState().revertBillPaid();
+    await storeModule.useSplitStore.getState().markBillPaid();
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, balanceFeatureEnabled: true } }));
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
     expect(
@@ -2670,7 +2663,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2710,7 +2702,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2786,7 +2777,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2818,7 +2808,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2854,7 +2843,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2910,7 +2898,6 @@ describe("split store", () => {
         ownerName: "You",
         ownerProfileImageUri: "",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "EUR",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],

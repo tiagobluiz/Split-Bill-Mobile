@@ -12,7 +12,6 @@ const props = {
   settings: {
     ownerName: "You",
     balanceFeatureEnabled: false,
-    trackPaymentsFeatureEnabled: true,
     language: "en", defaultCurrency: "EUR",
     customCurrencies: [],
     tags: [],

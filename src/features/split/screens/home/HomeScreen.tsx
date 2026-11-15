@@ -752,12 +752,6 @@ export function HomeScreenView() {
           setBalanceFeatureEnabledDraft={
             settingsController.setBalanceFeatureEnabledDraft
           }
-          trackPaymentsFeatureEnabledDraft={
-            settingsController.trackPaymentsFeatureEnabledDraft
-          }
-          setTrackPaymentsFeatureEnabledDraft={
-            settingsController.setTrackPaymentsFeatureEnabledDraft
-          }
           defaultCurrencyDraft={settingsController.defaultCurrencyDraft}
           setLanguageMenuOpen={settingsController.setLanguageMenuOpen}
           setCurrencyMenuOpen={settingsController.setCurrencyMenuOpen}
@@ -770,9 +764,6 @@ export function HomeScreenView() {
           }
           splitListAmountDisplayDraft={
             settingsController.splitListAmountDisplayDraft
-          }
-          setSplitListAmountDisplayDraft={
-            settingsController.setSplitListAmountDisplayDraft
           }
           customCurrenciesDraft={settingsController.customCurrenciesDraft}
           tags={settings.tags ?? []}

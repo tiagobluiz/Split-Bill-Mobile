@@ -33,7 +33,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "common.couldNotSaveSettings": "Não foi possível guardar as definições",
   "common.tryAgain": "Tenta novamente.",
   "settings.trackPayments.shortDescription": "Marca pessoas como pagas depois de acertarem as contas.",
-  "settings.balanceHelper.shortDescription": "Vê quanto deves e quanto te devem.",
+  "settings.balanceHelper.shortDescription": "Vê quanto deves e quanto te devem e marca pagamentos como acertados.",
   "settings.back": "Voltar às definições",
   "settings.organization": "Organização",
   "settings.preferences": "Preferências",
@@ -90,7 +90,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "settings.splitRows.total.summary": "Mostra o total da divisão",
   "settings.splitRows.total.description":
     "Mostra o valor total da divisão, independentemente de quem pagou ou do que ainda falta acertar.",
-  "settings.splitRows.userPaid.label": "O teu consumo",
+  "settings.splitRows.userPaid.label": "Consumo",
   "settings.splitRows.userPaid.summary": "Mostra quanto foi teu",
   "settings.splitRows.userPaid.description":
     "Mostra quanto desta divisão te foi atribuído, independentemente de quem pagou.",
@@ -106,10 +106,10 @@ const ptPlain: Record<TranslationKey, string> = {
     "Ativa isto se quiseres marcar pessoas como pagas depois de o dinheiro ficar acertado.",
   "settings.trackPayments.toggleA11y":
     "Ativar ou desativar registar pagamentos",
-  "settings.balanceHelper.title": "Auxiliar de saldo",
+  "settings.balanceHelper.title": "Acompanhar saldos",
   "settings.balanceHelper.description":
     "Ativa isto se quiseres ver quanto deves e quanto te devem.",
-  "settings.balanceHelper.toggleA11y": "Ativar ou desativar auxiliar de saldo",
+  "settings.balanceHelper.toggleA11y": "Ativar ou desativar acompanhamento de saldos",
   "settings.disclaimer.title": "Aviso sobre os teus dados",
   "settings.disclaimer.body":
     "Não guardamos os teus dados na cloud. Se apagares os dados desta app, tudo será eliminado de forma permanente.",
@@ -617,7 +617,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "record.amount.owed": "A receber",
   "record.amount.nothingDue": "Nada a pagar",
   "record.amount.total": "Total",
-  "record.amount.userPaid": "O teu consumo",
+  "record.amount.userPaid": "Consumo",
   "record.settlement.payer": "Pagador",
   "record.settlement.owesPayer": "Deve ao pagador",
   "record.settlement.payerOwesThem": "Pagador deve-lhes",

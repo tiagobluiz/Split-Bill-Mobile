@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Image, Pressable, ScrollView, Switch, View } from "react-native";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, List, CircleCheck, ChartNoAxesColumn } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, List, ChartNoAxesColumn } from "lucide-react-native";
 import {
   Text as TamaguiText,
   YStack as TamaguiYStack,
@@ -22,9 +22,6 @@ import {
   getInitials,
 } from "../shared/participantUtils";
 
-import {
-  isBalanceDependentSplitListAmountDisplay,
-} from "./useHomeSettingsDraftController";
 import type { SplitListAmountDisplayOption } from "./homeTypes";
 import { screenStyles } from "../shared/styles";
 import { ConfirmChoiceModal } from "../shared/modals";
@@ -43,8 +40,6 @@ export function HomeSettingsTabContent({
   onEditProfile,
   balanceFeatureEnabledDraft,
   setBalanceFeatureEnabledDraft,
-  trackPaymentsFeatureEnabledDraft,
-  setTrackPaymentsFeatureEnabledDraft,
   defaultCurrencyDraft,
   setLanguageMenuOpen,
   setCurrencyMenuOpen,
@@ -52,7 +47,6 @@ export function HomeSettingsTabContent({
   languageDraft,
   splitListAmountDisplayOptions,
   splitListAmountDisplayDraft,
-  setSplitListAmountDisplayDraft,
   customCurrenciesDraft,
   tags,
   onAddTag,
@@ -71,10 +65,6 @@ export function HomeSettingsTabContent({
   setBalanceFeatureEnabledDraft: (
     value: boolean | ((value: boolean) => boolean),
   ) => void;
-  trackPaymentsFeatureEnabledDraft: boolean;
-  setTrackPaymentsFeatureEnabledDraft: (
-    value: boolean | ((value: boolean) => boolean),
-  ) => void;
   defaultCurrencyDraft: string;
   setLanguageMenuOpen: (value: boolean) => void;
   setCurrencyMenuOpen: (value: boolean) => void;
@@ -86,9 +76,6 @@ export function HomeSettingsTabContent({
     | "total"
     | "userPaid"
     | "totalAndRemaining";
-  setSplitListAmountDisplayDraft: (
-    value: "remaining" | "total" | "userPaid" | "totalAndRemaining",
-  ) => void;
   customCurrenciesDraft: Array<{ code: string; name: string; symbol: string }>;
   tags: SplitTag[];
   onAddTag: (
@@ -201,8 +188,7 @@ export function HomeSettingsTabContent({
               <SettingsRow divider icon={List} label={t("settings.splitRows")} value={splitListAmountDisplayOptions.find((option) => option.key === splitListAmountDisplayDraft)?.label} accessibilityLabel={t("settings.splitRowsPicker")} onPress={() => setSplitListAmountDisplayMenuOpen(true)} />
             </SettingsSection>
             <SettingsSection title={t("settings.features")}>
-              <SettingsSwitch icon={CircleCheck} label={t("settings.trackPayments.title")} description={t("settings.trackPayments.shortDescription")} accessibilityLabel={t("settings.trackPayments.toggleA11y")} value={trackPaymentsFeatureEnabledDraft} onChange={(next) => { setTrackPaymentsFeatureEnabledDraft(next); if (!next) { setBalanceFeatureEnabledDraft(false); if (isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)) setSplitListAmountDisplayDraft("total"); } }} />
-              <SettingsSwitch divider icon={ChartNoAxesColumn} label={t("settings.balanceHelper.title")} description={t("settings.balanceHelper.shortDescription")} accessibilityLabel={t("settings.balanceHelper.toggleA11y")} value={balanceFeatureEnabledDraft} onChange={(next) => { setBalanceFeatureEnabledDraft(next); if (next) setTrackPaymentsFeatureEnabledDraft(true); else if (isBalanceDependentSplitListAmountDisplay(splitListAmountDisplayDraft)) setSplitListAmountDisplayDraft("total"); }} />
+              <SettingsSwitch divider icon={ChartNoAxesColumn} label={t("settings.balanceHelper.title")} description={t("settings.balanceHelper.shortDescription")} accessibilityLabel={t("settings.balanceHelper.toggleA11y")} value={balanceFeatureEnabledDraft} onChange={setBalanceFeatureEnabledDraft} />
             </SettingsSection>
             <SettingsSection title={t("settings.data")}>
               <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>

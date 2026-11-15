@@ -49,7 +49,6 @@ import { listLegacyRecordIdsForPerson, listPersonNameConflicts, listRecordIdsFor
 import {
   getAppSettings,
   initializeSettingsStorage,
-  normalizeFeatureFlags,
   saveAppSettings,
   type AppSettings,
 } from "../../storage/settings";
@@ -808,7 +807,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     profileSetupCompleted: false,
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
-    trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     splitListAmountDisplay: "remaining",
     tags: normalizeTags(undefined),
@@ -970,7 +968,6 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     const normalizedOptimistic = {
       ...optimisticSettings,
       profileSetupCompleted: before.settings.profileSetupCompleted === true || optimisticSettings.profileSetupCompleted === true,
-      ...normalizeFeatureFlags(optimisticSettings),
       tags: normalizeTags(optimisticSettings.tags),
       people: normalizedOptimisticPeople,
       participantGroups: normalizeGroups(optimisticSettings.participantGroups, normalizedOptimisticPeople),
@@ -988,14 +985,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     const latest = get();
     const previousOwnerName = before.settings.ownerName || "";
     const mergedSettings = { ...latest.settings, ...partial };
-    const normalizedFlags = normalizeFeatureFlags({
-      balanceFeatureEnabled: mergedSettings.balanceFeatureEnabled,
-      trackPaymentsFeatureEnabled: mergedSettings.trackPaymentsFeatureEnabled,
-    });
     const nextSettings = {
       ...mergedSettings,
       profileSetupCompleted: latest.settings.profileSetupCompleted === true || mergedSettings.profileSetupCompleted === true,
-      ...normalizedFlags,
       tags: normalizeTags(mergedSettings.tags),
       people: normalizePeople(mergedSettings.people),
       participantGroups: normalizeGroups(
@@ -1903,6 +1895,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     };
   },
   async markBillPaid(recordId) {
+    if (get().settings.balanceFeatureEnabled === false) return;
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = getSettledDebtorIds(
@@ -1913,6 +1906,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async revertBillPaid(recordId) {
+    if (get().settings.balanceFeatureEnabled === false) return;
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         draft.settlementState.settledParticipantIds = [];
@@ -1920,6 +1914,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     );
   },
   async toggleParticipantPaid(participantId, recordId) {
+    if (get().settings.balanceFeatureEnabled === false) return;
     await withOptimisticActiveRecord(set, get, (record) =>
       normalizeActiveSettlementMutation(record, (draft) => {
         const debtorIds = new Set(getSettledDebtorIds(draft.values));

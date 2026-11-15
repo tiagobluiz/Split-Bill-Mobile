@@ -194,8 +194,7 @@ describe("records storage", () => {
     };
 
     await recordsModule.saveRecordsAndSettings([record] as any, {
-      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
     } as any);
 
     const settingsWrite = database.runAsync.mock.calls.find((call: any[]) => call[0].includes("INSERT INTO app_settings"))!;
