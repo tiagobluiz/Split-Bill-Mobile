@@ -2261,7 +2261,7 @@ describe("split store", () => {
 
   it("marks and reverts paid settlement state for the active record", async () => {
     const record = createRecord();
-    const { storeModule } = await loadStore({
+    const { storeModule, storageMocks } = await loadStore({
       listRecords: [record],
     });
 
@@ -2286,10 +2286,17 @@ describe("split store", () => {
     ).toEqual(["bruno"]);
 
     storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, balanceFeatureEnabled: false } }));
+    storageMocks.saveRecord.mockClear();
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
-    await storeModule.useSplitStore.getState().revertBillPaid();
-    await storeModule.useSplitStore.getState().markBillPaid();
     expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    await storeModule.useSplitStore.getState().revertBillPaid();
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual(["bruno"]);
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
+    storeModule.useSplitStore.setState((state) => ({ records: state.records.map((entry) => ({ ...entry, settlementState: { ...entry.settlementState, settledParticipantIds: [] } })) }));
+    await storeModule.useSplitStore.getState().markBillPaid();
+    expect(storeModule.useSplitStore.getState().getActiveRecord()?.settlementState.settledParticipantIds).toEqual([]);
+    expect(storageMocks.saveRecord).not.toHaveBeenCalled();
+    storeModule.useSplitStore.setState((state) => ({ records: state.records.map((entry) => ({ ...entry, settlementState: { ...entry.settlementState, settledParticipantIds: ["bruno"] } })) }));
     storeModule.useSplitStore.setState((state) => ({ settings: { ...state.settings, balanceFeatureEnabled: true } }));
 
     await storeModule.useSplitStore.getState().toggleParticipantPaid("bruno");
