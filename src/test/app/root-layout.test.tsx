@@ -22,9 +22,7 @@ const mockStoreState = {
   ready: false,
   bootstrap: jest.fn(async () => undefined),
   settings: {
-    language: "en",
-    humour: "plain",
-  },
+    language: "en", },
 };
 
 function notifyStore() {

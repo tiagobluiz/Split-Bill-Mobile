@@ -68,10 +68,6 @@ export function HomeOverlayStack({
   setLanguageMenuOpen,
   languageDraft,
   setLanguageDraft,
-  humourMenuOpen,
-  setHumourMenuOpen,
-  humourDraft,
-  setHumourDraft,
   splitListAmountDisplayMenuOpen,
   setSplitListAmountDisplayMenuOpen,
   availableSplitListAmountDisplayOptions,
@@ -132,10 +128,6 @@ export function HomeOverlayStack({
   setLanguageMenuOpen: (value: boolean) => void;
   languageDraft: "en" | "pt";
   setLanguageDraft: (value: "en" | "pt") => void;
-  humourMenuOpen: boolean;
-  setHumourMenuOpen: (value: boolean) => void;
-  humourDraft: "plain" | "sassy" | "unhinged";
-  setHumourDraft: (value: "plain" | "sassy" | "unhinged") => void;
   splitListAmountDisplayMenuOpen: boolean;
   setSplitListAmountDisplayMenuOpen: (value: boolean) => void;
   availableSplitListAmountDisplayOptions: SelectableSplitListAmountDisplayOption[];
@@ -319,41 +311,6 @@ export function HomeOverlayStack({
             },
           ]}
           onDismiss={() => setLanguageMenuOpen(false)}
-        />
-      <BottomActionSheet
-          visible={humourMenuOpen}
-
-          selectionMode
-          cancelLabel={t("common.cancel")}
-          bottomInset={safeAreaBottomInset}
-          title={t("settings.pickTone")}
-          options={[
-            {
-              label: t("settings.humour.plain"),
-              selected: humourDraft === "plain",
-              onPress: () => {
-                setHumourDraft("plain");
-                setHumourMenuOpen(false);
-              },
-            },
-            {
-              label: t("settings.humour.sassy"),
-              selected: humourDraft === "sassy",
-              onPress: () => {
-                setHumourDraft("sassy");
-                setHumourMenuOpen(false);
-              },
-            },
-            {
-              label: t("settings.humour.unhinged"),
-              selected: humourDraft === "unhinged",
-              onPress: () => {
-                setHumourDraft("unhinged");
-                setHumourMenuOpen(false);
-              },
-            },
-          ]}
-          onDismiss={() => setHumourMenuOpen(false)}
         />
       <BottomActionSheet
           visible={splitListAmountDisplayMenuOpen}

@@ -51,7 +51,7 @@ function renderEditor({ people = [], person = null, groups = [group], onOpenExis
   onOpenExisting?: jest.Mock;
   onSave?: jest.Mock;
 } = {}) {
-  return render(<LocalizationProvider language="en" humour="plain"><PersonEditor person={person} people={people} groups={groups} records={[]} onCancel={jest.fn()} onOpenExisting={onOpenExisting} onSave={onSave} /></LocalizationProvider>);
+  return render(<LocalizationProvider language="en"><PersonEditor person={person} people={people} groups={groups} records={[]} onCancel={jest.fn()} onOpenExisting={onOpenExisting} onSave={onSave} /></LocalizationProvider>);
 }
 
 describe("PersonEditor", () => {
@@ -65,7 +65,7 @@ describe("PersonEditor", () => {
 
   it("requires an explicit choice before using an imported photo for an existing person without a photo", () => {
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <PersonEditor person={existing} people={[existing]} groups={[]} records={[]} suggestedContactPhoto="file:///contacts/ana.jpg" onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={jest.fn()} />
       </LocalizationProvider>,
     );
@@ -93,7 +93,7 @@ describe("PersonEditor", () => {
     });
     const savedPerson = { ...existing, id: "person-new", name: "Carla" };
     const editor = (people: SavedPerson[]) => (
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <PersonEditor person={null} people={people} groups={[]} records={[]} onCancel={onCancel} onOpenExisting={jest.fn()} onSave={onSave} onBusyChange={onBusyChange} />
       </LocalizationProvider>
     );
@@ -120,7 +120,7 @@ describe("PersonEditor", () => {
     const onCancel = jest.fn();
     const conflictingPerson = { ...existing, id: "person-carla", name: "Carla" };
     const editor = (people: SavedPerson[]) => (
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <PersonEditor person={null} people={people} groups={[]} records={[]} onCancel={onCancel} onOpenExisting={jest.fn()} onSave={onSave} />
       </LocalizationProvider>
     );
@@ -215,7 +215,7 @@ describe("PersonEditor", () => {
 
   it("shows the affected split when a rename conflicts with a local participant", async () => {
     const onSave = jest.fn(async () => ({ ok: false as const, reason: "split-name-conflict" as const, recordId: "r1" }));
-    render(<LocalizationProvider language="en" humour="plain"><PersonEditor person={existing} people={[existing]} groups={[]} records={[{ id: "r1", values: { splitName: "Lisbon dinner" } } as any]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><PersonEditor person={existing} people={[existing]} groups={[]} records={[{ id: "r1", values: { splitName: "Lisbon dinner" } } as any]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Ana Maria");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(screen.getByText(/conflicts with a participant in Lisbon dinner/)).toBeTruthy();
@@ -223,7 +223,7 @@ describe("PersonEditor", () => {
 
   it("identifies a conflicting split that is not loaded in the directory", async () => {
     const onSave = jest.fn(async () => ({ ok: false as const, reason: "split-name-conflict" as const, recordId: "older", splitName: "Old dinner" }));
-    render(<LocalizationProvider language="en" humour="plain"><PersonEditor person={existing} people={[existing]} groups={[]} records={[]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><PersonEditor person={existing} people={[existing]} groups={[]} records={[]} onCancel={jest.fn()} onOpenExisting={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Ana Maria");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
     expect(screen.getByText(/conflicts with a participant in Old dinner/)).toBeTruthy();
@@ -310,7 +310,7 @@ describe("PersonEditor", () => {
     const onOpenExisting = jest.fn();
     const duplicate = { ...existing, id: "person-carla", name: "Carla" };
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <PersonEditor person={existing} people={[existing, duplicate]} groups={[]} records={[]} suggestedContactPhoto="file:///contacts/ana.jpg" onCancel={jest.fn()} onOpenExisting={onOpenExisting} onSave={jest.fn()} />
       </LocalizationProvider>,
     );

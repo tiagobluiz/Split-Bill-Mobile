@@ -48,7 +48,7 @@ describe("TagEditorModal", () => {
   it("validates duplicate built-in tag names in the active language", async () => {
     const onSave = jest.fn(async () => true);
     render(
-      <LocalizationProvider language="pt" humour="plain">
+      <LocalizationProvider language="pt">
         <TagEditorModal
           existingTags={[
             {

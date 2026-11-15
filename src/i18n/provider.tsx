@@ -4,7 +4,6 @@ import {
   setI18nRuntime,
   t,
   translateWithSettings,
-  type AppHumour,
   type AppLanguage,
   type TranslateOptions,
   type TranslateParams,
@@ -13,7 +12,6 @@ import {
 
 type LocalizationContextValue = {
   language: AppLanguage;
-  humour: AppHumour;
   t: (
     key: TranslationKey,
     params?: TranslateParams,
@@ -23,24 +21,21 @@ type LocalizationContextValue = {
 
 const LocalizationContext = createContext<LocalizationContextValue>({
   language: "en",
-  humour: "plain",
   t,
 });
 
 export function LocalizationProvider({
   language,
-  humour,
   children,
-}: PropsWithChildren<{ language: AppLanguage; humour: AppHumour }>) {
-  setI18nRuntime({ language, humour });
+}: PropsWithChildren<{ language: AppLanguage }>) {
+  setI18nRuntime({ language });
 
   return (
     <LocalizationContext.Provider
       value={{
         language,
-        humour,
         t: (key, params, options) =>
-          translateWithSettings({ language, humour }, key, params, options),
+          translateWithSettings({ language }, key, params, options),
       }}
     >
       {children}

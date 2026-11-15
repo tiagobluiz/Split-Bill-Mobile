@@ -31,7 +31,7 @@ describe("GroupEditor", () => {
   it("keeps a new member in the draft until the group is finished", async () => {
     const onSave = jest.fn(async () => true);
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} />
       </LocalizationProvider>,
     );
@@ -57,7 +57,7 @@ describe("GroupEditor", () => {
   it("requires a member before saving an existing empty group", async () => {
     const group = { id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const onSave = jest.fn(async () => true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[]} allPeople={[]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={group} people={[]} allPeople={[]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Household");
     fireEvent.press(screen.getByText("Continue to members"));
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
@@ -71,7 +71,7 @@ describe("GroupEditor", () => {
 
   it("requires at least one member for a new group", async () => {
     const onSave = jest.fn(async () => true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Roomies");
     fireEvent.press(screen.getByText("Continue to members"));
     await act(async () => { fireEvent.press(screen.getByText("Save group")); });
@@ -82,7 +82,7 @@ describe("GroupEditor", () => {
   it("keeps the draft retryable when saving fails", async () => {
     const onSave = jest.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValue(true);
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} />
       </LocalizationProvider>,
     );
@@ -99,7 +99,7 @@ describe("GroupEditor", () => {
 
   it("hides icon and background controls while a group photo is selected", () => {
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor
           group={{ id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01", photoUri: "file:///roomies.jpg" }}
           people={[]}
@@ -118,7 +118,7 @@ describe("GroupEditor", () => {
   it("saves a custom background color selected with the color wheel", async () => {
     const onSave = jest.fn(async () => true);
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} />
       </LocalizationProvider>,
     );
@@ -139,7 +139,7 @@ describe("GroupEditor", () => {
   it("shows search results as add actions and removes selected people from the counted roster", () => {
     const maya = { id: "p1", name: "Maya Patel", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor group={null} people={[maya]} allPeople={[maya]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} />
       </LocalizationProvider>,
     );
@@ -163,7 +163,7 @@ describe("GroupEditor", () => {
   it("keeps archived members in the roster until removed", () => {
     const archived = { id: "p-archived", name: "Zoe Archived", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" };
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor
           group={{ id: "g1", name: "Roomies", memberPersonIds: [archived.id], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" }}
           people={[]}
@@ -186,7 +186,7 @@ describe("GroupEditor", () => {
     const archived = { id: "p-archived", name: "Zoe Archived", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" };
     const onSave = jest.fn(async () => true);
     render(
-      <LocalizationProvider language="en" humour="plain">
+      <LocalizationProvider language="en">
         <GroupEditor group={null} people={[]} allPeople={[archived]} groups={[]} onCancel={jest.fn()} onSave={onSave} />
       </LocalizationProvider>,
     );
@@ -205,7 +205,7 @@ describe("GroupEditor", () => {
 
   it("validates a blank or duplicate group name before advancing", () => {
     const groups = [{ id: "g1", name: "Roomies", memberPersonIds: [], usageCount: 0, createdAt: "2026-01-01", updatedAt: "2026-01-01" }];
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={groups} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={groups} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("Continue to members"));
     expect(screen.getByText("Enter a group name.")).toBeTruthy();
     expect(screen.getByText("Almost there")).toBeTruthy();
@@ -225,7 +225,7 @@ describe("GroupEditor", () => {
     const onSave = jest.fn(async () => true);
     const group = { id: "g-edit", name: "Old name", description: "A description", memberPersonIds: ["p1"], usageCount: 7, createdAt: "2025-01-01", updatedAt: "2026-01-01", color: "mint" as const, icon: "plane" as const };
     const person = { id: "p1", name: "Ana", createdAt: "2025-01-01", updatedAt: "2025-01-01" };
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[person]} allPeople={[person]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={group} people={[person]} allPeople={[person]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByDisplayValue("Old name"), "Weekend crew");
     fireEvent.press(screen.getByText("Continue to members"));
     expect(screen.getByText("Weekend crew")).toBeTruthy();
@@ -239,7 +239,7 @@ describe("GroupEditor", () => {
 
   it("adds saved people once and removes either saved or draft members", () => {
     const ana = { id: "p1", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[ana]} allPeople={[ana]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[ana]} allPeople={[ana]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "ana");
     fireEvent.press(screen.getByLabelText("Add Ana to group"));
     expect(screen.getByText("Members in Group (1)")).toBeTruthy();
@@ -254,7 +254,7 @@ describe("GroupEditor", () => {
 
   it("allows retry after a rejected group save and rejects a memberless group", async () => {
     const onSave = jest.fn(async () => true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("Save group"));
     expect(screen.getByText("Add at least one member.")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Mina");
@@ -269,7 +269,7 @@ describe("GroupEditor", () => {
   it("imports selected contacts, deduplicates names, and reuses matching saved people", async () => {
     const maya = { id: "saved-maya", name: "Maya Patel", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const onSave = jest.fn(async () => true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[maya]} allPeople={[maya]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[maya]} allPeople={[maya]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Import from contacts"));
     await waitFor(() => expect(screen.getAllByText("Maya Patel").length).toBe(2));
     fireEvent.changeText(screen.getByPlaceholderText("Search by name"), "Nina");
@@ -292,7 +292,7 @@ describe("GroupEditor", () => {
       Fields: { Name: "name" },
       requestPermissionsAsync: async () => ({ granted: false, canAskAgain: false }),
     }));
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Import from contacts"));
     await waitFor(() => expect(alert).toHaveBeenCalledWith("Contacts access unavailable", expect.any(String), expect.any(Array)));
     fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Mina");
@@ -314,7 +314,7 @@ describe("GroupEditor", () => {
       Fields: { Name: "name" },
       requestPermissionsAsync: async () => ({ granted: false, canAskAgain: true }),
     }));
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
 
     fireEvent.press(screen.getByLabelText("Import from contacts"));
     await waitFor(() => expect(alert).toHaveBeenCalledWith("Contacts access unavailable", expect.any(String), [{ text: "Okay" }]));
@@ -336,7 +336,7 @@ describe("GroupEditor", () => {
   });
 
   it("uses the emoji picker and validates custom picker colors", () => {
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByText("+"));
     fireEvent.press(screen.getByLabelText("Mock system emoji picker"));
     expect(screen.getAllByText("💳").length).toBeGreaterThan(0);
@@ -348,7 +348,7 @@ describe("GroupEditor", () => {
   it("replaces a group icon with a picked photo and restores appearance controls when removed", async () => {
     const ImagePicker = require("expo-image-picker");
     const onSave = jest.fn(async () => true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); await Promise.resolve(); });
     await waitFor(() => expect(screen.queryByText("Choose an icon")).toBeNull());
@@ -369,7 +369,7 @@ describe("GroupEditor", () => {
     const ImagePicker = require("expo-image-picker");
     ImagePicker.launchImageLibraryAsync.mockClear();
     ImagePicker.requestMediaLibraryPermissionsAsync.mockImplementationOnce(async () => ({ granted: false }));
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn(async () => true)} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); await Promise.resolve(); });
     expect(screen.getByText("Choose an icon")).toBeTruthy();
@@ -381,7 +381,7 @@ describe("GroupEditor", () => {
     const member = { id: "p1", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const group = { id: "g1", name: "Roomies", memberPersonIds: [member.id], usageCount: 2, createdAt: "2025-01-01", updatedAt: "2026-01-01", photoUri: "file:///owned/previous.jpg" };
     const onSave = jest.fn().mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValue(true);
-    render(<LocalizationProvider language="en" humour="plain"><GroupEditor group={group} people={[member]} allPeople={[member]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
+    render(<LocalizationProvider language="en"><GroupEditor group={group} people={[member]} allPeople={[member]} groups={[group]} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
 
     fireEvent.press(screen.getByLabelText("Group photo"));
     await act(async () => { fireEvent.press(screen.getByLabelText("Choose photo")); });

@@ -73,7 +73,7 @@ describe("TagChipRow", () => {
 
   it("renders built-in tag labels in the active language", () => {
     render(
-      <LocalizationProvider language="pt" humour="plain">
+      <LocalizationProvider language="pt">
         <TagChip
           tag={{
             id: "tag-restaurant",

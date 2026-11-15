@@ -1,29 +1,23 @@
 import {
-  SUPPORTED_HUMOURS,
   SUPPORTED_LANGUAGES,
   translationCatalog,
-  type AppHumour,
   type AppLanguage,
   type TranslationKey,
 } from "./catalog";
 
 export type TranslateParams = Record<string, string | number | undefined>;
 export type TranslateOptions = {
-  fallbackTone?: AppHumour;
   maxLength?: number;
 };
 
 export type TranslationSettings = {
   language: AppLanguage;
-  humour: AppHumour;
 };
 
 const DEFAULT_LANGUAGE: AppLanguage = "en";
-const DEFAULT_HUMOUR: AppHumour = "plain";
 
 let runtimeSettings: TranslationSettings = {
   language: DEFAULT_LANGUAGE,
-  humour: DEFAULT_HUMOUR,
 };
 
 function interpolate(template: unknown, params?: TranslateParams) {
@@ -44,12 +38,6 @@ export function normalizeLanguage(value: unknown): AppLanguage {
     : DEFAULT_LANGUAGE;
 }
 
-export function normalizeHumour(value: unknown): AppHumour {
-  return SUPPORTED_HUMOURS.includes(value as AppHumour)
-    ? (value as AppHumour)
-    : DEFAULT_HUMOUR;
-}
-
 export function resolveLanguageFromLocale(locale?: string): AppLanguage {
   const prefix = locale?.trim().toLowerCase().split(/[-_]/)[0];
   return prefix === "pt" ? "pt" : DEFAULT_LANGUAGE;
@@ -60,14 +48,12 @@ export function getDefaultTranslationSettings(
 ): TranslationSettings {
   return {
     language: resolveLanguageFromLocale(locale),
-    humour: DEFAULT_HUMOUR,
   };
 }
 
 export function setI18nRuntime(settings: Partial<TranslationSettings>) {
   runtimeSettings = {
     language: normalizeLanguage(settings.language ?? runtimeSettings.language),
-    humour: normalizeHumour(settings.humour ?? runtimeSettings.humour),
   };
 }
 
@@ -82,19 +68,16 @@ export function translateWithSettings(
   options?: TranslateOptions,
 ) {
   const language = normalizeLanguage(settings.language);
-  const humour = normalizeHumour(settings.humour);
-  const fallbackTone = normalizeHumour(options?.fallbackTone ?? "plain");
   const languageCatalog = translationCatalog[language];
   const defaultCatalog = translationCatalog[DEFAULT_LANGUAGE];
   const defaultResolved =
-    typeof defaultCatalog.plain[key] === "string"
-      ? (defaultCatalog.plain[key] as string)
+    typeof defaultCatalog[key] === "string"
+      ? (defaultCatalog[key] as string)
       : String(key);
   const maxLength = options?.maxLength;
 
   const candidates = [
-    languageCatalog[humour][key],
-    languageCatalog[fallbackTone][key],
+    languageCatalog[key],
     defaultResolved,
   ].filter(
     (candidate): candidate is string =>
@@ -117,4 +100,4 @@ export function t(
   return translateWithSettings(runtimeSettings, key, params, options);
 }
 
-export type { AppHumour, AppLanguage, TranslationKey };
+export type { AppLanguage, TranslationKey };

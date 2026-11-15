@@ -24,7 +24,7 @@ jest.mock("../../store", () => ({ useSplitStore: (selector: (state: any) => any)
 import { ProfileSetupGate } from "./ProfileSetupGate";
 
 function renderGate() {
-  return render(<LocalizationProvider language="en" humour="plain"><ProfileSetupGate /></LocalizationProvider>);
+  return render(<LocalizationProvider language="en"><ProfileSetupGate /></LocalizationProvider>);
 }
 
 describe("ProfileSetupGate", () => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, TextInput } from "react-native";
 
 import { createId } from "../../../../domain";
-import { type AppHumour, type AppLanguage } from "../../../../i18n";
+import { type AppLanguage } from "../../../../i18n";
 import { useTranslation } from "../../../../i18n/provider";
 import type {
   AppSettings,
@@ -88,7 +88,6 @@ type PersistableSettings = Pick<
   | "trackPaymentsFeatureEnabled"
   | "defaultCurrency"
   | "language"
-  | "humour"
   | "splitListAmountDisplay"
   | "customCurrencies"
 >;
@@ -124,9 +123,6 @@ export function useHomeSettingsDraftController({
   const [languageDraft, setLanguageDraft] = useState<AppLanguage>(
     settings.language ?? "en",
   );
-  const [humourDraft, setHumourDraft] = useState<AppHumour>(
-    settings.humour ?? "plain",
-  );
   const [splitListAmountDisplayDraft, setSplitListAmountDisplayDraft] =
     useState<SplitListAmountDisplay>(
       normalizeSplitListAmountDisplaySetting(
@@ -139,7 +135,6 @@ export function useHomeSettingsDraftController({
   );
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-  const [humourMenuOpen, setHumourMenuOpen] = useState(false);
   const [splitListAmountDisplayMenuOpen, setSplitListAmountDisplayMenuOpen] =
     useState(false);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
@@ -157,7 +152,6 @@ export function useHomeSettingsDraftController({
   );
   const defaultCurrencyDraftRef = useRef(defaultCurrencyDraft);
   const languageDraftRef = useRef(languageDraft);
-  const humourDraftRef = useRef(humourDraft);
   const splitListAmountDisplayDraftRef = useRef(splitListAmountDisplayDraft);
   const customCurrenciesDraftRef = useRef(customCurrenciesDraft);
 
@@ -263,7 +257,6 @@ export function useHomeSettingsDraftController({
             trackPaymentsFeatureEnabledDraftRef.current,
           defaultCurrency: nextDefaultCurrency.trim().toUpperCase(),
           language: overrides.language ?? languageDraftRef.current,
-          humour: overrides.humour ?? humourDraftRef.current,
           splitListAmountDisplay: persistedSplitListAmountDisplay,
           customCurrencies:
             overrides.customCurrencies ?? customCurrenciesDraftRef.current,
@@ -293,8 +286,6 @@ export function useHomeSettingsDraftController({
     defaultCurrencyDraftRef.current = settings.defaultCurrency ?? "";
     setLanguageDraft(settings.language ?? "en");
     languageDraftRef.current = settings.language ?? "en";
-    setHumourDraft(settings.humour ?? "plain");
-    humourDraftRef.current = settings.humour ?? "plain";
     const normalizedSplitRows = normalizeSplitListAmountDisplaySetting(
       settings.splitListAmountDisplay,
       settings.balanceFeatureEnabled,
@@ -308,7 +299,6 @@ export function useHomeSettingsDraftController({
     settings.trackPaymentsFeatureEnabled,
     settings.customCurrencies,
     settings.defaultCurrency,
-    settings.humour,
     settings.language,
     settings.splitListAmountDisplay,
     settings.ownerName,
@@ -451,13 +441,6 @@ export function useHomeSettingsDraftController({
     void persistSettings({ language: value });
   };
 
-  const setHumourDraftAndSave = (value: AppHumour) => {
-    humourDraftRef.current = value;
-    setHumourDraft(value);
-    setHumourMenuOpen(false);
-    void persistSettings({ humour: value });
-  };
-
   const setSplitListAmountDisplayDraftAndSave = (
     value: SplitListAmountDisplay,
   ) => {
@@ -557,8 +540,6 @@ export function useHomeSettingsDraftController({
     setDefaultCurrencyDraft: setDefaultCurrencyDraftAndSave,
     languageDraft,
     setLanguageDraft: setLanguageDraftAndSave,
-    humourDraft,
-    setHumourDraft: setHumourDraftAndSave,
     splitListAmountDisplayDraft,
     setSplitListAmountDisplayDraft: setSplitListAmountDisplayDraftAndSave,
     customCurrenciesDraft,
@@ -569,8 +550,6 @@ export function useHomeSettingsDraftController({
     setCurrencyMenuOpen,
     languageMenuOpen,
     setLanguageMenuOpen,
-    humourMenuOpen,
-    setHumourMenuOpen,
     splitListAmountDisplayMenuOpen,
     setSplitListAmountDisplayMenuOpen,
     currencyModalOpen,

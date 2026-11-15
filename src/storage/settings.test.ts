@@ -66,13 +66,11 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "userPaid",
+      language: defaultLanguage, splitListAmountDisplay: "userPaid",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(4);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -86,7 +84,6 @@ describe("settings storage", () => {
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
       language: "pt",
-      humour: "sassy",
       splitListAmountDisplay: "total",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "pts" }],
     });
@@ -100,14 +97,34 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
-          language: "en",
-          humour: "plain",
-          splitListAmountDisplay: "userPaid",
+          language: "en", splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
           profileSetupCompleted: true,
         }),
       ]
     );
+  });
+
+  it.each(["sassy", "unhinged"])("removes legacy %s tone without changing other settings", async (humour) => {
+    const original = { ownerName: "You", profileSetupCompleted: false, language: "pt", humour, customValue: "preserved" };
+    const row = { key: "app-settings", payload: JSON.stringify(original) };
+    const { database, settingsModule } = await loadModule({ row });
+    const loaded = await settingsModule.getAppSettings();
+    expect(loaded.language).toBe("pt");
+    expect(loaded).not.toHaveProperty("humour");
+    expect(database.runAsync).toHaveBeenCalledWith("UPDATE app_settings SET payload = ? WHERE key = ?", [JSON.stringify({ ownerName: "You", profileSetupCompleted: false, language: "pt", customValue: "preserved" }), "app-settings"]);
+  });
+
+  it("continues with plain copy if legacy tone cleanup fails", async () => {
+    const row = { key: "app-settings", payload: JSON.stringify({ ownerName: "You", language: "pt", humour: "unhinged" }) };
+    const { database, settingsModule } = await loadModule({ row });
+    database.runAsync.mockRejectedValueOnce(new Error("write failed"));
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(await settingsModule.getAppSettings()).toMatchObject({ language: "pt" });
+    expect(database.runAsync).toHaveBeenCalled();
+    await settingsModule.getAppSettings();
+    expect(database.runAsync).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
   });
 
   it("marks legacy custom-name profiles complete and keeps the default name eligible", async () => {
@@ -145,8 +162,7 @@ describe("settings storage", () => {
     const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana", profileSetupCompleted: true }) } });
     await settingsModule.saveAppSettings({
       ownerName: "Ana", profileSetupCompleted: false, ownerProfileImageUri: "", balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", humour: "plain",
-      splitListAmountDisplay: "remaining", customCurrencies: [],
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
     });
     const savedCall = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
     expect(JSON.parse(savedCall[1][1]).profileSetupCompleted).toBe(true);
@@ -165,9 +181,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: "en",
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: "en", splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
 
@@ -184,8 +198,7 @@ describe("settings storage", () => {
 
     await settingsModule.saveAppSettings({
       ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en",
-      humour: "plain", splitListAmountDisplay: "remaining", customCurrencies: [],
+      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
       people: [staleArchived],
     });
 
@@ -219,9 +232,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: false,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "totalAndRemaining",
+      language: defaultLanguage, splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
 
@@ -245,9 +256,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
-          language: "en",
-          humour: "plain",
-          splitListAmountDisplay: "remaining",
+          language: "en", splitListAmountDisplay: "remaining",
           customCurrencies: [],
           tags: [],
         }),
@@ -264,9 +273,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
       tags: [],
     });
@@ -288,9 +295,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
-          language: "en",
-          humour: "plain",
-          splitListAmountDisplay: "remaining",
+          language: "en", splitListAmountDisplay: "remaining",
           customCurrencies: [],
           pdfDownloadDirectoryUri: "file:///downloads",
         }),
@@ -309,9 +314,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
       pdfDownloadDirectoryUri: "file:///documents",
     });
@@ -344,9 +347,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
 
@@ -358,9 +359,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
   });
@@ -375,9 +374,7 @@ describe("settings storage", () => {
           balanceFeatureEnabled: true,
           trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
-          language: "pt",
-          humour: "plain",
-          splitListAmountDisplay: "totalAndRemaining",
+          language: "pt", splitListAmountDisplay: "totalAndRemaining",
           customCurrencies: "wrong-shape",
         }),
       },
@@ -390,9 +387,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: "pt",
-      humour: "plain",
-      splitListAmountDisplay: "totalAndRemaining",
+      language: "pt", splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
     });
   });
@@ -416,9 +411,7 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      language: "pt",
-      humour: "plain",
-    });
+      language: "pt", });
   });
 
   it("falls back to defaults when the stored payload is not valid JSON", async () => {
@@ -436,9 +429,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
     });
   });
@@ -461,9 +452,7 @@ describe("settings storage", () => {
       balanceFeatureEnabled: true,
       trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
-      language: defaultLanguage,
-      humour: "plain",
-      splitListAmountDisplay: "remaining",
+      language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
       });
     }

@@ -2,9 +2,7 @@ import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
 import { assertPersonRegistry, parseObject } from "./personIdentity";
 import {
   getDefaultTranslationSettings,
-  normalizeHumour,
   normalizeLanguage,
-  type AppHumour,
   type AppLanguage,
 } from "../i18n";
 import { getDeviceLocale } from "../lib/device";
@@ -27,7 +25,6 @@ export type AppSettings = {
   defaultCurrency: string;
   pdfDownloadDirectoryUri?: string;
   language: AppLanguage;
-  humour: AppHumour;
   splitListAmountDisplay: SplitListAmountDisplay;
   tags?: SplitTag[];
   people?: SavedPerson[];
@@ -92,7 +89,6 @@ function getDefaultSettings(): AppSettings {
     trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     language: translationDefaults.language,
-    humour: translationDefaults.humour,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
     tags: normalizeTags(undefined),
     people: [],
@@ -148,6 +144,20 @@ export async function getAppSettings() {
   } catch {
     return getDefaultSettings();
   }
+  if (Object.prototype.hasOwnProperty.call(parsed, "humour")) {
+    try {
+      await withDatabaseTransaction(async (db) => {
+        const current = await db.getFirstAsync<SettingsRow>("SELECT key, payload FROM app_settings WHERE key = ?", [SETTINGS_KEY]);
+        if (!current) return;
+        const payload = JSON.parse(current.payload);
+        if (!payload || typeof payload !== "object" || Array.isArray(payload) || !("humour" in payload)) return;
+        delete payload.humour;
+        await db.runAsync("UPDATE app_settings SET payload = ? WHERE key = ?", [JSON.stringify(payload), SETTINGS_KEY]);
+      });
+    } catch (error) {
+      console.warn("[Split Bill storage] Could not remove legacy tone", error);
+    }
+  }
   const normalizedFlags = normalizeFeatureFlags({
     balanceFeatureEnabled:
       typeof parsed.balanceFeatureEnabled === "boolean" ? parsed.balanceFeatureEnabled : true,
@@ -187,10 +197,6 @@ export async function getAppSettings() {
       parsed.language === undefined
         ? translationDefaults.language
         : normalizeLanguage(parsed.language),
-    humour:
-      parsed.humour === undefined
-        ? translationDefaults.humour
-        : normalizeHumour(parsed.humour),
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       parsed.splitListAmountDisplay,
     ),

@@ -38,13 +38,9 @@ describe("llm handoff contract", () => {
 
   it("translates the prompt when translation settings are provided", () => {
     const prompt = buildReceiptLlmPrompt({
-      language: "pt",
-      humour: "plain",
-    });
+      language: "pt", });
     const englishPrompt = buildReceiptLlmPrompt({
-      language: "en",
-      humour: "plain",
-    });
+      language: "en", });
 
     expect(prompt).not.toBe(englishPrompt);
     expect(prompt).toContain("Regras:");

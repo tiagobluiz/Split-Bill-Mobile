@@ -262,7 +262,7 @@ export function HomeScreenView() {
     for (const entry of filteredPages.records) entries.set(entry.id, entry);
     return [...entries.values()];
   }, [recentPages.records, filteredPages.records]);
-  const sharedRows = usePageRowModels(sharedSummaries, records, settings.ownerName, settings, true, `${settings.language}:${settings.humour}:${locale}`);
+  const sharedRows = usePageRowModels(sharedSummaries, records, settings.ownerName, settings, true, `${settings.language}:${locale}`);
   const rowsById = new Map(sharedRows.rows.map((row) => [row.id, row]));
   const recentSummaries = recentPages.records.slice(0, 5);
   const recentRows = { ...sharedRows, ...sharedRows.statusFor(recentSummaries), rows: recentSummaries.flatMap((entry) => rowsById.get(entry.id) ? [rowsById.get(entry.id)!] : []) };
@@ -587,10 +587,6 @@ export function HomeScreenView() {
           setLanguageMenuOpen={settingsController.setLanguageMenuOpen}
           languageDraft={settingsController.languageDraft}
           setLanguageDraft={settingsController.setLanguageDraft}
-          humourMenuOpen={settingsController.humourMenuOpen}
-          setHumourMenuOpen={settingsController.setHumourMenuOpen}
-          humourDraft={settingsController.humourDraft}
-          setHumourDraft={settingsController.setHumourDraft}
           splitListAmountDisplayMenuOpen={
             settingsController.splitListAmountDisplayMenuOpen
           }
@@ -764,13 +760,11 @@ export function HomeScreenView() {
           }
           defaultCurrencyDraft={settingsController.defaultCurrencyDraft}
           setLanguageMenuOpen={settingsController.setLanguageMenuOpen}
-          setHumourMenuOpen={settingsController.setHumourMenuOpen}
           setCurrencyMenuOpen={settingsController.setCurrencyMenuOpen}
           setSplitListAmountDisplayMenuOpen={
             settingsController.setSplitListAmountDisplayMenuOpen
           }
           languageDraft={settingsController.languageDraft}
-          humourDraft={settingsController.humourDraft}
           splitListAmountDisplayOptions={
             settingsController.splitListAmountDisplayOptions
           }

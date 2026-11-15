@@ -1,5 +1,4 @@
 import type { TranslationKey } from "./en";
-import { ptUnhinged } from "./ptUnhinged";
 const ptPlain: Record<TranslationKey, string> = {
   "splitDetails.date": "Data da divisão", "splitDetails.invoice": "Fotografia da fatura (opcional)", "splitDetails.choosePhoto": "Escolher fotografia da fatura", "splitDetails.changePhoto": "Alterar fotografia da fatura", "splitDetails.removePhoto": "Remover fotografia", "splitDetails.takePhoto": "Fotografar fatura", "splitDetails.preview": "Pré-visualizar fatura", "splitDetails.cameraDenied": "Permite o acesso à câmara nas definições do dispositivo.", "splitDetails.addInvoicePhoto": "Adicionar fotografia da fatura", "splitDetails.photoSourceHint": "Tira uma fotografia ou escolhe da galeria", "splitDetails.attachInvoice": "Anexar fatura", "splitDetails.fileNameUnknown": "Imagem da fatura", "splitDetails.fileSizeUnknown": "Tamanho indisponível", "pdf.attachments": "Anexos", "pdf.invoice": "Fatura", "pdf.exportedOn": "Exportado em {date}",
   "photoOptions.chooseFromLibrary": "Escolher fotografia", "photoOptions.takePhoto": "Tirar fotografia", "photoOptions.removePhoto": "Remover fotografia",
@@ -70,14 +69,9 @@ const ptPlain: Record<TranslationKey, string> = {
     "Permite acesso às fotos para escolher uma foto de perfil.",
   "settings.voice": "Voz da app",
   "settings.language": "Idioma",
-  "settings.tone": "Tom",
   "settings.language.en": "Inglês",
   "settings.language.pt": "Português",
-  "settings.humour.plain": "Normal",
-  "settings.humour.sassy": "Irreverente",
-  "settings.humour.unhinged": "Caótico",
   "settings.pickLanguage": "Escolher idioma",
-  "settings.pickTone": "Escolher tom",
   "settings.currencyPicker": "Escolher moeda predefinida",
   "settings.currencyPickerOther": "Escolher outra moeda",
   "settings.currencyAddTitle": "Adicionar moeda",
@@ -700,114 +694,4 @@ const ptPlain: Record<TranslationKey, string> = {
   "pdf.sharingUnavailable": "A partilha não está disponível neste dispositivo.",
 };
 
-const ptSassy: Partial<Record<keyof typeof ptPlain, string>> = {
-  "app.error.openTitle": "Olha… isto não abriu",
-  "app.error.openDescription": "Tenta outra vez, vá",
-  "app.error.retry": "Outra vez",
-
-  "common.couldNotSaveSettings": "Não deu para guardar, claro",
-  "common.tryAgain": "Tenta lá outra vez",
-
-  "settings.ownerNameRequired": "Precisas mesmo de um nome",
-  "settings.defaultCurrencyRequired": "Escolhe uma moeda, génio",
-
-  "settings.trackPayments.title": "Quem já pagou?",
-  "settings.balanceHelper.title": "Quem deve a quem",
-
-  "home.startSplit": "Novo Ajuste de Contas",
-  "home.noSplitsTitle": "Nada por aqui… ainda",
-  "home.noSplitsDescription": "As contas vão aparecer, não te preocupes",
-  "home.noSplitsFilteredTitle": "Zero. Redondo.",
-  "home.undoSplitDeleted": "Apagado… mas calma",
-  "home.youAreOwed": "A receber",
-  "home.youOwe": "A pagar",
-
-  "flow.setup.next": "Seguinte: os criminosos",
-
-  "flow.participants.title": "Quem é que entra nisto?",
-  "flow.participants.add": "Adicionar mais um",
-  "flow.participants.next": "Seguinte: quem pagou",
-  "flow.participants.frequent": "Devedores frequentes",
-
-  "flow.payer.title": "Quem sacou da carteira?",
-  "flow.payer.next": "Seguinte: o estrago",
-
-  "flow.items.title": "O que é que compraram?",
-  "flow.items.import": "Deixa a IA tratar disto",
-  "flow.items.addManual": "Adicionar à pata",
-  "flow.items.itemDeleted": "Já foi",
-  "flow.items.runningTotal": "Total… dói um bocado",
-
-  "flow.itemDetail.editTitle": "Arranja isso",
-  "flow.itemDetail.nameRequired": "Dá-lhe um nome, vá",
-  "flow.itemDetail.priceRequired": "Falta o preço, chefe",
-  "flow.itemDetail.confirmDiscard.title": "Desistes já?",
-  "flow.itemDetail.confirmDelete.title": "Apagar mesmo?",
-
-  "flow.splitItem.title": "Quem paga o quê?",
-  "flow.splitItem.confirmNext": "Segue",
-  "flow.splitItem.confirmReview": "Segue e vê",
-
-  "flow.import.askAiTitle": "Deixa a IA ver isso",
-  "flow.import.afterAi": "Copia bem e volta",
-  "flow.import.copyPrompt": "Copia isso",
-  "llm.receiptPrompt.readReceipt":
-    "Lê o talão enviado e extrai apenas os itens comprados.",
-  "llm.receiptPrompt.returnFormat":
-    "Devolve o resultado exatamente neste formato, um item por linha:",
-  "llm.receiptPrompt.rules": "Regras:",
-  "llm.receiptPrompt.rule.keepItems":
-    "- Mantém apenas itens reais que possam ser comprados.",
-  "llm.receiptPrompt.rule.excludeNonItems":
-    "- Exclui totais, subtotais, impostos, resumos de IVA, linhas de pagamento, descontos de cartão, cabeçalhos e notas.",
-  "llm.receiptPrompt.rule.noCommentary":
-    "- Não acrescentes comentários, numeração, markdown, tabelas ou explicações.",
-  "llm.receiptPrompt.rule.plainDecimal":
-    "- Usa um número decimal simples para o preço.",
-  "llm.receiptPrompt.rule.commaToDot":
-    "- Se o talão usar vírgulas decimais, converte-as em pontos.",
-  "flow.import.alreadyHaveList": "Já tenho a lista",
-
-  "flow.review.title": "Vê lá bem isso",
-  "flow.overview.finalize": "Fechar contas",
-
-  "flow.results.title": "A sentença",
-  "flow.results.invalidTitle": "Isto não bate certo",
-  "flow.results.totalSettled": "Tudo tratado",
-  "flow.results.revertMarkPaid": "Afinal ainda devem",
-
-  "validation.participantsMin": "Pelo menos duas pessoas, vá",
-  "validation.participantNameMax":
-    "Mantém os nomes abaixo de {max} caracteres.",
-  "validation.payerRequired": "Alguém pagou… escolhe",
-  "validation.itemsMin": "Sem itens não dá",
-  "validation.itemAmountInvalid": "Isso não é um valor",
-  "validation.percentTotal": "Isto tem de dar 100%",
-
-  "friendly.itemsMin": "Adiciona aí alguma coisa",
-  "friendly.percentTotal": "Faz isso dar 100%",
-
-  "clipboard.payer.getBack": "{name}: pagou {amount}, consumiu {consumed}, vai buscar {net}",
-  "clipboard.payer.stillOwes": "{name}: pagou {amount}, consumiu {consumed}, ainda deve {net}",
-  "clipboard.person.owes": "{name}: deve {amount}",
-  "clipboard.person.getsBack": "{name}: recebe {amount}",
-
-  "reminders.notification.splitBody": "Esta conta ainda está em aberto...",
-  "reminders.notification.debtBodyNamed":
-    "{name} ainda tem valor em aberto. Vai lembrando.",
-  "reminders.notification.debtBodyUnnamed":
-    "Alguém ainda tem valor em aberto. Vai lembrando.",
-  "pdf.invalid": "Assim não dá para exportar",
-};
-
-export const ptCatalog = {
-  plain: ptPlain,
-  sassy: {
-    ...ptPlain,
-    ...ptSassy,
-  },
-  unhinged: {
-    ...ptPlain,
-    ...ptUnhinged,
-  },
-} as const;
+export const ptCatalog = ptPlain;
