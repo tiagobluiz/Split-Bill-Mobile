@@ -757,6 +757,7 @@ const enPlain = {
     "Use one item per line with a name and price",
   "pasteImport.invalidMergeAmountTooHigh":
     "Could not merge {item} because the combined amount is too high.",
+  "pasteImport.invalidExistingItem": "Could not merge {item} because the existing item has invalid pricing. Edit it and try again.",
   "flow.category.general": "General",
   "flow.category.produce": "Produce",
   "flow.category.bakery": "Bakery",

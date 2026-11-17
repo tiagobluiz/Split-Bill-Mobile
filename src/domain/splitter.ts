@@ -217,7 +217,7 @@ export function normalizeMoneyInput(value: string) {
   return (amountCents / 100).toFixed(2);
 }
 
-export function validateItemPricing(item: ItemFormValue): StepValidationError[] {
+export function validateItemPricing(item: ItemFormValue, enforceTotalLimit = true): StepValidationError[] {
   const errors: StepValidationError[] = [];
   const unit = parseMoneyToCents(item.price);
   const quantity = item.quantity ?? 1;
@@ -247,7 +247,7 @@ export function validateItemPricing(item: ItemFormValue): StepValidationError[] 
     }
   }
 
-  if (errors.length === 0 && Math.abs(calculateItemTotalCents(item, unit! * quantity)) > ITEM_AMOUNT_MAX_CENTS) {
+  if (enforceTotalLimit && errors.length === 0 && Math.abs(calculateItemTotalCents(item, unit! * quantity)) > ITEM_AMOUNT_MAX_CENTS) {
     errors.push({ code: "item-amount-too-high", path: "price", message: t("validation.itemAmountTooHigh") });
   }
 
@@ -267,6 +267,14 @@ export function getItemTotalCents(item: ItemFormValue): number | null {
   if (validateItemPricing(item).length > 0) return null;
   const subtotal = parseMoneyToCents(item.price)! * (item.quantity ?? 1);
   return calculateItemTotalCents(item, subtotal);
+}
+
+// A merge may bring an otherwise calculable over-limit total back within range.
+export function getItemTotalForMergeCents(item: ItemFormValue): number | null {
+  if (validateItemPricing(item, false).length > 0) return null;
+  const subtotal = parseMoneyToCents(item.price)! * (item.quantity ?? 1);
+  const total = calculateItemTotalCents(item, subtotal);
+  return Number.isSafeInteger(total) ? total : null;
 }
 
 export function getItemUniquenessKey(

@@ -17,6 +17,8 @@ import {
   normalizeMoneyInput,
   getItemUniquenessKey,
   getItemTotalCents,
+  getItemTotalForMergeCents,
+  combineItemAmounts,
   itemHasDuplicate,
   validateItemNameAndAmount,
   validateItemPricing,
@@ -34,6 +36,16 @@ import {
 } from "./index";
 
 describe("splitter domain", () => {
+  it("merges calculable over-limit totals without treating invalid pricing as zero", () => {
+    const item = { ...createEmptyItem([]), name: "Milk", price: "1000001.00" };
+    const total = getItemTotalForMergeCents(item);
+    expect(getItemTotalCents(item)).toBeNull();
+    expect(total).toBe(100000100);
+    expect(combineItemAmounts(total!, -200)).toBe(99999900);
+    expect(combineItemAmounts(total!, 100)).toBeNull();
+    expect(getItemTotalForMergeCents({ ...item, price: "invalid" })).toBeNull();
+    expect(getItemTotalForMergeCents({ ...item, discount: { type: "percent", value: "101" } })).toBeNull();
+  });
   it("reports distinct pricing errors for quantity, discounts, and subtotal limits", () => {
     const item = { ...createEmptyItem([]), name: "Item", price: "202000.00" };
     expect(validateItemPricing({ ...item, quantity: 5 })).toEqual([

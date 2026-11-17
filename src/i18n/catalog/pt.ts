@@ -599,6 +599,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "pasteImport.ignoreReason.format": "Usa uma linha por item, com nome e preço",
   "pasteImport.invalidMergeAmountTooHigh":
     "Não foi possível juntar {item} porque o valor combinado é demasiado alto.",
+  "pasteImport.invalidExistingItem": "Não foi possível juntar {item} porque o valor do item existente é inválido. Edita-o e tenta novamente.",
   "flow.category.general": "Geral",
   "flow.category.produce": "Fruta e legumes",
   "flow.category.bakery": "Padaria",

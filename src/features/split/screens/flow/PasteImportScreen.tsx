@@ -30,8 +30,8 @@ import { useTranslation } from "../../../../i18n/provider";
 import {
   buildReceiptLlmPrompt,
   combineItemAmounts,
-  getItemTotalCents,
   formatMoney,
+  getItemTotalForMergeCents,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
   normalizeMoneyInput,
@@ -186,7 +186,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       .map((item) => ({
         id: item.id,
         name: item.name,
-        price: formatImportPreviewPrice(getItemTotalCents(item) ?? 0),
+        price: getItemTotalForMergeCents(item) === null ? "" : formatImportPreviewPrice(getItemTotalForMergeCents(item)!),
         category: item.category,
       }));
     const rows: ImportPreviewRow[] = [];
@@ -237,7 +237,12 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
         (candidate) => normalizeItemName(candidate.name) === mergeKey,
       );
       if (existingMatch) {
-        const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+        const existingCents = parseMoneyToCents(existingMatch.price);
+        if (existingCents === null) {
+          rows.push({ id: `skipped-merge-${index}`, label: displayName, detail: t("pasteImport.invalidExistingItem", { item: displayName }), skipped: true, intent: "skipped" });
+          ignoredMergeCount += 1;
+          return;
+        }
         const mergedCents = combineItemAmounts(existingCents, amountCents);
         if (mergedCents === null) {
           rows.push({

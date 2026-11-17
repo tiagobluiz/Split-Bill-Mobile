@@ -3007,6 +3007,19 @@ describe("split screens", () => {
     ).toBe("Cheese");
   });
 
+  it("skips invalid existing prices and previews corrections to over-limit totals", () => {
+    mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [
+      { ...buildRecord().values.items[0], id: "milk", name: "Milk", price: "invalid" },
+      { ...buildRecord().values.items[0], id: "bread", name: "Bread", price: "1000001.00" },
+    ] } })];
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("I already have the item list"));
+    fireEvent.changeText(screen.getByPlaceholderText(/Bananas - 2\.49/), "Milk - 1.00\nBread - -2.00");
+    expect(screen.getByText("Could not merge Milk because the existing item has invalid pricing. Edit it and try again.")).toBeTruthy();
+    expect(screen.getByLabelText("Accepted: 1")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+  });
+
   it("covers paste loading and warning-free import flows", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<PasteImportScreen draftId="draft-1" />);

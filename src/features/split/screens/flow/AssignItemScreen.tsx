@@ -28,6 +28,7 @@ import {
 import { useTranslation } from "../../../../i18n/provider";
 import {
   getItemTotalCents,
+  getItemTotalForMergeCents,
   validateItemPricing,
   createEmptyItem,
   combineItemAmounts,
@@ -209,7 +210,7 @@ export function AssignItemScreen({
     : undefined;
   const mergeCandidateMergedCents =
     mergeCandidate && parsedItemPriceCents !== null
-      ? (getItemTotalCents(mergeCandidate) ?? 0) + (getItemTotalCents(item) ?? 0)
+      ? (getItemTotalForMergeCents(mergeCandidate) ?? 0) + (getItemTotalCents(item) ?? 0)
       : null;
 
   const updateWorkingItemField = async (
@@ -249,6 +250,10 @@ export function AssignItemScreen({
       }
 
       if (isNewItem && mergeCandidate) {
+        if (getItemTotalForMergeCents(mergeCandidate) === null) {
+          setAssignNoticeMessages([t("pasteImport.invalidExistingItem", { item: mergeCandidate.name })]);
+          return;
+        }
         setMergeCandidateItemId(mergeCandidate.id);
         return;
       }
@@ -313,7 +318,12 @@ export function AssignItemScreen({
     }
 
     try {
-      const targetCents = getItemTotalCents(targetItem) ?? 0;
+      const targetCents = getItemTotalForMergeCents(targetItem);
+      if (targetCents === null) {
+        setMergeCandidateItemId("");
+        setAssignNoticeMessages([t("pasteImport.invalidExistingItem", { item: targetItem.name })]);
+        return;
+      }
       const mergedCents = combineItemAmounts(targetCents, getItemTotalCents(item) ?? 0);
       if (mergedCents === null) {
         setMergeCandidateItemId("");
@@ -408,7 +418,7 @@ export function AssignItemScreen({
                 {
                   name: mergeCandidate.name,
                   amount: formatMoney(
-                    getItemTotalCents(mergeCandidate) ?? 0,
+                    getItemTotalForMergeCents(mergeCandidate) ?? 0,
                     record.values.currency,
                     locale,
                   ),
