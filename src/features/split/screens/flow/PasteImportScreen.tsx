@@ -84,7 +84,6 @@ const AI_PROVIDERS: Array<{
     iconBackground: "#e8edff",
   },
 ];
-const IMPORT_PREVIEW_ROW_LIMIT = 6;
 type ImportPreviewRowIntent = "add" | "merge" | "delete" | "skipped";
 type ImportPreviewRow = {
   id: string;
@@ -344,9 +343,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const ignoredLineCount =
     parsedPreview.ignoredLines.length + importPreview.ignoredMergeCount;
   const estimatedTotalCents = importPreview.acceptedTotalCents;
-  const previewRows = useMemo(() => {
-    return importPreview.rows.slice(0, IMPORT_PREVIEW_ROW_LIMIT);
-  }, [importPreview.rows]);
+  const previewRows = importPreview.rows;
 
   const openStepTwo = () => {
     setStep(2);
@@ -413,18 +410,6 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     setImportApplyPending(true);
     try {
       const result = await importPastedList(input, mode, draftId);
-      const suppressedWarningCodes = new Set([
-        "no-items-detected",
-        "ignored-paste-lines",
-      ]);
-      const warningCodes = result.warningCodes ?? [];
-      const actionableWarnings = result.warningMessages.filter(
-        (_warning, index) =>
-          !suppressedWarningCodes.has(warningCodes[index] ?? ""),
-      );
-      if (actionableWarnings.length > 0) {
-        Alert.alert(t("flow.import.notesTitle"), actionableWarnings.join("\n"));
-      }
       if (result.importedCount > 0) {
         rememberItemOrigins(
           draftId,
