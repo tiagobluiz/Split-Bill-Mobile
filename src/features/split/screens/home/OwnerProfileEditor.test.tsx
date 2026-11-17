@@ -37,7 +37,6 @@ function profileSettings(photoUri: string): AppSettings {
     people: [owner],
     participantGroups: [],
     balanceFeatureEnabled: true,
-    trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     language: "en", splitListAmountDisplay: "remaining",
     customCurrencies: [],

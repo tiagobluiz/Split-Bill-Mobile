@@ -643,7 +643,7 @@ describe("split screens", () => {
     await act(async () => {});
     await act(async () => {});
 
-    expect(screen.getByText("You consumed")).toBeTruthy();
+    expect(screen.getByText("Consumed")).toBeTruthy();
     expect(
       screen.getAllByText(/0,00|€0.00|EUR 0.00|0.00/).length,
     ).toBeGreaterThan(0);
@@ -700,7 +700,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     await act(async () => {});
 
-    expect(screen.getByText("You consumed")).toBeTruthy();
+    expect(screen.getByText("Consumed")).toBeTruthy();
     expect(
       screen.getAllByText(/3,00|€3.00|EUR 3.00|3.00/).length,
     ).toBeGreaterThan(0);
@@ -1797,7 +1797,7 @@ describe("split screens", () => {
     expect(screen.getByText("Default currency")).toBeTruthy();
     expect(screen.getByText("Split rows")).toBeTruthy();
     expect(screen.getByText("Outstanding balance")).toBeTruthy();
-    expect(screen.getByText("Balance helper")).toBeTruthy();
+    expect(screen.getByText("Track balances")).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText(/Edit your profile$/));
     expect(screen.getByText("Edit person")).toBeTruthy();
@@ -1808,14 +1808,13 @@ describe("split screens", () => {
     ));
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
-      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", false);
     });
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
           ownerName: "Ana",
           balanceFeatureEnabled: false,
-          trackPaymentsFeatureEnabled: true,
           splitListAmountDisplay: "total",
         }),
       );
@@ -1834,21 +1833,24 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Total + outstanding"));
     });
     await act(async () => {
-      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", false);
     });
 
     await waitFor(() => {
       expect(screen.getByText("Total bill")).toBeTruthy();
     });
     fireEvent.press(screen.getByLabelText("Choose split row amount"));
-    expect(
-      screen.getByLabelText("Outstanding balance").props.accessibilityState
-        .disabled,
-    ).toBe(true);
-    expect(
-      screen.getByLabelText("Total + outstanding").props.accessibilityState
-        .disabled,
-    ).toBe(true);
+    expect(screen.queryByLabelText("Outstanding balance")).toBeNull();
+    expect(screen.queryByLabelText("Total + outstanding")).toBeNull();
+    expect(screen.getByLabelText("Total bill")).toBeTruthy();
+    expect(screen.getByLabelText("Consumed")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Total bill"));
+    await act(async () => {
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", true);
+    });
+    fireEvent.press(screen.getByLabelText("Choose split row amount"));
+    expect(screen.getByLabelText("Outstanding balance")).toBeTruthy();
+    expect(screen.getByLabelText("Total + outstanding")).toBeTruthy();
 
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
@@ -1912,7 +1914,7 @@ describe("split screens", () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     await act(async () => {
-      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", false);
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", false);
     });
     expect(
       screen.getByText("Please choose a default currency first."),
@@ -1936,7 +1938,6 @@ describe("split screens", () => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
         balanceFeatureEnabled: false,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "PO2",
         language: "en", splitListAmountDisplay: "total",
         customCurrencies: [
@@ -2005,10 +2006,10 @@ describe("split screens", () => {
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
-    expect(screen.getByLabelText("Toggle balance helper").props.value).toBe(false);
+    expect(screen.getByLabelText("Toggle track balances").props.value).toBe(false);
     expect(screen.queryByTestId("home-balance-owed-title")).toBeNull();
     await act(async () => {
-      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", true);
     });
     fireEvent.press(screen.getByLabelText("Open Splits"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
@@ -2025,7 +2026,7 @@ describe("split screens", () => {
       fireEvent.press(screen.getByLabelText("Save"));
     });
     await act(async () => {
-      fireEvent(screen.getByLabelText("Toggle balance helper"), "valueChange", true);
+      fireEvent(screen.getByLabelText("Toggle track balances"), "valueChange", true);
     });
     fireEvent.press(screen.getByLabelText("Open Home"));
     expect(screen.queryByText("Save your changes?")).toBeNull();
@@ -2033,7 +2034,6 @@ describe("split screens", () => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "CUR",
         language: "en", splitListAmountDisplay: "total",
         customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
@@ -2060,7 +2060,6 @@ describe("split screens", () => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Tiago",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "USD",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [],
@@ -2152,7 +2151,6 @@ describe("split screens", () => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
         ownerName: "Ana",
         balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
         defaultCurrency: "TOK",
         language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [{ code: "TOK", name: "Token", symbol: "ABC" }],

@@ -45,7 +45,6 @@ describe("settings storage", () => {
         ownerName: " Tiago ",
         ownerProfileImageUri: "file:///profile.png",
         balanceFeatureEnabled: false,
-        trackPaymentsFeatureEnabled: false,
         defaultCurrency: "USD",
         language: "pt",
         humour: "sassy",
@@ -64,7 +63,6 @@ describe("settings storage", () => {
       ownerName: "Ana",
       ownerProfileImageUri: "file:///ana.png",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "userPaid",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
@@ -81,7 +79,6 @@ describe("settings storage", () => {
       profileSetupCompleted: true,
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: false,
       defaultCurrency: "USD",
       language: "pt",
       splitListAmountDisplay: "total",
@@ -95,7 +92,6 @@ describe("settings storage", () => {
           ownerName: "Ana",
           ownerProfileImageUri: "file:///ana.png",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
@@ -161,8 +157,7 @@ describe("settings storage", () => {
   it("never clears a committed profile setup flag", async () => {
     const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana", profileSetupCompleted: true }) } });
     await settingsModule.saveAppSettings({
-      ownerName: "Ana", profileSetupCompleted: false, ownerProfileImageUri: "", balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
+      ownerName: "Ana", profileSetupCompleted: false, ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
     });
     const savedCall = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
     expect(JSON.parse(savedCall[1][1]).profileSetupCompleted).toBe(true);
@@ -179,7 +174,6 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: "en", splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -197,8 +191,7 @@ describe("settings storage", () => {
     });
 
     await settingsModule.saveAppSettings({
-      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
+      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
       people: [staleArchived],
     });
 
@@ -222,30 +215,6 @@ describe("settings storage", () => {
     expect(saved.people.find((person: any) => person.id === owner.id)?.name).toBe("Alice  Smith");
   });
 
-  it("normalizes feature flags before saving settings payloads", async () => {
-    const { database, settingsModule } = await loadModule({ row: null });
-
-    await settingsModule.initializeSettingsStorage();
-    await settingsModule.saveAppSettings({
-      ownerName: "Ana",
-      ownerProfileImageUri: "file:///ana.png",
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: false,
-      defaultCurrency: "EUR",
-      language: defaultLanguage, splitListAmountDisplay: "totalAndRemaining",
-      customCurrencies: [],
-    });
-
-    expect(database.runAsync).toHaveBeenCalledTimes(1);
-    const saveArgs = database.runAsync.mock.calls[0] as unknown as [string, [string, string]];
-    const persistedPayload = JSON.parse(saveArgs[1][1]);
-    expect(persistedPayload).toMatchObject({
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: false,
-      splitListAmountDisplay: "totalAndRemaining",
-    });
-  });
-
   it("preserves an explicitly empty saved tag list", async () => {
     const { database, settingsModule } = await loadModule({
       row: {
@@ -254,7 +223,6 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "remaining",
           customCurrencies: [],
@@ -271,7 +239,6 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -293,7 +260,6 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "remaining",
           customCurrencies: [],
@@ -312,7 +278,6 @@ describe("settings storage", () => {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -332,7 +297,6 @@ describe("settings storage", () => {
           ownerName: "",
           ownerProfileImageUri: 123,
           balanceFeatureEnabled: "wrong",
-          trackPaymentsFeatureEnabled: "wrong",
           defaultCurrency: "",
           splitListAmountDisplay: "wrong",
           customCurrencies: [{ code: "", name: " ", symbol: "" }],
@@ -345,7 +309,6 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -357,7 +320,6 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -372,7 +334,6 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "file:///profile.png",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
           language: "pt", splitListAmountDisplay: "totalAndRemaining",
           customCurrencies: "wrong-shape",
@@ -385,7 +346,6 @@ describe("settings storage", () => {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: "pt", splitListAmountDisplay: "totalAndRemaining",
       customCurrencies: [],
@@ -401,7 +361,6 @@ describe("settings storage", () => {
           ownerName: "Tiago",
           ownerProfileImageUri: "",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "eur",
           splitListAmountDisplay: "remaining",
           customCurrencies: [],
@@ -427,7 +386,6 @@ describe("settings storage", () => {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -450,7 +408,6 @@ describe("settings storage", () => {
         ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
       customCurrencies: [],
@@ -484,37 +441,20 @@ describe("settings storage", () => {
     expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
   });
 
-  it("normalizes feature flag combinations", async () => {
-    const { settingsModule } = await loadModule({ row: null });
-
-    expect(
-      settingsModule.normalizeFeatureFlags({
-        balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: true,
-      })
-    ).toEqual({
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-    });
-
-    expect(
-      settingsModule.normalizeFeatureFlags({
-        balanceFeatureEnabled: true,
-        trackPaymentsFeatureEnabled: false,
-      })
-    ).toEqual({
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: false,
-    });
-
-    expect(
-      settingsModule.normalizeFeatureFlags({
-        balanceFeatureEnabled: false,
-        trackPaymentsFeatureEnabled: true,
-      })
-    ).toEqual({
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: true,
-    });
+  it.each([
+    [true, false, true], [false, true, false], [undefined, false, false],
+    ["invalid", true, true], [undefined, undefined, true],
+  ])("migrates legacy payment setting %s and balance setting %s", async (payment, balance, expected) => {
+    const row = { key: "app-settings", payload: JSON.stringify({ trackPaymentsFeatureEnabled: payment, balanceFeatureEnabled: balance }) };
+    const { settingsModule, database } = await loadModule({ row });
+    const loaded = await settingsModule.getAppSettings();
+    expect(loaded.balanceFeatureEnabled).toBe(expected);
+    await settingsModule.saveAppSettings(loaded);
+    const call = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
+    const saved = JSON.parse(call[1][1]);
+    expect(saved.balanceFeatureEnabled).toBe(expected);
+    expect(saved).not.toHaveProperty("trackPaymentsFeatureEnabled");
+    const reloaded = await loadModule({ row: { key: "app-settings", payload: JSON.stringify(saved) } });
+    expect((await reloaded.settingsModule.getAppSettings()).balanceFeatureEnabled).toBe(expected);
   });
 });

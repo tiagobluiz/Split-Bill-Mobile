@@ -76,7 +76,6 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
       tags: [

@@ -85,7 +85,6 @@ type PersistableSettings = Pick<
   AppSettings,
   | "ownerName"
   | "balanceFeatureEnabled"
-  | "trackPaymentsFeatureEnabled"
   | "defaultCurrency"
   | "language"
   | "splitListAmountDisplay"
@@ -113,10 +112,6 @@ export function useHomeSettingsDraftController({
   const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(
     settings.balanceFeatureEnabled ?? true,
   );
-  const [
-    trackPaymentsFeatureEnabledDraft,
-    setTrackPaymentsFeatureEnabledDraft,
-  ] = useState(settings.trackPaymentsFeatureEnabled ?? true);
   const [defaultCurrencyDraft, setDefaultCurrencyDraft] = useState(
     settings.defaultCurrency ?? "",
   );
@@ -147,9 +142,6 @@ export function useHomeSettingsDraftController({
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
   const ownerNameDraftRef = useRef(ownerNameDraft);
   const balanceFeatureEnabledDraftRef = useRef(balanceFeatureEnabledDraft);
-  const trackPaymentsFeatureEnabledDraftRef = useRef(
-    trackPaymentsFeatureEnabledDraft,
-  );
   const defaultCurrencyDraftRef = useRef(defaultCurrencyDraft);
   const languageDraftRef = useRef(languageDraft);
   const splitListAmountDisplayDraftRef = useRef(splitListAmountDisplayDraft);
@@ -183,19 +175,9 @@ export function useHomeSettingsDraftController({
   ];
 
   const availableSplitListAmountDisplayOptions: SelectableSplitListAmountDisplayOption[] =
-    splitListAmountDisplayOptions.map((option) => {
-      const disabled =
-        !balanceFeatureEnabledDraft &&
-        isBalanceDependentSplitListAmountDisplay(option.key);
-
-      return {
-        ...option,
-        disabled,
-        description: disabled
-          ? `${option.description} ${t("settings.splitRows.requiresBalanceSuffix")}`
-          : option.description,
-      };
-    });
+    splitListAmountDisplayOptions
+      .filter((option) => balanceFeatureEnabledDraft || !isBalanceDependentSplitListAmountDisplay(option.key))
+      .map((option) => ({ ...option, disabled: false }));
 
   const draftCurrencyOptions = getCurrencyOptions({
     customCurrencies: customCurrenciesDraft,
@@ -252,9 +234,6 @@ export function useHomeSettingsDraftController({
         await updateSettings({
           ownerName: nextOwnerName.trim(),
           balanceFeatureEnabled: nextBalance,
-          trackPaymentsFeatureEnabled:
-            overrides.trackPaymentsFeatureEnabled ??
-            trackPaymentsFeatureEnabledDraftRef.current,
           defaultCurrency: nextDefaultCurrency.trim().toUpperCase(),
           language: overrides.language ?? languageDraftRef.current,
           splitListAmountDisplay: persistedSplitListAmountDisplay,
@@ -277,11 +256,6 @@ export function useHomeSettingsDraftController({
     setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
     balanceFeatureEnabledDraftRef.current =
       settings.balanceFeatureEnabled ?? true;
-    setTrackPaymentsFeatureEnabledDraft(
-      settings.trackPaymentsFeatureEnabled ?? true,
-    );
-    trackPaymentsFeatureEnabledDraftRef.current =
-      settings.trackPaymentsFeatureEnabled ?? true;
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     defaultCurrencyDraftRef.current = settings.defaultCurrency ?? "";
     setLanguageDraft(settings.language ?? "en");
@@ -296,7 +270,6 @@ export function useHomeSettingsDraftController({
     customCurrenciesDraftRef.current = settings.customCurrencies ?? [];
   }, [
     settings.balanceFeatureEnabled,
-    settings.trackPaymentsFeatureEnabled,
     settings.customCurrencies,
     settings.defaultCurrency,
     settings.language,
@@ -373,9 +346,6 @@ export function useHomeSettingsDraftController({
       typeof value === "function"
         ? value(balanceFeatureEnabledDraftRef.current)
         : value;
-    const nextTrackPayments = nextBalance
-      ? true
-      : trackPaymentsFeatureEnabledDraftRef.current;
     const nextSplitRows =
       !nextBalance &&
       isBalanceDependentSplitListAmountDisplay(
@@ -384,44 +354,11 @@ export function useHomeSettingsDraftController({
         ? "total"
         : splitListAmountDisplayDraftRef.current;
     balanceFeatureEnabledDraftRef.current = nextBalance;
-    trackPaymentsFeatureEnabledDraftRef.current = nextTrackPayments;
     splitListAmountDisplayDraftRef.current = nextSplitRows;
-    setBalanceFeatureEnabledDraft(nextBalance);
-    setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
-    setSplitListAmountDisplayDraft(nextSplitRows);
-    void persistSettings({
-      balanceFeatureEnabled: nextBalance,
-      trackPaymentsFeatureEnabled: nextTrackPayments,
-      splitListAmountDisplay: nextSplitRows,
-    });
-  };
-
-  const setTrackPaymentsFeatureEnabledDraftAndSave = (
-    value: boolean | ((value: boolean) => boolean),
-  ) => {
-    const nextTrackPayments =
-      typeof value === "function"
-        ? value(trackPaymentsFeatureEnabledDraftRef.current)
-        : value;
-    const nextBalance = nextTrackPayments
-      ? balanceFeatureEnabledDraftRef.current
-      : false;
-    const nextSplitRows =
-      !nextBalance &&
-      isBalanceDependentSplitListAmountDisplay(
-        splitListAmountDisplayDraftRef.current,
-      )
-        ? "total"
-        : splitListAmountDisplayDraftRef.current;
-    trackPaymentsFeatureEnabledDraftRef.current = nextTrackPayments;
-    balanceFeatureEnabledDraftRef.current = nextBalance;
-    splitListAmountDisplayDraftRef.current = nextSplitRows;
-    setTrackPaymentsFeatureEnabledDraft(nextTrackPayments);
     setBalanceFeatureEnabledDraft(nextBalance);
     setSplitListAmountDisplayDraft(nextSplitRows);
     void persistSettings({
       balanceFeatureEnabled: nextBalance,
-      trackPaymentsFeatureEnabled: nextTrackPayments,
       splitListAmountDisplay: nextSplitRows,
     });
   };
@@ -533,9 +470,6 @@ export function useHomeSettingsDraftController({
     validateOwnerNameDraft,
     balanceFeatureEnabledDraft,
     setBalanceFeatureEnabledDraft: setBalanceFeatureEnabledDraftAndSave,
-    trackPaymentsFeatureEnabledDraft,
-    setTrackPaymentsFeatureEnabledDraft:
-      setTrackPaymentsFeatureEnabledDraftAndSave,
     defaultCurrencyDraft,
     setDefaultCurrencyDraft: setDefaultCurrencyDraftAndSave,
     languageDraft,

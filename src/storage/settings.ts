@@ -21,7 +21,6 @@ export type AppSettings = {
   ownerPersonId?: string;
   ownerProfileImageUri: string;
   balanceFeatureEnabled: boolean;
-  trackPaymentsFeatureEnabled: boolean;
   defaultCurrency: string;
   pdfDownloadDirectoryUri?: string;
   language: AppLanguage;
@@ -41,29 +40,6 @@ export type SplitListAmountDisplay =
   | "total"
   | "userPaid"
   | "totalAndRemaining";
-
-type FeatureFlags = Pick<AppSettings, "balanceFeatureEnabled" | "trackPaymentsFeatureEnabled">;
-
-export function normalizeFeatureFlags(flags: FeatureFlags): FeatureFlags {
-  if (!flags.trackPaymentsFeatureEnabled) {
-    return {
-      balanceFeatureEnabled: false,
-      trackPaymentsFeatureEnabled: false,
-    };
-  }
-
-  if (flags.balanceFeatureEnabled) {
-    return {
-      balanceFeatureEnabled: true,
-      trackPaymentsFeatureEnabled: true,
-    };
-  }
-
-  return {
-    balanceFeatureEnabled: false,
-    trackPaymentsFeatureEnabled: true,
-  };
-}
 
 const SETTINGS_KEY = "app-settings";
 
@@ -86,7 +62,6 @@ function getDefaultSettings(): AppSettings {
     profileSetupCompleted: false,
     ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
-    trackPaymentsFeatureEnabled: true,
     defaultCurrency: "EUR",
     language: translationDefaults.language,
     splitListAmountDisplay: DEFAULT_SPLIT_LIST_AMOUNT_DISPLAY,
@@ -134,13 +109,13 @@ export async function getAppSettings() {
     return getDefaultSettings();
   }
 
-  let parsed: Partial<AppSettings>;
+  let parsed: Partial<AppSettings> & { trackPaymentsFeatureEnabled?: unknown };
   try {
     const payload = JSON.parse(row.payload) as unknown;
     if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
       return getDefaultSettings();
     }
-    parsed = payload as Partial<AppSettings>;
+    parsed = payload as Partial<AppSettings> & { trackPaymentsFeatureEnabled?: unknown };
   } catch {
     return getDefaultSettings();
   }
@@ -158,12 +133,9 @@ export async function getAppSettings() {
       console.warn("[Split Bill storage] Could not remove legacy tone", error);
     }
   }
-  const normalizedFlags = normalizeFeatureFlags({
-    balanceFeatureEnabled:
-      typeof parsed.balanceFeatureEnabled === "boolean" ? parsed.balanceFeatureEnabled : true,
-    trackPaymentsFeatureEnabled:
-      typeof parsed.trackPaymentsFeatureEnabled === "boolean" ? parsed.trackPaymentsFeatureEnabled : true,
-  });
+  const balanceFeatureEnabled = typeof parsed.trackPaymentsFeatureEnabled === "boolean"
+    ? parsed.trackPaymentsFeatureEnabled
+    : typeof parsed.balanceFeatureEnabled === "boolean" ? parsed.balanceFeatureEnabled : true;
 
   const pdfDownloadDirectoryUri =
     typeof parsed.pdfDownloadDirectoryUri === "string" &&
@@ -178,14 +150,14 @@ export async function getAppSettings() {
   const people = normalizePeopleWithOwnerName(parsed.people, parsed.ownerPersonId, ownerName);
   const participantGroups = normalizeGroups(parsed.participantGroups, people);
 
+  const splitListAmountDisplay = normalizeSplitListAmountDisplay(parsed.splitListAmountDisplay);
   const settings: AppSettings = {
     ownerName,
     profileSetupCompleted,
     ...(typeof parsed.ownerPersonId === "string" ? { ownerPersonId: parsed.ownerPersonId } : {}),
     ownerProfileImageUri:
       typeof parsed.ownerProfileImageUri === "string" ? parsed.ownerProfileImageUri.trim() : "",
-    balanceFeatureEnabled: normalizedFlags.balanceFeatureEnabled,
-    trackPaymentsFeatureEnabled: normalizedFlags.trackPaymentsFeatureEnabled,
+    balanceFeatureEnabled,
     defaultCurrency:
       typeof parsed.defaultCurrency === "string" && parsed.defaultCurrency.trim()
         ? parsed.defaultCurrency.trim().toUpperCase()
@@ -197,9 +169,10 @@ export async function getAppSettings() {
       parsed.language === undefined
         ? translationDefaults.language
         : normalizeLanguage(parsed.language),
-    splitListAmountDisplay: normalizeSplitListAmountDisplay(
-      parsed.splitListAmountDisplay,
-    ),
+    splitListAmountDisplay: !balanceFeatureEnabled &&
+      (splitListAmountDisplay === "remaining" || splitListAmountDisplay === "totalAndRemaining")
+      ? "total"
+      : splitListAmountDisplay,
     tags: normalizeTags(parsed.tags),
     people,
     participantGroups,
@@ -232,14 +205,9 @@ export async function getAppSettings() {
 }
 
 export function buildSettingsPayload(settings: AppSettings): AppSettings {
-  const normalizedFlags = normalizeFeatureFlags({
-    balanceFeatureEnabled: settings.balanceFeatureEnabled,
-    trackPaymentsFeatureEnabled: settings.trackPaymentsFeatureEnabled,
-  });
   const people = normalizePeopleWithOwnerName(settings.people, settings.ownerPersonId, settings.ownerName);
   const payload: AppSettings = {
     ...settings,
-    ...normalizedFlags,
     splitListAmountDisplay: normalizeSplitListAmountDisplay(
       settings.splitListAmountDisplay,
     ),

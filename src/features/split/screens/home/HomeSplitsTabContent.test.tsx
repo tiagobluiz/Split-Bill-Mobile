@@ -7,7 +7,7 @@ import type { DraftRecord } from "../../../../storage/records";
 
 describe("HomeSplitsTabContent", () => {
   it("shows skeletons on initial load and keeps existing rows during pagination", () => {
-    const settings = { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: false, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en" as const, splitListAmountDisplay: "total" as const, customCurrencies: [], tags: [] };
+    const settings = { ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: false, defaultCurrency: "EUR", language: "en" as const, splitListAmountDisplay: "total" as const, customCurrencies: [], tags: [] };
     const props = {
       topInset: 0, footerInsetBottom: 0, settings, balances: null, locale: "en-US", filtersExpanded: false, setFiltersExpanded: jest.fn(),
       activityStateFilter: "all" as const, setActivityStateFilter: jest.fn(), activityBalanceFilter: "all" as const, setActivityBalanceFilter: jest.fn(),
@@ -47,7 +47,6 @@ describe("HomeSplitsTabContent", () => {
           ownerName: "You",
           ownerProfileImageUri: "",
           balanceFeatureEnabled: true,
-          trackPaymentsFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "remaining",
           customCurrencies: [],
@@ -106,7 +105,7 @@ describe("HomeSplitsTabContent", () => {
     const setMode = jest.fn();
     render(<HomeSplitsTabContent
       topInset={0} footerInsetBottom={0}
-      settings={{ ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: false, trackPaymentsFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], tags: [{ id: "food", label: "Food", icon: "cart", color: "mint", builtIn: true }] }}
+      settings={{ ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: false, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [], tags: [{ id: "food", label: "Food", icon: "cart", color: "mint", builtIn: true }] }}
       balances={{ owedCents: 0, oweCents: 0, currency: "EUR" }} locale="en-US" filtersExpanded setFiltersExpanded={jest.fn()}
       activityStateFilter="all" setActivityStateFilter={jest.fn()} activityBalanceFilter="all" setActivityBalanceFilter={jest.fn()}
       activityDateFilter="newest" setActivityDateFilter={jest.fn()} activityTagFilterIds={[]} setActivityTagFilterIds={setIds}

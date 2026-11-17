@@ -68,7 +68,7 @@ const enPlain = {
   "common.couldNotSaveSettings": "Could not save settings",
   "common.tryAgain": "Please try again.",
   "settings.trackPayments.shortDescription": "Mark people as paid inside one split after money has been settled.",
-  "settings.balanceHelper.shortDescription": "Track how much you owe and are owed.",
+  "settings.balanceHelper.shortDescription": "Track what you owe and are owed, and mark payments as settled.",
   "settings.back": "Back to settings",
   "settings.organization": "Organization",
   "settings.preferences": "Preferences",
@@ -126,7 +126,7 @@ const enPlain = {
   "settings.splitRows.total.summary": "Show the full split total",
   "settings.splitRows.total.description":
     "Shows the full amount of the split, regardless of who paid or what is still unsettled.",
-  "settings.splitRows.userPaid.label": "You consumed",
+  "settings.splitRows.userPaid.label": "Consumed",
   "settings.splitRows.userPaid.summary": "Show how much of the bill was yours",
   "settings.splitRows.userPaid.description":
     "Shows how much of that split was assigned to you, regardless of who paid upfront.",
@@ -141,10 +141,10 @@ const enPlain = {
   "settings.trackPayments.description":
     "Turn this on if you want to mark people as paid inside one split after money has been settled.",
   "settings.trackPayments.toggleA11y": "Toggle track payments",
-  "settings.balanceHelper.title": "Balance helper",
+  "settings.balanceHelper.title": "Track balances",
   "settings.balanceHelper.description":
     "Turn this on if you want to track how much you owe and are owed.",
-  "settings.balanceHelper.toggleA11y": "Toggle balance helper",
+  "settings.balanceHelper.toggleA11y": "Toggle track balances",
   "settings.disclaimer.title": "Disclaimer about your data",
   "settings.disclaimer.body":
     "We do not store your data in the cloud. Deleting this app data will permanently delete everything.",
@@ -775,7 +775,7 @@ const enPlain = {
   "record.amount.owed": "Owed",
   "record.amount.nothingDue": "Nothing due",
   "record.amount.total": "Total",
-  "record.amount.userPaid": "You consumed",
+  "record.amount.userPaid": "Consumed",
   "record.settlement.payer": "Payer",
   "record.settlement.owesPayer": "Owes payer",
   "record.settlement.payerOwesThem": "Payer owes them",

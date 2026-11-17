@@ -314,7 +314,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
     payer.name,
     settings.ownerName,
   );
-  const trackPaymentsEnabled = settings.trackPaymentsFeatureEnabled ?? true;
+  const trackPaymentsEnabled = settings.balanceFeatureEnabled ?? true;
   const fromPeopleLabel = (count: number) =>
     t(
       count === 1
