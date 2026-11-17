@@ -1,3 +1,4 @@
+import { getItemTotalCents } from "../../../../domain";
 import { computeSettlement, formatMoney, parseMoneyToCents } from "../../../../domain";
 import type { DraftRecord } from "../../../../storage/records";
 import type { FinancialProjection } from "../../../../storage/financialProjection";
@@ -323,7 +324,7 @@ export function getRecentRowMeta(
     settlement?.ok
       ? settlement.data.totalCents
       : record.values.items.reduce(
-          (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
+          (sum, item) => sum + (getItemTotalCents(item) ?? 0),
           0,
         );
   const totalCents = convertCents(recordTotalCents, rate);

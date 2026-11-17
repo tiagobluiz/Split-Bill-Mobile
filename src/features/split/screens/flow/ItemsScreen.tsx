@@ -1,3 +1,4 @@
+import { getItemTotalCents } from "../../../../domain";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -256,7 +257,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
   const isItemsStepReady = effectiveStepTwoErrors.length === 0;
   const runningTotal = formatMoney(
     visibleItems.reduce(
-      (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
+      (sum, item) => sum + (getItemTotalCents(item) ?? 0),
       0,
     ),
     record.values.currency,
@@ -612,7 +613,7 @@ export function ItemsScreenView({ draftId }: { draftId: string }) {
                           color={PALETTE.onSurface}
                         >
                           {formatMoney(
-                            parseMoneyToCents(item.price) ?? 0,
+                            getItemTotalCents(item) ?? 0,
                             record.values.currency,
                             locale,
                           )}

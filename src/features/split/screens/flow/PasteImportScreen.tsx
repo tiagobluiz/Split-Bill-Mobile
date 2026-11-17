@@ -30,6 +30,7 @@ import { useTranslation } from "../../../../i18n/provider";
 import {
   buildReceiptLlmPrompt,
   combineItemAmounts,
+  getItemTotalCents,
   formatMoney,
   getReceiptLlmAndroidPackage,
   getReceiptLlmProviderUrl,
@@ -185,7 +186,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
       .map((item) => ({
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: formatImportPreviewPrice(getItemTotalCents(item) ?? 0),
         category: item.category,
       }));
     const rows: ImportPreviewRow[] = [];

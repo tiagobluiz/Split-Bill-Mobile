@@ -1,3 +1,4 @@
+import { getItemTotalCents } from "../../../../domain";
 import type { ComponentProps } from "react";
 import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
 import Slider from "@react-native-community/slider";
@@ -493,7 +494,7 @@ export function SplitItemView({
                     assignedCount > 0 &&
                     allocation.evenIncluded
                       ? Math.floor(
-                          (parseMoneyToCents(item.price) ?? 0) /
+                          (getItemTotalCents(item) ?? 0) /
                             Math.max(assignedCount, 1),
                         )
                       : 0;
@@ -559,7 +560,7 @@ export function SplitItemView({
                                   amount: formatMoney(
                                     Math.round(
                                       totalShares > 0
-                                        ? ((parseMoneyToCents(item.price) ?? 0) *
+                                        ? ((getItemTotalCents(item) ?? 0) *
                                             shareCount) /
                                             totalShares
                                         : 0,
@@ -735,7 +736,7 @@ export function SplitItemView({
                               {t("flow.splitItem.allocated", {
                                 amount: formatMoney(
                                   Math.round(
-                                    ((parseMoneyToCents(item.price) ?? 0) *
+                                    ((getItemTotalCents(item) ?? 0) *
                                       percentValue) /
                                       100,
                                   ),
@@ -750,7 +751,7 @@ export function SplitItemView({
                               color={PALETTE.onSurfaceVariant}
                             >
                               {formatMoney(
-                                parseMoneyToCents(item.price) ?? 0,
+                                getItemTotalCents(item) ?? 0,
                                 record.values.currency,
                                 locale,
                               )}

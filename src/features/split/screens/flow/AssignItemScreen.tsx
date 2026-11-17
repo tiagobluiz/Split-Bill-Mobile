@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Keyboard,
   Pressable,
   ScrollView,
   TextInput,
@@ -24,11 +23,12 @@ import {
   FooterBubble,
   FieldLabel,
   MeasuredFloatingFooter,
-  SectionCard,
   useFloatingFooterInset,
 } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
 import {
+  getItemTotalCents,
+  validateItemPricing,
   createEmptyItem,
   combineItemAmounts,
   formatMoney,
@@ -40,7 +40,6 @@ import {
   resetShareAllocations,
   validateStepThree,
   normalizeItemName,
-  validateItemNameAndAmount,
 } from "../../../../domain";
 import { getDeviceLocale } from "../../../../lib/device";
 import { rememberItemOrigins, recordError, trackEvent } from "../../../../lib/telemetry";
@@ -69,6 +68,7 @@ import { ParticipantAvatar } from "../shared/participantComponents";
 import { FlowScreenHeader } from "../shared/flowComponents";
 import { FlowContinueButton, ModeToggle } from "../shared/components";
 import { useRecord } from "../shared/hooks";
+import { clampItemDiscount, getItemCurrencySymbol, ItemPriceRow, ItemDiscountCard, ItemPricingSummary } from "./ItemPricingControls";
 import { screenStyles } from "../shared/styles";
 
 const Text = TamaguiText as any;
@@ -102,11 +102,12 @@ export function AssignItemScreen({
 }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { createItem, removeItem, updateItemField } = useSplitStore(
+  const { createItem, removeItem, saveItemSplit, settings } = useSplitStore(
     useShallow((state) => ({
       createItem: state.createItem,
       removeItem: state.removeItem,
-      updateItemField: state.updateItemField,
+      saveItemSplit: state.saveItemSplit,
+      settings: state.settings,
     })),
   );
   const [editorItem, setEditorItem] = useState<
@@ -182,17 +183,12 @@ export function AssignItemScreen({
 
   const locale = getDeviceLocale();
   const zeroMoney = formatMoney(0, record.values.currency, locale);
+  const currencySymbol = getItemCurrencySymbol(record.values.currency, locale, settings.customCurrencies?.find((currency) => currency.code === record.values.currency)?.symbol);
   const isNewItem = itemId === "new";
   const effectiveCategory = item.category?.trim() || "General";
   const sourceCategory = sourceItem?.category?.trim() ?? "";
   const initialCategory = sourceCategory || "General";
-  const isDirty = isNewItem
-    ? item.name.trim().length > 0 || item.price.trim().length > 0
-    : sourceItem != null
-      ? sourceItem.name !== item.name ||
-        sourceItem.price !== item.price ||
-        initialCategory !== effectiveCategory
-      : false;
+  const isDirty = isItemEditorDirty(item, sourceItem, isNewItem, initialCategory, effectiveCategory);
   const normalizedItemPrice =
     item.price.trim().length > 0 ? normalizeMoneyInput(item.price) : "";
   const parsedItemPriceCents = normalizedItemPrice
@@ -202,7 +198,7 @@ export function AssignItemScreen({
   const hasValidName = trimmedItemName.length > 0;
   const hasValidPrice =
     parsedItemPriceCents !== null && parsedItemPriceCents !== 0;
-  const isSaveReady = validateItemNameAndAmount(trimmedItemName, normalizedItemPrice);
+  const isSaveReady = hasValidName && trimmedItemName.length <= ITEM_NAME_MAX_LENGTH && getItemTotalCents(item) !== null;
   const normalizedManualName = normalizeItemName(trimmedItemName);
   const mergeCandidate = itemHasDuplicate(record.values.items, item, item.id)
     ? record.values.items.find(
@@ -213,7 +209,7 @@ export function AssignItemScreen({
     : undefined;
   const mergeCandidateMergedCents =
     mergeCandidate && parsedItemPriceCents !== null
-      ? (parseMoneyToCents(mergeCandidate.price) ?? 0) + parsedItemPriceCents
+      ? (getItemTotalCents(mergeCandidate) ?? 0) + (getItemTotalCents(item) ?? 0)
       : null;
 
   const updateWorkingItemField = async (
@@ -223,7 +219,7 @@ export function AssignItemScreen({
     setAssignNoticeMessages([]);
     const nextValue =
       field === "name" ? value.slice(0, ITEM_NAME_MAX_LENGTH) : value;
-    setEditorItem((current) => ({ ...current!, [field]: nextValue }));
+    setEditorItem((current) => clampItemDiscount({ ...current!, [field]: nextValue }));
   };
 
   const closeEditor = async () => {
@@ -246,8 +242,9 @@ export function AssignItemScreen({
         return;
       }
 
-      if (!validateItemNameAndAmount(trimmedItemName, normalizedItemPrice)) {
-        setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
+      const pricingErrors = validateItemPricing(item);
+      if (pricingErrors.length > 0) {
+        setAssignNoticeMessages(pricingErrors.map((error) => error.message));
         return;
       }
 
@@ -265,9 +262,13 @@ export function AssignItemScreen({
         return;
       }
 
+      const discount = item.discount && !item.discount.value.trim()
+        ? { ...item.discount, value: "0" }
+        : item.discount;
       if (isNewItem) {
         const createdItemId = await createItem({
           ...item,
+          discount,
           name: trimmedItemName,
           price: normalizedItemPrice,
           category: effectiveCategory,
@@ -285,18 +286,7 @@ export function AssignItemScreen({
         return;
       }
 
-      const persistedSourceItem = sourceItem as NonNullable<typeof sourceItem>;
-      if (persistedSourceItem.name !== trimmedItemName) {
-        await updateItemField(item.id, "name", trimmedItemName, draftId);
-      }
-      if (
-        normalizeMoneyInput(persistedSourceItem.price) !== normalizedItemPrice
-      ) {
-        await updateItemField(item.id, "price", normalizedItemPrice, draftId);
-      }
-      if ((persistedSourceItem.category?.trim() ?? "") !== effectiveCategory) {
-        await updateItemField(item.id, "category", effectiveCategory, draftId);
-      }
+      await saveItemSplit(item.id, { ...item, discount, name: trimmedItemName, price: normalizedItemPrice, category: effectiveCategory }, draftId);
 
       router.back();
     } catch (error) {
@@ -323,8 +313,8 @@ export function AssignItemScreen({
     }
 
     try {
-      const targetCents = parseMoneyToCents(targetItem.price) ?? 0;
-      const mergedCents = combineItemAmounts(targetCents, parsedItemPriceCents);
+      const targetCents = getItemTotalCents(targetItem) ?? 0;
+      const mergedCents = combineItemAmounts(targetCents, getItemTotalCents(item) ?? 0);
       if (mergedCents === null) {
         setMergeCandidateItemId("");
         setAssignNoticeMessages([t("validation.itemAmountTooHigh")]);
@@ -339,7 +329,7 @@ export function AssignItemScreen({
       const mergedPrice = normalizeMoneyInput(
         (mergedCents / 100).toFixed(2),
       );
-      await updateItemField(targetItem.id, "price", mergedPrice, draftId);
+      await saveItemSplit(targetItem.id, { ...targetItem, price: mergedPrice, quantity: 1, discount: null }, draftId);
       await trackEvent("item_insertion_success", {
         method: "manual",
         item_count: 1,
@@ -418,7 +408,7 @@ export function AssignItemScreen({
                 {
                   name: mergeCandidate.name,
                   amount: formatMoney(
-                    parseMoneyToCents(mergeCandidate.price) ?? 0,
+                    getItemTotalCents(mergeCandidate) ?? 0,
                     record.values.currency,
                     locale,
                   ),
@@ -447,6 +437,8 @@ export function AssignItemScreen({
       )}
       footer={
         <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
+          <YStack gap="$3">
+          <ItemPricingSummary item={item} currency={record.values.currency} currencySymbol={currencySymbol} locale={locale} onValueLimitPress={() => setAssignNoticeMessages(validateItemPricing(item).map((error) => error.message))} />
           <XStack gap="$3" alignItems="center">
             {!isNewItem ? (
               <Pressable
@@ -468,11 +460,13 @@ export function AssignItemScreen({
               <FlowContinueButton
                 accessibilityLabel={t("flow.itemDetail.saveA11y")}
                 label={t("flow.itemDetail.save")}
+                adaptiveLabel
                 disabled={!isSaveReady}
                 onPress={() => void saveEditor()}
               />
             </View>
           </XStack>
+          </YStack>
         </MeasuredFloatingFooter>
       }
     >
@@ -497,6 +491,7 @@ export function AssignItemScreen({
           },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <YStack gap="$5">
           <YStack gap="$3.5">
@@ -510,7 +505,7 @@ export function AssignItemScreen({
               >
                 {t("flow.itemDetail.description")}
               </Text>
-              <View style={screenStyles.assignInputShell}>
+              <View style={[screenStyles.assignInputShell, { minHeight: 62 }]}>
                 <TextInput
                   ref={nameInputRef}
                   accessibilityLabel={t("flow.itemDetail.nameA11y")}
@@ -529,83 +524,75 @@ export function AssignItemScreen({
               </View>
             </YStack>
 
-            <YStack gap="$2">
-              <XStack alignItems="center" justifyContent="space-between">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={11}
-                  color={PALETTE.onSurfaceVariant}
-                  textTransform="uppercase"
-                  letterSpacing={2.1}
-                >
-                  {t("flow.itemDetail.price")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={11}
-                  color={PALETTE.primary}
-                  textTransform="uppercase"
-                  letterSpacing={1.8}
-                >
-                  {t("common.currencyPrefix", { currency: record.values.currency })}
-                </Text>
-              </XStack>
-              <View style={screenStyles.assignInputShell}>
-                <TextInput
-                  ref={priceInputRef}
-                  accessibilityLabel={t("flow.itemDetail.priceA11y")}
-                  value={item.price}
-                  onChangeText={(value) =>
-                    void updateWorkingItemField("price", value)
-                  }
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                  placeholder={zeroMoney}
-                  placeholderTextColor="rgba(86, 67, 57, 0.28)"
-                  style={screenStyles.assignPriceInput}
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                />
-              </View>
-            </YStack>
+            <ItemPriceRow
+              item={item}
+              currency={record.values.currency}
+              locale={locale}
+              placeholder={zeroMoney}
+              priceInputRef={priceInputRef}
+              onPriceChange={(value) => void updateWorkingItemField("price", value)}
+              onChange={(nextItem) => setEditorItem(clampItemDiscount(nextItem))}
+            />
           </YStack>
 
-          <SectionCard>
+          <ItemDiscountCard item={item} onChange={(nextItem) => setEditorItem(clampItemDiscount(nextItem))} currency={record.values.currency} locale={locale} currencySymbol={currencySymbol} />
+
+          <YStack gap="$2">
             <FieldLabel>{t("flow.itemDetail.category")}</FieldLabel>
-            <XStack flexWrap="wrap" gap="$2.5">
-              {ITEM_CATEGORY_OPTIONS.map((option) => {
-                const selected = effectiveCategory === option;
-                return (
-                  <Pressable
-                    key={option}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("flow.itemDetail.chooseCategory", {
-                      category: getCategoryAccessibilityLabel(option),
-                    })}
-                    style={[
-                      screenStyles.categoryChip,
-                      selected ? screenStyles.categoryChipActive : null,
-                    ]}
-                    onPress={() =>
-                      void updateWorkingItemField("category", option)
-                    }
-                  >
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={12}
-                      color={
-                        selected ? PALETTE.onPrimary : PALETTE.onSurfaceVariant
-                      }
-                    >
-                      {getCategoryLabel(option)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </XStack>
-          </SectionCard>
+            <View style={screenStyles.recentShadowWrap}>
+              <View style={[screenStyles.splitCardSurface, { padding: 16 }]}>
+                <XStack flexWrap="wrap" gap="$2">
+                  {ITEM_CATEGORY_OPTIONS.map((option) => {
+                    const selected = effectiveCategory === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("flow.itemDetail.chooseCategory", {
+                          category: getCategoryAccessibilityLabel(option),
+                        })}
+                        style={[
+                          screenStyles.categoryChip,
+                          { width: "22%", paddingHorizontal: 4 },
+                          selected ? screenStyles.categoryChipActive : null,
+                        ]}
+                        onPress={() =>
+                          void updateWorkingItemField("category", option)
+                        }
+                      >
+                        <Text
+                          fontFamily={FONTS.bodyBold}
+                          fontSize={12}
+                          color={
+                            selected ? PALETTE.onPrimary : PALETTE.onSurfaceVariant
+                          }
+                        >
+                          {getCategoryLabel(option)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </XStack>
+              </View>
+            </View>
+          </YStack>
         </YStack>
       </ScrollView>
     </AppScreen>
   );
 }
 
+
+function isItemEditorDirty(
+  item: DraftRecord["values"]["items"][number],
+  source: DraftRecord["values"]["items"][number] | null | undefined,
+  isNew: boolean,
+  initialCategory: string,
+  category: string,
+) {
+  if (isNew) return Boolean(item.name.trim() || item.price.trim() || (item.quantity ?? 1) !== 1 || item.discount);
+  if (!source) return false;
+  return source.name !== item.name || source.price !== item.price || initialCategory !== category ||
+    (source.quantity ?? 1) !== (item.quantity ?? 1) ||
+    JSON.stringify(source.discount ?? null) !== JSON.stringify(item.discount ?? null);
+}

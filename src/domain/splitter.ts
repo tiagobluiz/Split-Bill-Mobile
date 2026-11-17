@@ -21,6 +21,8 @@ export type ItemFormValue = {
   id: string;
   name: string;
   price: string;
+  quantity?: number;
+  discount?: { type: "percent" | "fixed"; value: string } | null;
   category?: string;
   splitMode: SplitMode;
   allocations: AllocationFormValue[];
@@ -63,6 +65,7 @@ export const SPLIT_NAME_MAX_LENGTH = 64;
 export const PARTICIPANT_NAME_MAX_LENGTH = PERSON_NAME_MAX_LENGTH;
 export const ITEM_NAME_MAX_LENGTH = 64;
 export const ITEM_AMOUNT_MAX_CENTS = 100_000_000;
+export const ITEM_QUANTITY_MAX = 99;
 export const ITEM_AMOUNT_TOO_HIGH_MESSAGE = "Maximum is 1 000 000";
 
 export type StepValidationCode =
@@ -78,6 +81,11 @@ export type StepValidationCode =
   | "item-name-max"
   | "item-amount-invalid"
   | "item-amount-too-high"
+  | "item-quantity-invalid"
+  | "item-discount-invalid"
+  | "item-discount-percent-too-high"
+  | "item-discount-amount-too-high"
+  | "item-discount-negative-price"
   | "item-duplicate"
   | "split-even-min"
   | "shares-total-min"
@@ -207,6 +215,58 @@ export function normalizeMoneyInput(value: string) {
   }
 
   return (amountCents / 100).toFixed(2);
+}
+
+export function validateItemPricing(item: ItemFormValue): StepValidationError[] {
+  const errors: StepValidationError[] = [];
+  const unit = parseMoneyToCents(item.price);
+  const quantity = item.quantity ?? 1;
+  const validQuantity = Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= ITEM_QUANTITY_MAX;
+
+  if (unit === null || unit === 0) {
+    errors.push({ code: "item-amount-invalid", path: "price", message: t("validation.itemAmountInvalid") });
+  } else if (!Number.isSafeInteger(unit) || (validQuantity && !Number.isSafeInteger(unit * quantity))) {
+    errors.push({ code: "item-amount-too-high", path: "price", message: t("validation.itemAmountTooHigh") });
+  }
+
+  if (!validQuantity) {
+    errors.push({ code: "item-quantity-invalid", path: "quantity", message: t("validation.itemQuantityInvalid") });
+  }
+
+  if (item.discount) {
+    const value = parseMoneyToCents(item.discount.value.trim() || "0");
+    if (unit !== null && unit < 0 && value !== null && value > 0) {
+      errors.push({ code: "item-discount-negative-price", path: "discount", message: t("validation.itemDiscountNegativePrice") });
+    }
+    if (value === null || !Number.isSafeInteger(value) || value < 0) {
+      errors.push({ code: "item-discount-invalid", path: "discount", message: t("validation.itemDiscountInvalid") });
+    } else if (item.discount.type === "percent" && value > 10000) {
+      errors.push({ code: "item-discount-percent-too-high", path: "discount", message: t("validation.itemDiscountPercentTooHigh") });
+    } else if (item.discount.type === "fixed" && unit !== null && unit > 0 && validQuantity && value > unit * quantity) {
+      errors.push({ code: "item-discount-amount-too-high", path: "discount", message: t("validation.itemDiscountAmountTooHigh") });
+    }
+  }
+
+  if (errors.length === 0 && Math.abs(calculateItemTotalCents(item, unit! * quantity)) > ITEM_AMOUNT_MAX_CENTS) {
+    errors.push({ code: "item-amount-too-high", path: "price", message: t("validation.itemAmountTooHigh") });
+  }
+
+  return errors;
+}
+
+function calculateItemTotalCents(item: ItemFormValue, subtotal: number) {
+  if (!item.discount) return subtotal;
+  const value = parseMoneyToCents(item.discount.value.trim() || "0")!;
+  const deduction = item.discount.type === "percent"
+    ? Math.floor(subtotal / 10000) * value + Math.round((subtotal % 10000) * value / 10000)
+    : value;
+  return subtotal - deduction;
+}
+
+export function getItemTotalCents(item: ItemFormValue): number | null {
+  if (validateItemPricing(item).length > 0) return null;
+  const subtotal = parseMoneyToCents(item.price)! * (item.quantity ?? 1);
+  return calculateItemTotalCents(item, subtotal);
 }
 
 export function getItemUniquenessKey(
@@ -581,23 +641,10 @@ export function validateStepTwo(values: SplitFormValues): StepValidationError[] 
       });
     }
 
-    const parsedAmount = parseMoneyToCents(item.price);
-    if (parsedAmount === null || parsedAmount === 0) {
-      errors.push({
-        code: "item-amount-invalid",
-        path: `items.${index}.price`,
-        message: t("validation.itemAmountInvalid"),
-      });
-      return;
-    }
-
-    if (Math.abs(parsedAmount) > ITEM_AMOUNT_MAX_CENTS) {
-      errors.push({
-        code: "item-amount-too-high",
-        path: `items.${index}.price`,
-        message: t("validation.itemAmountTooHigh"),
-      });
-    }
+    errors.push(...validateItemPricing(item).map((error) => ({
+      ...error,
+      path: `items.${index}.${error.path}`,
+    })));
 
   });
 

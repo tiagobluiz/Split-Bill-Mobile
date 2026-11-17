@@ -1,4 +1,4 @@
-import { Pressable, View } from "react-native";
+import { Pressable, Text as NativeText, useWindowDimensions, View } from "react-native";
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react-native";
 import {
@@ -23,6 +23,7 @@ export function FlowContinueButton({
   accessibilityLabel,
   accessibilityHint,
   leadingIcon,
+  adaptiveLabel = false,
 }: {
   label: string;
   onPress?: () => void;
@@ -30,7 +31,9 @@ export function FlowContinueButton({
   accessibilityLabel?: string;
   accessibilityHint?: string;
   leadingIcon?: ReactNode;
+  adaptiveLabel?: boolean;
 }) {
+  const { fontScale } = useWindowDimensions();
   const foregroundColor = disabled
     ? PALETTE.onSurfaceVariant
     : PALETTE.onPrimary;
@@ -47,16 +50,18 @@ export function FlowContinueButton({
         disabled ? screenStyles.participantsContinueButtonDisabled : null,
       ]}
     >
-      <View style={screenStyles.flowContinueButtonContent}>
+      <View style={[screenStyles.flowContinueButtonContent, adaptiveLabel && { paddingVertical: 8 }]}>
         <View style={screenStyles.flowContinueButtonIconSlot}>{leadingIcon}</View>
-        <Text
+        {adaptiveLabel ? (
+          <NativeText allowFontScaling={false} style={[screenStyles.flowContinueButtonLabel, { fontFamily: FONTS.headlineBlack, fontSize: 18 * fontScale, color: foregroundColor }]}>{label}</NativeText>
+        ) : <Text
           fontFamily={FONTS.headlineBlack}
           fontSize={18}
           color={foregroundColor}
           style={screenStyles.flowContinueButtonLabel}
         >
           {label}
-        </Text>
+        </Text>}
         <View style={screenStyles.flowContinueButtonIconSlot}>
           <ArrowRight color={foregroundColor} size={20} />
         </View>

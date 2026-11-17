@@ -1,3 +1,4 @@
+import { getItemTotalCents } from "../../../../domain";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Keyboard } from "react-native";
 import { router } from "expo-router";
@@ -144,7 +145,7 @@ export function SplitItemScreen({
   const locale = getDeviceLocale();
   const itemNameLabel = item.name || t("flow.splitItem.untitled");
   const itemPriceLabel = formatMoney(
-    parseMoneyToCents(item.price) ?? 0,
+    getItemTotalCents(item) ?? 0,
     record.values.currency,
     locale,
   );
@@ -171,12 +172,12 @@ export function SplitItemScreen({
     0,
   );
   const shareValue =
-    totalShares > 0 ? (parseMoneyToCents(item.price) ?? 0) / totalShares : 0;
+    totalShares > 0 ? (getItemTotalCents(item) ?? 0) / totalShares : 0;
   const assignedCount = getAssignedParticipantCount(item);
   const evenShareDisplayCents =
     assignedCount > 0
       ? Math.floor(
-          (parseMoneyToCents(item.price) ?? 0) / Math.max(assignedCount, 1),
+          (getItemTotalCents(item) ?? 0) / Math.max(assignedCount, 1),
         )
       : 0;
   const totalPercent = item.allocations.reduce(
