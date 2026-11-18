@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import {
   parseDecimal,
-  parseMoneyToCents,
+  getItemTotalCents,
   trimName,
   validateStepOne,
   validateStepThree,
@@ -177,7 +177,7 @@ function getRoundedAggregateParticipantShares(
 ) {
   const exactTotals = new Map(participants.map((participant) => [participant.id, 0]));
   values.items.forEach((item) => {
-    const amountCents = parseMoneyToCents(item.price);
+    const amountCents = getItemTotalCents(item);
     if (amountCents === null) return;
     allocateExactByWeights(amountCents, allocationsForItem(item)).forEach((share) => {
       exactTotals.set(
@@ -188,7 +188,7 @@ function getRoundedAggregateParticipantShares(
   });
 
   const targetTotalCents = values.items.reduce(
-    (sum, item) => sum + (parseMoneyToCents(item.price) ?? 0),
+    (sum, item) => sum + (getItemTotalCents(item) ?? 0),
     0,
   );
   return roundAggregateShares(
@@ -215,7 +215,7 @@ export function parseSplit(values: SplitFormValues) {
     isPayer: participant.id === values.payerParticipantId,
   }));
   const items = values.items.map((item) => {
-    const amountCents = parseMoneyToCents(item.price)!;
+    const amountCents = getItemTotalCents(item)!;
     return {
       id: item.id,
       name: trimName(item.name),

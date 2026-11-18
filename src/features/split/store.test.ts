@@ -2114,6 +2114,22 @@ describe("split store", () => {
     expect(result.skippedDuplicateCount).toBe(0);
   });
 
+  it("preserves invalid items and accepts adjustments to calculable over-limit totals", async () => {
+    const values = createValues();
+    const record = createRecord({ values: { ...values, items: [
+      { ...values.items[0], id: "milk", name: "Milk", price: "invalid" },
+      { ...values.items[0], id: "bread", name: "Bread", price: "1000001.00" },
+    ] } });
+    const { storeModule } = await loadReadyStore({ record, parseResult: {
+      items: [{ name: "Milk", price: "1.00" }, { name: "Bread", price: "-2.00" }], warnings: [],
+    } });
+    const result = await storeModule.useSplitStore.getState().importPastedList("items", "append");
+    const items = storeModule.useSplitStore.getState().getActiveRecord()!.values.items;
+    expect(items.find((item) => item.name === "Milk")?.price).toBe("invalid");
+    expect(items.find((item) => item.name === "Bread")?.price).toBe("999999.00");
+    expect(result.warningCodes).toContain("invalid-existing-item");
+  });
+
   it("silently deletes existing items when an import merge reaches zero", async () => {
     const record = createRecord();
     const { storeModule } = await loadReadyStore({

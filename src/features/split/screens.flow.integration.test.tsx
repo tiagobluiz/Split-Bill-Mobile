@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import {
   Alert,
@@ -23,6 +24,7 @@ import {
 } from "./integrationTestUtils";
 import { screenStyles } from "./screens/shared/styles";
 import { PALETTE } from "../../theme/palette";
+import { getDeviceLocale } from "../../lib/device";
 
 import {
   AssignItemScreen,
@@ -1833,6 +1835,230 @@ describe("split screens", () => {
     });
   });
 
+  it("shows summary rows based on quantity and whether a discount is added", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.50");
+    expect(screen.getByText("Item total")).toBeTruthy();
+    expect(screen.queryByText("Subtotal")).toBeNull();
+    expect(screen.queryByText("Discount")).toBeNull();
+
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "2");
+    expect(screen.queryByText("Subtotal")).toBeNull();
+    expect(within(screen.getByTestId("measured-floating-footer")).queryByText(/×/)).toBeNull();
+    expect(screen.queryByText("Discount")).toBeNull();
+    const totalValue = screen.getByText(/25[,.]00/);
+    expect(totalValue.props.numberOfLines).toBeUndefined();
+    expect(totalValue.props.adjustsFontSizeToFit).toBeUndefined();
+    expect(StyleSheet.flatten(totalValue.props.style).textAlign).toBe("right");
+    expect(StyleSheet.flatten(screen.getByTestId("item-total-row").props.style).flexWrap).toBe("wrap");
+
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    expect(screen.getByText("Subtotal")).toBeTruthy();
+    expect(screen.getByText("Discount (0%)")).toBeTruthy();
+    expect(within(screen.getByTestId("discount-input-shell")).queryByText("%")).toBeNull();
+    expect(within(screen.getByTestId("measured-floating-footer")).queryByText(/×/)).toBeNull();
+    fireEvent.changeText(screen.getByLabelText("Discount"), "10");
+    expect(screen.getByText("Discount (10%)")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "1");
+    expect(screen.getByText("Subtotal")).toBeTruthy();
+    expect(screen.queryByText(/× 1/)).toBeNull();
+    expect(screen.getByText("Discount (10%)")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("EUR"));
+    expect(screen.getByText("Discount (€)")).toBeTruthy();
+    expect(within(screen.getByTestId("measured-floating-footer")).queryByText(/×/)).toBeNull();
+    const inputShell = within(screen.getByTestId("discount-input-shell"));
+    expect(inputShell.queryByText("%")).toBeNull();
+    expect(inputShell.queryByText("€")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("Remove discount"));
+    expect(screen.queryByText("Subtotal")).toBeNull();
+    expect(screen.queryByText("Discount")).toBeNull();
+    expect(screen.getByText("Item total")).toBeTruthy();
+  });
+
+  it("edits quantity and discount and shows the item total", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.50");
+    expect(screen.getByLabelText("Quantity").props.value).toBe("1");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "3");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "10");
+    expect(screen.getByText(/33[,.]75/)).toBeTruthy();
+    expect(screen.getByText("Subtotal")).toBeTruthy();
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Dinner", price: "12.50", quantity: 3,
+      discount: { type: "percent", value: "10" },
+    }), "draft-1");
+  });
+
+  it("caps typed quantity at 99 and disables the increase button", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "1000");
+    expect(screen.getByLabelText("Quantity").props.value).toBe("99");
+    const increase = screen.getByLabelText("Increase quantity");
+    expect(increase.props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(increase);
+    expect(screen.getByLabelText("Quantity").props.value).toBe("99");
+    fireEvent.press(screen.getByLabelText("Decrease quantity"));
+    expect(screen.getByLabelText("Quantity").props.value).toBe("98");
+    expect(screen.getByLabelText("Increase quantity").props.accessibilityState.disabled).toBe(false);
+  });
+
+  it("explains when the quantity makes an item exceed its value limit", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "202000");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "5");
+    const errorIcon = screen.getByLabelText("Item value exceeds the maximum. Show error details.");
+    fireEvent.press(errorIcon);
+    expect(screen.getByText("The maximum value for an item is 1 000 000")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(screen.getByText("The maximum value for an item is 1 000 000")).toBeTruthy();
+    expect(mockStoreState.createItem).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "4");
+    expect(screen.queryByLabelText("Item value exceeds the maximum. Show error details.")).toBeNull();
+  });
+
+  it("allows saving an over-limit unit price when its discount lowers the total", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "2000000");
+    expect(screen.getByLabelText("Item value exceeds the maximum. Show error details.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.press(screen.getByLabelText("EUR"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "1500000");
+    expect(screen.queryByLabelText("Item value exceeds the maximum. Show error details.")).toBeNull();
+    expect(screen.getByText(/^(?:€\s*)?500[\s,.]000[,.]00/)).toBeTruthy();
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(expect.objectContaining({
+      price: "2000000.00", discount: { type: "fixed", value: "1500000" },
+    }), "draft-1");
+  });
+
+  it("keeps the dash for other invalid pricing", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "10");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "");
+    expect(screen.queryByLabelText("Item value exceeds the maximum. Show error details.")).toBeNull();
+    expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("reports quantity and discount errors independently", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "10");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "abc");
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(screen.getByText("Enter a whole number from 1 to 99 for the quantity.")).toBeTruthy();
+    expect(screen.getByText("Enter a discount of zero or more with up to two decimal places.")).toBeTruthy();
+  });
+
+  it("formats monetary inputs for the locale while keeping them editable", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    const formatAmount = (value: number) => new Intl.NumberFormat(getDeviceLocale(), {
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(value);
+    const price = screen.getByLabelText("Item price");
+    fireEvent.changeText(price, "123456.78");
+    fireEvent(price, "blur");
+    expect(screen.getByLabelText("Item price").props.value).toBe(formatAmount(123456.78));
+    fireEvent(screen.getByLabelText("Item price"), "focus");
+    expect(screen.getByLabelText("Item price").props.value).toBe("123456.78");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.press(screen.getByLabelText("EUR"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "1234.56");
+    fireEvent(screen.getByLabelText("Discount"), "blur");
+    expect(screen.getByLabelText("Discount").props.value).toBe(formatAmount(1234.56));
+    fireEvent(screen.getByLabelText("Discount"), "focus");
+    expect(screen.getByLabelText("Discount").props.value).toBe("1234.56");
+  });
+
+  it("limits unit price and discount input to two decimal places", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    const price = screen.getByLabelText("Item price");
+    fireEvent.changeText(price, "12.3456");
+    expect(screen.getByLabelText("Item price").props.value).toBe("12.34");
+    fireEvent.changeText(price, "12,999");
+    expect(screen.getByLabelText("Item price").props.value).toBe("12,99");
+    fireEvent.changeText(price, "-5.123");
+    expect(screen.getByLabelText("Item price").props.value).toBe("-5.12");
+    fireEvent.changeText(price, "12.50");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "10,789");
+    expect(screen.getByLabelText("Discount").props.value).toBe("10,78");
+    fireEvent.press(screen.getByLabelText("EUR"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "1.999");
+    expect(screen.getByLabelText("Discount").props.value).toBe("1.99");
+  });
+
+  it("shows a zero placeholder and saves an empty discount as zero", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.50");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    const discount = screen.getByLabelText("Discount");
+    expect(discount.props.value).toBe("");
+    expect(discount.props.placeholder).toBe("0");
+    expect(screen.getByText("Discount (0%)")).toBeTruthy();
+    fireEvent(discount, "focus");
+    expect(screen.getByLabelText("Discount").props.placeholder).toBe("");
+    fireEvent.changeText(screen.getByLabelText("Discount"), "5");
+    fireEvent.changeText(screen.getByLabelText("Discount"), "");
+    fireEvent(screen.getByLabelText("Discount"), "blur");
+    expect(screen.getByLabelText("Discount").props.placeholder).toBe("0");
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(expect.objectContaining({
+      discount: { type: "percent", value: "0" },
+    }), "draft-1");
+  });
+
+  it("clamps negative discounts to zero and allows saving a zero discount", async () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item name"), "Dinner");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.50");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "-5.25");
+    expect(screen.getByLabelText("Discount").props.value).toBe("0");
+    expect(screen.getAllByText(/12[,.]50/).length).toBeGreaterThan(0);
+    await act(async () => { fireEvent.press(screen.getByText("Save Item")); });
+    expect(mockStoreState.createItem).toHaveBeenCalledWith(expect.objectContaining({
+      discount: { type: "percent", value: "0" },
+    }), "draft-1");
+  });
+
+  it("caps discounts when editing the value, switching type, or reducing the subtotal", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.50");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "3");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "100,01");
+    expect(screen.getByLabelText("Discount").props.value).toBe("100");
+    fireEvent.press(screen.getByLabelText("EUR"));
+    expect(screen.getByLabelText("Discount").props.value).toBe("37.50");
+    fireEvent.changeText(screen.getByLabelText("Discount"), "9999");
+    expect(screen.getByLabelText("Discount").props.value).toBe("37.50");
+    fireEvent.changeText(screen.getByLabelText("Quantity"), "2");
+    expect(screen.getByLabelText("Discount").props.value).toBe("25.00");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "10.25");
+    expect(screen.getByLabelText("Discount").props.value).toBe("20.50");
+  });
+
+  it("removes a discount and restores the total", () => {
+    render(<AssignItemScreen draftId="draft-1" itemId="new" />);
+    fireEvent.changeText(screen.getByLabelText("Item price"), "10");
+    fireEvent.press(screen.getByLabelText("Add discount"));
+    fireEvent.changeText(screen.getByLabelText("Discount"), "50");
+    fireEvent.press(screen.getByLabelText("Remove discount"));
+    expect(screen.getByLabelText("Add discount")).toBeTruthy();
+    expect(screen.getAllByText(/10[,.]00/).length).toBeGreaterThan(0);
+  });
+
   it("normalizes a new integer item price before saving", async () => {
     render(<AssignItemScreen draftId="draft-1" itemId="new" />);
     fireEvent.changeText(screen.getByLabelText("Item name"), "Water");
@@ -1877,11 +2103,11 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Merge prices"));
     });
 
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "price",
-      "11.50",
-     "draft-1");
+      expect.objectContaining({ price: "11.50" }),
+      "draft-1",
+    );
     expect(mockStoreState.createItem).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
   });
@@ -1943,11 +2169,11 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
 
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-2",
-      "price",
-      "9.00",
-     "draft-1");
+      expect.objectContaining({ price: "9.00" }),
+      "draft-1",
+    );
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -1995,11 +2221,11 @@ describe("split screens", () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
 
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "price",
-      "1.00",
-     "draft-1");
+      expect.objectContaining({ price: "1.00" }),
+      "draft-1",
+    );
   });
 
   it("allows item names up to 64 characters before saving", async () => {
@@ -2051,11 +2277,11 @@ describe("split screens", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "category",
-      "General",
-     "draft-1");
+      expect.objectContaining({ category: "General" }),
+      "draft-1",
+    );
   });
 
   it("does not overwrite a chosen category when saving an existing categorized item", async () => {
@@ -2781,6 +3007,19 @@ describe("split screens", () => {
     ).toBe("Cheese");
   });
 
+  it("skips invalid existing prices and previews corrections to over-limit totals", () => {
+    mockStoreState.records = [buildRecord({ values: { ...buildRecord().values, items: [
+      { ...buildRecord().values.items[0], id: "milk", name: "Milk", price: "invalid" },
+      { ...buildRecord().values.items[0], id: "bread", name: "Bread", price: "1000001.00" },
+    ] } })];
+    render(<PasteImportScreen draftId="draft-1" />);
+    fireEvent.press(screen.getByText("I already have the item list"));
+    fireEvent.changeText(screen.getByPlaceholderText(/Bananas - 2\.49/), "Milk - 1.00\nBread - -2.00");
+    expect(screen.getByText("Could not merge Milk because the existing item has invalid pricing. Edit it and try again.")).toBeTruthy();
+    expect(screen.getByLabelText("Accepted: 1")).toBeTruthy();
+    expect(screen.getByLabelText("Ignored: 1")).toBeTruthy();
+  });
+
   it("covers paste loading and warning-free import flows", async () => {
     mockStoreState.records = [];
     const { rerender } = render(<PasteImportScreen draftId="draft-1" />);
@@ -2973,26 +3212,26 @@ describe("split screens", () => {
     expect(screen.getByText("Edit Item")).toBeTruthy();
     expect(screen.getByText("Category")).toBeTruthy();
     fireEvent.changeText(screen.getByDisplayValue("Groceries"), "Bread");
-    fireEvent.changeText(screen.getByDisplayValue("9.00"), "12.00");
+    fireEvent.changeText(screen.getByLabelText("Item price"), "12.00");
     fireEvent.press(screen.getByLabelText("Choose category Produce"));
     await act(async () => {
       fireEvent.press(screen.getByText("Save Item"));
     });
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "name",
-      "Bread",
-     "draft-1");
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Bread" }),
+      "draft-1",
+    );
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "price",
-      "12.00",
-     "draft-1");
-    expect(mockStoreState.updateItemField).toHaveBeenCalledWith(
+      expect.objectContaining({ price: "12.00" }),
+      "draft-1",
+    );
+    expect(mockStoreState.saveItemSplit).toHaveBeenCalledWith(
       "item-1",
-      "category",
-      "Produce",
-     "draft-1");
+      expect.objectContaining({ category: "Produce" }),
+      "draft-1",
+    );
     expect(mockBack).toHaveBeenCalled();
   });
 

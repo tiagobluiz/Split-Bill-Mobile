@@ -4,6 +4,7 @@ import {
   buildClipboardSummary,
   buildPdfExportData,
   combineItemAmounts,
+  getItemTotalForMergeCents,
   computeSettlement,
   createDefaultValues,
   createEmptyItem,
@@ -1803,7 +1804,11 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               (candidate) => normalizeItemName(candidate.name) === mergeKey,
             );
             if (existingMatch) {
-              const existingCents = parseMoneyToCents(existingMatch.price) ?? 0;
+              const existingCents = getItemTotalForMergeCents(existingMatch);
+              if (existingCents === null) {
+                importWarnings.push({ code: "invalid-existing-item", message: t("pasteImport.invalidExistingItem", { item: trimName(item.name) }) });
+                return;
+              }
               const mergedCents = combineItemAmounts(existingCents, amountCents);
               if (mergedCents === null) {
                 importWarnings.push({
@@ -1831,6 +1836,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
               }
               hasAcceptedImport = true;
               existingMatch.price = formatMergedImportPrice(mergedCents);
+              existingMatch.quantity = 1;
+              existingMatch.discount = null;
               if (
                 existingItems.some(
                   (existingItem) => existingItem.id === existingMatch.id,

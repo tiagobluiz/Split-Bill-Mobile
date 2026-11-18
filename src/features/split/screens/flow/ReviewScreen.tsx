@@ -1,3 +1,4 @@
+import { getItemTotalCents } from "../../../../domain";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
@@ -274,7 +275,7 @@ export function ReviewScreenView({ draftId }: { draftId: string }) {
                           color={PALETTE.primary}
                         >
                           {formatMoney(
-                            parseMoneyToCents(item.price) ?? 0,
+                            getItemTotalCents(item) ?? 0,
                             record.values.currency,
                             locale,
                           )}

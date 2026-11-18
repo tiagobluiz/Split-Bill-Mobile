@@ -16,8 +16,12 @@ import {
   formatMoneyTrailingSymbol,
   normalizeMoneyInput,
   getItemUniquenessKey,
+  getItemTotalCents,
+  getItemTotalForMergeCents,
+  combineItemAmounts,
   itemHasDuplicate,
   validateItemNameAndAmount,
+  validateItemPricing,
   parseMoneyToCents,
   parseSplit,
   rebalancePercentAllocations,
@@ -32,6 +36,72 @@ import {
 } from "./index";
 
 describe("splitter domain", () => {
+  it("merges calculable over-limit totals without treating invalid pricing as zero", () => {
+    const item = { ...createEmptyItem([]), name: "Milk", price: "1000001.00" };
+    const total = getItemTotalForMergeCents(item);
+    expect(getItemTotalCents(item)).toBeNull();
+    expect(total).toBe(100000100);
+    expect(combineItemAmounts(total!, -200)).toBe(99999900);
+    expect(combineItemAmounts(total!, 100)).toBeNull();
+    expect(getItemTotalForMergeCents({ ...item, price: "invalid" })).toBeNull();
+    expect(getItemTotalForMergeCents({ ...item, discount: { type: "percent", value: "101" } })).toBeNull();
+  });
+  it("reports distinct pricing errors for quantity, discounts, and subtotal limits", () => {
+    const item = { ...createEmptyItem([]), name: "Item", price: "202000.00" };
+    expect(validateItemPricing({ ...item, quantity: 5 })).toEqual([
+      expect.objectContaining({ code: "item-amount-too-high", path: "price" }),
+    ]);
+    expect(validateItemPricing({ ...item, quantity: 100 })).toEqual([
+      expect.objectContaining({ code: "item-quantity-invalid", path: "quantity" }),
+    ]);
+    expect(validateItemPricing({ ...item, quantity: 0, discount: { type: "percent", value: "101" } })).toEqual([
+      expect.objectContaining({ code: "item-quantity-invalid", path: "quantity" }),
+      expect.objectContaining({ code: "item-discount-percent-too-high", path: "discount" }),
+    ]);
+    expect(validateItemPricing({ ...item, discount: { type: "percent", value: "0" } })).toEqual([]);
+    expect(validateItemPricing({ ...item, discount: { type: "fixed", value: "0.00" } })).toEqual([]);
+    expect(validateItemPricing({ ...item, discount: { type: "fixed", value: "-0.01" } })).toEqual([
+      expect.objectContaining({ code: "item-discount-invalid", path: "discount" }),
+    ]);
+    expect(validateItemPricing({ ...item, discount: { type: "percent", value: "" } })).toEqual([]);
+    expect(validateItemPricing({ ...item, discount: { type: "fixed", value: "  " } })).toEqual([]);
+    expect(validateItemPricing({ ...item, price: "-5", discount: { type: "percent", value: "" } })).toEqual([]);
+    expect(validateItemPricing({ ...item, discount: { type: "percent", value: "abc" } })).toEqual([
+      expect.objectContaining({ code: "item-discount-invalid", path: "discount" }),
+    ]);
+    expect(validateItemPricing({ ...item, discount: { type: "fixed", value: "202000.01" } })).toEqual([
+      expect.objectContaining({ code: "item-discount-amount-too-high", path: "discount" }),
+    ]);
+    expect(validateItemPricing({ ...item, price: "-5", discount: { type: "fixed", value: "1" } })).toEqual([
+      expect.objectContaining({ code: "item-discount-negative-price", path: "discount" }),
+    ]);
+    const values = createDefaultValues();
+    values.items = [{ ...item, quantity: 5 }];
+    expect(validateStepTwo(values)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "item-amount-too-high", path: "items.0.price" }),
+    ]));
+  });
+
+  it("applies the item value limit after discounts and settles the discounted amount", () => {
+    const values = evenFixture.input as SplitFormValues;
+    const base = { ...values.items[0], price: "2000000.00", quantity: 1 };
+    const fixed = { ...base, discount: { type: "fixed" as const, value: "1500000.00" } };
+    expect(validateItemPricing(fixed)).toEqual([]);
+    expect(getItemTotalCents(fixed)).toBe(50_000_000);
+    const result = computeSettlement({ ...values, items: [fixed] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.totalCents).toBe(50_000_000);
+    expect(getItemTotalCents({ ...base, discount: { type: "percent", value: "50" } })).toBe(100_000_000);
+    expect(validateItemPricing({ ...base, discount: { type: "percent", value: "49.99" } })).toEqual([
+      expect.objectContaining({ code: "item-amount-too-high" }),
+    ]);
+    expect(validateItemPricing(base)).toEqual([expect.objectContaining({ code: "item-amount-too-high" })]);
+    expect(getItemTotalCents({ ...base, price: "1000000.01", discount: { type: "percent", value: "0.01" } })).toBe(99_990_001);
+    expect(validateItemPricing({ ...base, price: "999999999999999999999", discount: { type: "percent", value: "100" } })).toEqual([
+      expect.objectContaining({ code: "item-amount-too-high" }),
+    ]);
+  });
+
   it("parses money inputs documented in the contract", () => {
     expect(parseMoneyToCents("3.49")).toBe(349);
     expect(parseMoneyToCents("3,49")).toBe(349);

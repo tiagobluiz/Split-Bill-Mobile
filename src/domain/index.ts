@@ -45,6 +45,7 @@ import {
 } from "./splitter";
 
 export type { LlmProvider } from "./llmHandoff";
+export { getItemTotalCents, getItemTotalForMergeCents, ITEM_QUANTITY_MAX, validateItemPricing } from "./splitter";
 export { normalizePersonNameInput, PERSON_NAME_MAX_LENGTH, personNameKey, validatePersonName } from "./personNames";
 export type { PersonNameValidationError } from "./personNames";
 export type {
