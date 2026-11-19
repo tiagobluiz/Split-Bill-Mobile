@@ -1,4 +1,5 @@
-import type { AppSettings } from "../../../../storage/settings";
+import type { OwnerProfilePatch } from "../../../../storage/records";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import type { DraftRecord } from "../../../../storage/records";
 import { PersonEditor } from "./PersonEditor";
 import type { SavedPerson } from "../../people";
@@ -8,9 +9,9 @@ import { removePersonPhoto } from "../../personPhotos";
 const OWNER_CREATED_AT = "1970-01-01T00:00:00.000Z";
 
 export function OwnerProfileEditor({ settings, records, onSave, onClose, onBusyChange }: {
-  settings: AppSettings;
+  settings: SplitSettingsView;
   records: DraftRecord[];
-  onSave: (partial: Partial<AppSettings>) => Promise<void>;
+  onSave: (partial: OwnerProfilePatch) => Promise<void>;
   onClose: () => void;
   onBusyChange?: (busy: boolean) => void;
 }) {
@@ -34,21 +35,12 @@ export function OwnerProfileEditor({ settings, records, onSave, onClose, onBusyC
     onCancel={onClose}
     onOpenExisting={() => undefined}
     onSave={async (details): Promise<SavePersonResult> => {
-      const people = (settings.people ?? []).map((person) => person.id === settings.ownerPersonId
-        ? { ...person, name: details.name, photoUri: details.photoUri, color: details.color, updatedAt: new Date().toISOString() }
-        : person);
-      const participantGroups = settings.ownerPersonId ? groups.map((group) => ({
-        ...group,
-        memberPersonIds: details.groupIds.includes(group.id)
-          ? [...new Set([...group.memberPersonIds, owner.id])]
-          : group.memberPersonIds.filter((personId) => personId !== owner.id),
-      })) : groups;
       try {
         await onSave({
           ownerName: details.name,
           ownerProfileImageUri: details.photoUri ?? "",
-          people,
-          participantGroups,
+          color: details.color,
+          groupIds: details.groupIds,
         });
         if (owner.photoUri && owner.photoUri !== details.photoUri) {
           await removePersonPhoto(owner.photoUri);

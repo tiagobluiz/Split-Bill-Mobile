@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { getItemTotalCents } from "../../../../domain";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Keyboard } from "react-native";
@@ -51,7 +52,7 @@ export function SplitItemScreen({
   const { saveItemSplit, settings } = useSplitStore(
     useShallow((state) => ({
       saveItemSplit: state.saveItemSplit,
-      settings: state.settings,
+      settings: selectSplitSettings(state),
     })),
   );
   const [workingItem, setWorkingItem] = useState<

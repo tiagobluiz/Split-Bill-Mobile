@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import type { DraftRecord } from "../../../../storage/records";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { subscribeArchiveChanges } from "../../archiveChanges";
 import type { getFrequentFriends } from "../shared/participantUtils";
 import { scanFrequentFriends } from "./scanFrequentFriends";
@@ -9,7 +9,7 @@ import { scanFrequentFriends } from "./scanFrequentFriends";
 type Friends = ReturnType<typeof getFrequentFriends>;
 type Result = { key: string; friends: Friends | null; error: boolean };
 
-export function useFrequentFriends(activeDraftId: string, records: DraftRecord[], settings: AppSettings) {
+export function useFrequentFriends(activeDraftId: string, records: DraftRecord[], settings: SplitSettingsView) {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
   const loaded = useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);

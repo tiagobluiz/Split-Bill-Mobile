@@ -1,3 +1,4 @@
+import { setStoreSettingsFixture } from "../../integrationTestUtils";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
 
@@ -15,8 +16,8 @@ jest.mock("../../personPhotos", () => ({
 }));
 
 const mockStoreState: any = {
-  settings: { ownerName: "You", ownerProfileImageUri: "", profileSetupCompleted: false, people: [] },
-  updateSettings: jest.fn(),
+  settings: {}, people: [], participantGroups: [], profileSetupCompleted: false,
+  updateOwnerProfile: jest.fn(),
 };
 
 jest.mock("../../store", () => ({ useSplitStore: (selector: (state: any) => any) => selector(mockStoreState) }));
@@ -29,10 +30,14 @@ function renderGate() {
 
 describe("ProfileSetupGate", () => {
   beforeEach(() => {
-    mockStoreState.settings = { ownerName: "You", ownerProfileImageUri: "", profileSetupCompleted: false, people: [] };
-    mockStoreState.updateSettings.mockReset();
-    mockStoreState.updateSettings.mockImplementation(async (partial: any) => {
-      mockStoreState.settings = { ...mockStoreState.settings, ...partial };
+    mockStoreState.people = [];
+    mockStoreState.ownerPersonId = "owner";
+    mockStoreState.profileSetupCompleted = false;
+    mockStoreState.updateOwnerProfile.mockReset();
+    mockStoreState.updateOwnerProfile.mockImplementation(async (partial: any) => {
+      mockStoreState.ownerPersonId = "owner";
+      mockStoreState.people = [{ id: "owner", name: partial.ownerName, photoUri: partial.ownerProfileImageUri }];
+      mockStoreState.profileSetupCompleted = partial.profileSetupCompleted;
     });
   });
 
@@ -45,7 +50,7 @@ describe("ProfileSetupGate", () => {
     fireEvent.press(screen.getByText("Next"));
     expect(screen.getByText("Add a profile photo?")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByText("Skip for now")); });
-    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({ ownerName: "Ana Silva", ownerProfileImageUri: "", profileSetupCompleted: true });
+    expect(mockStoreState.updateOwnerProfile).toHaveBeenCalledWith({ ownerName: "Ana Silva", ownerProfileImageUri: "", profileSetupCompleted: true });
     expect(screen.queryByText("Welcome!")).toBeNull();
 
     first.unmount();
@@ -59,7 +64,7 @@ describe("ProfileSetupGate", () => {
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Alexandra Catherine Smith");
     fireEvent.press(screen.getByText("Next"));
     await act(async () => { fireEvent.press(screen.getByText("Skip for now")); });
-    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+    expect(mockStoreState.updateOwnerProfile).toHaveBeenCalledWith({
       ownerName: "Alexandra Catherine Smith",
       ownerProfileImageUri: "",
       profileSetupCompleted: true,
@@ -79,7 +84,7 @@ describe("ProfileSetupGate", () => {
     await act(async () => { fireEvent.press(screen.getByText("Choose photo")); });
     expect(screen.getByText("Finish setup")).toBeTruthy();
     await act(async () => { fireEvent.press(screen.getByText("Finish setup")); });
-    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+    expect(mockStoreState.updateOwnerProfile).toHaveBeenCalledWith({
       ownerName: "Ana",
       ownerProfileImageUri: "file:///owned/profile.png",
       profileSetupCompleted: true,
@@ -89,12 +94,12 @@ describe("ProfileSetupGate", () => {
 
 
   it("keeps an explicitly removed existing photo removed when skipping the photo step", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "You",
       ownerProfileImageUri: "file:///owned/old-profile.png",
       profileSetupCompleted: false,
       people: [],
-    };
+    });
     renderGate();
     fireEvent.press(screen.getByText("Let’s go"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Ana");
@@ -102,7 +107,7 @@ describe("ProfileSetupGate", () => {
     fireEvent.press(screen.getByText("Remove photo"));
     await act(async () => { fireEvent.press(screen.getByText("Skip for now")); });
 
-    expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
+    expect(mockStoreState.updateOwnerProfile).toHaveBeenCalledWith({
       ownerName: "Ana",
       ownerProfileImageUri: "",
       profileSetupCompleted: true,
@@ -116,11 +121,11 @@ describe("ProfileSetupGate", () => {
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "A".repeat(26));
     expect(screen.getByRole("button", { name: "Next" }).props.accessibilityState.disabled).toBe(true);
     expect(screen.getByText("Keep participant names under 25 characters.")).toBeTruthy();
-    expect(mockStoreState.updateSettings).not.toHaveBeenCalled();
+    expect(mockStoreState.updateOwnerProfile).not.toHaveBeenCalled();
   });
 
   it("keeps setup open and retains the name when saving fails", async () => {
-    mockStoreState.updateSettings.mockRejectedValueOnce(new Error("disk full"));
+    mockStoreState.updateOwnerProfile.mockRejectedValueOnce(new Error("disk full"));
     renderGate();
     fireEvent.press(screen.getByText("Let’s go"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "Ana");
@@ -131,7 +136,7 @@ describe("ProfileSetupGate", () => {
   });
 
   it("rejects the reserved placeholder and names already used by saved people", () => {
-    mockStoreState.settings.people = [{ id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" }];
+    mockStoreState.people = [{ id: "person-ana", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" }];
     renderGate();
     fireEvent.press(screen.getByText("Let’s go"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Tiago"), "you");
@@ -143,7 +148,7 @@ describe("ProfileSetupGate", () => {
   });
 
   it("migrates a custom saved name as already completed and does not show onboarding", () => {
-    mockStoreState.settings = { ownerName: "Tiago", ownerProfileImageUri: "", profileSetupCompleted: true, people: [] };
+    setStoreSettingsFixture(mockStoreState, { ownerName: "Tiago", ownerProfileImageUri: "", profileSetupCompleted: true, people: [] });
     renderGate();
     expect(screen.queryByText("Welcome!")).toBeNull();
   });

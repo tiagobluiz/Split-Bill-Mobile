@@ -21,6 +21,7 @@ import {
   applyDefaultStorePreviews,
   buildRecordFixture,
   buildStoreFixture,
+  setStoreSettingsFixture,
   createRouterMocks,
 } from "./integrationTestUtils";
 import * as pdfExportModule from "../../pdf/exportSettlementPdf";
@@ -897,7 +898,7 @@ describe("split screens", () => {
   });
 
   it("offers only reminders for a debt when payment tracking is disabled", () => {
-    mockStoreState.settings = { ...mockStoreState.settings, balanceFeatureEnabled: false };
+    setStoreSettingsFixture(mockStoreState, { ...mockStoreState.settings, balanceFeatureEnabled: false });
     render(<ResultsScreen draftId="draft-1" />);
     fireEvent(screen.getByText("Bruno"), "onLongPress");
     expect(screen.getByText("Set reminder")).toBeTruthy();
@@ -1130,12 +1131,12 @@ describe("split screens", () => {
   });
 
   it("hides payment controls on results when track payments is disabled", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: false,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
 
     render(<ResultsScreen draftId="draft-1" />);
     await waitFor(() => {
@@ -1181,12 +1182,12 @@ describe("split screens", () => {
   });
 
   it("defaults missing feature flags to on in settings and leaves without discard prompts", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       defaultCurrency: "EUR",
       customCurrencies: [],
-    } as any;
+    } as any);
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByText("Settings"));
@@ -1200,13 +1201,13 @@ describe("split screens", () => {
   });
 
   it("hides split balances when the balance feature is disabled", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: false,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Splits"));
@@ -1216,12 +1217,12 @@ describe("split screens", () => {
   });
 
   it("shows split balances when the balance feature flag is missing and falls back to on", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       defaultCurrency: "EUR",
       customCurrencies: [],
-    } as any;
+    } as any);
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Splits"));

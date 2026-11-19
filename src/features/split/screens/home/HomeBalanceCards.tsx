@@ -13,7 +13,7 @@ import {
 } from "tamagui";
 
 import { SectionCard } from "../../../../components/ui";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { formatAppMoney } from "../shared/settlementUtils";
@@ -105,7 +105,7 @@ export function HomeBalanceCards({
 }: {
   balances: HomeBalances | null;
   locale: string;
-  settings: AppSettings;
+  settings: SplitSettingsView;
   showSeparator?: boolean;
   error?: boolean;
   onRetry?: () => void;

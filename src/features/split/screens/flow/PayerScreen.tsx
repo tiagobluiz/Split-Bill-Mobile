@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
@@ -42,7 +43,7 @@ export function PayerScreenView({ draftId }: { draftId: string }) {
     useShallow((state) => ({
       setPayer: state.setPayer,
       setStep: state.setStep,
-      settings: state.settings,
+      settings: selectSplitSettings(state),
     })),
   );
   const [showPayerHint, setShowPayerHint] = useState(false);

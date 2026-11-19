@@ -7,7 +7,7 @@ import {
 } from "tamagui";
 
 
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import {
   getSplitTagDisplayLabel,
   sortTagsAlphabetically,
@@ -59,7 +59,7 @@ export function HomeSettingsTabContent({
 }: {
   topInset: number;
   footerInsetBottom: number;
-  settings: AppSettings;
+  settings: SplitSettingsView;
   onEditProfile: () => void;
   balanceFeatureEnabledDraft: boolean;
   setBalanceFeatureEnabledDraft: (

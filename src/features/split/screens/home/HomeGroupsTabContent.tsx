@@ -1,9 +1,10 @@
+import type { OwnerProfilePatch } from "../../../../storage/records";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, BackHandler, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { EllipsisVertical, Pencil, Plus, Search, Trash2, Users, RotateCcw } from "lucide-react-native";
 import { Text as TText, XStack as TXStack, YStack as TYStack } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import type { DraftRecord } from "../../../../storage/records";
 import type { PersonSaveDetails, SavePersonResult } from "../../store";
 import { FONTS, PALETTE } from "../../../../theme/palette";
@@ -24,15 +25,15 @@ const Text = TText as any;
 const XStack = TXStack as any;
 const YStack = TYStack as any;
 
-export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, records, ownerProfileEditRequest = 0, onOwnerProfileEditRequestHandled, onOwnerProfileEditorOpen, onOwnerProfileEditorClose, onSavePerson, onUpdateSettings, onGetPersonDeletionImpact, onRemovePerson, onAddGroup, onUpdateGroup, onRemoveGroup }: {
-  topInset: number; footerInsetBottom: number; settings: AppSettings;
+export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, records, ownerProfileEditRequest = 0, onOwnerProfileEditRequestHandled, onOwnerProfileEditorOpen, onOwnerProfileEditorClose, onSavePerson, onUpdateOwnerProfile, onGetPersonDeletionImpact, onRemovePerson, onAddGroup, onUpdateGroup, onRemoveGroup }: {
+  topInset: number; footerInsetBottom: number; settings: SplitSettingsView;
   ownerProfileEditRequest?: number;
   onOwnerProfileEditRequestHandled?: () => void;
   onOwnerProfileEditorOpen?: () => void;
   onOwnerProfileEditorClose?: () => void;
   records: DraftRecord[];
   onSavePerson: (details: PersonSaveDetails) => Promise<SavePersonResult>;
-  onUpdateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  onUpdateOwnerProfile: (partial: OwnerProfilePatch) => Promise<void>;
   onGetPersonDeletionImpact: (personId: string) => Promise<{ used: boolean; splitCount: number; groupCount: number }>;
   onRemovePerson: (personId: string) => Promise<"deleted" | "archived" | "missing">;
   onAddGroup: (name: string, ids: string[], details?: Partial<Pick<ParticipantGroup, "description" | "photoUri" | "icon" | "color">>, newNames?: string[]) => Promise<boolean>;
@@ -131,7 +132,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
   }} /></Modal>;
 
   if (editingPerson !== null) return <Modal visible animationType="slide" onRequestClose={() => { if (!personSaveInProgress.current) setEditingPerson(null); }}><PersonEditor key={`${editingPerson === "new" ? "new" : editingPerson.id}:${suggestedContactPhoto ?? ""}`} person={editingPerson === "new" ? null : editingPerson} people={allPeople} groups={groups} records={records} suggestedContactPhoto={suggestedContactPhoto} onBusyChange={(busy) => { personSaveInProgress.current = busy; }} onCancel={() => { if (!personSaveInProgress.current) { setEditingPerson(null); setSuggestedContactPhoto(null); } }} onOpenExisting={(existing, contactPhoto) => { setSuggestedContactPhoto(contactPhoto ?? null); setEditingPerson(existing); }} onSave={onSavePerson} /></Modal>;
-  if (editingOwner) return <OwnerProfileEditor settings={settings} records={records} onSave={onUpdateSettings} onBusyChange={(busy) => { personSaveInProgress.current = busy; }} onClose={() => { if (!personSaveInProgress.current) { setEditingOwner(false); onOwnerProfileEditorClose?.(); } }} />;
+  if (editingOwner) return <OwnerProfileEditor settings={settings} records={records} onSave={onUpdateOwnerProfile} onBusyChange={(busy) => { personSaveInProgress.current = busy; }} onClose={() => { if (!personSaveInProgress.current) { setEditingOwner(false); onOwnerProfileEditorClose?.(); } }} />;
   return <YStack flex={1}>
     <HomeMainHeader topInset={topInset} />
     <ScrollView style={screenStyles.flex} contentContainerStyle={[screenStyles.mainTabScrollContent, (showGroupsEmptyState || showPeopleEmptyState) && { flexGrow: 1 }, { paddingBottom: footerInsetBottom + 96 }]} showsVerticalScrollIndicator={false}>

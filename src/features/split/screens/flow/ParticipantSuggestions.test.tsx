@@ -8,7 +8,7 @@ import {
 import { StyleSheet } from "react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
 import type { DraftRecord } from "../../../../storage/records";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { ParticipantSuggestions } from "./ParticipantSuggestions";
 
 const people = ["Ana", "David", "Maya", "Sarah", "Lee", "You"].map((name) => ({
@@ -48,7 +48,7 @@ const settings = {
       updatedAt: "now",
     },
   ],
-} as AppSettings;
+} as SplitSettingsView;
 const record = {
   id: "current",
   values: {

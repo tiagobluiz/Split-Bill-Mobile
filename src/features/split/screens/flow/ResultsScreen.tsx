@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
@@ -98,7 +99,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       markCompleted: state.markCompleted,
       markBillPaid: state.markBillPaid,
       revertBillPaid: state.revertBillPaid,
-      settings: state.settings,
+      settings: selectSplitSettings(state),
       toggleParticipantPaid: state.toggleParticipantPaid,
       updateSettings: state.updateSettings,
       setParticipantDebtReminder: state.setParticipantDebtReminder,

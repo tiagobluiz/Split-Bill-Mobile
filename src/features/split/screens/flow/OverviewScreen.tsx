@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { router } from "expo-router";
@@ -47,7 +48,7 @@ const YStack = TamaguiYStack as any;
 export function OverviewScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const settings = useSplitStore((state) => state.settings);
+  const settings = useSplitStore(selectSplitSettings);
   const insets = useSafeAreaInsets();
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 140 });

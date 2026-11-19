@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../features/split/splitSettingsView";
 import { mkdtempSync, existsSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,8 @@ describe("person identity SQLite migration and membership persistence", () => {
   let database: any;
   let records: typeof import("./records");
   let migration: typeof import("./personIdentityMigration");
+  let directoryStorage: typeof import("./directory");
+  let preferenceStorage: typeof import("./settings");
   let memberships: typeof import("./personMemberships");
   let failSql: string | null;
   let beforeRun: ((sql: string) => Promise<void>) | null;
@@ -106,8 +109,9 @@ describe("person identity SQLite migration and membership persistence", () => {
     records = require("./records");
     migration = require("./personIdentityMigration");
     memberships = require("./personMemberships");
-    const settings = require("./settings");
-    await settings.initializeSettingsStorage();
+    preferenceStorage = require("./settings");
+    directoryStorage = require("./directory");
+    await preferenceStorage.initializeSettingsStorage();
     await records.initializeRecordsStorage();
     database = connections[0];
   });
@@ -124,7 +128,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  const raw = (id: string, name = "Ana") => ({
+  const raw = (id: string, name = "Ana"): import("./personIdentity").RawSplitRow => ({
     id,
     status: "completed",
     step: 6,
@@ -147,18 +151,151 @@ describe("person identity SQLite migration and membership persistence", () => {
     return row;
   }
 
+  async function readDirectoryView() {
+    const directory = await directoryStorage.getPeople();
+    return {
+      ...directory,
+      ownerName: directory.people.find((person) => person.id === directory.ownerPersonId)?.name,
+      participantGroups: await directoryStorage.getGroups(),
+    };
+  }
+
   async function loadPersistedStore() {
     const { useSplitStore } = require("../features/split/store");
-    const settings = await require("./settings").getAppSettings();
+    const settings = await preferenceStorage.getAppSettings();
     const stored = await records.listRecords();
     useSplitStore.setState({
       ready: true,
       records: stored,
       settings,
+      ...await directoryStorage.getPeople(),
+      participantGroups: await directoryStorage.getGroups(),
       activeRecordId: stored[0]?.id ?? null,
     });
     return useSplitStore as typeof import("../features/split/store").useSplitStore;
   }
+
+  const readPreferencesPayload = async () => {
+    const row = await database.getFirstAsync("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
+    return row ? JSON.parse(row.payload) : null;
+  };
+
+  it("initializes a fresh directory with one pending owner and empty groups", async () => {
+    await migration.migratePersonIdentity();
+    const people = await directoryStorage.getPeople();
+    expect(people).toMatchObject({ profileSetupCompleted: false, people: [{ id: people.ownerPersonId, name: "You" }] });
+    expect(await directoryStorage.getGroups()).toEqual([]);
+    expect(await readPreferencesPayload()).toBeNull();
+    expect(existsSync(join(directory, migration.PERSON_IDENTITY_BACKUP))).toBe(false);
+    await migration.migratePersonIdentity();
+    expect(await directoryStorage.getPeople()).toEqual(people);
+  });
+
+  it("writes the legacy planner results directly to the directory and keeps the original backup", async () => {
+    const settings = { ownerName: "  Alex  Silva ", ownerProfileImageUri: "file:///profile.jpg",
+      language: "pt", defaultCurrency: "USD", tags: [], futurePreference: 42 };
+    await database.runAsync("INSERT INTO app_settings VALUES (?, ?)", ["app-settings", JSON.stringify(settings)]);
+    const completed = raw("completed");
+    const legacyValues = {
+      ...JSON.parse(completed.payload),
+      participants: [{ id: "self", name: "You" }, { id: "ana", name: "  Ana  Silva " },
+        { id: "accented", name: "João" }, { id: "plain", name: "Joao" },
+        { id: "long", name: "A".repeat(27) }],
+      payerParticipantId: "self",
+      items: [{ id: "meal", name: "Meal", price: "12.50", allocations: [{ participantId: "ana", shares: "2" }] }],
+    };
+    completed.payload = JSON.stringify(legacyValues);
+    const draft = {
+      ...raw("draft"), status: "draft", completed_at: null,
+      payload: JSON.stringify({
+        values: { ...legacyValues, participants: [{ id: "a", name: "ANA SILVA" }, { id: "self", name: "Alex Silva" }] },
+        settlementState: { settledParticipantIds: ["a"] },
+        reminderState: { participantDebtReminders: { a: { notificationId: "reminder" } } },
+      }),
+    };
+    await seed(completed);
+    await seed(draft);
+    const { planPersonIdentity } = require("./personIdentity") as typeof import("./personIdentity");
+    const timestamp = "2026-11-18T10:00:00.000Z";
+    let sequence = 0;
+    const nextId = () => `migration-person-${++sequence}`;
+    const expected = planPersonIdentity(settings, [completed, draft], nextId, timestamp);
+    sequence = 0;
+    const ids = jest.spyOn(require("expo-modules-core").uuid, "v4").mockImplementation(nextId);
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate", "setTimeout"] });
+    jest.setSystemTime(new Date(timestamp));
+    try {
+      await migration.migratePersonIdentity();
+    } finally {
+      jest.useRealTimers();
+      ids.mockRestore();
+    }
+    expect(await directoryStorage.getPeople()).toEqual({
+      ownerPersonId: expected.settings.ownerPersonId,
+      profileSetupCompleted: true,
+      people: expected.settings.people.map((person) =>
+        person.id === expected.settings.ownerPersonId ? { ...person, photoUri: settings.ownerProfileImageUri } : person),
+    });
+    expect(await memberships.readRawSplitRows(database)).toEqual(expected.rows);
+    await memberships.verifyPersonMemberships(database, expected.memberships);
+    expect(await directoryStorage.getGroups()).toEqual([]);
+    expect(await readPreferencesPayload()).toEqual({ language: "pt", defaultCurrency: "USD", tags: [], futurePreference: 42 });
+    const backupDb = new DatabaseSync(join(directory, migration.PERSON_IDENTITY_BACKUP), { readOnly: true });
+    try {
+      expect(backupDb.prepare("SELECT payload FROM app_settings").get().payload).toBe(JSON.stringify(settings));
+      expect(backupDb.prepare("SELECT payload FROM split_records ORDER BY id").all().map((row: any) => row.payload))
+        .toEqual([completed.payload, draft.payload]);
+    } finally {
+      backupDb.close();
+    }
+  });
+
+  it("leaves legacy rows untouched when two participants match the same owner", async () => {
+    const settings = { ownerName: "Alex", language: "pt" };
+    await database.runAsync("INSERT INTO app_settings VALUES (?, ?)", ["app-settings", JSON.stringify(settings)]);
+    const row = raw("ambiguous");
+    const payload = JSON.parse(row.payload);
+    payload.participants = [{ id: "owner-alias", name: "You" }, { id: "owner-name", name: "Alex" }];
+    await seed({ ...row, payload: JSON.stringify(payload) });
+    const before = await readRows();
+    await expect(migration.migratePersonIdentity()).rejects.toThrow("A person occurs more than once in a split");
+    expect(await readRows()).toEqual(before);
+    expect(await readPreferencesPayload()).toEqual(settings);
+    expect(await database.getAllAsync("SELECT id FROM people")).toEqual([]);
+    expect(await database.getAllAsync("SELECT version FROM identity_migrations")).toEqual([]);
+  });
+
+  it("interleaves a preference save, a person edit, and a group deletion without overwriting any dataset", async () => {
+    await seed();
+    await migration.migratePersonIdentity();
+    const store = await loadPersistedStore();
+    const person = store.getState().people.find((entry) => entry.name === "Ana")!;
+    await store.getState().addParticipantGroup("Friends", [person.id]);
+    const [group] = store.getState().participantGroups;
+    let reachedWrite!: () => void;
+    const writing = new Promise<void>((resolve) => { reachedWrite = resolve; });
+    let releaseWrite!: () => void;
+    const paused = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    beforeRun = async (sql) => {
+      if (!sql.includes("INSERT INTO app_settings")) return;
+      reachedWrite();
+      await paused;
+    };
+    const preferences = store.getState().updateSettings({ language: "pt", defaultCurrency: "GBP" });
+    await writing;
+    const edit = store.getState().savePerson({
+      personId: person.id, name: "Ana Maria", photoUri: null, color: "mint", groupIds: [group.id],
+    });
+    const deletion = store.getState().removeParticipantGroup(group.id);
+    releaseWrite();
+    await Promise.all([preferences, deletion]);
+    expect(await edit).toEqual({ ok: true, personId: person.id });
+    expect(await readPreferencesPayload()).toEqual({ language: "pt", defaultCurrency: "GBP" });
+    expect((await directoryStorage.getPeople()).people.find((entry) => entry.id === person.id)?.name).toBe("Ana Maria");
+    expect(await directoryStorage.getGroups()).toEqual([]);
+    expect(store.getState().participantGroups).toEqual([]);
+    expect(store.getState().settings).toMatchObject({ language: "pt", defaultCurrency: "GBP" });
+  });
 
   it("persists group creation, metadata edits, and deletion without changing people or split history", async () => {
     await seed();
@@ -178,26 +315,27 @@ describe("person identity SQLite migration and membership persistence", () => {
         ["Bruno", " BRUNO "],
       ),
     ).resolves.toBe(true);
-    const created = store.getState().settings.participantGroups![0];
+    const created = store.getState().participantGroups![0];
     expect(created.memberPersonIds).toHaveLength(2);
     expect(
       store
         .getState()
-        .settings.people!.filter((person) => person.name === "Bruno"),
+        .people!.filter((person) => person.name === "Bruno"),
     ).toHaveLength(1);
     await expect(
       store.getState().updateParticipantGroup(created.id, {
         name: "Roommates",
-        memberPersonIds: created.memberPersonIds,
+        memberPersonIds: [...created.memberPersonIds].reverse(),
         description: "Rent and groceries",
         icon: "plane",
         color: "mint",
       }),
     ).resolves.toBe(true);
-    const persisted = await require("./settings").getAppSettings();
+    const persisted = await readDirectoryView();
     expect(persisted.participantGroups[0]).toMatchObject({
       id: created.id,
       name: "Roommates",
+      memberPersonIds: [...created.memberPersonIds].reverse(),
       description: "Rent and groceries",
       icon: "plane",
       color: "mint",
@@ -205,7 +343,7 @@ describe("person identity SQLite migration and membership persistence", () => {
       createdAt: created.createdAt,
     });
     await store.getState().removeParticipantGroup(created.id);
-    const deleted = await require("./settings").getAppSettings();
+    const deleted = await readDirectoryView();
     expect(deleted.participantGroups).toEqual([]);
     expect(deleted.people).toEqual(persisted.people);
     expect(await readRows()).toEqual(original);
@@ -219,20 +357,20 @@ describe("person identity SQLite migration and membership persistence", () => {
     const anaId = store.getState().records[0].values.participants[0].personId!;
     const originalSplit = await records.getRecordById("old");
     await expect(store.getState().removePerson(anaId)).resolves.toBe("archived");
-    expect(store.getState().settings.people!.find((person) => person.id === anaId)?.archivedAt).toBeTruthy();
+    expect(store.getState().people!.find((person) => person.id === anaId)?.archivedAt).toBeTruthy();
 
     await expect(store.getState().addParticipantGroup("Roomies", [], {}, ["  ANA  "])).resolves.toBe(true);
-    let settings = await require("./settings").getAppSettings();
+    let settings = await readDirectoryView();
     expect(settings.people.filter((person: any) => person.name.toLowerCase() === "ana")).toHaveLength(1);
     expect(settings.people.find((person: any) => person.id === anaId)?.archivedAt).toBeFalsy();
     const group = settings.participantGroups[0];
     expect(group.memberPersonIds).toEqual([anaId]);
 
     await expect(store.getState().removePerson(anaId)).resolves.toBe("archived");
-    expect(store.getState().settings.participantGroups!.find((entry) => entry.id === group.id)?.memberPersonIds).toEqual([]);
+    expect(store.getState().participantGroups!.find((entry) => entry.id === group.id)?.memberPersonIds).toEqual([]);
     expect(await records.getRecordById("old")).toEqual(originalSplit);
     await expect(store.getState().updateParticipantGroup(group.id, { name: "Renamed", memberPersonIds: [], description: "Updated" })).resolves.toBe(false);
-    const emptyGroupSettings = await require("./settings").getAppSettings();
+    const emptyGroupSettings = await readDirectoryView();
     expect(emptyGroupSettings.participantGroups[0]).toMatchObject({ id: group.id, name: group.name, memberPersonIds: [] });
     await expect(store.getState().addParticipantGroup("Empty new group", [])).resolves.toBe(false);
     await expect(store.getState().updateParticipantGroup(group.id, { name: "Renamed", memberPersonIds: ["missing"] })).resolves.toBe(false);
@@ -241,7 +379,7 @@ describe("person identity SQLite migration and membership persistence", () => {
       memberPersonIds: [],
       newPersonNames: ["Ana"],
     })).resolves.toBe(true);
-    settings = await require("./settings").getAppSettings();
+    settings = await readDirectoryView();
     expect(settings.people.find((person: any) => person.id === anaId)?.archivedAt).toBeFalsy();
     expect(settings.participantGroups[0]).toMatchObject({ id: group.id, memberPersonIds: [anaId], usageCount: group.usageCount, createdAt: group.createdAt });
     expect(await records.getRecordById("old")).toEqual(originalSplit);
@@ -258,7 +396,7 @@ describe("person identity SQLite migration and membership persistence", () => {
 
     const localId = "bruno-local";
     await store.getState().updateParticipants((participants) => [...participants, { id: localId, name: " Bruno " }]);
-    const restored = await require("./settings").getAppSettings();
+    const restored = await readDirectoryView();
     const split = await records.getRecordById("old");
     expect(restored.people.find((person: any) => person.id === brunoId)?.archivedAt).toBeFalsy();
     expect(split!.values.participants.find((participant) => participant.id === localId)).toMatchObject({ id: localId, name: "Bruno", personId: brunoId });
@@ -268,11 +406,11 @@ describe("person identity SQLite migration and membership persistence", () => {
     await store.getState().addParticipantGroup("Carla group", [carlaId!]);
     await expect(store.getState().removePerson(carlaId!)).resolves.toBe("archived");
     const beforeFailure = await records.getRecordById("old");
-    failSql = "INSERT INTO app_settings";
+    failSql = "INSERT INTO split_person_memberships";
     await expect(store.getState().updateParticipants((participants) => [...participants, { id: "carla-local", name: "Carla" }])).rejects.toThrow("injected persistence failure");
     failSql = null;
 
-    const failedSettings = await require("./settings").getAppSettings();
+    const failedSettings = await readDirectoryView();
     expect(failedSettings.people.find((person: any) => person.id === carlaId)?.archivedAt).toBeTruthy();
     expect(await records.getRecordById("old")).toEqual(beforeFailure);
     expect(store.getState().getActiveRecord()!.values.participants.some((participant) => participant.id === "carla-local")).toBe(false);
@@ -286,16 +424,16 @@ describe("person identity SQLite migration and membership persistence", () => {
     const brunoId = await store.getState().upsertPerson("Bruno");
     await store.getState().addParticipantGroup("Original group", [brunoId!]);
     await store.getState().removePerson(brunoId!);
-    const groupsBefore = await require("./settings").getAppSettings();
-    failSql = "INSERT INTO app_settings";
+    const groupsBefore = await readDirectoryView();
+    failSql = "INSERT INTO participant_groups";
 
     await expect(store.getState().addParticipantGroup("Retry group", [], {}, ["Bruno"])).rejects.toThrow("injected persistence failure");
     failSql = null;
 
-    const persisted = await require("./settings").getAppSettings();
+    const persisted = await readDirectoryView();
     expect(persisted.participantGroups).toEqual(groupsBefore.participantGroups);
     expect(persisted.people.find((person: any) => person.id === brunoId)?.archivedAt).toBeTruthy();
-    expect(store.getState().settings.participantGroups).toEqual(groupsBefore.participantGroups);
+    expect(store.getState().participantGroups).toEqual(groupsBefore.participantGroups);
   });
 
   async function readRows() {
@@ -310,22 +448,22 @@ describe("person identity SQLite migration and membership persistence", () => {
     await store.getState().addParticipantGroup("A", [anaId], {}, ["Bruno"]);
     const brunoId = store
       .getState()
-      .settings.people!.find((person) => person.name === "Bruno")!.id;
+      .people!.find((person) => person.name === "Bruno")!.id;
     await store.getState().addParticipantGroup("B", [brunoId], {}, ["Carla"]);
-    const [groupA, groupB] = store.getState().settings.participantGroups!;
+    const [groupA, groupB] = store.getState().participantGroups!;
     await store
       .getState()
       .addParticipantsFromGroup(groupA.id, [anaId, brunoId]);
-    let persisted = await require("./settings").getAppSettings();
+    let persisted = await readDirectoryView();
     expect(
       persisted.participantGroups.map((group: any) => group.usageCount),
     ).toEqual([1, 0]);
     expect(await memberships.countRecordsForPerson(brunoId)).toBe(1);
     const carlaId = store
       .getState()
-      .settings.people!.find((person) => person.name === "Carla")!.id;
+      .people!.find((person) => person.name === "Carla")!.id;
     await store.getState().addParticipantsFromGroup(groupB.id, [carlaId]);
-    persisted = await require("./settings").getAppSettings();
+    persisted = await readDirectoryView();
     expect(
       persisted.participantGroups.map((group: any) => group.usageCount),
     ).toEqual([1, 1]);
@@ -348,24 +486,24 @@ describe("person identity SQLite migration and membership persistence", () => {
     const store = await loadPersistedStore();
     const anaId = store.getState().records[0].values.participants[0].personId!;
     await store.getState().addParticipantGroup("Roomies", [], {}, ["Bruno"]);
-    const group = store.getState().settings.participantGroups![0];
+    const group = store.getState().participantGroups![0];
     const before = await records.getRecordById(store.getState().activeRecordId!);
 
-    failSql = "INSERT INTO app_settings";
+    failSql = "UPDATE participant_groups SET usage_count";
     await expect(store.getState().addParticipantsFromGroup(group.id)).rejects.toThrow("injected persistence failure");
     failSql = null;
 
     const afterFailure = await records.getRecordById(before!.id);
     expect(afterFailure!.values.participants).toEqual(before!.values.participants);
-    expect((await require("./settings").getAppSettings()).participantGroups[0].usageCount).toBe(0);
+    expect((await readDirectoryView()).participantGroups[0].usageCount).toBe(0);
 
     await store.getState().addParticipantsFromGroup(group.id);
     const persistedRecord = await records.getRecordById(before!.id);
-    const persistedSettings = await require("./settings").getAppSettings();
+    const persistedSettings = await readDirectoryView();
     expect(persistedRecord!.values.participants).toHaveLength(2);
     expect(persistedRecord!.values.participants[0]).toMatchObject({ id: "old-local", personId: anaId });
     expect(persistedSettings.participantGroups[0].usageCount).toBe(1);
-    expect(store.getState().settings.participantGroups![0].usageCount).toBe(1);
+    expect(store.getState().participantGroups![0].usageCount).toBe(1);
     await memberships.verifyPersonMemberships(database);
   });
 
@@ -373,13 +511,13 @@ describe("person identity SQLite migration and membership persistence", () => {
     await seed();
     await migration.migratePersonIdentity();
     const store = await loadPersistedStore();
-    const before = await require("./settings").getAppSettings();
+    const before = await readDirectoryView();
 
     await expect(store.getState().addParticipantGroup("Roomies", [], {}, ["You"]))
       .resolves.toBe(false);
 
-    expect(await require("./settings").getAppSettings()).toEqual(before);
-    expect(store.getState().settings.participantGroups).toEqual(before.participantGroups);
+    expect(await readDirectoryView()).toEqual(before);
+    expect(store.getState().participantGroups).toEqual(before.participantGroups);
   });
 
   it("publishes a new split participant with global identity and saves person, split, and membership together", async () => {
@@ -394,11 +532,11 @@ describe("person identity SQLite migration and membership persistence", () => {
     ]);
     const optimistic = store.getState().getActiveRecord()!.values.participants[1];
     expect(optimistic).toMatchObject({ id: "bruno-local", name: "Bruno", personId: expect.any(String) });
-    expect(store.getState().settings.people!.some((person) => person.id === optimistic.personId)).toBe(false);
+    expect(store.getState().people!.some((person) => person.id === optimistic.personId)).toBe(false);
 
     await operation;
     const saved = await records.getRecordById(initial.id);
-    const savedPerson = (await require("./settings").getAppSettings()).people.find((person: any) => person.id === optimistic.personId);
+    const savedPerson = (await readDirectoryView()).people.find((person: any) => person.id === optimistic.personId);
     expect(saved!.values.participants[1]).toEqual(optimistic);
     expect(savedPerson).toMatchObject({ id: optimistic.personId, name: "Bruno" });
     expect(await memberships.countRecordsForPerson(optimistic.personId!)).toBe(1);
@@ -409,12 +547,12 @@ describe("person identity SQLite migration and membership persistence", () => {
     await seed();
     await migration.migratePersonIdentity();
     const store = await loadPersistedStore();
-    const before = await require("./settings").getAppSettings();
-    failSql = "INSERT INTO app_settings";
+    const before = await readDirectoryView();
+    failSql = "INSERT INTO participant_groups";
     await expect(store.getState().addParticipantGroup("Roomies", [], {}, ["Bruno"])).rejects.toThrow("injected persistence failure");
-    expect(store.getState().settings.participantGroups).toEqual(before.participantGroups);
-    expect(store.getState().settings.people).toEqual(before.people);
-    expect(await require("./settings").getAppSettings()).toEqual(before);
+    expect(store.getState().participantGroups).toEqual(before.participantGroups);
+    expect(store.getState().people).toEqual(before.people);
+    expect(await readDirectoryView()).toEqual(before);
   });
 
   it("keeps global identities consistent through overlapping participant additions", async () => {
@@ -445,7 +583,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     await Promise.all([first, second]);
     expect(store.getState().activeRecordId).toBe("second");
     expect(await memberships.countRecordsForPerson(firstPersonId!)).toBe(2);
-    const saved = await require("./settings").getAppSettings();
+    const saved = await readDirectoryView();
     expect(saved.people.filter((person: any) => person.name.toLowerCase() === "bruno")).toHaveLength(1);
     await memberships.verifyPersonMemberships(database);
   });
@@ -454,7 +592,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     await seed();
     await migration.migratePersonIdentity();
     const store = await loadPersistedStore();
-    failSql = "INSERT INTO app_settings";
+    failSql = "INSERT INTO people";
     const first = store.getState().updateParticipants((participants) => [...participants, { id: "bruno-local", name: "Bruno" }]);
     const second = store.getState().updateParticipants((participants) => [...participants, { id: "carla-local", name: "Carla" }]);
     const outcomes = await Promise.allSettled([first, second]);
@@ -473,7 +611,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     const entered = new Promise<void>((resolve) => { enter = resolve; });
     const gate = new Promise<void>((resolve) => { release = resolve; });
     beforeRun = async (sql) => {
-      if (!sql.includes("INSERT INTO app_settings")) return;
+      if (!sql.includes("INSERT INTO people")) return;
       beforeRun = null;
       enter();
       await gate;
@@ -493,26 +631,26 @@ describe("person identity SQLite migration and membership persistence", () => {
     await seed();
     await migration.migratePersonIdentity();
     const store = await loadPersistedStore();
-    const before = await require("./settings").getAppSettings();
-    await expect(store.getState().updateSettings({ ownerName: "Ana" })).rejects.toThrow("Owner name conflicts with a saved person");
-    expect((await require("./settings").getAppSettings()).ownerName).toBe(before.ownerName);
-    expect(store.getState().settings.ownerName).toBe(before.ownerName);
+    const before = await readDirectoryView();
+    await expect(store.getState().updateOwnerProfile({ ownerName: "Ana" })).rejects.toThrow("Owner name conflicts with a saved person");
+    expect((await readDirectoryView()).ownerName).toBe(before.ownerName);
+    expect(selectSplitSettings(store.getState()).ownerName).toBe(before.ownerName);
   });
 
   it("rolls overlapping failed owner-name edits back to the last persisted name", async () => {
     await seed(raw("old", "You"));
     await migration.migratePersonIdentity();
     const store = await loadPersistedStore();
-    failSql = "INSERT INTO app_settings";
+    failSql = "INSERT INTO people";
 
-    const first = store.getState().updateSettings({ ownerName: "First" });
-    const second = store.getState().updateSettings({ ownerName: "Second" });
-    expect(store.getState().settings.ownerName).toBe("Second");
+    const first = store.getState().updateOwnerProfile({ ownerName: "First" });
+    const second = store.getState().updateOwnerProfile({ ownerName: "Second" });
+    expect(selectSplitSettings(store.getState()).ownerName).toBe("Second");
     const outcomes = await Promise.allSettled([first, second]);
 
     expect(outcomes.map((outcome) => outcome.status)).toEqual(["rejected", "rejected"]);
-    expect((await require("./settings").getAppSettings()).ownerName).toBe("You");
-    expect(store.getState().settings.ownerName).toBe("You");
+    expect((await readDirectoryView()).ownerName).toBe("You");
+    expect(selectSplitSettings(store.getState()).ownerName).toBe("You");
     expect(store.getState().records[0].values.participants[0].name).toBe("You");
     expect((await records.getRecordById("old"))!.values.participants[0].name).toBe("You");
   });
@@ -524,13 +662,13 @@ describe("person identity SQLite migration and membership persistence", () => {
     const store = await loadPersistedStore();
     store.setState({ records: [], activeRecordId: null });
     failSql = "UPDATE split_records SET payload";
-    await expect(store.getState().updateSettings({ ownerName: "Alex" })).rejects.toThrow("injected");
-    expect(store.getState().settings.ownerName).toBe("You");
-    expect((await require("./settings").getAppSettings()).ownerName).toBe("You");
+    await expect(store.getState().updateOwnerProfile({ ownerName: "Alex" })).rejects.toThrow("injected");
+    expect(selectSplitSettings(store.getState()).ownerName).toBe("You");
+    expect((await readDirectoryView()).ownerName).toBe("You");
     expect((await records.getRecordById("owner-000"))?.values.participants[0].name).toBe("You");
     failSql = null;
-    await store.getState().updateSettings({ ownerName: "Alex" });
-    expect((await require("./settings").getAppSettings()).ownerName).toBe("Alex");
+    await store.getState().updateOwnerProfile({ ownerName: "Alex" });
+    expect((await readDirectoryView()).ownerName).toBe("Alex");
     expect((await records.getRecordById("owner-000"))?.values.participants[0].name).toBe("Alex");
     expect((await records.getRecordById("owner-104"))?.values.participants[0].name).toBe("Alex");
     expect((await records.getRecordById("unrelated"))?.values.participants[0].name).toBe("Ana");
@@ -552,7 +690,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     await database.runAsync("UPDATE split_records SET payload = ?, financial_projection = NULL WHERE id = ?", [JSON.stringify(payload), row.id]);
     const store = await loadPersistedStore();
     store.setState({ records: [], activeRecordId: null });
-    await store.getState().updateSettings({ ownerName: "Alex" });
+    await store.getState().updateOwnerProfile({ ownerName: "Alex" });
     const updated = (await records.getRecordById(row.id))!;
     expect(updated.values.items.map((item) => item.id)).toEqual(["dinner"]);
     const [{ projection }] = await records.getFinancialProjectionsByIds([row.id]);
@@ -581,14 +719,15 @@ describe("person identity SQLite migration and membership persistence", () => {
     const store = await loadPersistedStore();
     const personId = store.getState().records[0].values.participants[0].personId!;
     await store.getState().addParticipantGroup("Roomies", [personId]);
-    const before = await require("./settings").getAppSettings();
+    const before = await readDirectoryView();
     const group = before.participantGroups[0];
-    failSql = "INSERT INTO app_settings";
+    failSql = "INSERT INTO participant_groups";
     await expect(store.getState().updateParticipantGroup(group.id, { name: "Household", memberPersonIds: [personId] })).rejects.toThrow("injected persistence failure");
-    expect(store.getState().settings.participantGroups).toEqual(before.participantGroups);
+    expect(store.getState().participantGroups).toEqual(before.participantGroups);
+    failSql = "DELETE FROM participant_groups";
     await expect(store.getState().removeParticipantGroup(group.id)).rejects.toThrow("injected persistence failure");
-    expect(store.getState().settings.participantGroups).toEqual(before.participantGroups);
-    expect((await require("./settings").getAppSettings()).participantGroups).toEqual(before.participantGroups);
+    expect(store.getState().participantGroups).toEqual(before.participantGroups);
+    expect((await readDirectoryView()).participantGroups).toEqual(before.participantGroups);
   });
 
   it("renames a global person across persisted splits without changing financial references or indexed memberships", async () => {
@@ -672,7 +811,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     const before = await records.listRecords();
     const anaId = before[0].values.participants[0].personId!;
     await store.getState().addParticipantGroup("Roomies", [anaId]);
-    const group = (store.getState().settings.participantGroups ?? [])[0]!;
+    const group = (store.getState().participantGroups ?? [])[0]!;
 
     const result = await store.getState().savePerson({
       personId: null,
@@ -683,10 +822,10 @@ describe("person identity SQLite migration and membership persistence", () => {
     });
 
     expect(result.ok).toBe(true);
-    const persistedSettings = await require("./settings").getAppSettings();
+    const persistedSettings = await readDirectoryView();
     const carla = persistedSettings.people.find((person: any) => person.name === "Carla");
     expect(carla).toMatchObject({ name: "Carla", color: "mint" });
-    expect(persistedSettings.participantGroups[0].memberPersonIds).toEqual([anaId, carla.id]);
+    expect(persistedSettings.participantGroups[0].memberPersonIds).toEqual([anaId, carla!.id]);
     expect(await records.listRecords()).toEqual(before);
   });
 
@@ -1039,6 +1178,8 @@ describe("person identity SQLite migration and membership persistence", () => {
 
   it("rolls back an interrupted migration and safely retries using the retained backup", async () => {
     const original = await seed();
+    const settings = { ownerName: "Alex", ownerProfileImageUri: "file:///profile.png", profileSetupCompleted: false, language: "pt" };
+    await database.runAsync("INSERT INTO app_settings VALUES (?, ?)", ["app-settings", JSON.stringify(settings)]);
     failSql = "INSERT INTO split_person_memberships";
     await expect(migration.migratePersonIdentity()).rejects.toThrow("injected");
     expect(
@@ -1052,11 +1193,19 @@ describe("person identity SQLite migration and membership persistence", () => {
     expect(
       await database.getAllAsync("SELECT * FROM identity_migrations"),
     ).toEqual([]);
+    expect(await readPreferencesPayload()).toEqual(settings);
+    expect(await database.getAllAsync("SELECT id FROM people")).toEqual([]);
+    expect(await database.getAllAsync("SELECT * FROM split_person_memberships")).toEqual([]);
     failSql = null;
     await migration.migratePersonIdentity();
     expect(
       await database.getAllAsync("SELECT * FROM split_person_memberships"),
     ).toHaveLength(1);
+    expect(await readPreferencesPayload()).toEqual({ language: "pt" });
+    expect((await directoryStorage.getPeople()).profileSetupCompleted).toBe(false);
+    await records.saveOwnerProfileAndLinkedRecords({ profileSetupCompleted: true });
+    await records.saveOwnerProfileAndLinkedRecords({ profileSetupCompleted: false });
+    expect((await directoryStorage.getPeople()).profileSetupCompleted).toBe(true);
   });
 
   it("saves item edits without rewriting unchanged participant memberships", async () => {
@@ -1104,16 +1253,7 @@ describe("person identity SQLite migration and membership persistence", () => {
       }),
     ).rejects.toThrow("injected");
     expect(await memberships.countRecordsForPerson(ana)).toBe(1);
-    expect(
-      JSON.parse(
-        (
-          await database.getFirstAsync(
-            "SELECT payload FROM app_settings WHERE key = ?",
-            ["app-settings"],
-          )
-        ).payload,
-      ).people.some((entry: any) => entry.name === "Bruno"),
-    ).toBe(false);
+    expect((await directoryStorage.getPeople()).people.some((entry) => entry.name === "Bruno")).toBe(false);
     failSql = null;
     const bruno = {
       id: randomUUID(),
@@ -1121,19 +1261,13 @@ describe("person identity SQLite migration and membership persistence", () => {
       createdAt: "now",
       updatedAt: "now",
     };
-    const reassignedSnapshot = await records.saveRecordsAndSettings(
-      [
-        {
-          ...saved.record,
-          values: {
-            ...saved.record.values,
-            participants: [{ id: "local", name: "Bruno", personId: bruno.id }],
-          },
-        },
-      ],
-      { ...saved.settings, people: [...saved.settings.people!, bruno] },
-    );
-    const reassigned = { record: reassignedSnapshot.records[0] };
+    const reassigned = await records.saveRecord({
+      ...saved.record,
+      values: {
+        ...saved.record.values,
+        participants: [{ id: "local", name: "Bruno", personId: bruno.id }],
+      },
+    }, [bruno]);
     expect(reassigned.record.values.participants[0].id).toBe("local");
     expect(await memberships.countRecordsForPerson(ana)).toBe(0);
     await records.deleteRecord("new");
@@ -1200,6 +1334,7 @@ describe("person identity SQLite migration and membership persistence", () => {
   });
 
   it("enforces foreign keys on the actual transaction connection", async () => {
+    const row = await seed();
     await migration.migratePersonIdentity();
     const { withDatabaseTransaction } = require("./database");
     await expect(
@@ -1210,6 +1345,16 @@ describe("person identity SQLite migration and membership persistence", () => {
           "person",
         ]),
       ),
+    ).rejects.toThrow("FOREIGN KEY");
+    await expect(
+      withDatabaseTransaction((tx: any) => tx.runAsync("INSERT INTO split_person_memberships VALUES (?, ?, ?)",
+        [row.id, "other-local", "missing-person"])),
+    ).rejects.toThrow("FOREIGN KEY");
+    const personId = (await directoryStorage.getPeople()).people.find((person) => person.name === "Ana")!.id;
+    const saved = await records.saveParticipantGroup(null, { name: "Friends", memberPersonIds: [personId] });
+    await expect(
+      withDatabaseTransaction((tx: any) => tx.runAsync("INSERT INTO participant_group_members VALUES (?, ?, ?)",
+        [saved!.group.id, "missing-person", 1])),
     ).rejects.toThrow("FOREIGN KEY");
   });
 
@@ -1274,14 +1419,7 @@ describe("person identity SQLite migration and membership persistence", () => {
       records.saveRecord(make("a", "Ana")),
       records.saveRecord(make("b", "Bruno")),
     ]);
-    const saved = JSON.parse(
-      (
-        await database.getFirstAsync(
-          "SELECT payload FROM app_settings WHERE key = ?",
-          ["app-settings"],
-        )
-      ).payload,
-    );
+    const saved = await directoryStorage.getPeople();
     expect(saved.people.map((entry: any) => entry.name)).toEqual(
       expect.arrayContaining(["Ana", "Bruno"]),
     );
@@ -1295,14 +1433,7 @@ describe("person identity SQLite migration and membership persistence", () => {
     await migration.migratePersonIdentity();
     const [record] = await records.listRecords();
     const anaId = record.values.participants[0].personId!;
-    const settings = JSON.parse(
-      (
-        await database.getFirstAsync(
-          "SELECT payload FROM app_settings WHERE key = ?",
-          ["app-settings"],
-        )
-      ).payload,
-    );
+    const directory = await directoryStorage.getPeople();
     const unused = {
       id: "unused",
       name: "Unused",
@@ -1316,33 +1447,25 @@ describe("person identity SQLite migration and membership persistence", () => {
       createdAt: "now",
       updatedAt: "now",
     };
-    const owner = settings.people.find(
-      (entry: any) => entry.id === settings.ownerPersonId,
-    );
-    if (owner) owner.name = "Alex";
-    settings.ownerName = "Alex";
-    settings.people.push(unused, ownerAlias);
-    await database.runAsync(
-      "UPDATE app_settings SET payload = ? WHERE key = ?",
-      [JSON.stringify(settings), "app-settings"],
-    );
+    await records.saveOwnerProfileAndLinkedRecords({ ownerName: "Alex" });
+    await directoryStorage.saveDirectoryPerson(unused);
+    await directoryStorage.saveDirectoryPerson(ownerAlias);
     const { deleteSavedPerson } = require("./personDeletion");
     const archived = await deleteSavedPerson(anaId);
     expect(archived.result).toBe("archived");
     expect(
-      archived.settings.people.find((entry: any) => entry.id === anaId)
-        .archivedAt,
+      archived.person?.archivedAt,
     ).toEqual(expect.any(String));
     expect(await memberships.countRecordsForPerson(anaId)).toBe(1);
     const removed = await deleteSavedPerson(unused.id);
     expect(removed.result).toBe("deleted");
     expect(removed.photoUri).toBe(unused.photoUri);
     expect(
-      removed.settings.people.some((entry: any) => entry.id === unused.id),
+      (await directoryStorage.getPeople()).people.some((entry) => entry.id === unused.id),
     ).toBe(false);
     expect((await deleteSavedPerson(ownerAlias.id)).result).toBe("deleted");
     expect((await deleteSavedPerson("missing-person")).result).toBe("missing");
-    expect((await deleteSavedPerson(settings.ownerPersonId)).result).toBe(
+    expect((await deleteSavedPerson(directory.ownerPersonId)).result).toBe(
       "missing",
     );
   });
@@ -1356,49 +1479,20 @@ describe("person identity SQLite migration and membership persistence", () => {
     );
     expect(await memberships.listLegacyRecordIdsForPerson("  LEGACY   participant ", "You")).toEqual(["legacy"]);
     expect(await memberships.listLegacyRecordIdsForPerson("You", "You")).toEqual([]);
-    const settings = JSON.parse(
-      (
-        await database.getFirstAsync(
-          "SELECT payload FROM app_settings WHERE key = ?",
-          ["app-settings"],
-        )
-      ).payload,
-    );
-    settings.people.push(
-      {
-        id: "legacy-person",
-        name: "Legacy participant",
-        createdAt: "now",
-        updatedAt: "now",
-      },
-      {
-        id: "group-only-person",
-        name: "Group-only participant",
-        createdAt: "now",
-        updatedAt: "now",
-      },
-    );
-    settings.participantGroups = settings.participantGroups ?? [];
-    settings.participantGroups.push({
-      id: "group-only",
-      name: "Group only",
-      memberPersonIds: ["group-only-person"],
-      usageCount: 0,
-      createdAt: "now",
-      updatedAt: "now",
+    await directoryStorage.saveDirectoryPerson({
+      id: "legacy-person", name: "Legacy participant", createdAt: "now", updatedAt: "now",
     });
-    await database.runAsync(
-      "UPDATE app_settings SET payload = ? WHERE key = ?",
-      [JSON.stringify(settings), "app-settings"],
-    );
-
+    await directoryStorage.saveDirectoryPerson({
+      id: "group-only-person", name: "Group-only participant", createdAt: "now", updatedAt: "now",
+    });
+    const group = await records.saveParticipantGroup(null, { name: "Group only", memberPersonIds: ["group-only-person"] });
     const { deleteSavedPerson } = require("./personDeletion");
     expect((await deleteSavedPerson("legacy-person")).result).toBe("archived");
     const groupOnlyResult = await deleteSavedPerson("group-only-person");
     expect(groupOnlyResult.result).toBe("archived");
-    expect(groupOnlyResult.settings.participantGroups.find((group: any) => group.id === "group-only").memberPersonIds).toEqual([]);
-    const persisted = await require("./settings").getAppSettings();
-    expect(persisted.participantGroups.find((group: any) => group.id === "group-only").memberPersonIds).toEqual([]);
+    expect(groupOnlyResult.groups.find((entry: any) => entry.id === group?.group.id).memberPersonIds).toEqual([]);
+    const persisted = await readDirectoryView();
+    expect(persisted.participantGroups.find((entry) => entry.id === group?.group.id)?.memberPersonIds).toEqual([]);
     expect(await records.getRecordById("legacy")).toBeTruthy();
   });
 
