@@ -7,7 +7,7 @@ import { withAppDatabaseRetry, withDatabaseTransaction } from "../../../../stora
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
 
-// Update this release and its slides only when there is an announcement to show.
+// Keep the latest announcement and replace its version and slides together.
 const RELEASE = "2.14.0";
 const CONTENT_GUTTER = 24;
 const MAX_CONTENT_WIDTH = 480;
