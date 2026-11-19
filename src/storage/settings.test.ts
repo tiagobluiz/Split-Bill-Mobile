@@ -57,6 +57,9 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     const loaded = await settingsModule.getAppSettings();
+    const cleaned = JSON.parse(savedRow.payload);
+    delete cleaned.humour;
+    database.getFirstAsync.mockResolvedValue({ ...savedRow, payload: JSON.stringify(cleaned) });
     await settingsModule.saveAppSettings({
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
@@ -84,7 +87,7 @@ describe("settings storage", () => {
         JSON.stringify({
           balanceFeatureEnabled: true,
           defaultCurrency: "EUR",
-          language: "en", humour: "sassy", splitListAmountDisplay: "userPaid",
+          language: "en", splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
         }),
       ]

@@ -198,6 +198,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   >([]);
   const participantInputRef = useRef<TextInput>(null);
   const participantNameRef = useRef(name);
+  const searchRevision = useRef(0);
   const insets = useSafeAreaInsets();
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 186 });
@@ -223,13 +224,14 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   const searchQuery = personNameKey(name);
   const addParticipant = async (
     rawName: string,
-    options?: { keepKeyboardOpen?: boolean; personId?: string; previousSearch?: string },
+    options?: { keepKeyboardOpen?: boolean; personId?: string; previousSearch?: string; searchRevision?: number },
   ) => {
     const trimmed = normalizePersonNameInput(rawName);
     const validation = validatePersonName(rawName, record.values.participants, undefined, {
       allowOwnerPlaceholder: Boolean(options?.personId && options.personId === settings.ownerPersonId),
     });
     const restoreSearch = () => {
+      if (options?.searchRevision !== undefined && options.searchRevision !== searchRevision.current) return;
       setSearchResultsHidden(false);
       if (options?.previousSearch && !participantNameRef.current) {
         participantNameRef.current = options.previousSearch;
@@ -393,6 +395,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               value={name}
               maxLength={PERSON_NAME_MAX_LENGTH}
               onChangeText={(value) => {
+                searchRevision.current += 1;
                 participantNameRef.current = value;
                 setSearchResultsHidden(false);
                 setName(value);
@@ -430,10 +433,11 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                   accessibilityLabel={t("flow.participants.addSavedPersonA11y", { name: person.name })}
                   onPress={() => {
                     const previousSearch = participantNameRef.current;
+                    const revision = ++searchRevision.current;
                     setSearchResultsHidden(true);
                     participantNameRef.current = "";
                     setName("");
-                    void addParticipant(person.name, { personId: person.id, previousSearch });
+                    void addParticipant(person.name, { personId: person.id, previousSearch, searchRevision: revision });
                   }}
                   style={screenStyles.participantPill}
                 >
