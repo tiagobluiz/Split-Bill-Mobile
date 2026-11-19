@@ -632,7 +632,18 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
-      <View style={screenStyles.participantsScrollContent}>
+      <ScrollView
+        testID="results-content-scroll"
+        style={screenStyles.flex}
+        contentContainerStyle={[
+          screenStyles.participantsScrollContent,
+          {
+            paddingBottom: footerInsetBottom,
+            gap: 14,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <YStack gap="$5">
           <ResultsSummaryCard
             total={{
@@ -662,19 +673,6 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           />
           <View style={screenStyles.reviewStickySeparator} />
         </YStack>
-      </View>
-      <ScrollView
-        style={screenStyles.flex}
-        contentContainerStyle={[
-          screenStyles.participantsScrollContent,
-          {
-            paddingTop: 14,
-            paddingBottom: footerInsetBottom,
-            gap: 22,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
         <YStack gap="$3">
           <YStack gap="$3">
             <XStack alignItems="center" justifyContent="space-between">

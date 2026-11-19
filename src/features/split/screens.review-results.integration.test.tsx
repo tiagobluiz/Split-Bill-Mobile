@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import {
   Alert,
@@ -848,6 +849,15 @@ describe("split screens", () => {
     ];
 
     render(<ResultsScreen draftId="draft-1" />);
+
+    const resultsContent = within(screen.getByTestId("results-content-scroll"));
+    expect(resultsContent.getByText("Total bill")).toBeTruthy();
+    expect(resultsContent.getByText("Bruno")).toBeTruthy();
+    expect(resultsContent.getByText("Zoe")).toBeTruthy();
+    fireEvent(screen.getByTestId("measured-floating-footer"), "layout", {
+      nativeEvent: { layout: { height: 140 } },
+    });
+    expect(StyleSheet.flatten(screen.getByTestId("results-content-scroll").props.contentContainerStyle).paddingBottom).toBeGreaterThan(140);
 
     expect(screen.getAllByText(/3[,.]00|€\s?3[,.]00|EUR\s?3[,.]00/).length).toBeGreaterThan(0);
     expect(screen.getByText("Settled")).toBeTruthy();
