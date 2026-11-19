@@ -14,20 +14,20 @@ const MAX_CONTENT_WIDTH = 480;
 const slides = [
   {
     image: require("../../../../../assets/whats-new-people.jpg"),
-    en: ["People & Groups", "Manage saved people, groups, and your profile in the new People menu.", "You’ll now need to set a name so others can recognise you in splits."],
-    pt: ["Pessoas e grupos", "No novo menu Pessoas, podes gerir as pessoas guardadas, os grupos e o teu perfil.", "Agora tens de definir um nome para que te possam reconhecer nas divisões."],
+    title: "whatsNew.people.title",
+    paragraphs: ["whatsNew.people.directory", "whatsNew.people.profile"],
   },
   {
     image: require("../../../../../assets/whats-new-quantities.jpg"),
-    en: ["Quantities & Discounts", "When you add or edit an item manually, you can set its quantity and apply a fixed-amount or percentage discount."],
-    pt: ["Quantidades e descontos", "Ao adicionares ou editares um item manualmente, podes definir a quantidade e aplicar um desconto de valor fixo ou em percentagem."],
+    title: "whatsNew.quantities.title",
+    paragraphs: ["whatsNew.quantities.description"],
   },
   {
     image: require("../../../../../assets/whats-new-performance.jpg"),
-    en: ["Performance Improvements", "Split Bill runs more smoothly when you’re managing several splits with lots of people and items."],
-    pt: ["Melhorias de desempenho", "A Split Bill funciona de forma mais fluida quando geres várias divisões com muitas pessoas e itens."],
+    title: "whatsNew.performance.title",
+    paragraphs: ["whatsNew.performance.description"],
   },
-];
+] as const;
 
 export const hasWhatsNewSlides = slides.length > 0;
 
@@ -88,46 +88,44 @@ export function WhatsNewModal({ onClose, onSeeLater, busy = false, error = false
   busy?: boolean;
   error?: boolean;
 }) {
-  const { language, t } = useTranslation();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(MAX_CONTENT_WIDTH, Math.max(0, width - 2 * CONTENT_GUTTER));
   const [index, setIndex] = useState(0);
-  const pt = language === "pt";
   const slide = slides[index];
-  const [title, ...paragraphs] = pt ? slide.pt : slide.en;
   const button = { minHeight: 52, justifyContent: "center" as const, alignItems: "center" as const, paddingHorizontal: 20 };
   return <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={() => { if (!onSeeLater) onClose(); }}>
     <View style={{ flex: 1, backgroundColor: PALETTE.surface, paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }}>
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingTop: 16 }}>
         <Image source={require("../../../../../assets/icon.png")} style={{ width: 42, height: 42, borderRadius: 10 }} />
-        <Text style={{ flex: 1, marginLeft: 12, fontFamily: FONTS.bodyBold, fontSize: 18, color: PALETTE.onSurface }}>Split Bill</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={pt ? "Fechar novidades" : "Close What’s New"} hitSlop={12} onPress={onClose} disabled={busy}><X color={PALETTE.onSurface} size={26} /></Pressable>
+        <Text style={{ flex: 1, marginLeft: 12, fontFamily: FONTS.bodyBold, fontSize: 18, color: PALETTE.onSurface }}>{t("app.name")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("whatsNew.close")} hitSlop={12} onPress={onClose} disabled={busy}><X color={PALETTE.onSurface} size={26} /></Pressable>
       </View>
       <ScrollView key={index} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: CONTENT_GUTTER, paddingTop: 22 }}>
         <View style={{ alignSelf: "center", width: contentWidth }}>
           <Text style={{ fontFamily: FONTS.headlineBlack, fontSize: 34, color: PALETTE.onSurface }}>{t("settings.whatsNew")}</Text>
-          <Text style={{ fontFamily: FONTS.body, fontSize: 16, color: PALETTE.onSurfaceVariant, marginTop: 8 }}>{pt ? "Descobre as novidades desta atualização." : "Discover what’s new in this update."}</Text>
+          <Text style={{ fontFamily: FONTS.body, fontSize: 16, color: PALETTE.onSurfaceVariant, marginTop: 8 }}>{t("whatsNew.subtitle")}</Text>
           <View style={[styles.illustration, { height: contentWidth * 9 / 16 }]}>
             <Image source={slide.image} accessibilityIgnoresInvertColors resizeMode="contain" style={styles.illustrationImage} />
           </View>
           <View style={styles.slideCopy}>
-            <Text style={{ fontFamily: FONTS.headlineBold, fontSize: 24, color: PALETTE.onSurface }}>{title}</Text>
-            {paragraphs.map((paragraph) => <Text key={paragraph} style={styles.paragraph}>{paragraph}</Text>)}
-            <Text style={{ alignSelf: "flex-start", overflow: "hidden", backgroundColor: index === 2 ? PALETTE.successContainer : PALETTE.secondaryContainer, color: index === 2 ? PALETTE.onSuccessContainer : PALETTE.primary, fontFamily: FONTS.bodyBold, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginTop: 16 }}>{index === 2 ? (pt ? "Melhorado" : "Improved") : (pt ? "Novo" : "New")}</Text>
+            <Text style={{ fontFamily: FONTS.headlineBold, fontSize: 24, color: PALETTE.onSurface }}>{t(slide.title)}</Text>
+            {slide.paragraphs.map((key) => <Text key={key} style={styles.paragraph}>{t(key)}</Text>)}
+            <Text style={{ alignSelf: "flex-start", overflow: "hidden", backgroundColor: index === 2 ? PALETTE.successContainer : PALETTE.secondaryContainer, color: index === 2 ? PALETTE.onSuccessContainer : PALETTE.primary, fontFamily: FONTS.bodyBold, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginTop: 16 }}>{t(index === 2 ? "whatsNew.improved" : "whatsNew.new")}</Text>
           </View>
         </View>
         <View style={{ flex: 1, minHeight: 30 }} />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 22 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel={pt ? "Anterior" : "Previous"} disabled={index === 0} onPress={() => setIndex(index - 1)} style={{ opacity: index === 0 ? 0.3 : 1 }}><ChevronLeft color={PALETTE.primary} size={32} /></Pressable>
-          <Text accessibilityLiveRegion="polite" style={{ fontFamily: FONTS.body, color: PALETTE.onSurface }}>{index + 1} {pt ? "de" : "of"} {slides.length}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={pt ? "Seguinte" : "Next"} disabled={index === slides.length - 1} onPress={() => setIndex(index + 1)} style={{ opacity: index === slides.length - 1 ? 0.3 : 1 }}><ChevronRight color={PALETTE.primary} size={32} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("whatsNew.previous")} disabled={index === 0} onPress={() => setIndex(index - 1)} style={{ opacity: index === 0 ? 0.3 : 1 }}><ChevronLeft color={PALETTE.primary} size={32} /></Pressable>
+          <Text accessibilityLiveRegion="polite" style={{ fontFamily: FONTS.body, color: PALETTE.onSurface }}>{t("whatsNew.position", { current: index + 1, total: slides.length })}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("whatsNew.next")} disabled={index === slides.length - 1} onPress={() => setIndex(index + 1)} style={{ opacity: index === slides.length - 1 ? 0.3 : 1 }}><ChevronRight color={PALETTE.primary} size={32} /></Pressable>
         </View>
-        {error ? <Text accessibilityRole="alert" style={{ color: PALETTE.danger }}>{pt ? "Não foi possível guardar. Tenta novamente." : "Could not save. Please try again."}</Text> : null}
+        {error ? <Text accessibilityRole="alert" style={{ color: PALETTE.danger }}>{t("whatsNew.saveError")}</Text> : null}
       </ScrollView>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 24, borderTopWidth: 1, borderColor: PALETTE.divider, paddingTop: 12 }}>
-        {onSeeLater ? <Pressable accessibilityRole="button" onPress={onSeeLater} disabled={busy} style={button}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.primary }}>{pt ? "Ver mais tarde" : "See Later"}</Text></Pressable> : <View />}
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => index === slides.length - 1 ? onClose() : setIndex(index + 1)} style={{ ...button, borderRadius: 20, backgroundColor: PALETTE.primary }}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.onPrimary }}>{index === slides.length - 1 ? (pt ? "Concluir" : "Done") : (pt ? "Seguinte" : "Next")}</Text></Pressable>
+        {onSeeLater ? <Pressable accessibilityRole="button" onPress={onSeeLater} disabled={busy} style={button}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.primary }}>{t("whatsNew.seeLater")}</Text></Pressable> : <View />}
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => index === slides.length - 1 ? onClose() : setIndex(index + 1)} style={{ ...button, borderRadius: 20, backgroundColor: PALETTE.primary }}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.onPrimary }}>{t(index === slides.length - 1 ? "whatsNew.done" : "whatsNew.next")}</Text></Pressable>
       </View>
     </View>
   </Modal>;
