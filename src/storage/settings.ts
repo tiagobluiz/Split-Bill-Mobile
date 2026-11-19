@@ -63,9 +63,13 @@ export async function initializeSettingsStorage() {
         key TEXT PRIMARY KEY NOT NULL,
         payload TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS release_announcements (
+        key TEXT PRIMARY KEY NOT NULL,
+        payload TEXT NOT NULL
+      );
     `);
     if (!existing) {
-      await db.runAsync("INSERT OR IGNORE INTO app_settings (key, payload) VALUES (?, ?)", ["whats-new-seen", JSON.stringify(require("../../app.json").expo.version)]);
+      await db.runAsync("INSERT OR IGNORE INTO release_announcements (key, payload) VALUES (?, ?)", ["whats-new-seen", JSON.stringify(require("../../app.json").expo.version)]);
     }
   });
 }

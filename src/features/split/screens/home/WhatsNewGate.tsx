@@ -57,7 +57,7 @@ export function WhatsNewGate() {
   useEffect(() => {
     if (!eligibleAtLaunch || !hasWhatsNewSlides) return;
     let active = true;
-    void withAppDatabaseRetry((db) => db.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["whats-new-seen"]))
+    void withAppDatabaseRetry((db) => db.getFirstAsync<{ payload: string }>("SELECT payload FROM release_announcements WHERE key = ?", ["whats-new-seen"]))
       .then((row) => { if (active && !hasSeenRelease(row?.payload)) setVisible(true); })
       .catch((err) => console.warn("Could not load release announcement", err));
     return () => { active = false; };
@@ -69,7 +69,7 @@ export function WhatsNewGate() {
     setError(false);
     try {
       await withDatabaseTransaction(async (db) => {
-        await db.runAsync("INSERT INTO app_settings (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["whats-new-seen", JSON.stringify(RELEASE)]);
+        await db.runAsync("INSERT INTO release_announcements (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["whats-new-seen", JSON.stringify(RELEASE)]);
       });
       setVisible(false);
     } catch {
