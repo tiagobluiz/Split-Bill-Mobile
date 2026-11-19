@@ -6,7 +6,6 @@ import { useTranslation } from "../../../../i18n/provider";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "../../../../storage/database";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
-import app from "../../../../../app.json";
 
 // Update this release and its slides only when there is an announcement to show.
 const RELEASE = "2.14.0";
@@ -32,6 +31,22 @@ const slides = [
 
 export const hasWhatsNewSlides = slides.length > 0;
 
+function hasSeenRelease(payload: string | undefined) {
+  if (!payload) return false;
+  try {
+    const seen: unknown = JSON.parse(payload);
+    if (typeof seen !== "string" || !/^\d+\.\d+\.\d+$/.test(seen)) return false;
+    const current = RELEASE.split(".").map(Number);
+    const saved = seen.split(".").map(Number);
+    for (let i = 0; i < current.length; i += 1) {
+      if (saved[i] !== current[i]) return saved[i] > current[i];
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function WhatsNewGate() {
   const setupCompleted = useSplitStore((state) => state.profileSetupCompleted);
   const [eligibleAtLaunch] = useState(setupCompleted);
@@ -40,10 +55,10 @@ export function WhatsNewGate() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!eligibleAtLaunch || app.expo.version !== RELEASE || !hasWhatsNewSlides) return;
+    if (!eligibleAtLaunch || !hasWhatsNewSlides) return;
     let active = true;
     void withAppDatabaseRetry((db) => db.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["whats-new-seen"]))
-      .then((row) => { if (active && row?.payload !== JSON.stringify(RELEASE)) setVisible(true); })
+      .then((row) => { if (active && !hasSeenRelease(row?.payload)) setVisible(true); })
       .catch((err) => console.warn("Could not load release announcement", err));
     return () => { active = false; };
   }, [eligibleAtLaunch]);
