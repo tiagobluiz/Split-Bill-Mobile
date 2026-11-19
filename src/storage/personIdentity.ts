@@ -114,19 +114,6 @@ function validateGroups(settings: Record<string, any>, people: SavedPerson[]) {
   }
 }
 
-export function assertPersonRegistry(settings: Record<string, any>) {
-  const people = readPeople(settings);
-  validateGroups(settings, people);
-  if (
-    settings.ownerPersonId &&
-    !people.some(
-      (person) => person.id === settings.ownerPersonId && !person.archivedAt,
-    )
-  ) {
-    throw new Error("Missing or archived owner identity");
-  }
-}
-
 export function planPersonIdentity(
   originalSettings: Record<string, any>,
   rows: RawSplitRow[],

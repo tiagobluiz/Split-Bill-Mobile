@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
+import { DIRECTORY_SCHEMA, writePerson } from "./directory";
 import { runIsolatedTransaction, withDatabaseWrite } from "./database";
 import {
   assertIdentityOnlyChange,
@@ -76,16 +77,30 @@ function originalSettings(snapshot: Awaited<ReturnType<typeof readSnapshot>>) {
 async function writeMigration(
   tx: SQLite.SQLiteDatabase,
   snapshot: Awaited<ReturnType<typeof readSnapshot>>,
+  plan: ReturnType<typeof planPersonIdentity>,
+  hasBackup: boolean,
 ) {
   if (JSON.stringify(await readSnapshot(tx)) !== JSON.stringify(snapshot))
     throw new Error("Data changed during migration preparation");
-  const plan = planPersonIdentity(originalSettings(snapshot), snapshot.rows);
-  assertIdentityOnlyChange(snapshot.rows, plan.rows);
-  await tx.runAsync(
-    "INSERT INTO app_settings (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload",
-    ["app-settings", JSON.stringify(plan.settings)],
-  );
-  await tx.runAsync("DELETE FROM split_person_memberships");
+  const original = originalSettings(snapshot);
+  const owner = plan.settings.people.find((person) => person.id === plan.settings.ownerPersonId)!;
+  const photoUri = typeof original.ownerProfileImageUri === "string" ? original.ownerProfileImageUri.trim() : "";
+  const profileSetupCompleted = typeof original.profileSetupCompleted === "boolean"
+    ? original.profileSetupCompleted : owner.name.toLocaleLowerCase() !== "you";
+  for (const person of plan.settings.people) {
+    await writePerson(tx, person.id === owner.id ? { ...person, photoUri: photoUri || null } : person);
+  }
+  await tx.runAsync("UPDATE people SET is_owner = 1, profile_setup_completed = ? WHERE id = ?", [
+    Number(profileSetupCompleted), owner.id,
+  ]);
+  if (snapshot.settings.some((entry) => entry.key === "app-settings")) {
+    const preferences = { ...original };
+    for (const key of ["ownerName", "ownerProfileImageUri", "profileSetupCompleted",
+      "ownerPersonId", "people", "participantGroups"]) delete preferences[key];
+    await tx.runAsync("UPDATE app_settings SET payload = ? WHERE key = ?", [
+      JSON.stringify(preferences), "app-settings",
+    ]);
+  }
   const bySplit = new Map<string, typeof plan.memberships>();
   for (const membership of plan.memberships) {
     const entries = bySplit.get(membership.splitId) ?? [];
@@ -113,7 +128,7 @@ async function writeMigration(
         splitCount: plan.rows.length,
         participantCount: plan.memberships.length,
         personCount: plan.settings.people.length,
-        backup: PERSON_IDENTITY_BACKUP,
+        backup: hasBackup ? PERSON_IDENTITY_BACKUP : null,
       }),
     ],
   );
@@ -121,7 +136,8 @@ async function writeMigration(
 
 export async function migratePersonIdentity() {
   return withDatabaseWrite(async (db) => {
-    await db.execAsync(`${MEMBERSHIP_SCHEMA}
+    await db.execAsync(`${DIRECTORY_SCHEMA}
+      ${MEMBERSHIP_SCHEMA}
       CREATE TABLE IF NOT EXISTS identity_migrations (version INTEGER PRIMARY KEY NOT NULL, completed_at TEXT NOT NULL, audit TEXT NOT NULL);`);
     const completed = await db.getFirstAsync<{ version: number }>(
       "SELECT version FROM identity_migrations WHERE version = ?",
@@ -136,10 +152,12 @@ export async function migratePersonIdentity() {
       snapshot.rows,
     );
     assertIdentityOnlyChange(snapshot.rows, preview.rows);
-    await assertIntegrity(db);
-    await ensureVerifiedBackup(db, snapshot);
-    await runIsolatedTransaction((tx) => writeMigration(tx, snapshot));
-    await verifyPersonMemberships(db);
+    const hasBackup = snapshot.settings.length > 0 || snapshot.rows.length > 0;
+    if (hasBackup) {
+      await assertIntegrity(db);
+      await ensureVerifiedBackup(db, snapshot);
+    }
+    await runIsolatedTransaction((tx) => writeMigration(tx, snapshot, preview, hasBackup));
     console.info("[Person identity migration] complete", {
       version: PERSON_IDENTITY_VERSION,
       splitCount: snapshot.rows.length,

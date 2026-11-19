@@ -21,6 +21,7 @@ import {
   applyDefaultStorePreviews,
   buildRecordFixture,
   buildStoreFixture,
+  setStoreSettingsFixture,
   createRouterMocks,
 } from "./integrationTestUtils";
 
@@ -427,11 +428,11 @@ describe("split screens", () => {
   });
 
   it("hides home balances when the balance feature is disabled", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: false,
       defaultCurrency: "EUR",
-    };
+    });
 
     render(<HomeScreen />);
     expect(screen.queryByTestId("home-balance-owed-title")).toBeNull();
@@ -504,22 +505,22 @@ describe("split screens", () => {
       };
     });
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Bruno",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [buildRecord({ id: "owner-debtor" })];
     const { rerender } = render(<HomeScreen />);
     await act(async () => {});
     expect(screen.getAllByText(/45,50|45.50/).length).toBeGreaterThan(0);
     expect(screen.getByTestId("home-balance-owe-title")).toBeTruthy();
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [buildRecord({ id: "owner-missing" })];
     rerender(<HomeScreen />);
     act(() => require("./archiveChanges").notifyArchiveChange({ type: "invalidate" }));
@@ -573,11 +574,11 @@ describe("split screens", () => {
       };
     });
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Bruno",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "settled-owner",
@@ -593,11 +594,11 @@ describe("split screens", () => {
       screen.getAllByText(/0,00|€0.00|\$0.00|EUR 0.00/).length,
     ).toBeGreaterThan(0);
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Zoe",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "zero-net-owner",
@@ -612,12 +613,12 @@ describe("split screens", () => {
   });
 
   it("renders combined and user-paid split row displays from the shared setting", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "totalAndRemaining",
-    };
+    });
     mockStoreState.records = [buildRecord({ status: "completed" })];
 
     const { rerender } = render(<HomeScreen />);
@@ -629,12 +630,12 @@ describe("split screens", () => {
       screen.getAllByText(/6,00|€6.00|EUR 6.00|6.00/).length,
     ).toBeGreaterThan(0);
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "userPaid",
-    };
+    });
     mockStoreState.records = [
       buildRecord({ id: "owner-missing", status: "completed" }),
     ];
@@ -650,12 +651,12 @@ describe("split screens", () => {
   });
 
   it("shows only nothing due on the outstanding side in total + outstanding mode", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "totalAndRemaining",
-    };
+    });
     mockStoreState.records = [
       buildRecord({ id: "owner-missing", status: "completed" }),
     ];
@@ -671,12 +672,12 @@ describe("split screens", () => {
   });
 
   it("shows outstanding-only nothing due", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
-    };
+    });
     mockStoreState.records = [
       buildRecord({ id: "owner-missing", status: "completed" }),
     ];
@@ -689,12 +690,12 @@ describe("split screens", () => {
   });
 
   it("shows consumed share instead of paid amount in you consumed mode", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Bruno",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "userPaid",
-    };
+    });
     mockStoreState.records = [buildRecord({ status: "completed" })];
 
     render(<HomeScreen />);
@@ -751,11 +752,11 @@ describe("split screens", () => {
       };
     });
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [buildRecord({ id: "reverse-payer" })];
 
     render(<HomeScreen />);
@@ -809,11 +810,11 @@ describe("split screens", () => {
       };
     });
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Bruno",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [buildRecord({ id: "reverse-creditor" })];
 
     render(<HomeScreen />);
@@ -889,12 +890,12 @@ describe("split screens", () => {
       };
     });
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "usd-record",
@@ -918,7 +919,7 @@ describe("split screens", () => {
       }),
     ];
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
@@ -928,7 +929,7 @@ describe("split screens", () => {
         name: `Currency ${index}`,
         symbol: `$${index}`,
       })),
-    };
+    });
     const createIdSpy = jest.spyOn(domain, "createId").mockReturnValue("!!!");
 
     render(<HomeScreen />);
@@ -1803,7 +1804,7 @@ describe("split screens", () => {
     expect(screen.getByText("Edit person")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Alex");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
-    await waitFor(() => expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
+    await waitFor(() => expect(mockStoreState.updateOwnerProfile).toHaveBeenCalledWith(
       expect.objectContaining({ ownerName: "Alex" }),
     ));
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -1813,7 +1814,6 @@ describe("split screens", () => {
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          ownerName: "Ana",
           balanceFeatureEnabled: false,
           splitListAmountDisplay: "total",
         }),
@@ -1902,14 +1902,14 @@ describe("split screens", () => {
   });
 
   it("shows settings validation popups and auto-saves custom/default currency updates", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "",
       customCurrencies: [{ code: "POI", name: "Points", symbol: "P" }],
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -1936,10 +1936,7 @@ describe("split screens", () => {
     });
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
-        ownerName: "Tiago",
-        balanceFeatureEnabled: false,
         defaultCurrency: "PO2",
-        language: "en", splitListAmountDisplay: "total",
         customCurrencies: [
           { code: "POI", name: "Points", symbol: "P" },
           { code: "PO2", name: "Points", symbol: "P" },
@@ -1949,14 +1946,14 @@ describe("split screens", () => {
   });
 
   it("blocks leaving settings while the default currency is missing", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "",
       customCurrencies: [],
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -1981,28 +1978,28 @@ describe("split screens", () => {
   });
 
   it("allows settings to open the profile editor for a placeholder name", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "You",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
     expect(screen.getByText("Account")).toBeTruthy();
   });
 
   it("builds a fallback custom currency code and leaves settings without save prompts", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
       balanceFeatureEnabled: false,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: undefined,
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -2032,24 +2029,21 @@ describe("split screens", () => {
     expect(screen.queryByText("Save your changes?")).toBeNull();
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
-        ownerName: "Tiago",
-        balanceFeatureEnabled: true,
         defaultCurrency: "CUR",
-        language: "en", splitListAmountDisplay: "total",
         customCurrencies: [{ code: "CUR", name: "123", symbol: "#" }],
       });
     });
   });
 
   it("lets settings choose preset currencies and Cancel creation", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///existing.png",
       balanceFeatureEnabled: true,
       splitListAmountDisplay: "remaining",
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -2058,11 +2052,7 @@ describe("split screens", () => {
     fireEvent.press(screen.getByText("US Dollar ($)"));
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
-        ownerName: "Tiago",
-        balanceFeatureEnabled: true,
         defaultCurrency: "USD",
-        language: "en", splitListAmountDisplay: "remaining",
-        customCurrencies: [],
       });
     });
 
@@ -2149,10 +2139,7 @@ describe("split screens", () => {
 
     await waitFor(() => {
       expect(mockStoreState.updateSettings).toHaveBeenCalledWith({
-        ownerName: "Ana",
-        balanceFeatureEnabled: true,
         defaultCurrency: "TOK",
-        language: "en", splitListAmountDisplay: "remaining",
         customCurrencies: [{ code: "TOK", name: "Token", symbol: "ABC" }],
       });
     });
@@ -2253,13 +2240,13 @@ describe("split screens", () => {
   });
 
   it("renders fallback settings when profile name is blank", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: undefined,
       ownerProfileImageUri: undefined,
       balanceFeatureEnabled: true,
       defaultCurrency: undefined,
       customCurrencies: undefined,
-    };
+    });
 
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText("Open Settings"));
@@ -2291,13 +2278,13 @@ describe("split screens", () => {
           }
         : null,
     );
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "PTS",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "P" }],
-    };
+    });
     mockStoreState.records = [
       buildRecord({ values: { ...buildRecord().values, currency: "PTS" } }),
     ];
@@ -2308,13 +2295,13 @@ describe("split screens", () => {
   });
 
   it("uses the chosen default currency for empty home balances", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "PTS",
       customCurrencies: [{ code: "PTS", name: "Points", symbol: "P" }],
-    };
+    });
     mockStoreState.records = [];
 
     render(<HomeScreen />);
@@ -2330,12 +2317,12 @@ describe("split screens", () => {
         throw new Error("boom");
       });
 
-      mockStoreState.settings = {
+      setStoreSettingsFixture(mockStoreState, {
         ownerName: "Ana",
         balanceFeatureEnabled: true,
         defaultCurrency: "EUR",
         customCurrencies: [],
-      };
+      });
       mockStoreState.records = [buildRecord()];
 
       render(<HomeScreen />);

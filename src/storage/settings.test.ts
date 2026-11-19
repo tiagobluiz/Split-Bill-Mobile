@@ -42,8 +42,6 @@ describe("settings storage", () => {
     const savedRow = {
       key: "app-settings",
       payload: JSON.stringify({
-        ownerName: " Tiago ",
-        ownerProfileImageUri: "file:///profile.png",
         balanceFeatureEnabled: false,
         defaultCurrency: "USD",
         language: "pt",
@@ -60,24 +58,19 @@ describe("settings storage", () => {
     await settingsModule.initializeSettingsStorage();
     const loaded = await settingsModule.getAppSettings();
     await settingsModule.saveAppSettings({
-      ownerName: "Ana",
-      ownerProfileImageUri: "file:///ana.png",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "userPaid",
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(4);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
       ["app-settings"]
     );
     expect(loaded).toMatchObject({
-      ownerName: "Tiago",
-      profileSetupCompleted: true,
-      ownerProfileImageUri: "file:///profile.png",
       balanceFeatureEnabled: false,
       defaultCurrency: "USD",
       language: "pt",
@@ -89,13 +82,10 @@ describe("settings storage", () => {
       [
         "app-settings",
         JSON.stringify({
-          ownerName: "Ana",
-          ownerProfileImageUri: "file:///ana.png",
           balanceFeatureEnabled: true,
           defaultCurrency: "EUR",
-          language: "en", splitListAmountDisplay: "userPaid",
+          language: "en", humour: "sassy", splitListAmountDisplay: "userPaid",
           customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
-          profileSetupCompleted: true,
         }),
       ]
     );
@@ -123,96 +113,13 @@ describe("settings storage", () => {
     warn.mockRestore();
   });
 
-  it("marks legacy custom-name profiles complete and keeps the default name eligible", async () => {
-    const custom = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "  Ana  " }) } });
-    const loadedCustom = await custom.settingsModule.getAppSettings();
-    expect(loadedCustom).toMatchObject({ ownerName: "Ana", profileSetupCompleted: true });
-    expect(custom.database.runAsync).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO app_settings"), expect.arrayContaining(["app-settings", expect.stringContaining('"profileSetupCompleted":true')]));
-
-    const pending = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: " You " }) } });
-    const loadedPending = await pending.settingsModule.getAppSettings();
-    expect(loadedPending).toMatchObject({ ownerName: "You", profileSetupCompleted: false });
-    expect(pending.database.runAsync).not.toHaveBeenCalled();
-  });
-
-
-  it("returns inferred custom-name settings when persisting the migration fails", async () => {
-    const { database, settingsModule } = await loadModule({
-      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana" }) },
-    });
-    database.runAsync.mockRejectedValueOnce(new Error("disk unavailable"));
-    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-
-    await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "Ana",
-      profileSetupCompleted: true,
-    });
-    expect(warning).toHaveBeenCalledWith(
-      "[Split Bill storage] Could not persist inferred profile setup state",
-      expect.any(Error),
-    );
-    warning.mockRestore();
-  });
-
-  it("never clears a committed profile setup flag", async () => {
-    const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Ana", profileSetupCompleted: true }) } });
-    await settingsModule.saveAppSettings({
-      ownerName: "Ana", profileSetupCompleted: false, ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
-    });
-    const savedCall = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
-    expect(JSON.parse(savedCall[1][1]).profileSetupCompleted).toBe(true);
-  });
-
-  it("preserves people committed after a settings snapshot was read", async () => {
-    const person = { id: "person-bruno", name: "Bruno", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
-    const { database, settingsModule } = await loadModule({
-      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [person] }) },
-      references: [{ person_id: person.id }],
-    });
-
-    await settingsModule.saveAppSettings({
-      ownerName: "You",
-      ownerProfileImageUri: "",
-      balanceFeatureEnabled: true,
-      defaultCurrency: "EUR",
-      language: "en", splitListAmountDisplay: "remaining",
-      customCurrencies: [],
-    });
-
-    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
-    expect(JSON.parse(saveArgs[1][1]).people).toEqual([person]);
-  });
-
-  it("does not re-archive a person from an older settings snapshot", async () => {
-    const active = { id: "person-ana", name: "Ana", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-02-02T00:00:00.000Z" };
-    const staleArchived = { ...active, archivedAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z" };
-    const { database, settingsModule } = await loadModule({
-      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "You", people: [active] }) },
-    });
-
-    await settingsModule.saveAppSettings({
-      ownerName: "You", ownerProfileImageUri: "", balanceFeatureEnabled: true, defaultCurrency: "EUR", language: "en", splitListAmountDisplay: "remaining", customCurrencies: [],
-      people: [staleArchived],
-    });
-
-    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
-    expect(JSON.parse(saveArgs[1][1]).people).toEqual([active]);
-  });
-
-  it("preserves the configured owner spelling when loading and saving people", async () => {
-    const owner = { id: "owner-person", name: "Alice Smith", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
-    const { database, settingsModule } = await loadModule({
-      row: { key: "app-settings", payload: JSON.stringify({ ownerName: "Alice  Smith", ownerPersonId: owner.id, people: [owner] }) },
-    });
-
-    const loaded = await settingsModule.getAppSettings();
-    expect(loaded.people?.find((person) => person.id === owner.id)?.name).toBe("Alice  Smith");
-
-    await settingsModule.saveAppSettings(loaded);
-    const saveArgs = database.runAsync.mock.calls.at(-1) as unknown as [string, [string, string]];
-    const saved = JSON.parse(saveArgs[1][1]);
-    expect(saved.ownerName).toBe("Alice  Smith");
-    expect(saved.people.find((person: any) => person.id === owner.id)?.name).toBe("Alice  Smith");
+  it("merges a preference patch into the latest settings without reading directory tables", async () => {
+    const current = { defaultCurrency: "USD", language: "pt", customValue: "preserved" };
+    const { database, settingsModule } = await loadModule({ row: { key: "app-settings", payload: JSON.stringify(current) } });
+    await settingsModule.saveAppSettings({ defaultCurrency: "GBP" });
+    expect(database.getAllAsync).not.toHaveBeenCalled();
+    expect(database.runAsync).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO app_settings"),
+      ["app-settings", JSON.stringify({ ...current, defaultCurrency: "GBP" })]);
   });
 
   it("preserves an explicitly empty saved tag list", async () => {
@@ -220,8 +127,8 @@ describe("settings storage", () => {
       row: {
         key: "app-settings",
         payload: JSON.stringify({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "",
+
+
           balanceFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "remaining",
@@ -236,8 +143,8 @@ describe("settings storage", () => {
     });
 
     await settingsModule.saveAppSettings({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
@@ -257,8 +164,8 @@ describe("settings storage", () => {
       row: {
         key: "app-settings",
         payload: JSON.stringify({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "",
+
+
           balanceFeatureEnabled: true,
           defaultCurrency: "EUR",
           language: "en", splitListAmountDisplay: "remaining",
@@ -270,13 +177,13 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "Tiago",
+
       pdfDownloadDirectoryUri: "file:///downloads",
     });
 
     await settingsModule.saveAppSettings({
-      ownerName: "Ana",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
@@ -294,8 +201,8 @@ describe("settings storage", () => {
       row: {
         key: "app-settings",
         payload: JSON.stringify({
-          ownerName: "",
-          ownerProfileImageUri: 123,
+
+
           balanceFeatureEnabled: "wrong",
           defaultCurrency: "",
           splitListAmountDisplay: "wrong",
@@ -306,8 +213,8 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "You",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
@@ -317,8 +224,8 @@ describe("settings storage", () => {
     const missing = await loadModule({ row: null });
     await missing.settingsModule.initializeSettingsStorage();
     await expect(missing.settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "You",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
@@ -331,8 +238,8 @@ describe("settings storage", () => {
       row: {
         key: "app-settings",
         payload: JSON.stringify({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "file:///profile.png",
+
+
           balanceFeatureEnabled: true,
           defaultCurrency: "eur",
           language: "pt", splitListAmountDisplay: "totalAndRemaining",
@@ -343,8 +250,8 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "Tiago",
-      ownerProfileImageUri: "file:///profile.png",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: "pt", splitListAmountDisplay: "totalAndRemaining",
@@ -358,8 +265,8 @@ describe("settings storage", () => {
       row: {
         key: "app-settings",
         payload: JSON.stringify({
-          ownerName: "Tiago",
-          ownerProfileImageUri: "",
+
+
           balanceFeatureEnabled: true,
           defaultCurrency: "eur",
           splitListAmountDisplay: "remaining",
@@ -383,8 +290,8 @@ describe("settings storage", () => {
 
     await settingsModule.initializeSettingsStorage();
     await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-      ownerName: "You",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",
@@ -405,8 +312,8 @@ describe("settings storage", () => {
 
       await settingsModule.initializeSettingsStorage();
       await expect(settingsModule.getAppSettings()).resolves.toMatchObject({
-        ownerName: "You",
-      ownerProfileImageUri: "",
+
+
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       language: defaultLanguage, splitListAmountDisplay: "remaining",

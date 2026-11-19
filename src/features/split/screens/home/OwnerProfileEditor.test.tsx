@@ -1,6 +1,6 @@
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { removePersonPhoto } from "../../personPhotos";
 import { OwnerProfileEditor } from "./OwnerProfileEditor";
 
@@ -22,7 +22,7 @@ jest.mock("../../personPhotos", () => ({
   removePersonPhoto: jest.fn(async () => undefined),
 }));
 
-function profileSettings(photoUri: string): AppSettings {
+function profileSettings(photoUri: string): SplitSettingsView {
   const owner = {
     id: "owner-id",
     name: "Ana",

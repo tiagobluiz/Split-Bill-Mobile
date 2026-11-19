@@ -3,7 +3,7 @@ import { Text as TamaguiText, YStack as TamaguiYStack } from "tamagui";
 
 import { EmptyState } from "../../../../components/ui";
 import { useTranslation } from "../../../../i18n/provider";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { PALETTE } from "../../../../theme/palette";
 import { RecordRow } from "../shared/homeParts";
 import type { RecordRowModel } from "../shared/recordRowModel";
@@ -13,7 +13,7 @@ import { SplitListLoading } from "./SplitListLoading";
 type SplitRow = HomeRecord | RecordRowModel;
 type Props = {
   records: SplitRow[];
-  settings: AppSettings;
+  settings: SplitSettingsView;
   getSplitReminderLabel: (record: HomeRecord) => string | undefined;
   getModelReminderLabel?: (id: string) => string | undefined;
   onOpenActions: (target: RecordActionTarget) => void;

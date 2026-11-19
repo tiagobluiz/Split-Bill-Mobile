@@ -2,10 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import * as ReactNative from "react-native";
 
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { HomeBalanceCards } from "./HomeBalanceCards";
 
-const settings: AppSettings = {
+const settings: SplitSettingsView = {
   ownerName: "You",
   ownerProfileImageUri: "",
   balanceFeatureEnabled: true,

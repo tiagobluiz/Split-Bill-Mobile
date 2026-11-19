@@ -9,7 +9,7 @@ import {
 import { Check, Plus, Sparkles, Users } from "lucide-react-native";
 import { Text as TamaguiText } from "tamagui";
 import type { DraftRecord } from "../../../../storage/records";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { useTranslation } from "../../../../i18n/provider";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { FREQUENT_ENTRY_LIMIT, type SavedPerson } from "../../people";
@@ -39,7 +39,7 @@ export function ParticipantSuggestions({
 }: {
   records: DraftRecord[];
   record: DraftRecord;
-  settings: AppSettings;
+  settings: SplitSettingsView;
   onAddFriend: (name: string, personId?: string) => void;
   onAddGroup: (groupId: string, personIds: string[]) => Promise<void>;
   frequentFriends?: ReturnType<typeof getFrequentFriends> | null;

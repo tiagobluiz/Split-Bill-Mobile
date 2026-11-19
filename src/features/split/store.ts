@@ -38,12 +38,13 @@ import {
   initializeRecordsStorage,
   removeSplitTagAndUpdateSettings,
   saveRecord,
-  saveRecordsAndSettings,
   saveOwnerProfileAndLinkedRecords,
   savePersonAndLinkedRecords,
   saveParticipantGroup,
   type DraftRecord,
+  type OwnerProfilePatch,
 } from "../../storage/records";
+import { deleteParticipantGroup, getGroups, getPeople, saveDirectoryPerson } from "../../storage/directory";
 import { migratePersonIdentity } from "../../storage/personIdentityMigration";
 import { deleteSavedPerson } from "../../storage/personDeletion";
 import { listLegacyRecordIdsForPerson, listPersonNameConflicts, listRecordIdsForPerson } from "../../storage/personMemberships";
@@ -65,14 +66,13 @@ import {
   createPerson,
   findPersonByName,
   normalizeGroupName,
-  normalizeGroups,
-  normalizePeople,
   normalizePersonName,
   normalizePersonNameInput,
   validatePersonName,
   type ParticipantGroup,
   type SavedPerson,
 } from "./people";
+import { selectSplitSettings, type SplitSettingsView } from "./splitSettingsView";
 import { removeGroupPhoto } from "./groupPhotos";
 import { removePersonPhoto } from "./personPhotos";
 import { removeInvoicePhoto } from "./invoicePhotos";
@@ -117,6 +117,11 @@ type SplitStore = {
   activeRecordId: string | null;
   ownerNameWritesPending: number;
   settings: AppSettings;
+  people: SavedPerson[];
+  participantGroups: ParticipantGroup[];
+  ownerPersonId?: string;
+  profileSetupCompleted: boolean;
+  pendingOwnerName?: string;
   bootstrap: () => Promise<void>;
   createDraft: () => Promise<DraftRecord>;
   openRecord: (id: string, shouldActivate?: () => boolean) => Promise<DraftRecord | null>;
@@ -124,6 +129,7 @@ type SplitStore = {
   releaseInactiveRecords: () => void;
   removeRecord: (id: string) => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  updateOwnerProfile: (partial: OwnerProfilePatch) => Promise<void>;
   upsertPerson: (name: string) => Promise<string | null>;
   updatePerson: (personId: string, name: string) => Promise<boolean>;
   savePerson: (details: PersonSaveDetails) => Promise<SavePersonResult>;
@@ -267,7 +273,7 @@ const recordWriteStates = new Map<string, {
   confirmedRecord: DraftRecord;
 }>();
 
-function resolveParticipantPerson(participant: ParticipantsValue[number], settings: AppSettings) {
+function resolveParticipantPerson(participant: ParticipantsValue[number], settings: SplitSettingsView) {
   if (participant.personId) return { participant, created: null as SavedPerson | null, restorePersonId: null as string | null };
   const normalized = normalizePersonNameInput(participant.name);
   if (validatePersonName(normalized, [], undefined, { allowOwnerPlaceholder: true })) {
@@ -330,27 +336,14 @@ async function persistRecord(record: DraftRecord, pendingPeople: SavedPerson[] =
       useSplitStore.setState((state) => {
         const current = state.records.find((entry) => entry.id === record.id);
         const isCurrentMutation = current === record;
-        const currentPeople = state.settings.people ?? [];
-        const currentById = new Map(currentPeople.map((person) => [person.id, person]));
-        for (const person of saved.settings.people ?? []) {
-          if (!currentById.has(person.id)) currentById.set(person.id, person);
-        }
-        for (const personId of restorePersonIds) {
-          const persisted = saved.settings.people?.find((person) => person.id === personId);
-          const current = currentById.get(personId);
-          if (persisted && current) currentById.set(personId, { ...current, archivedAt: null, updatedAt: persisted.updatedAt });
-        }
-        const persistedGroup = saved.settings.participantGroups?.find((group) => group.id === incrementGroupUsageId);
-        const currentGroups = state.settings.participantGroups ?? [];
+        const persistedGroup = saved.groupUsage;
         return {
-          settings: {
-            ...state.settings,
-            people: [...currentById.values()],
-            ...(persistedGroup ? { participantGroups: currentGroups.map((group) => group.id === persistedGroup.id && persistedGroup.usageCount > group.usageCount
+          ...(saved.people?.length ? { people: applyPeopleChanges(state.people, saved.people) } : {}),
+          ...(persistedGroup ? { participantGroups: state.participantGroups.map((group) =>
+            group.id === persistedGroup.id && persistedGroup.usageCount > group.usageCount
               ? { ...group, usageCount: persistedGroup.usageCount, updatedAt: persistedGroup.updatedAt }
-              : group) } : {}),
-            ownerPersonId: state.settings.ownerPersonId ?? saved.settings.ownerPersonId,
-          },
+              : group,
+          ) } : {}),
           ...(isCurrentMutation ? { records: state.records.map((entry) => entry.id === record.id ? saved.record : entry) } : {}),
         };
       });
@@ -391,33 +384,30 @@ function normalizeLoadedRecord(record: DraftRecord, settings: AppSettings): Draf
   return { ...record, values: { ...record.values, tagIds: normalizeTagIds(record.values.tagIds, normalizeTags(settings.tags)) } };
 }
 
+function applyPeopleChanges(current: SavedPerson[], changed: SavedPerson[]) {
+  const byId = new Map(current.map((person) => [person.id, person]));
+  for (const person of changed) byId.set(person.id, person);
+  return [...byId.values()];
+}
+
+function applyGroupChanges(current: ParticipantGroup[], changed: ParticipantGroup[]) {
+  const byId = new Map(current.map((group) => [group.id, group]));
+  for (const group of changed) {
+    const existing = byId.get(group.id);
+    byId.set(group.id, existing && existing.usageCount > group.usageCount
+      ? { ...group, usageCount: existing.usageCount } : group);
+  }
+  return [...byId.values()];
+}
+
 function publishGroupSave(
   set: (partial: Partial<SplitStore> | ((state: SplitStore) => Partial<SplitStore>)) => void,
   saved: NonNullable<Awaited<ReturnType<typeof saveParticipantGroup>>>,
 ) {
-  set((state) => {
-    const peopleById = new Map((state.settings.people ?? []).map((person) => [person.id, person]));
-    for (const person of saved.createdPeople) {
-      if (!peopleById.has(person.id)) peopleById.set(person.id, person);
-    }
-    for (const personId of saved.restoredPersonIds) {
-      const current = peopleById.get(personId);
-      const persisted = saved.settings.people?.find((person) => person.id === personId);
-      if (current && persisted) peopleById.set(personId, { ...current, archivedAt: null, updatedAt: persisted.updatedAt });
-    }
-    const currentGroups = state.settings.participantGroups ?? [];
-    const currentGroup = currentGroups.find((group) => group.id === saved.group.id);
-    const group = currentGroup ? { ...saved.group, usageCount: currentGroup.usageCount } : saved.group;
-    return {
-      settings: {
-        ...state.settings,
-        people: [...peopleById.values()],
-        participantGroups: currentGroup
-          ? currentGroups.map((entry) => entry.id === group.id ? group : entry)
-          : [...currentGroups, group],
-      },
-    };
-  });
+  set((state) => ({
+    ...(saved.people.length ? { people: applyPeopleChanges(state.people, saved.people) } : {}),
+    participantGroups: applyGroupChanges(state.participantGroups, [saved.group]),
+  }));
 }
 
 function getSettledDebtorIds(values: DraftRecord["values"]) {
@@ -635,7 +625,8 @@ function renameOwnerReferences(
   let changed = false;
   nextRecord.values.participants = nextRecord.values.participants.map(
     (participant) => {
-      if (ownerPersonId ? participant.personId !== ownerPersonId : !isOwnerAlias(participant.name, previousOwnerName)) {
+      if (participant.name === nextOwnerName ||
+          (participant.personId ? participant.personId !== ownerPersonId : !isOwnerAlias(participant.name, previousOwnerName))) {
         return participant;
       }
 
@@ -652,7 +643,7 @@ function renameOwnerReferences(
     nextRecord.updatedAt = nowIso();
   }
 
-  return nextRecord;
+  return changed ? nextRecord : record;
 }
 
 function getActiveRecordMutation(
@@ -754,17 +745,16 @@ async function withRecordById(
   }
 }
 
-let settingsPersistenceQueue = Promise.resolve();
+let storeWriteQueue = Promise.resolve();
 let bootstrapPromise: Promise<void> | null = null;
 let reminderReconciliationPromise: Promise<void> | null = null;
-let confirmedOwnerName: string | null = null;
-let confirmedOwnerPerson: SavedPerson | null = null;
+let ownerNameRevision = 0;
 
-function enqueueSettingsPersistence<T>(job: () => Promise<T>) {
-  const persistSnapshot = settingsPersistenceQueue
+function enqueueStoreWrite<T>(job: () => Promise<T>) {
+  const persistSnapshot = storeWriteQueue
     .catch(() => undefined)
     .then(job);
-  settingsPersistenceQueue = persistSnapshot.then(
+  storeWriteQueue = persistSnapshot.then(
     () => undefined,
     () => undefined,
   );
@@ -802,17 +792,15 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   records: [],
   activeRecordId: null,
   ownerNameWritesPending: 0,
+  people: [],
+  participantGroups: [],
+  profileSetupCompleted: false,
   settings: {
     ...getDefaultTranslationSettings(getDeviceLocale()),
-    ownerName: "You",
-    profileSetupCompleted: false,
-    ownerProfileImageUri: "",
     balanceFeatureEnabled: true,
     defaultCurrency: "EUR",
     splitListAmountDisplay: "remaining",
     tags: normalizeTags(undefined),
-    people: [],
-    participantGroups: [],
     customCurrencies: [],
   },
   async bootstrap() {
@@ -829,30 +817,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       await migratePersonIdentity();
 
       stage = "load persisted data";
-      const settings = await getAppSettings();
+      const [settings, directory, participantGroups] = await Promise.all([getAppSettings(), getPeople(), getGroups()]);
       details.settingsTagCount = settings.tags?.length ?? null;
       logBootstrapStep("loaded persisted data", details);
 
-      stage = "normalize settings collections";
-      const normalizedSettings = {
-        ...settings,
-        tags: normalizeTags(settings.tags),
-        people: normalizePeople(settings.people),
-        participantGroups: normalizeGroups(
-          settings.participantGroups,
-          normalizePeople(settings.people),
-        ),
-      };
-      details.normalizedSettingsTagCount = normalizedSettings.tags.length;
-      const finalSettings = normalizedSettings;
-
       stage = "commit store state";
-      confirmedOwnerName = finalSettings.ownerName;
-      confirmedOwnerPerson = finalSettings.people?.find((person) => person.id === finalSettings.ownerPersonId) ?? null;
       set({
         ready: true,
         records: [],
-        settings: finalSettings,
+        settings: { ...settings, tags: normalizeTags(settings.tags) },
+        ...directory,
+        participantGroups,
         activeRecordId: null,
       });
       logBootstrapStep("complete", { recordCount: 0, activeRecordId: null });
@@ -955,133 +930,68 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     });
   },
   async updateSettings(partial) {
-    const before = get();
-    if (partial.ownerName !== undefined) {
-      const name = normalizePersonNameInput(partial.ownerName);
-      const validation = validatePersonName(name, before.settings.people, before.settings.ownerPersonId, {
-        allowOwnerPlaceholder: name === before.settings.ownerName && partial.profileSetupCompleted !== true,
-      });
-      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : `Invalid person name: ${validation.reason}`);
-      partial = { ...partial, ownerName: name };
-    }
-    const optimisticSettings = { ...before.settings, ...partial };
-    const normalizedOptimisticPeople = normalizePeople(optimisticSettings.people);
-    const normalizedOptimistic = {
-      ...optimisticSettings,
-      profileSetupCompleted: before.settings.profileSetupCompleted === true || optimisticSettings.profileSetupCompleted === true,
-      tags: normalizeTags(optimisticSettings.tags),
-      people: normalizedOptimisticPeople,
-      participantGroups: normalizeGroups(optimisticSettings.participantGroups, normalizedOptimisticPeople),
-    };
-    const optimisticOwnerName = normalizedOptimistic.ownerName || "";
-    const optimisticOwnerChanged = normalizeOwnerName(before.settings.ownerName || "") !== normalizeOwnerName(optimisticOwnerName);
-    if (optimisticOwnerChanged && confirmedOwnerName === null) {
-      confirmedOwnerName = before.settings.ownerName || "You";
-      confirmedOwnerPerson = before.settings.people?.find((person) => person.id === before.settings.ownerPersonId) ?? null;
-    }
-    const optimisticRecords = optimisticOwnerChanged ? before.records.map((record) => renameOwnerReferences(record, before.settings.ownerName, optimisticOwnerName, normalizedOptimistic.ownerPersonId)) : before.records;
-    set((state) => ({ settings: normalizedOptimistic, records: optimisticRecords, ownerNameWritesPending: state.ownerNameWritesPending + (optimisticOwnerChanged ? 1 : 0) }));
-    try {
-      await enqueueSettingsPersistence(async () => {
-    const latest = get();
-    const previousOwnerName = before.settings.ownerName || "";
-    const mergedSettings = { ...latest.settings, ...partial };
-    const nextSettings = {
-      ...mergedSettings,
-      profileSetupCompleted: latest.settings.profileSetupCompleted === true || mergedSettings.profileSetupCompleted === true,
-      tags: normalizeTags(mergedSettings.tags),
-      people: normalizePeople(mergedSettings.people),
-      participantGroups: normalizeGroups(
-        mergedSettings.participantGroups,
-        normalizePeople(mergedSettings.people),
-      ),
-    };
-    const nextOwnerName = nextSettings.ownerName || "";
-    if (partial.ownerName !== undefined) {
-      const validation = validatePersonName(nextOwnerName, nextSettings.people, nextSettings.ownerPersonId, {
-        allowOwnerPlaceholder: nextOwnerName === before.settings.ownerName && partial.profileSetupCompleted !== true,
-      });
-      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : `Invalid person name: ${validation.reason}`);
-    }
-    if (nextSettings.ownerPersonId) {
-      nextSettings.people = nextSettings.people.map((person) => person.id === nextSettings.ownerPersonId
-        ? { ...person, name: nextOwnerName, updatedAt: nowIso() } : person);
-    }
-    const nextRecords =
-      normalizeOwnerName(previousOwnerName) !==
-      normalizeOwnerName(nextOwnerName)
-        ? latest.records.map((record) =>
-            renameOwnerReferences(record, previousOwnerName, nextOwnerName, nextSettings.ownerPersonId),
-          )
-        : get().records;
-
-    const ownerNameChanged = Object.prototype.hasOwnProperty.call(partial, "ownerName") &&
-      normalizeOwnerName(previousOwnerName) !==
-      normalizeOwnerName(nextOwnerName);
-    if (ownerNameChanged) {
-      await saveOwnerProfileAndLinkedRecords(nextRecords, nextSettings, previousOwnerName);
-      notifyArchiveChange({ type: "invalidate" });
-      const persistedOwner = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId);
-      if (persistedOwner) {
-        set((current) => normalizeOwnerName(current.settings.ownerName || "") === normalizeOwnerName(nextOwnerName)
-          ? { settings: { ...current.settings, people: (current.settings.people ?? []).map((person) => person.id === persistedOwner.id
-            ? { ...person, name: persistedOwner.name, updatedAt: persistedOwner.updatedAt }
-            : person) } }
-          : {});
-      }
-      confirmedOwnerName = nextOwnerName;
-      confirmedOwnerPerson = nextSettings.people.find((person) => person.id === nextSettings.ownerPersonId) ?? null;
-    } else await saveAppSettings(nextSettings);
+    await enqueueStoreWrite(async () => {
+      const patch = partial.tags ? { ...partial, tags: normalizeTags(partial.tags) } : partial;
+      await saveAppSettings(patch);
+      set((state) => ({ settings: { ...state.settings, ...patch } }));
     });
-    } catch (error) {
-      set((latest) => {
-        const shouldRestoreOwner = optimisticOwnerChanged &&
-          normalizeOwnerName(latest.settings.ownerName || "") === normalizeOwnerName(optimisticOwnerName);
-        const restoredFields: Partial<AppSettings> = {};
-        for (const key of ["ownerProfileImageUri", "people", "participantGroups"] as const) {
-          if (
-            Object.prototype.hasOwnProperty.call(partial, key) &&
-            JSON.stringify(latest.settings[key]) === JSON.stringify(normalizedOptimistic[key])
-          ) {
-            restoredFields[key] = before.settings[key] as never;
-          }
-        }
-        const shouldRestoreSetupFlag = Object.prototype.hasOwnProperty.call(partial, "profileSetupCompleted") &&
-          latest.settings.profileSetupCompleted === normalizedOptimistic.profileSetupCompleted;
-        if (!shouldRestoreOwner && !Object.keys(restoredFields).length && !shouldRestoreSetupFlag) return {};
-
-        const restoredOwnerName = shouldRestoreOwner
-          ? confirmedOwnerName ?? before.settings.ownerName
-          : latest.settings.ownerName;
-        const restoredOwner = shouldRestoreOwner
-          ? confirmedOwnerPerson ?? before.settings.people?.find((person) => person.id === before.settings.ownerPersonId)
-          : undefined;
-        let restoredPeople = restoredFields.people;
-        if (shouldRestoreOwner && restoredOwner) {
-          const people = restoredPeople ?? latest.settings.people ?? [];
-          restoredPeople = people.map((person) => person.id === restoredOwner.id ? restoredOwner : person);
-        }
-        return {
-          settings: {
-            ...latest.settings,
-            ...restoredFields,
-            ...(restoredPeople ? { people: restoredPeople } : {}),
-            ...(shouldRestoreOwner ? {
-              ownerName: restoredOwnerName,
-              profileSetupCompleted: before.settings.profileSetupCompleted,
+  },
+  async updateOwnerProfile(partial) {
+    const before = get();
+    const profile = selectSplitSettings(before);
+    if (partial.ownerName !== undefined && partial.ownerName !== profile.ownerName) {
+      partial = { ...partial, ownerName: normalizePersonNameInput(partial.ownerName) };
+    }
+    if (partial.ownerName !== undefined && (partial.ownerName !== profile.ownerName || partial.profileSetupCompleted)) {
+      const validation = validatePersonName(partial.ownerName, before.people, before.ownerPersonId);
+      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : `Invalid person name: ${validation.reason}`);
+    }
+    const name = partial.ownerName;
+    const revision = name !== undefined ? ++ownerNameRevision : ownerNameRevision;
+    const rename = name !== undefined && name !== profile.ownerName;
+    const trackName = rename || (name !== undefined && before.pendingOwnerName !== undefined);
+    if (trackName) {
+      set((state) => ({
+        pendingOwnerName: name,
+        ownerNameWritesPending: state.ownerNameWritesPending + 1,
+        records: state.records.map((record) => renameOwnerReferences(record, profile.ownerName, name, state.ownerPersonId)),
+      }));
+    }
+    try {
+      await enqueueStoreWrite(async () => {
+        const latest = get();
+        const committedOwner = latest.people.find((person) => person.id === latest.ownerPersonId);
+        const saved = await saveOwnerProfileAndLinkedRecords(partial);
+        const ownerRenamed = saved.owner.name !== (committedOwner?.name ?? "You");
+        if (ownerRenamed) notifyArchiveChange({ type: "invalidate" });
+        set((state) => {
+          const finishingRename = trackName && ownerNameRevision === revision;
+          return {
+            people: applyPeopleChanges(state.people, [saved.owner]),
+            ...(saved.groups.length ? { participantGroups: applyGroupChanges(state.participantGroups, saved.groups) } : {}),
+            profileSetupCompleted: saved.profileSetupCompleted,
+            ...(finishingRename ? { pendingOwnerName: undefined } : {}),
+            ...(ownerRenamed && (state.pendingOwnerName === undefined || finishingRename) ? {
+              records: state.records.map((record) =>
+                renameOwnerReferences(record, committedOwner?.name ?? "You", saved.owner.name, state.ownerPersonId),
+              ),
             } : {}),
-            ...(shouldRestoreSetupFlag && !shouldRestoreOwner
-              ? { profileSetupCompleted: before.settings.profileSetupCompleted }
-              : {}),
-          },
-          ...(shouldRestoreOwner ? {
-            records: latest.records.map((record) => renameOwnerReferences(record, optimisticOwnerName, restoredOwnerName, before.settings.ownerPersonId)),
-          } : {}),
-        };
+          };
+        });
       });
+    } catch (error) {
+      if (trackName && ownerNameRevision === revision) {
+        set((state) => {
+          const committedName = state.people.find((person) => person.id === state.ownerPersonId)?.name ?? "You";
+          return {
+            pendingOwnerName: undefined,
+            records: state.records.map((record) => renameOwnerReferences(record, name, committedName, state.ownerPersonId)),
+          };
+        });
+      }
       throw error;
     } finally {
-      if (optimisticOwnerChanged) set((state) => ({ ownerNameWritesPending: Math.max(0, state.ownerNameWritesPending - 1) }));
+      if (trackName) set((state) => ({ ownerNameWritesPending: state.ownerNameWritesPending - 1 }));
     }
   },
   async upsertPerson(name) {
@@ -1089,29 +999,28 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (!normalizedName) {
       return null;
     }
-    return enqueueSettingsPersistence(async () => {
-      const settings = get().settings;
+    return enqueueStoreWrite(async () => {
+      const settings = selectSplitSettings(get());
       if (isOwnerAlias(normalizedName, settings.ownerName) && settings.ownerPersonId) return settings.ownerPersonId;
       const people = settings.people ?? [];
       const existing = findPersonByName(people, normalizedName);
       if (existing && !existing.archivedAt) return existing.id;
       const person = existing ? { ...existing, archivedAt: null, updatedAt: nowIso() } : createPerson(normalizedName);
       if (!person) return null;
-      const nextSettings = { ...settings, people: existing ? people.map((entry) => entry.id === person.id ? person : entry) : [...people, person] };
-      await saveAppSettings(nextSettings);
-      set({ settings: nextSettings });
+      await saveDirectoryPerson(person);
+      set((state) => ({ people: applyPeopleChanges(state.people, [person]) }));
       return person.id;
     });
   },
   async updatePerson(personId, name) {
-    const person = (get().settings.people ?? []).find((entry) => entry.id === personId);
+    const person = (get().people ?? []).find((entry) => entry.id === personId);
     if (!person) return false;
     const result = await get().savePerson({
       personId,
       name,
       photoUri: person.photoUri ?? null,
       color: person.color ?? "orange",
-      groupIds: (get().settings.participantGroups ?? [])
+      groupIds: (get().participantGroups ?? [])
         .filter((group) => group.memberPersonIds.includes(personId))
         .map((group) => group.id),
     });
@@ -1121,106 +1030,90 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     if (validatePersonName(details.name, [], undefined, { allowOwnerPlaceholder: true })) return { ok: false, reason: "invalid-name" };
     const normalizedName = normalizePersonNameInput(details.name);
     try {
-      return await enqueueSettingsPersistence(async () => {
-    const state = get();
-    const people = state.settings.people ?? [];
-    const current = details.personId
-      ? people.find((person) => person.id === details.personId)
-      : undefined;
-    if (details.personId && !current) return { ok: false, reason: "missing" };
-    const isOwnerIdentity = Boolean(state.settings.ownerPersonId && details.personId === state.settings.ownerPersonId);
-    const isCurrentOwnerName = normalizePersonName(normalizedName).toLowerCase() === normalizePersonName(state.settings.ownerName || "").toLowerCase();
-    if (isOwnerAlias(normalizedName, state.settings.ownerName) && (!isOwnerIdentity || !isCurrentOwnerName)) {
-      return { ok: false, reason: "owner-alias", ...(state.settings.ownerPersonId ? { personId: state.settings.ownerPersonId } : {}) };
-    }
-    const nameValidation = validatePersonName(details.name, people, details.personId ?? undefined, { allowOwnerPlaceholder: isOwnerIdentity && isCurrentOwnerName });
-    if (nameValidation?.reason === "duplicate") return { ok: false, reason: "duplicate", personId: nameValidation.person.id };
-    if (nameValidation) return { ok: false, reason: "invalid-name" };
-    const renaming = Boolean(current && normalizePersonName(current.name).toLowerCase() !== normalizedName.toLowerCase());
-    const nameKey = normalizedName.toLowerCase();
-    if (renaming || !current) {
-      const ownerAlias = renaming && isOwnerAlias(normalizedName, state.settings.ownerName);
-      const storedConflicts = await listPersonNameConflicts(normalizedName, details.personId, ownerAlias ? state.settings.ownerName : undefined);
-      const conflicts = new Map(storedConflicts.map((entry) => [entry.id, entry.splitName]));
-      const latestRecords = get().records;
-      for (const record of latestRecords) {
-        const matches = record.values.participants.some((participant) =>
-          participant.personId !== details.personId && (normalizePersonName(participant.name).toLowerCase() === nameKey || (ownerAlias && isOwnerAlias(participant.name, state.settings.ownerName))),
-        );
-        if (matches) conflicts.set(record.id, record.values.splitName ?? ""); else conflicts.delete(record.id);
-      }
-      const conflict = conflicts.entries().next().value;
-      if (conflict) return { ok: false, reason: "split-name-conflict", recordId: conflict[0], ...(latestRecords.some((record) => record.id === conflict[0]) ? {} : { splitName: conflict[1] }) };
-    }
-
-    const groups = state.settings.participantGroups ?? [];
-    const groupIds = new Set(details.groupIds);
-    for (const group of groups) {
-      const wasMember = group.memberPersonIds.includes(details.personId ?? "");
-      if (wasMember && !groupIds.has(group.id) && group.memberPersonIds.length <= 1) {
-        return { ok: false, reason: "last-group-member" };
-      }
-    }
-
-    const timestamp = nowIso();
-    const person: SavedPerson = current
-      ? {
-          ...current,
-          name: normalizedName,
-          photoUri: details.photoUri,
-          color: details.color,
-          archivedAt: details.restore ? null : current.archivedAt,
-          updatedAt: timestamp,
+      return await enqueueStoreWrite(async () => {
+        const state = get();
+        const { people, ownerPersonId } = state;
+        const { ownerName } = selectSplitSettings(state);
+        const current = details.personId
+          ? people.find((person) => person.id === details.personId)
+          : undefined;
+        if (details.personId && !current) return { ok: false, reason: "missing" };
+        const isOwnerIdentity = Boolean(ownerPersonId && details.personId === ownerPersonId);
+        const isCurrentOwnerName = normalizePersonName(normalizedName).toLowerCase() === normalizePersonName(ownerName || "").toLowerCase();
+        if (isOwnerAlias(normalizedName, ownerName) && (!isOwnerIdentity || !isCurrentOwnerName)) {
+          return { ok: false, reason: "owner-alias", ...(ownerPersonId ? { personId: ownerPersonId } : {}) };
         }
-      : {
-          id: createPerson(normalizedName)!.id,
-          name: normalizedName,
-          photoUri: details.photoUri,
-          color: details.color,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        };
-    const persisted = await savePersonAndLinkedRecords(person, [...groupIds], Boolean(current));
-    if (renaming) notifyArchiveChange({ type: "invalidate" });
-    set((latest) => {
-      const latestPeople = latest.settings.people ?? [];
-      const latestGroups = latest.settings.participantGroups ?? [];
-      const persistedGroups = new Map((persisted.settings.participantGroups ?? []).map((group) => [group.id, group]));
-      const records = current && current.name !== normalizedName
-        ? latest.records.map((record) => {
-            let changed = false;
-            const participants = record.values.participants.map((participant) => {
-              if (participant.personId !== current.id || participant.name === normalizedName) return participant;
-              changed = true;
-              return { ...participant, name: normalizedName };
-            });
-            return changed ? { ...record, values: { ...record.values, participants }, updatedAt: timestamp } : record;
-          })
-        : latest.records;
-      return {
-        settings: {
-          ...latest.settings,
-          people: latestPeople.some((entry) => entry.id === person.id)
-            ? latestPeople.map((entry) => entry.id === person.id ? person : entry)
-            : [...latestPeople, person],
-          participantGroups: latestGroups.map((group) => {
-            const persistedGroup = persistedGroups.get(group.id);
-            if (!persistedGroup) return group;
-            const hasPerson = group.memberPersonIds.includes(person.id);
-            const shouldHavePerson = persistedGroup.memberPersonIds.includes(person.id);
-            if (hasPerson === shouldHavePerson) return group;
-            return {
-              ...group,
-              memberPersonIds: shouldHavePerson ? [...group.memberPersonIds, person.id] : group.memberPersonIds.filter((id) => id !== person.id),
-              updatedAt: persistedGroup.updatedAt,
+        const nameValidation = validatePersonName(details.name, people, details.personId ?? undefined, { allowOwnerPlaceholder: isOwnerIdentity && isCurrentOwnerName });
+        if (nameValidation?.reason === "duplicate") return { ok: false, reason: "duplicate", personId: nameValidation.person.id };
+        if (nameValidation) return { ok: false, reason: "invalid-name" };
+        const renaming = Boolean(current && normalizePersonName(current.name).toLowerCase() !== normalizedName.toLowerCase());
+        const nameKey = normalizedName.toLowerCase();
+        if (renaming || !current) {
+          const ownerAlias = renaming && isOwnerAlias(normalizedName, ownerName);
+          const storedConflicts = await listPersonNameConflicts(normalizedName, details.personId, ownerAlias ? ownerName : undefined);
+          const conflicts = new Map(storedConflicts.map((entry) => [entry.id, entry.splitName]));
+          const latestRecords = get().records;
+          for (const record of latestRecords) {
+            const matches = record.values.participants.some((participant) =>
+              participant.personId !== details.personId && (normalizePersonName(participant.name).toLowerCase() === nameKey || (ownerAlias && isOwnerAlias(participant.name, ownerName))),
+            );
+            if (matches) conflicts.set(record.id, record.values.splitName ?? ""); else conflicts.delete(record.id);
+          }
+          const conflict = conflicts.entries().next().value;
+          if (conflict) return { ok: false, reason: "split-name-conflict", recordId: conflict[0], ...(latestRecords.some((record) => record.id === conflict[0]) ? {} : { splitName: conflict[1] }) };
+        }
+
+        const groups = state.participantGroups;
+        const groupIds = new Set(details.groupIds);
+        for (const group of groups) {
+          const wasMember = group.memberPersonIds.includes(details.personId ?? "");
+          if (wasMember && !groupIds.has(group.id) && group.memberPersonIds.length <= 1) {
+            return { ok: false, reason: "last-group-member" };
+          }
+        }
+
+        const timestamp = nowIso();
+        const person: SavedPerson = current
+          ? {
+              ...current,
+              name: normalizedName,
+              photoUri: details.photoUri,
+              color: details.color,
+              archivedAt: details.restore ? null : current.archivedAt,
+              updatedAt: timestamp,
+            }
+          : {
+              id: createPerson(normalizedName)!.id,
+              name: normalizedName,
+              photoUri: details.photoUri,
+              color: details.color,
+              createdAt: timestamp,
+              updatedAt: timestamp,
             };
-          }),
-        },
-        records,
-      };
-    });
-    if (current?.photoUri && current.photoUri !== person.photoUri) await removePersonPhoto(current.photoUri);
-    return { ok: true, personId: person.id };
+        const persisted = await savePersonAndLinkedRecords(person, [...groupIds], Boolean(current));
+        if (renaming) notifyArchiveChange({ type: "invalidate" });
+        set((latest) => {
+          const records = current && current.name !== normalizedName
+            ? latest.records.map((record) => {
+                let changed = false;
+                const participants = record.values.participants.map((participant) => {
+                  if (participant.personId !== current.id || participant.name === normalizedName) return participant;
+                  changed = true;
+                  return { ...participant, name: normalizedName };
+                });
+                return changed ? { ...record, values: { ...record.values, participants }, updatedAt: timestamp } : record;
+              })
+            : latest.records;
+          return {
+            people: applyPeopleChanges(latest.people, [persisted.person]),
+            ...(persisted.groups.length ? {
+              participantGroups: applyGroupChanges(latest.participantGroups, persisted.groups),
+            } : {}),
+            ...(records !== latest.records ? { records } : {}),
+          };
+        });
+        if (current?.photoUri && current.photoUri !== person.photoUri) await removePersonPhoto(current.photoUri);
+        return { ok: true, personId: person.id };
       });
     } catch {
       return { ok: false, reason: "persistence" };
@@ -1228,30 +1121,34 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async getPersonDeletionImpact(personId) {
     const state = get();
-    const person = (state.settings.people ?? []).find((entry) => entry.id === personId);
+    const person = (state.people ?? []).find((entry) => entry.id === personId);
     if (!person) return { used: false, splitCount: 0, groupCount: 0 };
     const nameKey = normalizePersonName(person.name).toLowerCase();
     const [linked, legacy] = await Promise.all([
       listRecordIdsForPerson(personId),
-      listLegacyRecordIdsForPerson(person.name, state.settings.ownerName),
+      listLegacyRecordIdsForPerson(person.name, selectSplitSettings(state).ownerName),
     ]);
     const ids = new Set([...linked, ...legacy]);
     const latest = get();
+    const { ownerName } = selectSplitSettings(latest);
     for (const record of latest.records) {
       const matches = record.values.participants.some((participant) =>
-        participant.personId === personId || (!participant.personId && !isOwnerAlias(participant.name, latest.settings.ownerName) && normalizePersonName(participant.name).toLowerCase() === nameKey),
+        participant.personId === personId || (!participant.personId && !isOwnerAlias(participant.name, ownerName) && normalizePersonName(participant.name).toLowerCase() === nameKey),
       );
       if (matches) ids.add(record.id); else ids.delete(record.id);
     }
     const splitCount = ids.size;
-    const groupCount = (latest.settings.participantGroups ?? []).filter((group) => group.memberPersonIds.includes(personId)).length;
+    const groupCount = (latest.participantGroups ?? []).filter((group) => group.memberPersonIds.includes(personId)).length;
     return { used: splitCount > 0 || groupCount > 0, splitCount, groupCount };
   },
   async removePerson(personId) {
-    if (personId === get().settings.ownerPersonId) return "missing";
-    const deleted = await enqueueSettingsPersistence(async () => {
+    if (personId === get().ownerPersonId) return "missing";
+    const deleted = await enqueueStoreWrite(async () => {
       const result = await deleteSavedPerson(personId);
-      if (result.settings) set({ settings: { ...get().settings, ...result.settings } });
+      if (result.result !== "missing") set((state) => ({
+        people: result.person ? applyPeopleChanges(state.people, [result.person]) : state.people.filter((person) => person.id !== personId),
+        ...(result.groups?.length ? { participantGroups: applyGroupChanges(state.participantGroups, result.groups) } : {}),
+      }));
       return result;
     });
     if (deleted.result === "deleted") await removePersonPhoto(deleted.photoUri);
@@ -1259,9 +1156,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async addParticipantGroup(name, memberPersonIds, details = {}, newPersonNames = []) {
     const normalizedName = normalizeGroupName(name);
-    return enqueueSettingsPersistence(async () => {
-      const settings = get().settings;
-      const groups = settings.participantGroups ?? [];
+    return enqueueStoreWrite(async () => {
+      const groups = get().participantGroups;
       if (!normalizedName || groups.some((entry) => entry.name.trim().toLowerCase() === normalizedName.toLowerCase())) return false;
       const saved = await saveParticipantGroup(null, { ...details, name: normalizedName, memberPersonIds, newPersonNames });
       if (!saved) return false;
@@ -1271,9 +1167,8 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
   },
   async updateParticipantGroup(groupId, details) {
     const name = normalizeGroupName(details.name);
-    return enqueueSettingsPersistence(async () => {
-      const settings = get().settings;
-      const groups = settings.participantGroups ?? [];
+    return enqueueStoreWrite(async () => {
+      const groups = get().participantGroups;
       if (!name || !groups.some((group) => group.id === groupId)) return false;
       if (groups.some((group) => group.id !== groupId && group.name.trim().toLowerCase() === name.toLowerCase())) return false;
       const previousPhoto = groups.find((group) => group.id === groupId)?.photoUri;
@@ -1285,21 +1180,17 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     });
   },
   async removeParticipantGroup(groupId) {
-    await enqueueSettingsPersistence(async () => {
-      const settings = get().settings;
-      const groups = settings.participantGroups ?? [];
+    await enqueueStoreWrite(async () => {
+      const groups = get().participantGroups;
       const removedPhoto = groups.find((group) => group.id === groupId)?.photoUri;
       if (!groups.some((group) => group.id === groupId)) return;
-      const nextSettings = { ...settings, participantGroups: groups.filter((group) => group.id !== groupId) };
-      await saveAppSettings(nextSettings);
-      set({ settings: nextSettings });
+      await deleteParticipantGroup(groupId);
+      set((state) => ({ participantGroups: state.participantGroups.filter((group) => group.id !== groupId) }));
       await removeGroupPhoto(removedPhoto);
     });
   },
   async addParticipantsFromGroup(groupId, personIds, recordId) {
-    const settings = get().settings;
-    const groups = settings.participantGroups ?? [];
-    const people = settings.people ?? [];
+    const { participantGroups: groups, people } = get();
     const group = groups.find((entry) => entry.id === groupId);
     if (!group) {
       return;
@@ -1332,13 +1223,13 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     await Promise.allSettled(mutation.removedNotificationIds.map((notificationId) => cancelReminder(notificationId)));
   },
   async addTag(label, icon, color) {
-    const nextTag = await enqueueSettingsPersistence(async () => {
+    const nextTag = await enqueueStoreWrite(async () => {
       const settings = get().settings;
       const tag = createCustomTag(label, settings.tags ?? [], icon, color);
       if (!tag) return null;
       const nextSettings = { ...settings, tags: [...normalizeTags(settings.tags), tag] };
-      await saveAppSettings(nextSettings);
-      set({ settings: nextSettings });
+      await saveAppSettings({ tags: nextSettings.tags });
+      set((state) => ({ settings: { ...state.settings, tags: nextSettings.tags } }));
       return tag;
     });
     if (!nextTag) return false;
@@ -1352,7 +1243,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     return true;
   },
   async removeTag(tagId) {
-    const removedTag = await enqueueSettingsPersistence(async () => {
+    const removedTag = await enqueueStoreWrite(async () => {
     const currentState = get();
     const removed = normalizeTags(currentState.settings.tags).find((tag) => tag.id === tagId);
     const nextSettings = { ...currentState.settings, tags: normalizeTags(currentState.settings.tags).filter((tag) => tag.id !== tagId) };
@@ -1442,7 +1333,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
       const prior = currentById.get(participant.id);
       if (prior && !prior.personId) return participant;
       if (prior?.personId && !participant.personId) return { ...participant, personId: prior.personId };
-      const resolved = resolveParticipantPerson(participant, get().settings);
+      const resolved = resolveParticipantPerson(participant, selectSplitSettings(get()));
       if (resolved.created) pending.set(resolved.created.id, resolved.created);
       if (resolved.restorePersonId) restorePersonIds.add(resolved.restorePersonId);
       return resolved.participant;

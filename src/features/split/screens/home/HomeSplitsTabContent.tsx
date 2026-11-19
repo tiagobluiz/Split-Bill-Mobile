@@ -13,7 +13,7 @@ import {
   SectionCard,
   SectionEyebrow,
 } from "../../../../components/ui";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import { getSplitTagDisplayLabel, sortTagsAlphabetically } from "../../tags";
@@ -73,7 +73,7 @@ export function HomeSplitsTabContent({
 }: {
   topInset: number;
   footerInsetBottom: number;
-  settings: AppSettings;
+  settings: SplitSettingsView;
   balances: HomeBalances | null;
   locale: string;
   filtersExpanded: boolean;

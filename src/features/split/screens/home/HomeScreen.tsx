@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, BackHandler, Pressable, ToastAndroid, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -64,6 +65,7 @@ export function HomeScreenView() {
     removeRecord,
     settings,
     updateSettings,
+    updateOwnerProfile,
     updateRecordDetails,
     setSplitReminder,
     clearSplitReminder,
@@ -84,8 +86,9 @@ export function HomeScreenView() {
       loadRecord: state.loadRecord,
       releaseInactiveRecords: state.releaseInactiveRecords,
       removeRecord: state.removeRecord,
-      settings: state.settings,
+      settings: selectSplitSettings(state),
       updateSettings: state.updateSettings,
+      updateOwnerProfile: state.updateOwnerProfile,
       updateRecordDetails: state.updateRecordDetails,
       setSplitReminder: state.setSplitReminder,
       clearSplitReminder: state.clearSplitReminder,
@@ -732,7 +735,7 @@ export function HomeScreenView() {
           onOwnerProfileEditorClose={() => setOwnerProfileEditorActive(false)}
           records={records}
           onSavePerson={savePerson}
-          onUpdateSettings={updateSettings}
+          onUpdateOwnerProfile={updateOwnerProfile}
           onGetPersonDeletionImpact={getPersonDeletionImpact}
           onRemovePerson={removePerson}
           onAddGroup={addParticipantGroup}

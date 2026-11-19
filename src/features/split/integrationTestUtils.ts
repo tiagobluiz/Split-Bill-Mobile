@@ -66,15 +66,36 @@ export function createRouterMocks() {
   };
 }
 
+export function setStoreSettingsFixture(store: any, view: any) {
+  const { ownerName, ownerProfileImageUri, ownerPersonId, profileSetupCompleted,
+    people, participantGroups, ...settings } = view;
+  const previousOwner = store.people.find((person: any) => person.id === store.ownerPersonId);
+  store.ownerPersonId = ownerPersonId ?? store.ownerPersonId;
+  const directory = people ?? store.people;
+  const configuredOwner = directory.find((person: any) => person.id === store.ownerPersonId) ?? previousOwner;
+  const owner = {
+    createdAt: "2026-01-01", updatedAt: "2026-01-01", ...configuredOwner,
+    id: store.ownerPersonId,
+    name: ownerName ?? configuredOwner?.name ?? "You",
+    photoUri: ownerProfileImageUri ?? configuredOwner?.photoUri,
+  };
+  store.people = [owner, ...directory.filter((person: any) => person.id !== store.ownerPersonId)];
+  store.participantGroups = participantGroups ?? store.participantGroups;
+  store.profileSetupCompleted = profileSetupCompleted ?? store.profileSetupCompleted;
+  store.settings = settings;
+}
+
 export function buildStoreFixture(overrides: Partial<any> = {}) {
   return {
     ready: true,
     records: [buildRecordFixture()],
     activeRecordId: "draft-1",
     ownerNameWritesPending: 0,
+    ownerPersonId: "owner",
+    profileSetupCompleted: true,
+    people: [{ id: "owner", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+    participantGroups: [],
     settings: {
-      ownerName: "Ana",
-      ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       splitListAmountDisplay: "remaining",
@@ -92,8 +113,6 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
           color: "mint",
         },
       ],
-      people: [],
-      participantGroups: [],
       customCurrencies: [],
     },
     bootstrap: jest.fn(),
@@ -146,6 +165,7 @@ export function buildStoreFixture(overrides: Partial<any> = {}) {
       importedItemIds: [],
     })),
     updateSettings: jest.fn(async () => undefined),
+    updateOwnerProfile: jest.fn(async () => undefined),
     upsertPerson: jest.fn(async () => "person-new"),
     updatePerson: jest.fn(async () => true),
     removePerson: jest.fn(async () => undefined),

@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -185,11 +186,12 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       records: state.records,
       updateParticipants: state.updateParticipants,
       setStep: state.setStep,
-      settings: state.settings,
+      settings: selectSplitSettings(state),
       addParticipantsFromGroup: state.addParticipantsFromGroup,
     })),
   );
   const [name, setName] = useState("");
+  const [searchResultsHidden, setSearchResultsHidden] = useState(false);
   const frequentFriends = useFrequentFriends(draftId, records, settings);
   const [participantsNoticeMessages, setParticipantsNoticeMessages] = useState<
     string[]
@@ -221,17 +223,26 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
   const searchQuery = personNameKey(name);
   const addParticipant = async (
     rawName: string,
-    options?: { keepKeyboardOpen?: boolean; personId?: string },
+    options?: { keepKeyboardOpen?: boolean; personId?: string; previousSearch?: string },
   ) => {
     const trimmed = normalizePersonNameInput(rawName);
     const validation = validatePersonName(rawName, record.values.participants, undefined, {
       allowOwnerPlaceholder: Boolean(options?.personId && options.personId === settings.ownerPersonId),
     });
+    const restoreSearch = () => {
+      setSearchResultsHidden(false);
+      if (options?.previousSearch && !participantNameRef.current) {
+        participantNameRef.current = options.previousSearch;
+        setName(options.previousSearch);
+      }
+    };
     if (validation?.reason === "required") {
+      restoreSearch();
       Keyboard.dismiss();
       return;
     }
     if (validation?.reason === "max" || validation?.reason === "reserved") {
+      restoreSearch();
       setParticipantsNoticeMessages([validation.reason === "max" ? t("validation.participantNameMax", { max: validation.max }) : t("settings.ownerNameReserved")]);
       return;
     }
@@ -250,6 +261,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
         ];
       }, draftId);
     } catch (error) {
+      restoreSearch();
       console.warn("Failed to add participant", error);
         setParticipantsNoticeMessages([
         t("flow.participants.addFailed"),
@@ -257,7 +269,10 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
       return;
     }
     setParticipantsNoticeMessages([]);
-    setName("");
+    if (options?.previousSearch === undefined) {
+      participantNameRef.current = "";
+      setName("");
+    }
     if (options?.keepKeyboardOpen) {
       requestAnimationFrame(() => {
         participantInputRef.current?.focus();
@@ -379,6 +394,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               maxLength={PERSON_NAME_MAX_LENGTH}
               onChangeText={(value) => {
                 participantNameRef.current = value;
+                setSearchResultsHidden(false);
                 setName(value);
               }}
               onSubmitEditing={() =>
@@ -405,14 +421,20 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
               <Plus color={PALETTE.onPrimary} size={20} />
             </Pressable>
           </View>
-          {searchQuery ? (
+          {searchQuery && !searchResultsHidden ? (
             <YStack gap="$2">
               {matchingPeople.map((person) => (
                 <Pressable
                   key={person.id}
                   accessibilityRole="button"
                   accessibilityLabel={t("flow.participants.addSavedPersonA11y", { name: person.name })}
-                  onPress={() => void addParticipant(person.name, { personId: person.id })}
+                  onPress={() => {
+                    const previousSearch = participantNameRef.current;
+                    setSearchResultsHidden(true);
+                    participantNameRef.current = "";
+                    setName("");
+                    void addParticipant(person.name, { personId: person.id, previousSearch });
+                  }}
                   style={screenStyles.participantPill}
                 >
                   <XStack alignItems="center" gap="$3">

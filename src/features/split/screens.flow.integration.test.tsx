@@ -20,6 +20,7 @@ import {
   applyDefaultStorePreviews,
   buildRecordFixture,
   buildStoreFixture,
+  setStoreSettingsFixture,
   createRouterMocks,
 } from "./integrationTestUtils";
 import { screenStyles } from "./screens/shared/styles";
@@ -376,11 +377,11 @@ describe("split screens", () => {
   });
 
   it("keeps the setup CTA disabled when no default or draft currency exists", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -423,11 +424,11 @@ describe("split screens", () => {
   });
 
   it("falls back to defaults when setup metadata is missing on a loaded draft", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "GBP",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -443,11 +444,11 @@ describe("split screens", () => {
   });
 
   it("routes the setup back and close actions to home and allows choosing a preset currency", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       balanceFeatureEnabled: true,
       defaultCurrency: "GBP",
-    };
+    });
     render(<SetupScreen draftId="draft-1" />);
     await waitFor(() => {
       expect(mockFetchExchangeRate).toHaveBeenCalledWith("EUR", "GBP");
@@ -732,7 +733,7 @@ describe("split screens", () => {
       },
     });
     mockStoreState.records = [current];
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ...mockStoreState.settings,
       ownerName: "Ana",
       ownerPersonId: "person-ana",
@@ -743,7 +744,7 @@ describe("split screens", () => {
         { id: "person-archived", name: "Alfred", archivedAt: "now" },
         { id: "person-bruno", name: "Bruno" },
       ],
-    };
+    });
 
     render(<ParticipantsScreen draftId="draft-1" />);
     expect(
@@ -771,7 +772,7 @@ describe("split screens", () => {
   });
 
   it("keeps manual participant entry available when saved people do not match", async () => {
-    mockStoreState.settings.people = [
+    mockStoreState.people = [
       { id: "person-bruno", name: "Bruno" },
       { id: "person-archived", name: "Nobody", archivedAt: "now" },
     ];
@@ -839,7 +840,7 @@ describe("split screens", () => {
     const historical = buildRecord({ id: "old", values: { ...buildRecord().values, participants: [{ id: "elena", name: "Elena" }] } });
     mockStoreState.records = [active];
     const { getFrequentFriends } = require("./screens/shared/participantUtils");
-    require("./screens/flow/scanFrequentFriends").scanFrequentFriends.mockResolvedValueOnce(getFrequentFriends([historical, active], active.id, mockStoreState.settings.ownerName));
+    require("./screens/flow/scanFrequentFriends").scanFrequentFriends.mockResolvedValueOnce(getFrequentFriends([historical, active], active.id, "Ana"));
     render(<ParticipantsScreen draftId="draft-1" />);
     fireEvent.press(await screen.findByLabelText("Add frequent friend Elena"));
     expect(mockStoreState.updateParticipants).toHaveBeenCalled();
@@ -852,11 +853,11 @@ describe("split screens", () => {
   });
 
   it("always shows the phone owner in frequent friends when not already added and dedupes/caps history suggestions", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -944,11 +945,11 @@ describe("split screens", () => {
   });
 
   it("injects the phone owner into frequent friends when missing from history", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1070,11 +1071,11 @@ describe("split screens", () => {
   });
 
   it("returns mapped frequent friends without injecting the owner when they already exist in history", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Sarah",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1195,11 +1196,11 @@ describe("split screens", () => {
   });
 
   it("returns only history-based frequent friends when the owner name is blank", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -1252,13 +1253,13 @@ describe("split screens", () => {
   });
 
   it("uses the current owner profile name for frequent participants and owner labels", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago Luiz",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "draft-current",
@@ -1297,13 +1298,13 @@ describe("split screens", () => {
   });
 
   it("does not treat blank participant names as the owner", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago Luiz",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "draft-current",
@@ -1353,26 +1354,26 @@ describe("split screens", () => {
       },
     }));
 
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago Luiz",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
 
     render(<HomeScreen />);
     expect(screen.getByTestId("home-balance-owed-title")).toBeTruthy();
   });
 
   it("falls back to the participant name when the owner setting is blank", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "",
       ownerProfileImageUri: "",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         id: "draft-current",
@@ -1409,13 +1410,13 @@ describe("split screens", () => {
   });
 
   it("uses the saved owner photo inside split flows", () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Ana",
       ownerProfileImageUri: "file:///owner-photo.png",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
 
     const { unmount } = render(<PayerScreen draftId="draft-1" />);
     expect(screen.getByLabelText("Payer avatar Ana").props.source).toEqual({
@@ -1431,13 +1432,13 @@ describe("split screens", () => {
   });
 
   it("uses the saved owner photo in the frequent participants strip", async () => {
-    mockStoreState.settings = {
+    setStoreSettingsFixture(mockStoreState, {
       ownerName: "Tiago",
       ownerProfileImageUri: "file:///owner-photo.png",
       balanceFeatureEnabled: true,
       defaultCurrency: "EUR",
       customCurrencies: [],
-    };
+    });
     mockStoreState.records = [
       buildRecord({
         values: {

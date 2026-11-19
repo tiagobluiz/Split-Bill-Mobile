@@ -9,14 +9,12 @@ import type {
   SplitListAmountDisplay,
 } from "../../../../storage/settings";
 import { getCurrencyOptions } from "../shared/participantUtils";
-import { getPersonNameValidationMessage, normalizePersonNameInput, validatePersonName } from "../../people";
 import type {
   SelectableSplitListAmountDisplayOption,
   SplitListAmountDisplayOption,
 } from "./homeTypes";
 
 const MAX_CUSTOM_CURRENCY_SUFFIX = 999;
-const OWNER_NAME_AUTOSAVE_DELAY_MS = 450;
 
 function normalizeCustomCurrencyCodeCandidate(value: string) {
   return (
@@ -83,7 +81,6 @@ export function normalizeSplitListAmountDisplaySetting(
 
 type PersistableSettings = Pick<
   AppSettings,
-  | "ownerName"
   | "balanceFeatureEnabled"
   | "defaultCurrency"
   | "language"
@@ -106,9 +103,6 @@ export function useHomeSettingsDraftController({
   >([]);
   const [settingsNoticeTitle, setSettingsNoticeTitle] =
     useState("Almost there");
-  const [ownerNameDraft, setOwnerNameDraft] = useState(
-    settings.ownerName ?? "",
-  );
   const [balanceFeatureEnabledDraft, setBalanceFeatureEnabledDraft] = useState(
     settings.balanceFeatureEnabled ?? true,
   );
@@ -140,12 +134,9 @@ export function useHomeSettingsDraftController({
     symbol: boolean;
   }>({ name: false, symbol: false });
   const customCurrencySymbolInputRef = useRef<TextInput | null>(null);
-  const ownerNameDraftRef = useRef(ownerNameDraft);
   const balanceFeatureEnabledDraftRef = useRef(balanceFeatureEnabledDraft);
   const defaultCurrencyDraftRef = useRef(defaultCurrencyDraft);
-  const languageDraftRef = useRef(languageDraft);
   const splitListAmountDisplayDraftRef = useRef(splitListAmountDisplayDraft);
-  const customCurrenciesDraftRef = useRef(customCurrenciesDraft);
 
   const splitListAmountDisplayOptions: SplitListAmountDisplayOption[] = [
     {
@@ -202,7 +193,6 @@ export function useHomeSettingsDraftController({
 
   const persistSettings = useCallback(
     async (overrides: Partial<PersistableSettings>) => {
-      const nextOwnerName = normalizePersonNameInput(overrides.ownerName ?? ownerNameDraftRef.current);
       const nextDefaultCurrency =
         overrides.defaultCurrency ??
         defaultCurrencyDraftRef.current.trim().toUpperCase();
@@ -217,13 +207,6 @@ export function useHomeSettingsDraftController({
           ? "total"
           : nextSplitRows;
 
-      const ownerNameValidation = validatePersonName(nextOwnerName, settings.people, settings.ownerPersonId);
-      if (ownerNameValidation) {
-        setSettingsNoticeTitle(t("common.almostThere"));
-        setSettingsNoticeMessages([getPersonNameValidationMessage(ownerNameValidation, t)]);
-        return false;
-      }
-
       if (!nextDefaultCurrency.trim()) {
         setSettingsNoticeTitle(t("common.almostThere"));
         setSettingsNoticeMessages([t("settings.defaultCurrencyRequired")]);
@@ -232,13 +215,10 @@ export function useHomeSettingsDraftController({
 
       try {
         await updateSettings({
-          ownerName: nextOwnerName.trim(),
-          balanceFeatureEnabled: nextBalance,
-          defaultCurrency: nextDefaultCurrency.trim().toUpperCase(),
-          language: overrides.language ?? languageDraftRef.current,
-          splitListAmountDisplay: persistedSplitListAmountDisplay,
-          customCurrencies:
-            overrides.customCurrencies ?? customCurrenciesDraftRef.current,
+          ...overrides,
+          ...(overrides.defaultCurrency !== undefined ? { defaultCurrency: nextDefaultCurrency } : {}),
+          ...(overrides.balanceFeatureEnabled !== undefined || overrides.splitListAmountDisplay !== undefined
+            ? { splitListAmountDisplay: persistedSplitListAmountDisplay } : {}),
         });
         clearSettingsNotice();
         return true;
@@ -247,19 +227,16 @@ export function useHomeSettingsDraftController({
         return false;
       }
     },
-    [clearSettingsNotice, settings.ownerPersonId, settings.people, showSaveFailure, t, updateSettings],
+    [clearSettingsNotice, showSaveFailure, t, updateSettings],
   );
 
   useEffect(() => {
-    setOwnerNameDraft(settings.ownerName ?? "");
-    ownerNameDraftRef.current = settings.ownerName ?? "";
     setBalanceFeatureEnabledDraft(settings.balanceFeatureEnabled ?? true);
     balanceFeatureEnabledDraftRef.current =
       settings.balanceFeatureEnabled ?? true;
     setDefaultCurrencyDraft(settings.defaultCurrency ?? "");
     defaultCurrencyDraftRef.current = settings.defaultCurrency ?? "";
     setLanguageDraft(settings.language ?? "en");
-    languageDraftRef.current = settings.language ?? "en";
     const normalizedSplitRows = normalizeSplitListAmountDisplaySetting(
       settings.splitListAmountDisplay,
       settings.balanceFeatureEnabled,
@@ -267,30 +244,13 @@ export function useHomeSettingsDraftController({
     setSplitListAmountDisplayDraft(normalizedSplitRows);
     splitListAmountDisplayDraftRef.current = normalizedSplitRows;
     setCustomCurrenciesDraft(settings.customCurrencies ?? []);
-    customCurrenciesDraftRef.current = settings.customCurrencies ?? [];
   }, [
     settings.balanceFeatureEnabled,
     settings.customCurrencies,
     settings.defaultCurrency,
     settings.language,
     settings.splitListAmountDisplay,
-    settings.ownerName,
   ]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      const trimmedName = ownerNameDraft.trim();
-      if (!trimmedName) {
-        return;
-      }
-      if (trimmedName === (settings.ownerName ?? "")) {
-        return;
-      }
-      void persistSettings({ ownerName: trimmedName });
-    }, OWNER_NAME_AUTOSAVE_DELAY_MS);
-
-    return () => clearTimeout(timeout);
-  }, [ownerNameDraft, persistSettings, settings.ownerName, t]);
 
   const closeCustomCurrencyModal = useCallback(() => {
     setCurrencyModalOpen(false);
@@ -319,25 +279,6 @@ export function useHomeSettingsDraftController({
 
     return () => backSubscription.remove();
   }, [closeCustomCurrencyModal, currencyMenuOpen, currencyModalOpen]);
-
-  const setOwnerNameDraftAndSave = (value: string) => {
-    ownerNameDraftRef.current = value;
-    setOwnerNameDraft(value);
-    if (value.trim()) {
-      clearSettingsNotice();
-    }
-  };
-
-  const validateOwnerNameDraft = () => {
-    const validation = validatePersonName(ownerNameDraftRef.current, settings.people, settings.ownerPersonId);
-    if (!validation) {
-      return true;
-    }
-    setSettingsNoticeTitle(t("common.almostThere"));
-    setSettingsNoticeMessages([getPersonNameValidationMessage(validation, t)]);
-    return false;
-  };
-
 
   const setBalanceFeatureEnabledDraftAndSave = (
     value: boolean | ((value: boolean) => boolean),
@@ -372,7 +313,6 @@ export function useHomeSettingsDraftController({
   };
 
   const setLanguageDraftAndSave = (value: AppLanguage) => {
-    languageDraftRef.current = value;
     setLanguageDraft(value);
     setLanguageMenuOpen(false);
     void persistSettings({ language: value });
@@ -388,10 +328,6 @@ export function useHomeSettingsDraftController({
   };
 
   const canLeaveSettings = () => {
-    if (!validateOwnerNameDraft()) {
-      return false;
-    }
-
     if (!defaultCurrencyDraftRef.current.trim()) {
       setSettingsNoticeTitle(t("common.almostThere"));
       setSettingsNoticeMessages([t("settings.defaultCurrencyRequired")]);
@@ -448,7 +384,6 @@ export function useHomeSettingsDraftController({
       ...customCurrenciesDraft,
       { code: nextCode, name: trimmedName, symbol: trimmedSymbol },
     ];
-    customCurrenciesDraftRef.current = nextCustomCurrencies;
     defaultCurrencyDraftRef.current = nextCode;
     setCustomCurrenciesDraft(nextCustomCurrencies);
     setDefaultCurrencyDraft(nextCode);
@@ -465,9 +400,6 @@ export function useHomeSettingsDraftController({
   return {
     settingsNoticeMessages,
     settingsNoticeTitle,
-    ownerNameDraft,
-    setOwnerNameDraft: setOwnerNameDraftAndSave,
-    validateOwnerNameDraft,
     balanceFeatureEnabledDraft,
     setBalanceFeatureEnabledDraft: setBalanceFeatureEnabledDraftAndSave,
     defaultCurrencyDraft,

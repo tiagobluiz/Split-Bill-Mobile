@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { HomeGroupsTabContent } from "./HomeGroupsTabContent";
 
 const group = {
@@ -13,7 +13,7 @@ const group = {
   updatedAt: "2026-01-01",
 };
 
-const settings: AppSettings = {
+const settings: SplitSettingsView = {
   ownerName: "You",
   ownerProfileImageUri: "",
   balanceFeatureEnabled: true,
@@ -33,21 +33,21 @@ function renderDirectory(
     onRemovePerson?: jest.Mock;
     onAddGroup?: jest.Mock;
     onUpdateGroup?: jest.Mock;
-    onUpdateSettings?: jest.Mock;
+    onUpdateOwnerProfile?: jest.Mock;
   } = {},
 ) {
   const onSavePerson = handlers.onSavePerson ?? jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
   const onRemovePerson = handlers.onRemovePerson ?? jest.fn(async () => "deleted" as const);
   const onAddGroup = handlers.onAddGroup ?? jest.fn(async () => true);
   const onUpdateGroup = handlers.onUpdateGroup ?? jest.fn(async () => true);
-  const onUpdateSettings = handlers.onUpdateSettings ?? jest.fn(async () => undefined);
+  const onUpdateOwnerProfile = handlers.onUpdateOwnerProfile ?? jest.fn(async () => undefined);
   return {
     onRemoveGroup,
     onSavePerson,
     onRemovePerson,
     onAddGroup,
     onUpdateGroup,
-    onUpdateSettings,
+    onUpdateOwnerProfile,
     ...render(
       <LocalizationProvider language="en">
         <HomeGroupsTabContent
@@ -56,7 +56,7 @@ function renderDirectory(
           settings={directorySettings}
           records={[]}
           onSavePerson={onSavePerson}
-          onUpdateSettings={onUpdateSettings}
+          onUpdateOwnerProfile={onUpdateOwnerProfile}
           onGetPersonDeletionImpact={getDeletionImpact}
           onRemovePerson={onRemovePerson}
           onAddGroup={onAddGroup}
@@ -382,8 +382,8 @@ describe("HomeGroupsTabContent group actions", () => {
   it("shows the owner first and opens a profile-only editor", async () => {
     const owner = { id: "owner", name: "Alice", color: "#123456", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
     const other = { id: "person-other", name: "Ana", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
-    const onUpdateSettings = jest.fn(async () => undefined);
-    renderDirectory(undefined, { ...settings, ownerName: "Alice", ownerPersonId: owner.id, people: [owner, other] }, undefined, { onUpdateSettings });
+    const onUpdateOwnerProfile = jest.fn(async () => undefined);
+    renderDirectory(undefined, { ...settings, ownerName: "Alice", ownerPersonId: owner.id, people: [owner, other] }, undefined, { onUpdateOwnerProfile });
     fireEvent.press(screen.getByText("People (2)"));
     expect(screen.getByText("Your profile")).toBeTruthy();
     expect(screen.getByText("Alice")).toBeTruthy();
@@ -393,6 +393,6 @@ describe("HomeGroupsTabContent group actions", () => {
     fireEvent.press(screen.getByLabelText("Your profile"));
     fireEvent.changeText(screen.getByPlaceholderText("e.g. Marcus"), "Alex");
     await act(async () => { fireEvent.press(screen.getByText("Save")); });
-    expect(onUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ ownerName: "Alex", ownerProfileImageUri: "" }));
+    expect(onUpdateOwnerProfile).toHaveBeenCalledWith(expect.objectContaining({ ownerName: "Alex", ownerProfileImageUri: "" }));
   });
 });

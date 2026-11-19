@@ -1,3 +1,4 @@
+import { selectSplitSettings } from "../../splitSettingsView";
 import { useMemo, useState } from "react";
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -18,8 +19,8 @@ type Step = "welcome" | "name" | "photo";
 export function ProfileSetupGate() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const settings = useSplitStore((state) => state.settings);
-  const updateSettings = useSplitStore((state) => state.updateSettings);
+  const settings = useSplitStore(selectSplitSettings);
+  const updateOwnerProfile = useSplitStore((state) => state.updateOwnerProfile);
   const [dismissed, setDismissed] = useState(settings.profileSetupCompleted === true);
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState(settings.ownerName.toLowerCase() === "you" ? "" : settings.ownerName);
@@ -68,7 +69,7 @@ export function ProfileSetupGate() {
         copiedPhoto = persisted !== savedPhotoUri;
         savedPhotoUri = persisted;
       }
-      await updateSettings({
+      await updateOwnerProfile({
         ownerName: normalizedName,
         ownerProfileImageUri: savedPhotoUri ?? "",
         profileSetupCompleted: true,

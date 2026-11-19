@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { DraftRecord } from "../../../../storage/records";
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { notifyArchiveChange } from "../../archiveChanges";
 import { scanFrequentFriends } from "./scanFrequentFriends";
 import { useFrequentFriends } from "./useFrequentFriends";
@@ -8,7 +8,7 @@ import { useFrequentFriends } from "./useFrequentFriends";
 jest.mock("expo-router", () => ({ useFocusEffect: (callback: () => void) => require("react").useEffect(callback, [callback]) }));
 jest.mock("./scanFrequentFriends", () => ({ scanFrequentFriends: jest.fn() }));
 
-const settings = { ownerName: "You", people: [] } as unknown as AppSettings;
+const settings = { ownerName: "You", people: [] } as unknown as SplitSettingsView;
 const records: DraftRecord[] = [];
 const friend = (name: string) => ({ name, selected: false, background: "#fff", foreground: "#000" });
 const draft = (id: string) => ({ id } as DraftRecord);

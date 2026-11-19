@@ -6,7 +6,7 @@ import {
   YStack as TamaguiYStack,
 } from "tamagui";
 
-import type { AppSettings } from "../../../../storage/settings";
+import type { SplitSettingsView } from "../../splitSettingsView";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useTranslation } from "../../../../i18n/provider";
 import type { RecordRowModel } from "../shared/recordRowModel";
@@ -44,7 +44,7 @@ export function HomeHomeTabContent({
   footerInsetBottom: number;
   isCreatingSplit: boolean;
   onStartSplit: () => Promise<void>;
-  settings: AppSettings;
+  settings: SplitSettingsView;
   balances: HomeBalances | null;
   locale: string;
   recentRecords: (HomeRecord | RecordRowModel)[];

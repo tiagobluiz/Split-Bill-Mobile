@@ -12,7 +12,7 @@ export const MEMBERSHIP_SCHEMA = `
   CREATE TABLE IF NOT EXISTS split_person_memberships (
     split_id TEXT NOT NULL REFERENCES split_records(id) ON DELETE CASCADE,
     participant_id TEXT NOT NULL,
-    person_id TEXT NOT NULL,
+    person_id TEXT NOT NULL REFERENCES people(id) ON DELETE RESTRICT,
     PRIMARY KEY (split_id, participant_id),
     UNIQUE (split_id, person_id)
   );
@@ -79,16 +79,8 @@ export async function verifyPersonMemberships(
   expected?: PersonMembership[],
 ) {
   if (!expected) {
-    const settings = await db.getFirstAsync<{ payload: string }>(
-      "SELECT payload FROM app_settings WHERE key = ?",
-      ["app-settings"],
-    );
-    const people =
-      parseObject(settings?.payload ?? "{}", "settings").people ?? [];
-    expected = membershipsFromRows(
-      await readRawSplitRows(db),
-      new Set(people.map((person: { id: string }) => person.id)),
-    );
+    const people = await db.getAllAsync<{ id: string }>("SELECT id FROM people");
+    expected = membershipsFromRows(await readRawSplitRows(db), new Set(people.map((person) => person.id)));
   }
   const actual = await db.getAllAsync<{
     split_id: string;
@@ -115,15 +107,8 @@ export async function verifyPersonMemberships(
 
 export async function rebuildPersonMemberships() {
   await withDatabaseTransaction(async (tx) => {
-    const row = await tx.getFirstAsync<{ payload: string }>(
-      "SELECT payload FROM app_settings WHERE key = ?",
-      ["app-settings"],
-    );
-    const people = parseObject(row?.payload ?? "{}", "settings").people ?? [];
-    const memberships = membershipsFromRows(
-      await readRawSplitRows(tx),
-      new Set(people.map((person: { id: string }) => person.id)),
-    );
+    const people = await tx.getAllAsync<{ id: string }>("SELECT id FROM people");
+    const memberships = membershipsFromRows(await readRawSplitRows(tx), new Set(people.map((person) => person.id)));
     await tx.runAsync("DELETE FROM split_person_memberships");
     const splitIds = new Set(memberships.map((entry) => entry.splitId));
     for (const splitId of splitIds)

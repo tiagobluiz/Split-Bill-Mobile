@@ -1,20 +1,21 @@
-import { createId, syncItemAllocations, validatePersonName, type SplitFormValues } from "../domain";
+import { createId, validatePersonName, type SplitFormValues } from "../domain";
 import { isValidSplitDate, localDay } from "../domain/splitDate";
 import { compareSplitDates } from "../domain/splitDateOrder";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "./database";
-import { MEMBERSHIP_SCHEMA, replacePersonMemberships } from "./personMemberships";
+import { replacePersonMemberships } from "./personMemberships";
 import { SPLIT_LIST_INDEX_SCHEMA } from "./splitList";
 import { createFinancialProjection, type FinancialProjection } from "./financialProjection";
-import { parseObject, readParticipants, planPersonIdentity, type IdentifiedParticipant, type RawSplitRow } from "./personIdentity";
-import type { AppSettings } from "./settings";
+import { identityName, parseObject, readParticipants, planPersonIdentity, type IdentifiedParticipant, type RawSplitRow } from "./personIdentity";
+import { writeAppSettings, type AppSettings } from "./settings";
+import { readGroups, readPeople, writeGroup, writePerson } from "./directory";
 import {
   createEmptyReminderState,
   normalizeReminderState,
   type ReminderState,
 } from "../features/split/reminders";
 import { normalizeTagIds } from "../features/split/tags";
-import { createGroup, createPerson, mergePeopleRegistry, normalizeGroupName, normalizePersonName, normalizePeople, normalizeGroups, type SavedPerson, type ParticipantGroup } from "../features/split/people";
+import { createGroup, createPerson, normalizeGroupName, normalizePersonName, normalizeGroups, type SavedPerson, type ParticipantGroup } from "../features/split/people";
 
 export type RecordStatus = "draft" | "completed";
 
@@ -48,7 +49,6 @@ export async function initializeRecordsStorage() {
         updated_at TEXT NOT NULL,
         completed_at TEXT
       );
-      ${MEMBERSHIP_SCHEMA}
       ${SPLIT_LIST_INDEX_SCHEMA}
     `);
     const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(split_records)");
@@ -340,38 +340,24 @@ function toRawRow(record: DraftRecord): RawSplitRow {
     created_at: record.createdAt, updated_at: record.updatedAt, completed_at: record.completedAt ?? null };
 }
 
-async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], suppliedSettings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
-  const settingsRow = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
-  const original = settingsRow ? parseObject(settingsRow.payload, "settings") : {};
-  const proposed = suppliedSettings ? {
-    ...original,
-    ...suppliedSettings,
-    ...(original.people !== undefined || suppliedSettings.people !== undefined
-      ? { people: mergePeopleRegistry(original.people, suppliedSettings.people) }
-      : {}),
-  } : original;
+async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], pendingPeople: SavedPerson[] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
+  const directory = await readPeople(tx);
+  const owner = directory.people.find((person) => person.id === directory.ownerPersonId);
+  if (!owner) throw new Error("Missing owner identity");
+  const proposed = { people: directory.people, ownerName: owner.name, ownerPersonId: owner.id };
   if (restorePersonIds.length) {
     const restoreIds = new Set(restorePersonIds);
-    proposed.people = (Array.isArray(proposed.people) ? proposed.people : []).map((person: SavedPerson) =>
+    proposed.people = proposed.people.map((person) =>
       restoreIds.has(person.id) ? { ...person, archivedAt: null, updatedAt: new Date().toISOString() } : person,
     );
-    const foundIds = new Set((proposed.people as SavedPerson[]).map((person) => person.id));
+    const foundIds = new Set(proposed.people.map((person) => person.id));
     if (restorePersonIds.some((id) => !foundIds.has(id))) throw new Error("Cannot restore a missing person");
   }
-  if (pendingPeople?.length) {
-    const people = Array.isArray(proposed.people) ? proposed.people : [];
-    const knownIds = new Set(people.map((person: { id: string }) => person.id));
-    proposed.people = [...people, ...pendingPeople.filter((person) => !knownIds.has(person.id))];
+  if (pendingPeople.length) {
+    const knownIds = new Set(proposed.people.map((person) => person.id));
+    proposed.people = [...proposed.people, ...pendingPeople.filter((person) => !knownIds.has(person.id))];
   }
-  if (incrementGroupUsageId) {
-    const groups = normalizeGroups(proposed.participantGroups, proposed.people);
-    const group = groups.find((entry) => entry.id === incrementGroupUsageId);
-    if (!group) throw new Error("Cannot increment usage for a missing group");
-    proposed.participantGroups = groups.map((entry) => entry.id === group.id
-      ? { ...entry, usageCount: entry.usageCount + 1, updatedAt: new Date().toISOString() }
-      : entry);
-  }
-  const validIds = new Set((proposed.people ?? []).map((person: { id: string }) => person.id));
+  const validIds = new Set(proposed.people.map((person) => person.id));
   for (const record of records) for (const participant of record.values.participants) {
     if (participant.personId && !validIds.has(participant.personId)) throw new Error("Split references a missing person");
   }
@@ -383,10 +369,22 @@ async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], supplied
     }
   }
   const plan = planPersonIdentity(proposed, records.map(toRawRow), undefined, undefined, true);
-  const existingReferences = await tx.getAllAsync<{ person_id: string }>("SELECT DISTINCT person_id FROM split_person_memberships");
-  const nextIds = new Set(plan.settings.people.map((person) => person.id));
-  if (existingReferences.some((reference) => !nextIds.has(reference.person_id))) throw new Error("Cannot remove a referenced person");
-  await tx.runAsync("INSERT INTO app_settings (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["app-settings", JSON.stringify(plan.settings)]);
+  const originalById = new Map(directory.people.map((person) => [person.id, person]));
+  const changedPeople = plan.settings.people.filter((person) => {
+    const original = originalById.get(person.id);
+    return !original || original.archivedAt !== person.archivedAt;
+  });
+  for (const person of changedPeople) await writePerson(tx, person);
+  let groupUsage: { id: string; usageCount: number; updatedAt: string } | null = null;
+  if (incrementGroupUsageId) {
+    await tx.runAsync("UPDATE participant_groups SET usage_count = usage_count + 1, updated_at = ? WHERE id = ?",
+      [new Date().toISOString(), incrementGroupUsageId]);
+    groupUsage = await tx.getFirstAsync<{ id: string; usageCount: number; updatedAt: string }>(
+      "SELECT id, usage_count AS usageCount, updated_at AS updatedAt FROM participant_groups WHERE id = ?",
+      [incrementGroupUsageId],
+    );
+    if (!groupUsage) throw new Error("Cannot increment usage for a missing group");
+  }
   const identified: IdentifiedRecord[] = [];
   const membershipsBySplit = new Map<string, typeof plan.memberships>();
   for (const membership of plan.memberships) {
@@ -404,116 +402,113 @@ async function writeRecords(tx: SQLiteDatabase, records: DraftRecord[], supplied
     await tx.runAsync("UPDATE split_records SET financial_projection = ? WHERE id = ?", [JSON.stringify(createFinancialProjection(savedRecord)), row.id]);
     identified.push(savedRecord);
   }
-  return { records: identified, settings: plan.settings as unknown as AppSettings };
+  return { records: identified, people: changedPeople, groupUsage };
 }
 
-export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGroupIds: string[], requireExisting: boolean) {
-  return withDatabaseTransaction(async (tx) => {
-    const settingsRow = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
-    const stored = settingsRow ? parseObject(settingsRow.payload, "settings") : {};
-    const people = normalizePeople(stored.people);
-    const current = people.find((entry) => entry.id === person.id);
-    if (requireExisting && !current) throw new Error("Person no longer exists");
-    if (!current && people.some((entry) => entry.id === person.id)) throw new Error("Person ID already exists");
-    const nameValidation = validatePersonName(person.name, people, person.id, { allowOwnerPlaceholder: person.id === stored.ownerPersonId && current?.name === person.name });
-    if (nameValidation) throw new Error(nameValidation.reason === "duplicate" ? "Person name conflicts with another saved person" : `Invalid person name: ${nameValidation.reason}`);
-    const groups = normalizeGroups(stored.participantGroups, people);
+export type OwnerProfilePatch = {
+  ownerName?: string;
+  ownerProfileImageUri?: string;
+  profileSetupCompleted?: boolean;
+  color?: SavedPerson["color"];
+  groupIds?: string[];
+};
+
+async function writePersonAndLinkedRecords(
+  tx: SQLiteDatabase,
+  person: SavedPerson,
+  current: SavedPerson | undefined,
+  selectedGroupIds?: string[],
+) {
+  await writePerson(tx, person);
+  const changedGroups: ParticipantGroup[] = [];
+  if (selectedGroupIds) {
     const selected = new Set(selectedGroupIds);
-    const nextGroups = groups.map((group) => {
+    for (const group of await readGroups(tx)) {
       const hasPerson = group.memberPersonIds.includes(person.id);
       const wantsPerson = selected.has(group.id);
-      if (hasPerson && !wantsPerson && group.memberPersonIds.length === 1) throw new Error("Cannot remove the last group member");
-      if (hasPerson === wantsPerson) return group;
-      return {
+      if (hasPerson === wantsPerson) continue;
+      if (!wantsPerson && group.memberPersonIds.length === 1) throw new Error("Cannot remove the last group member");
+      const updated = {
         ...group,
         memberPersonIds: wantsPerson ? [...group.memberPersonIds, person.id] : group.memberPersonIds.filter((id) => id !== person.id),
         updatedAt: person.updatedAt,
       };
-    });
-    const finalPerson = current ? { ...current, ...person } : person;
-    const nextSettings = { ...stored, people: current ? people.map((entry) => entry.id === person.id ? finalPerson : entry) : [...people, finalPerson], participantGroups: nextGroups };
-    await tx.runAsync("INSERT INTO app_settings (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["app-settings", JSON.stringify(nextSettings)]);
+      await writeGroup(tx, updated, group);
+      changedGroups.push(updated);
+    }
+  }
+  if (!current || current.name === person.name) return changedGroups;
 
-    const rows = await tx.getAllAsync<DatabaseRow>(`SELECT r.id, r.status, r.step, r.payload, r.created_at, r.updated_at, r.completed_at
-      FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id WHERE m.person_id = ?`, [person.id]);
-    const updatedRecords: DraftRecord[] = [];
+  let cursor = "";
+  while (true) {
+    const rows = await tx.getAllAsync<DatabaseRow>(
+      `SELECT r.id, r.status, r.step, r.payload, r.created_at, r.updated_at, r.completed_at
+       FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id
+       WHERE m.person_id = ? AND r.id > ? ORDER BY r.id LIMIT 100`, [person.id, cursor],
+    );
     for (const row of rows) {
       const payload = parseObject(row.payload, "split");
-      const values = (payload.values ?? payload) as SplitFormValues;
-      let changed = false;
-      const participants = values.participants.map((participant) => {
-        if (participant.personId !== person.id || participant.name === person.name) return participant;
-        changed = true;
-        return { ...participant, name: person.name };
-      });
-      if (!changed) continue;
-      const nextPayload = JSON.stringify("values" in payload
-        ? { ...payload, values: { ...values, participants } }
-        : { ...payload, participants });
-      await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ? WHERE id = ?", [nextPayload, person.updatedAt, row.id]);
-      const updated = mapRow({ ...row, payload: nextPayload, updated_at: person.updatedAt });
-      if (updated) {
-        await tx.runAsync("UPDATE split_records SET financial_projection = ? WHERE id = ?", [JSON.stringify(createFinancialProjection(updated)), row.id]);
-        updatedRecords.push(updated);
-      }
+      const wrapped = "values" in payload;
+      const values = (wrapped ? payload.values : payload) as SplitFormValues;
+      if (!values.participants.some((entry) => entry.personId === person.id && entry.name !== person.name)) continue;
+      const participants = values.participants.map((entry) =>
+        entry.personId === person.id ? { ...entry, name: person.name } : entry,
+      );
+      const nextValues = { ...values, participants };
+      const serialized = JSON.stringify(wrapped ? { ...payload, values: nextValues } : nextValues);
+      const updated = mapRow({ ...row, payload: serialized, updated_at: person.updatedAt });
+      await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ?, financial_projection = ? WHERE id = ?", [
+        serialized, person.updatedAt, updated ? JSON.stringify(createFinancialProjection(updated)) : null, row.id,
+      ]);
     }
-    return { settings: nextSettings as unknown as AppSettings, records: updatedRecords };
+    if (rows.length < 100) break;
+    cursor = rows[rows.length - 1].id;
+  }
+  return changedGroups;
+}
+
+export async function savePersonAndLinkedRecords(person: SavedPerson, selectedGroupIds: string[], requireExisting: boolean) {
+  return withDatabaseTransaction(async (tx) => {
+    const { people, ownerPersonId } = await readPeople(tx);
+    const current = people.find((entry) => entry.id === person.id);
+    if (Boolean(current) !== requireExisting) throw new Error(current ? "Person ID already exists" : "Person no longer exists");
+    if (person.id === ownerPersonId) throw new Error("Use the owner profile action");
+    const validation = validatePersonName(person.name, people, person.id);
+    if (validation) throw new Error(validation.reason === "duplicate" ? "Person name conflicts with another saved person" : "Invalid person name");
+    const groups = await writePersonAndLinkedRecords(tx, person, current, selectedGroupIds);
+    return { person, groups };
   });
 }
 
-export async function saveRecordsAndSettings(records: DraftRecord[], settings?: AppSettings, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
-  return withDatabaseTransaction((tx) => writeRecords(tx, records, settings, pendingPeople, restorePersonIds, incrementGroupUsageId));
-}
-
-/** Update loaded edits and all other owner references in the same transaction. */
-export async function saveOwnerProfileAndLinkedRecords(records: DraftRecord[], settings: AppSettings, previousOwnerName: string) {
+export async function saveOwnerProfileAndLinkedRecords(patch: OwnerProfilePatch) {
   return withDatabaseTransaction(async (tx) => {
-    const saved = await writeRecords(tx, records, settings);
-    const ownerId = settings.ownerPersonId;
-    const nextName = settings.ownerName;
-    const previousKey = previousOwnerName.trim().toLowerCase();
-    let cursor = "";
-    while (true) {
-      const rows = ownerId
-        ? await tx.getAllAsync<DatabaseRow>(
-          `SELECT r.id, r.status, r.step, r.payload, r.created_at, r.updated_at, r.completed_at FROM split_person_memberships m JOIN split_records r ON r.id = m.split_id
-           WHERE m.person_id = ? AND r.id > ? ORDER BY r.id LIMIT 100`, [ownerId, cursor],
-        )
-        : await tx.getAllAsync<DatabaseRow>(
-          "SELECT id, status, step, payload, created_at, updated_at, completed_at FROM split_records WHERE id > ? ORDER BY id LIMIT 100", [cursor],
-        );
-      for (const row of rows) {
-        const payload = parseObject(row.payload, "split");
-        const wrapped = "values" in payload;
-        const values = (wrapped ? payload.values : payload) as SplitFormValues;
-        let changed = false;
-        const participants = values.participants.map((participant) => {
-          const name = participant.name.trim().toLowerCase();
-          const isOwner = ownerId ? participant.personId === ownerId : name === previousKey || name === "you";
-          if (!isOwner || participant.name === nextName) return participant;
-          changed = true;
-          return { ...participant, name: nextName };
-        });
-        if (!changed) continue;
-        const normalized = mapRow(row)!;
-        const nextValues = { ...values, participants, items: syncItemAllocations(normalized.values.items, participants) };
-        const nextPayload = wrapped ? { ...payload, values: nextValues } : nextValues;
-        const serialized = JSON.stringify(nextPayload);
-        const updatedAt = new Date().toISOString();
-        const projection = createFinancialProjection(mapRow({ ...row, payload: serialized, updated_at: updatedAt })!);
-        await tx.runAsync("UPDATE split_records SET payload = ?, updated_at = ?, financial_projection = ? WHERE id = ?", [serialized, updatedAt, JSON.stringify(projection), row.id]);
-      }
-      if (rows.length < 100) break;
-      cursor = rows[rows.length - 1].id;
+    const { people, ownerPersonId, profileSetupCompleted } = await readPeople(tx);
+    const current = people.find((entry) => entry.id === ownerPersonId);
+    if (!current) throw new Error("Missing owner identity");
+    if (patch.ownerName !== undefined && (patch.ownerName !== current.name || patch.profileSetupCompleted)) {
+      const validation = validatePersonName(patch.ownerName, people, current.id);
+      if (validation) throw new Error(validation.reason === "duplicate" ? "Owner name conflicts with a saved person" : "Invalid owner name");
     }
-    return saved;
+    const owner = {
+      ...current,
+      name: patch.ownerName ?? current.name,
+      ...(patch.ownerProfileImageUri !== undefined ? { photoUri: patch.ownerProfileImageUri.trim() || null } : {}),
+      ...(patch.color !== undefined ? { color: patch.color } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    const groups = await writePersonAndLinkedRecords(tx, owner, current, patch.groupIds);
+    const completed = profileSetupCompleted || patch.profileSetupCompleted === true;
+    if (completed !== profileSetupCompleted) {
+      await tx.runAsync("UPDATE people SET profile_setup_completed = 1 WHERE id = ?", [owner.id]);
+    }
+    return { owner, groups, profileSetupCompleted: completed };
   });
 }
 
 /** Remove a tag from settings and every stored split in the same transaction. */
 export async function removeSplitTagAndUpdateSettings(tagId: string, settings: AppSettings) {
   return withDatabaseTransaction(async (tx) => {
-    const saved = await writeRecords(tx, [], settings);
+    await writeAppSettings(tx, { tags: settings.tags });
     let lastId = "";
     const whitespace = "char(9,10,11,12,13,32,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288,65279)";
     const tags = "CASE WHEN json_type(payload, '$.values') IS NOT NULL THEN CASE WHEN json_type(payload, '$.values.tagIds') = 'array' THEN json_extract(payload, '$.values.tagIds') ELSE '[]' END ELSE CASE WHEN json_type(payload, '$.tagIds') = 'array' THEN json_extract(payload, '$.tagIds') ELSE '[]' END END";
@@ -533,13 +528,12 @@ export async function removeSplitTagAndUpdateSettings(tagId: string, settings: A
       if (rows.length < 100) break;
       lastId = rows[rows.length - 1].id;
     }
-    return saved.settings;
   });
 }
 
-export async function saveRecord(record: DraftRecord, pendingPeople: AppSettings["people"] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
-  const saved = await saveRecordsAndSettings([record], undefined, pendingPeople, restorePersonIds, incrementGroupUsageId);
-  return { record: saved.records[0], settings: saved.settings };
+export async function saveRecord(record: DraftRecord, pendingPeople: SavedPerson[] = [], restorePersonIds: string[] = [], incrementGroupUsageId?: string) {
+  const saved = await withDatabaseTransaction((tx) => writeRecords(tx, [record], pendingPeople, restorePersonIds, incrementGroupUsageId));
+  return { record: saved.records[0], people: saved.people, groupUsage: saved.groupUsage };
 }
 
 export async function saveParticipantGroup(
@@ -547,19 +541,18 @@ export async function saveParticipantGroup(
   input: Partial<ParticipantGroup> & { name: string; memberPersonIds: string[]; newPersonNames?: string[] },
 ) {
   return withDatabaseTransaction(async (tx) => {
-    const row = await tx.getFirstAsync<{ payload: string }>("SELECT payload FROM app_settings WHERE key = ?", ["app-settings"]);
-    const stored = row ? parseObject(row.payload, "settings") : {};
-    const people = normalizePeople(stored.people);
-    const groups = normalizeGroups(stored.participantGroups, people);
+    const { people, ownerPersonId } = await readPeople(tx);
+    const ownerName = people.find((person) => person.id === ownerPersonId)?.name ?? "You";
+    const groups = await readGroups(tx);
     const name = normalizeGroupName(input.name);
     if (!name || groups.some((group) => group.id !== groupId && normalizeGroupName(group.name).toLowerCase() === name.toLowerCase())) return null;
     const existingGroup = groupId ? groups.find((group) => group.id === groupId) : undefined;
     if (groupId && !existingGroup) return null;
 
-    const ownerName = normalizePersonName(String(stored.ownerName ?? "You")).toLowerCase();
+    const ownerKey = identityName(ownerName);
     if ((input.newPersonNames ?? []).some((rawName) => {
-      const candidate = normalizePersonName(rawName).toLowerCase();
-      return candidate && (candidate === ownerName || candidate === "you");
+      const candidate = identityName(rawName);
+      return candidate && (candidate === ownerKey || candidate === "you");
     })) return null;
 
     const nextPeople = [...people];
@@ -568,8 +561,8 @@ export async function saveParticipantGroup(
       if (validatePersonName(rawName)) return null;
       const personName = normalizePersonName(rawName);
       if (!personName) continue;
-      const nameKey = personName.toLowerCase();
-      const existing = nextPeople.find((person) => normalizePersonName(person.name).toLowerCase() === nameKey);
+      const nameKey = identityName(personName);
+      const existing = nextPeople.find((person) => identityName(person.name) === nameKey);
       if (existing) {
         memberIds.add(existing.id);
         if (existing.archivedAt) {
@@ -600,24 +593,18 @@ export async function saveParticipantGroup(
           return created ? { ...created, ...appearance, name, memberPersonIds: validMemberIds } : null;
         })();
     if (!group) return null;
-    const nextGroups = normalizeGroups(
-      existingGroup ? groups.map((entry) => entry.id === group.id ? group : entry) : [...groups, group],
-      nextPeople,
-    );
-    const nextSettings = { ...stored, people: nextPeople, participantGroups: nextGroups };
-    await tx.runAsync("INSERT INTO app_settings (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["app-settings", JSON.stringify(nextSettings)]);
-    return {
-      settings: nextSettings as unknown as AppSettings,
-      group,
-      restoredPersonIds: people.filter((person) => person.archivedAt && nextPeople.some((next) => next.id === person.id && !next.archivedAt)).map((person) => person.id),
-      createdPeople: nextPeople.filter((person) => !people.some((existing) => existing.id === person.id)),
-    };
+    const [savedGroup] = normalizeGroups([group], nextPeople);
+    if (!savedGroup) return null;
+    const previousPeople = new Map(people.map((person) => [person.id, person]));
+    const changedPeople = nextPeople.filter((person) => previousPeople.get(person.id) !== person);
+    for (const person of changedPeople) await writePerson(tx, person);
+    await writeGroup(tx, savedGroup, existingGroup);
+    return { group: savedGroup, people: changedPeople };
   });
 }
 
 export async function deleteRecord(id: string) {
   await withDatabaseTransaction(async (tx) => {
-    await tx.runAsync("DELETE FROM split_person_memberships WHERE split_id = ?", [id]);
     await tx.runAsync("DELETE FROM split_records WHERE id = ?", [id]);
   });
 }
