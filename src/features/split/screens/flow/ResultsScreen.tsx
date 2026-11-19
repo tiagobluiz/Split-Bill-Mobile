@@ -10,7 +10,6 @@ import {
   FileText,
   MessageCircle,
   Minus,
-  EllipsisVertical,
   RotateCcw,
   Share2,
   UserRound,
@@ -53,6 +52,7 @@ import {
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import { DebtActionSheet } from "./DebtActionSheet";
+import { ResultsSummaryCard } from "./ResultsSummaryCard";
 import {
   getOwingPeople,
   getSettledParticipantIds,
@@ -632,128 +632,47 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           onBack={() => router.replace(`/split/${draftId}/overview`)}
         />
       </View>
-      <View style={screenStyles.participantsScrollContent}>
-        <YStack gap="$5">
-          <View style={screenStyles.resultsHeroCard}>
-            <View style={screenStyles.resultsHeroGlow} />
-            <XStack alignItems="flex-start" justifyContent="space-between">
-              <YStack gap="$1">
-                <Text
-                  fontFamily={FONTS.bodyBold}
-                  fontSize={11}
-                  color="rgba(255,255,255,0.78)"
-                  textTransform="uppercase"
-                  letterSpacing={1.8}
-                >
-                  {t("flow.results.totalBill")}
-                </Text>
-                <Text
-                  fontFamily={FONTS.headlineBlack}
-                  fontSize={32}
-                  color={PALETTE.onPrimary}
-                  letterSpacing={-1.2}
-                >
-                  {money(settlement.data.totalCents)}
-                </Text>
-                <Text
-                  fontFamily={FONTS.bodyMedium}
-                  fontSize={12}
-                  color="rgba(255,255,255,0.82)"
-                >
-                  {t(
-                    settlement.data.people.length === 1
-                      ? "flow.results.people.one"
-                      : "flow.results.people.other",
-                    { count: settlement.data.people.length },
-                  )}
-                </Text>
-              </YStack>
-              {trackPaymentsEnabled ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flow.results.paymentActionsTitle")}
-                  style={screenStyles.resultsHeroMenuButton}
-                  onPress={() => setShowPaymentActions(true)}
-                >
-                  <EllipsisVertical color={PALETTE.onPrimary} size={21} />
-                </Pressable>
-              ) : null}
-            </XStack>
-            {trackPaymentsEnabled ? (
-              <>
-                <View style={screenStyles.resultsHeroDivider} />
-                <XStack
-                  alignItems="stretch"
-                  justifyContent="space-between"
-                  gap="$3"
-                  style={screenStyles.resultsHeroMetrics}
-                >
-                  <YStack flex={1} gap="$1">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={12}
-                      color="rgba(255,255,255,0.84)"
-                    >
-                      {t("flow.results.stillToReceive")}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.headlineBlack}
-                      fontSize={23}
-                      color={PALETTE.onPrimary}
-                    >
-                      {money(stillToReceiveCents)}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={11}
-                      color="rgba(255,255,255,0.78)"
-                    >
-                      {fromPeopleLabel(unsettledPeople.length)}
-                    </Text>
-                  </YStack>
-                  <View style={screenStyles.resultsHeroMetricDivider} />
-                  <YStack flex={1} gap="$1">
-                    <Text
-                      fontFamily={FONTS.bodyBold}
-                      fontSize={12}
-                      color="rgba(255,255,255,0.84)"
-                    >
-                      {t("flow.results.alreadyReceived")}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.headlineBlack}
-                      fontSize={23}
-                      color={PALETTE.onPrimary}
-                    >
-                      {money(alreadyReceivedCents)}
-                    </Text>
-                    <Text
-                      fontFamily={FONTS.bodyMedium}
-                      fontSize={11}
-                      color="rgba(255,255,255,0.78)"
-                    >
-                      {fromPeopleLabel(owingPeople.length - unsettledPeople.length)}
-                    </Text>
-                  </YStack>
-                </XStack>
-              </>
-            ) : null}
-          </View>
-          <View style={screenStyles.reviewStickySeparator} />
-        </YStack>
-      </View>
       <ScrollView
+        testID="results-content-scroll"
         style={screenStyles.flex}
         contentContainerStyle={[
           screenStyles.participantsScrollContent,
           {
-            paddingTop: 14,
             paddingBottom: footerInsetBottom,
-            gap: 22,
+            gap: 14,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <YStack gap="$5">
+          <ResultsSummaryCard
+            total={{
+              label: t("flow.results.totalBill"),
+              amount: money(settlement.data.totalCents),
+              detail: t(
+                settlement.data.people.length === 1
+                  ? "flow.results.people.one"
+                  : "flow.results.people.other",
+                { count: settlement.data.people.length },
+              ),
+            }}
+            payment={trackPaymentsEnabled ? {
+              actionLabel: t("flow.results.paymentActionsTitle"),
+              onOpenActions: () => setShowPaymentActions(true),
+              outstanding: {
+                label: t("flow.results.stillToReceive"),
+                amount: money(stillToReceiveCents),
+                detail: fromPeopleLabel(unsettledPeople.length),
+              },
+              received: {
+                label: t("flow.results.alreadyReceived"),
+                amount: money(alreadyReceivedCents),
+                detail: fromPeopleLabel(owingPeople.length - unsettledPeople.length),
+              },
+            } : undefined}
+          />
+          <View style={screenStyles.reviewStickySeparator} />
+        </YStack>
         <YStack gap="$3">
           <YStack gap="$3">
             <XStack alignItems="center" justifyContent="space-between">
