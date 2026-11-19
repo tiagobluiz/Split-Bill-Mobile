@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Image, Pressable, ScrollView, Switch, View } from "react-native";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, List, ChartNoAxesColumn } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Tag, Coins, Globe, List, ChartNoAxesColumn, Sparkles } from "lucide-react-native";
 import {
   Text as TamaguiText,
   YStack as TamaguiYStack,
@@ -29,6 +29,7 @@ import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
 import { HomeMainHeader } from "./HomeMainHeader";
+import { hasWhatsNewSlides, WhatsNewModal } from "./WhatsNewGate";
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
@@ -92,6 +93,7 @@ export function HomeSettingsTabContent({
 }) {
   const { t } = useTranslation();
   const [page, setPage] = useState<"overview" | "tags">("overview");
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   useEffect(() => {
     if (page === "overview" || tagEditorOpen || pendingTagDeleteId) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -196,9 +198,15 @@ export function HomeSettingsTabContent({
                 <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={20} color={PALETTE.onSurfaceVariant}>{t("settings.disclaimer.body")}</Text>
               </View>
             </SettingsSection>
+            {hasWhatsNewSlides ? (
+              <SettingsSection title={t("settings.aboutApp")}>
+                <SettingsRow icon={Sparkles} label={t("settings.whatsNew")} onPress={() => setWhatsNewOpen(true)} />
+              </SettingsSection>
+            ) : null}
           </YStack>
         )}
       </ScrollView>
+      {whatsNewOpen ? <WhatsNewModal onClose={() => setWhatsNewOpen(false)} /> : null}
       {pendingDeleteTag && pendingDeleteTagUsageCount === null ? (
         <FormBottomSheet title={t("home.loadingSplits")} onClose={() => setPendingTagDeleteId("")}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("common.cancel")} style={screenStyles.formSheetCancel} onPress={() => setPendingTagDeleteId("")}>

@@ -38,6 +38,8 @@ const ptPlain: Record<TranslationKey, string> = {
   "settings.organization": "Organização",
   "settings.preferences": "Preferências",
   "settings.data": "Dados",
+  "settings.aboutApp": "Sobre a Split Bill",
+  "settings.whatsNew": "Novidades",
   "settings.aboutData": "Sobre os teus dados",
   "settings.tagCountOne": "{count} tag",
   "settings.tagCount": "{count} tags",

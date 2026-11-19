@@ -3,7 +3,7 @@
     "name": "Split Bill",
     "slug": "split-bill-mobile",
     "scheme": "split-bill-mobile",
-    "version": "2.13.0",
+    "version": "2.14.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "versionCode": 28,
+      "versionCode": 29,
       "permissions": ["android.permission.READ_CONTACTS"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

@@ -73,6 +73,8 @@ const enPlain = {
   "settings.organization": "Organization",
   "settings.preferences": "Preferences",
   "settings.data": "Data",
+  "settings.aboutApp": "About Split Bill",
+  "settings.whatsNew": "What’s New",
   "settings.aboutData": "About your data",
   "settings.tagCountOne": "{count} tag",
   "settings.tagCount": "{count} tags",
