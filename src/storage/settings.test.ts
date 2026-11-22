@@ -67,7 +67,7 @@ describe("settings storage", () => {
       customCurrencies: [{ code: "TOK", name: "Tokens", symbol: "T" }],
     });
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(4);
     expect(database.execAsync).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE IF NOT EXISTS app_settings"));
     expect(database.getFirstAsync).toHaveBeenCalledWith(
       "SELECT key, payload FROM app_settings WHERE key = ?",
@@ -331,6 +331,7 @@ describe("settings storage", () => {
       execAsync: jest.fn(async () => undefined),
       getFirstAsync: jest.fn(async () => null),
       runAsync: jest.fn(async () => undefined),
+      closeAsync: jest.fn(async () => undefined),
     };
     const openDatabaseAsync = jest
       .fn()
@@ -348,7 +349,7 @@ describe("settings storage", () => {
 
     await expect(settingsModule!.initializeSettingsStorage()).rejects.toThrow("boom");
     await expect(settingsModule!.initializeSettingsStorage()).resolves.toBeUndefined();
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(3);
   });
 
   it.each([
