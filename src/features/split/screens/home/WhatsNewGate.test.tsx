@@ -6,12 +6,13 @@ import app from "../../../../../app.json";
 
 const mockRunAsync = jest.fn();
 const mockGetFirstAsync = jest.fn();
+let mockSetupCompleted = true;
 jest.mock("../../../../storage/database", () => ({
   withAppDatabaseRetry: (operation: (db: { getFirstAsync: typeof mockGetFirstAsync }) => Promise<unknown>) => operation({ getFirstAsync: mockGetFirstAsync }),
   withDatabaseTransaction: (operation: (db: { runAsync: typeof mockRunAsync }) => Promise<void>) => operation({ runAsync: mockRunAsync }),
 }));
 jest.mock("../../store", () => ({
-  useSplitStore: (select: (state: { profileSetupCompleted: boolean }) => boolean) => select({ profileSetupCompleted: true }),
+  useSplitStore: (select: (state: { profileSetupCompleted: boolean }) => boolean) => select({ profileSetupCompleted: mockSetupCompleted }),
 }));
 
 function SettingsEntry() {
@@ -29,7 +30,22 @@ function renderAnnouncements() {
 
 beforeEach(() => {
   mockRunAsync.mockReset();
+  mockSetupCompleted = true;
   mockGetFirstAsync.mockReset().mockResolvedValue(null);
+});
+
+it("opens pending announcements after profile setup and respects See Later", async () => {
+  mockSetupCompleted = false;
+  const view = renderAnnouncements();
+  await act(async () => {});
+  expect(screen.queryByText("See Later")).toBeNull();
+  expect(screen.queryByText("Open from Settings")).toBeNull();
+  mockSetupCompleted = true;
+  view.rerender(<LocalizationProvider language="en"><WhatsNewProvider><SettingsEntry /></WhatsNewProvider></LocalizationProvider>);
+  fireEvent.press(await screen.findByText("See Later"));
+  view.rerender(<LocalizationProvider language="en"><WhatsNewProvider><SettingsEntry /></WhatsNewProvider></LocalizationProvider>);
+  expect(screen.queryByText("See Later")).toBeNull();
+  expect(screen.getByText("Open from Settings")).toBeTruthy();
 });
 
 it("includes all eligible announcements in numeric order through the installed version", () => {

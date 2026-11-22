@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from "react";
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from "react-native";
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -79,8 +79,16 @@ export function useWhatsNew() {
 
 export function WhatsNewProvider({ children }: PropsWithChildren) {
   const setupCompleted = useSplitStore((state) => state.profileSetupCompleted);
-  const [entry, setEntry] = useState<"launch" | "settings" | null>(() => setupCompleted ? "launch" : null);
+  const [entry, setEntry] = useState<"launch" | "settings" | null>(null);
+  const launchConsidered = useRef(false);
   const [seenVersion, setSeenVersion] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (setupCompleted && !launchConsidered.current) {
+      launchConsidered.current = true;
+      setEntry("launch");
+    }
+  }, [setupCompleted]);
 
   useEffect(() => {
     if (!announcements.length) return;
@@ -102,7 +110,7 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
   };
 
   return (
-    <WhatsNewContext.Provider value={latest ? { open: () => setEntry("settings") } : null}>
+    <WhatsNewContext.Provider value={setupCompleted && latest ? { open: () => setEntry("settings") } : null}>
       {children}
       {entry && latest ? (
         <WhatsNewModal
