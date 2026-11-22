@@ -51,8 +51,6 @@ export function WhatsNewGate() {
   const setupCompleted = useSplitStore((state) => state.profileSetupCompleted);
   const [eligibleAtLaunch] = useState(setupCompleted);
   const [visible, setVisible] = useState(false);
-  const [error, setError] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!eligibleAtLaunch || !hasWhatsNewSlides) return;
@@ -63,6 +61,22 @@ export function WhatsNewGate() {
     return () => { active = false; };
   }, [eligibleAtLaunch]);
 
+  const close = () => setVisible(false);
+  return visible ? <WhatsNewModal onClose={close} onSeeLater={close} /> : null;
+}
+
+export function WhatsNewModal({ onClose, onSeeLater }: {
+  onClose: () => void;
+  onSeeLater?: () => void;
+}) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const contentWidth = Math.min(MAX_CONTENT_WIDTH, Math.max(0, width - 2 * CONTENT_GUTTER));
+  const [index, setIndex] = useState(0);
+  const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   const complete = async () => {
     if (busy) return;
     setBusy(true);
@@ -71,7 +85,7 @@ export function WhatsNewGate() {
       await withDatabaseTransaction(async (db) => {
         await db.runAsync("INSERT INTO release_announcements (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["whats-new-seen", JSON.stringify(RELEASE)]);
       });
-      setVisible(false);
+      onClose();
     } catch {
       setError(true);
     } finally {
@@ -79,28 +93,14 @@ export function WhatsNewGate() {
     }
   };
 
-  return visible ? <WhatsNewModal onClose={() => void complete()} onSeeLater={() => setVisible(false)} busy={busy} error={error} /> : null;
-}
-
-export function WhatsNewModal({ onClose, onSeeLater, busy = false, error = false }: {
-  onClose: () => void;
-  onSeeLater?: () => void;
-  busy?: boolean;
-  error?: boolean;
-}) {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const contentWidth = Math.min(MAX_CONTENT_WIDTH, Math.max(0, width - 2 * CONTENT_GUTTER));
-  const [index, setIndex] = useState(0);
   const slide = slides[index];
   const button = { minHeight: 52, justifyContent: "center" as const, alignItems: "center" as const, paddingHorizontal: 20 };
-  return <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={() => { if (!onSeeLater) onClose(); }}>
+  return <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={() => { if (!onSeeLater && !busy) onClose(); }}>
     <View style={{ flex: 1, backgroundColor: PALETTE.surface, paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }}>
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingTop: 16 }}>
         <Image source={require("../../../../../assets/icon.png")} style={{ width: 42, height: 42, borderRadius: 10 }} />
         <Text style={{ flex: 1, marginLeft: 12, fontFamily: FONTS.bodyBold, fontSize: 18, color: PALETTE.onSurface }}>{t("app.name")}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("whatsNew.close")} hitSlop={12} onPress={onClose} disabled={busy}><X color={PALETTE.onSurface} size={26} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("whatsNew.close")} hitSlop={12} onPress={onSeeLater ? () => void complete() : onClose} disabled={busy}><X color={PALETTE.onSurface} size={26} /></Pressable>
       </View>
       <ScrollView key={index} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: CONTENT_GUTTER, paddingTop: 22 }}>
         <View style={{ alignSelf: "center", width: contentWidth }}>
@@ -125,7 +125,7 @@ export function WhatsNewModal({ onClose, onSeeLater, busy = false, error = false
       </ScrollView>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 24, borderTopWidth: 1, borderColor: PALETTE.divider, paddingTop: 12 }}>
         {onSeeLater ? <Pressable accessibilityRole="button" onPress={onSeeLater} disabled={busy} style={button}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.primary }}>{t("whatsNew.seeLater")}</Text></Pressable> : <View />}
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => index === slides.length - 1 ? onClose() : setIndex(index + 1)} style={{ ...button, borderRadius: 20, backgroundColor: PALETTE.primary }}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.onPrimary }}>{t(index === slides.length - 1 ? "whatsNew.done" : "whatsNew.next")}</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => index === slides.length - 1 ? void complete() : setIndex(index + 1)} style={{ ...button, borderRadius: 20, backgroundColor: PALETTE.primary }}><Text style={{ fontFamily: FONTS.bodyBold, color: PALETTE.onPrimary }}>{t(index === slides.length - 1 ? "whatsNew.done" : "whatsNew.next")}</Text></Pressable>
       </View>
     </View>
   </Modal>;

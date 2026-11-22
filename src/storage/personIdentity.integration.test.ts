@@ -180,6 +180,21 @@ describe("person identity SQLite migration and membership persistence", () => {
     return row ? JSON.parse(row.payload) : null;
   };
 
+  it("rolls back fresh settings tables when the release announcement seed fails", async () => {
+    await database.execAsync("DROP TABLE release_announcements; DROP TABLE app_settings");
+    failSql = "INSERT OR IGNORE INTO release_announcements";
+    await expect(preferenceStorage.initializeSettingsStorage()).rejects.toThrow("injected persistence failure");
+    const findTables = () => database.getAllAsync(
+      "SELECT name FROM sqlite_master WHERE name IN ('app_settings', 'release_announcements')",
+    );
+    await expect(findTables()).resolves.toEqual([]);
+
+    failSql = null;
+    await preferenceStorage.initializeSettingsStorage();
+    await expect(database.getFirstAsync("SELECT payload FROM release_announcements WHERE key = ?", ["whats-new-seen"]))
+      .resolves.toEqual({ payload: JSON.stringify(require("../../app.json").expo.version) });
+  });
+
   it("initializes a fresh directory with one pending owner and empty groups", async () => {
     await migration.migratePersonIdentity();
     const people = await directoryStorage.getPeople();

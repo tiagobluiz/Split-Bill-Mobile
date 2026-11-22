@@ -56,7 +56,7 @@ function getDefaultSettings(): AppSettings {
 }
 
 export async function initializeSettingsStorage() {
-  await withAppDatabaseRetry(async (db) => {
+  await withDatabaseTransaction(async (db) => {
     const existing = await db.getFirstAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'");
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS app_settings (
