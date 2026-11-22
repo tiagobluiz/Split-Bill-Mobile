@@ -1,3 +1,4 @@
+import { buildPdfExportData } from "../domain/pdfExport";
 jest.mock("expo-print", () => ({
   printToFileAsync: jest.fn(),
 }));
@@ -169,46 +170,114 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).toContain("Grocery bill");
-    expect(html).toContain("(Split date: Mar 9, 2026)");
+    expect(html).toContain("Split date: Mar 9, 2026");
     expect(html).toContain("Exported on Mar 9, 2026");
     expect(html).toContain('<html lang="en">');
-    expect(html).toContain("Total receipt");
-    expect(html).toContain("€12.00");
-    expect(html).toContain("Participants");
-    expect(html).toContain(">2<");
-    expect(html).toContain("Items");
-    expect(html).toContain(">3<");
+    expect(html).toContain('<div class="summary-total">');
+    expect(html).toContain('<span class="summary-label">Total bill</span>');
+    expect(html).toContain('<span class="summary-label">Paid by</span>');
+    expect(html).toContain('<strong style="font-size:42px">€12.00</strong>');
+    expect(html).toContain('<span class="page-section">Overview</span>');
+    expect(html).toContain('<span class="page-section">Person breakdown</span>');
+    expect(html).toContain('<span class="page-section">Item breakdown</span>');
+    expect(html).toContain('<div class="row breakdown-row"><span class="grow">Milk</span>');
+    expect(html).toContain('<div class="row breakdown-row"><span class="grow">Ana</span>');
+    expect(html).toContain("Participants: 2");
+    expect(html).toContain("Items: 3");
     expect(html).toContain("data:image/png;base64,mockBase64HeaderImage");
-    expect(html).toContain("Final settlement");
-    expect(html).toContain("Who owes");
-    expect(html).toContain("Item breakdown");
+    expect(html).toContain("Share the moment, not the math");
+    expect(html).toContain("Consumption breakdown");
     expect(html).toContain("Person breakdown");
-    expect(html).toContain(
-      "Item breakdown is provisional. Final leftover cents are balanced in the final balances section.",
-    );
-    expect(
-      html.match(/Item breakdown is provisional\. Final leftover cents are balanced in the final balances section\./g)
-        ?.length
-    ).toBe(1);
-    expect(html).toContain("Paid €12.00 - Collect €7.00");
-    expect(html).toContain("Consumed €5.00");
-    expect(html).toContain("Bruno");
+    expect(html).toMatch(/<strong>Ana<\/strong><span class="payer-chip">Payer<\/span>/);
+    expect(html).toMatch(/<span>Ana<\/span><span class="payer-chip">Payer<\/span>/);
+    expect(html.match(/class="payer-chip"/g)).toHaveLength(2);
+    expect(html).toContain("Item breakdown");
+    expect(html).toContain("To collect");
+    expect(html).toContain("€7.00");
     expect(html).toContain("Milk");
     expect(html).toContain("Cheese");
     expect(html).toContain("Juice");
-    expect(html).toContain("Ana");
     expect(html).toContain("Even split");
-    expect(html).toContain("Share units");
-    expect(html).toContain("Percent");
-    expect(html).toContain("Ana (2 shares)");
-    expect(html).toContain("Bruno (1 share)");
-    expect(html).toContain("Juice (80%)");
-    expect(html).toContain("€2.00");
-    expect(html).toContain("€4.00");
+    expect(html).toContain("2 shares");
+    expect(html).toContain("80%");
+    expect(html).not.toContain("Item breakdown is provisional");
+    expect(html.indexOf("Person breakdown")).toBeLessThan(html.indexOf("Item breakdown"));
+  });
 
-    expect(html.indexOf("Person breakdown")).toBeLessThan(
-      html.indexOf("Item breakdown"),
+  it("reduces the summary total font for large amounts", () => {
+    const data = { ...(pdfFixture.expected as any), payer: { ...(pdfFixture.expected as any).payer, paidCents: 123456789012345 } };
+    const html = renderSettlementPdfHtml(data, "en-US", null);
+    expect(html).toContain('<strong style="font-size:16px">€1,234,567,890,123.45</strong>');
+  });
+
+  it("shows the quantity and rounded discount used to calculate item shares", () => {
+    const values = structuredClone(pdfFixture.input) as SplitFormValues;
+    values.items[0]!.price = "0.05";
+    values.items[0]!.quantity = 3;
+    values.items[0]!.discount = { type: "percent", value: "10" };
+    const data = buildPdfExportData(values);
+    const item = data.items[0]!;
+    expect(item.subtotalCents).toBe(15);
+    expect(item.discount?.amountCents).toBe(2);
+    expect(item.amountCents).toBe(13);
+    const html = renderSettlementPdfHtml(data, "en-US", null);
+    expect(html).toContain("3 × €0.05 = €0.15");
+    expect(html).toContain("Discount (10%) = −€0.02");
+    expect(html).toContain("Even split · 2 participants");
+  });
+
+  it("paginates long cards, preserves zero amounts, and reconciles rounding", () => {
+    const data = buildPdfExportData({
+      currency: "EUR",
+      payerParticipantId: "a",
+      participants: [{ id: "a", name: "Zed" }, { id: "b", name: "Ada" }, { id: "c", name: "Zero" }],
+      items: Array.from({ length: 24 }, (_, index) => ({
+        id: `item-${index}`, name: `Item ${index}`, price: "0.01", splitMode: "even" as const,
+        allocations: [
+          { participantId: "a", evenIncluded: true, shares: "1", percent: "50" },
+          { participantId: "b", evenIncluded: true, shares: "1", percent: "50" },
+          { participantId: "c", evenIncluded: false, shares: "0", percent: "0" },
+        ],
+      })),
+    }, new Date("2026-03-09T12:00:00Z"), "en-US");
+    const html = renderSettlementPdfHtml(data, "en-US", "data:image/png;base64,icon", undefined, {
+      a: { initials: "Z", background: "#ffffff", foreground: "#000000", photoUri: "data:image/png;base64,photo" },
+    });
+    expect(html).toMatch(/class="summary-payer">\s*<img class="avatar" src="data:image\/png;base64,photo"[^>]*>\s*<strong>Zed<\/strong>/);
+    expect(html).toContain("Zero");
+    expect(html).toContain("No consumption recorded");
+    expect(html).toContain("Rounding adjustment");
+    expect(html).toContain("-€0.12");
+    expect(html).toContain("+€0.12");
+    expect(html).toContain("continued");
+    expect(html).toMatch(/Person breakdown · Page 1 of [2-9]/);
+    expect(html).toMatch(/Item breakdown · Page 1 of [2-9]/);
+    expect((html.match(/class="page"/g) ?? []).length).toBeGreaterThan(3);
+    expect((html.match(/class="page-header"/g) ?? []).length).toBe((html.match(/class="page"/g) ?? []).length);
+    expect(data.items[0]?.shares).toHaveLength(2);
+    expect(data.items[0]?.shares.some((share) => share.amountCents === 0)).toBe(true);
+  });
+
+  it("fills the remaining page with whole cards and moves the next whole card to a fresh page", () => {
+    const data = buildPdfExportData(pdfFixture.input as SplitFormValues);
+    const card = data.personBreakdown[0]!;
+    data.personBreakdown = Array.from({ length: 5 }, (_, index) => ({
+      ...card,
+      name: `Person ${index + 1}`,
+      totalAmountCents: 4 * card.items[0]!.amountCents,
+      items: Array.from({ length: 4 }, () => card.items[0]!),
+    }));
+
+    const html = renderSettlementPdfHtml(data, "en-US", null);
+    const personPages = html.split('<div class="page">').filter(
+      (page) => page.includes('<span class="page-section">Person breakdown</span>'),
     );
+    expect(personPages).toHaveLength(2);
+    expect(personPages[0]?.match(/<article class="card">/g)).toHaveLength(4);
+    expect(personPages[1]).toContain("Person breakdown · Page 2 of 2");
+    expect(personPages[1]?.match(/<article class="card">/g)).toHaveLength(1);
+    expect(personPages[1]).toContain("Person 5");
+    expect(personPages[1]).not.toContain("continued");
   });
 
   it("places the embedded invoice on a final attachment page", () => {
@@ -216,8 +285,15 @@ describe("mobile PDF export", () => {
     const html = renderSettlementPdfHtml(data, "en-US", null, "data:image/png;base64,abc123");
     expect(html).toContain("Split date: Jan 2, 2026");
     expect(html).toContain("data:image/png;base64,abc123");
+    expect(html).toContain('<span class="page-section">Attachments</span>');
+    expect(html.match(/<footer class="footer">Page \d+ of \d+<\/footer>/g)).toEqual([
+      '<footer class="footer">Page 1 of 4</footer>',
+      '<footer class="footer">Page 2 of 4</footer>',
+      '<footer class="footer">Page 3 of 4</footer>',
+      '<footer class="footer">Page 4 of 4</footer>',
+    ]);
     expect(html.indexOf("Attachments")).toBeGreaterThan(html.indexOf("Item breakdown"));
-    expect(html).toContain("page-break-before: always");
+    expect(html).toContain("page-break-after:always");
     expect(renderSettlementPdfHtml(data, "en-US", null)).not.toContain("Attachments");
   });
 
@@ -269,6 +345,7 @@ describe("mobile PDF export", () => {
     const html = renderSettlementPdfHtml(
       {
         ...(pdfFixture.expected as any),
+        people: (pdfFixture.expected as any).people.map((person: any) => person.isPayer ? { ...person, consumedCents: -100 } : person),
         payer: {
           ...(pdfFixture.expected as any).payer,
           paidCents: 0,
@@ -280,7 +357,7 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).toContain(
-      `Consumed ${new Intl.NumberFormat(pdfFixture.assumptions.locale, {
+      `${new Intl.NumberFormat(pdfFixture.assumptions.locale, {
         style: "currency",
         currency: (pdfFixture.expected as any).currency,
       }).format(-1)}`,
@@ -310,7 +387,7 @@ describe("mobile PDF export", () => {
 
     expect(printToFileAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        html: expect.stringContaining("Final settlement"),
+        html: expect.stringContaining("Consumption breakdown"),
         base64: false,
       }),
     );
@@ -363,7 +440,7 @@ describe("mobile PDF export", () => {
     });
     expect(printToFileAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        html: expect.stringContaining("Final settlement"),
+        html: expect.stringContaining("Consumption breakdown"),
         base64: false,
       }),
     );
@@ -798,9 +875,9 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).not.toContain("data:image/png;base64,");
-    expect(html).toContain("brand-banner brand-banner-text");
+    expect(html).toContain("page-header");
     expect(html).toContain("Split Bill");
-    expect(html).toContain("min-height: 84px");
+    expect(html).toContain("Share the moment, not the math");
   });
 
   it("skips only the branded header area when image and app-name fallbacks are unavailable", () => {
@@ -815,6 +892,6 @@ describe("mobile PDF export", () => {
 
     expect(html).not.toContain("data:image/png;base64,");
     expect(html).not.toContain("brand-banner brand-banner-text");
-    expect(html).toContain("Final settlement");
+    expect(html).toContain("Consumption breakdown");
   });
 });

@@ -19,8 +19,10 @@ describe("output contracts", () => {
         new Date(pdfFixture.assumptions.date),
         pdfFixture.assumptions.locale
       )
-    ).toEqual({
+    ).toMatchObject({
       ...pdfFixture.expected,
+      items: pdfFixture.expected.items.map((item) => item.splitMode === "even" ? { ...item, shares: item.shares.map((share) => ({ ...share, allocationLabel: "Even split" })) } : item),
+      personBreakdown: pdfFixture.expected.personBreakdown.map((person) => ({ ...person, items: person.items.map((item) => item.itemId === "even-item" ? { ...item, allocationLabel: "Even split" } : item) })),
       appName: "Split Bill",
       splitName: "",
       splitTitle: "Split Bill summary",
