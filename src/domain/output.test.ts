@@ -19,13 +19,7 @@ describe("output contracts", () => {
         new Date(pdfFixture.assumptions.date),
         pdfFixture.assumptions.locale
       )
-    ).toEqual({
-      ...pdfFixture.expected,
-      appName: "Split Bill",
-      splitName: "",
-      splitTitle: "Split Bill summary",
-      splitDateLabel: "Mar 9, 2026",
-    });
+    ).toEqual(pdfFixture.expected);
   });
 
   it("exports historical same-name items with different prices and categories", () => {

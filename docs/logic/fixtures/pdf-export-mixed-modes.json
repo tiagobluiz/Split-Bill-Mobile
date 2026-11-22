@@ -46,7 +46,10 @@
     ]
   },
   "expected": {
-    "appName": "Split-Bill",
+    "appName": "Split Bill",
+    "splitName": "",
+    "splitTitle": "Split Bill summary",
+    "splitDateLabel": "Mar 9, 2026",
     "exportDateLabel": "Mar 9, 2026",
     "fileName": "split-bill-2026-03-09.pdf",
     "currency": "EUR",
@@ -83,17 +86,23 @@
         "id": "even-item",
         "name": "Milk",
         "amountCents": 400,
+        "quantity": 1,
+        "unitPriceCents": 400,
+        "subtotalCents": 400,
         "splitMode": "even",
         "splitModeLabel": "Even split",
         "shares": [
-          { "participantId": "ana", "name": "Ana", "amountCents": 200 },
-          { "participantId": "bruno", "name": "Bruno", "amountCents": 200 }
+          { "participantId": "ana", "name": "Ana", "amountCents": 200, "allocationLabel": "Even split" },
+          { "participantId": "bruno", "name": "Bruno", "amountCents": 200, "allocationLabel": "Even split" }
         ]
       },
       {
         "id": "shares-item",
         "name": "Cheese",
         "amountCents": 300,
+        "quantity": 1,
+        "unitPriceCents": 300,
+        "subtotalCents": 300,
         "splitMode": "shares",
         "splitModeLabel": "Share units",
         "shares": [
@@ -105,6 +114,9 @@
         "id": "percent-item",
         "name": "Juice",
         "amountCents": 500,
+        "quantity": 1,
+        "unitPriceCents": 500,
+        "subtotalCents": 500,
         "splitMode": "percent",
         "splitModeLabel": "Percent",
         "shares": [
@@ -119,7 +131,7 @@
         "name": "Ana",
         "totalAmountCents": 500,
         "items": [
-          { "itemId": "even-item", "itemName": "Milk", "amountCents": 200 },
+          { "itemId": "even-item", "itemName": "Milk", "amountCents": 200, "allocationLabel": "Even split" },
           { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 200, "allocationLabel": "2 shares" },
           { "itemId": "percent-item", "itemName": "Juice", "amountCents": 100, "allocationLabel": "20%" }
         ]
@@ -129,7 +141,7 @@
         "name": "Bruno",
         "totalAmountCents": 700,
         "items": [
-          { "itemId": "even-item", "itemName": "Milk", "amountCents": 200 },
+          { "itemId": "even-item", "itemName": "Milk", "amountCents": 200, "allocationLabel": "Even split" },
           { "itemId": "shares-item", "itemName": "Cheese", "amountCents": 100, "allocationLabel": "1 share" },
           { "itemId": "percent-item", "itemName": "Juice", "amountCents": 400, "allocationLabel": "80%" }
         ]

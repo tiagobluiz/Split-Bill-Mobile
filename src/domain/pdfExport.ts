@@ -1,4 +1,5 @@
 import { computeSettlement, parseSplit } from "./settlement";
+import { parseDecimal, parseMoneyToCents } from "./splitter";
 import type { ParsedParticipant, SplitFormValues, SplitMode } from "./splitter";
 import { t } from "../i18n";
 import { isValidSplitDate, localDay } from "./splitDate";
@@ -23,6 +24,10 @@ export type PdfExportItem = {
   id: string;
   name: string;
   amountCents: number;
+  quantity: number;
+  unitPriceCents: number;
+  subtotalCents: number;
+  discount?: { type: "fixed" | "percent"; value: string; amountCents: number };
   splitMode: SplitMode;
   splitModeLabel: string;
   shares: PdfExportItemShare[];
@@ -68,10 +73,6 @@ function comparePeopleByDisplayOrder<T extends { name: string; isPayer: boolean 
     return left.isPayer ? -1 : 1;
   }
 
-  return left.name.localeCompare(right.name, "en-US", { sensitivity: "base" });
-}
-
-function compareByName<T extends { name: string }>(left: T, right: T) {
   return left.name.localeCompare(right.name, "en-US", { sensitivity: "base" });
 }
 
@@ -131,8 +132,8 @@ function getParticipantName(participantId: string, participants: ParsedParticipa
 }
 
 function formatAllocationNumber(value: string) {
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) {
+  const parsed = parseDecimal(value);
+  if (parsed === null || !Number.isFinite(parsed)) {
     return "";
   }
 
@@ -167,7 +168,7 @@ function getAllocationLabel(
     });
   }
 
-  return undefined;
+  return t("pdf.mode.even");
 }
 
 function withOptionalAllocationLabel<T extends object>(
@@ -189,15 +190,32 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
 
   const items: PdfExportItem[] = parsed.data.items.map((item) => {
     const sourceItem = values.items.find((entry) => entry.id === item.id);
+    const quantity = sourceItem?.quantity ?? 1;
+    const unitPriceCents = parseMoneyToCents(sourceItem?.price ?? "") ?? item.amountCents;
+    const subtotalCents = unitPriceCents * quantity;
 
     return {
       id: item.id,
       name: item.name,
       amountCents: item.amountCents,
+      quantity,
+      unitPriceCents,
+      subtotalCents,
+      discount: sourceItem?.discount ? {
+        type: sourceItem.discount.type,
+        value: sourceItem.discount.value.trim() || "0",
+        amountCents: subtotalCents - item.amountCents,
+      } : undefined,
       splitMode: item.splitMode,
       splitModeLabel: getSplitModeLabel(item.splitMode),
       shares: item.shares
-        .filter((share) => share.amountCents !== 0)
+        .filter((share) => {
+          const allocation = sourceItem?.allocations.find((entry) => entry.participantId === share.participantId);
+          if (!allocation || !sourceItem) return share.amountCents !== 0;
+          if (sourceItem.splitMode === "even") return allocation.evenIncluded;
+          const weight = sourceItem.splitMode === "shares" ? allocation.shares : allocation.percent;
+          return (parseDecimal(weight) ?? 0) > 0;
+        })
         .map((share) =>
           withOptionalAllocationLabel(
             {
@@ -214,7 +232,7 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
   });
 
   const personBreakdown = [...settlement.data.people]
-    .sort(compareByName)
+    .sort((left, right) => left.name.localeCompare(right.name, locale, { sensitivity: "base" }))
     .map((person) => {
       const personItems = items
         .map((item) => {
@@ -236,15 +254,10 @@ export function buildPdfExportData(values: SplitFormValues, date = new Date(), l
         })
         .filter((item): item is PdfExportPersonItemShare => item !== null);
 
-      const totalAmountCents = personItems.reduce(
-        (sum, item) => sum + item.amountCents,
-        0,
-      );
-
       return {
         participantId: person.participantId,
         name: person.name,
-        totalAmountCents,
+        totalAmountCents: person.consumedCents,
         items: personItems,
       };
     });

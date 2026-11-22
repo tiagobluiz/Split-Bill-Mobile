@@ -3,9 +3,9 @@ const path = require("path");
 const Jimp = require("jimp-compact");
 
 const ROOT = path.resolve(__dirname, "..");
-const SOURCE = path.join(ROOT, "assets", "split-bill-pdf-header.png");
+const SOURCE = path.join(ROOT, "assets", "icon.png");
 const OUTPUT = path.join(ROOT, "src", "pdf", "pdfHeaderImageDataUri.generated.ts");
-const TARGET_WIDTH = 1086;
+const TARGET_WIDTH = 128;
 async function main() {
   const image = await Jimp.read(SOURCE);
   if (image.bitmap.width > TARGET_WIDTH) {

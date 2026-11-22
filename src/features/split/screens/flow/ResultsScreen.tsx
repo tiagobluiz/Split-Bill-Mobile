@@ -48,8 +48,11 @@ import { FlowContinueButton } from "../shared/components";
 import { useRecord } from "../shared/hooks";
 import {
   getParticipantDisplayName,
+  getAvatarTone,
+  getInitials,
   isOwnerReference,
 } from "../shared/participantUtils";
+import { getTagColorStyle } from "../shared/TagChips";
 import { ParticipantAvatar } from "../shared/participantComponents";
 import { ActionListSheet } from "../shared/ActionListSheet";
 import { DebtActionSheet } from "./DebtActionSheet";
@@ -406,6 +409,16 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
       setDebtReminderErrorMessage(t("reminders.removeFailed"));
     }
   };
+  const getPdfAvatars = () => Object.fromEntries(record.values.participants.map((participant) => {
+    const person = settings.people?.find((entry) => entry.id === participant.personId);
+    const tone = person?.color ? getTagColorStyle(person.color) : getAvatarTone(participant.name);
+    const ownerPhoto = isOwnerReference(participant.name, settings.ownerName) ? settings.ownerProfileImageUri : undefined;
+    return [participant.id, {
+      initials: getInitials(participant.name),
+      ...tone,
+      photoUri: ownerPhoto || person?.photoUri || undefined,
+    }];
+  }));
   const savePdfAction = {
     label: t("flow.results.pdfActionSaveMultiline"),
     accessibilityLabel: t("flow.results.pdfActionSave"),
@@ -425,6 +438,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
           setExportPdfPending(true);
           await downloadSettlementPdfToDevice(record.values, locale, {
             preferredDirectoryUri: settings.pdfDownloadDirectoryUri,
+            avatars: getPdfAvatars(),
             onDirectoryPicked: (directoryUri) =>
               updateSettings({
                 pdfDownloadDirectoryUri: directoryUri,
@@ -467,7 +481,7 @@ export function ResultsScreenView({ draftId }: { draftId: string }) {
         void (async () => {
           try {
             setExportPdfPending(true);
-            await exportSettlementPdf(record.values, locale);
+            await exportSettlementPdf(record.values, locale, getPdfAvatars());
           } catch (error) {
             console.warn("Failed to export split PDF", error);
             setPdfNotice({

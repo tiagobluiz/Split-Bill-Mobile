@@ -764,6 +764,7 @@ describe("split screens", () => {
           currency: "EUR",
         }),
         expect.any(String),
+        expect.any(Object),
       );
     });
     expect(
