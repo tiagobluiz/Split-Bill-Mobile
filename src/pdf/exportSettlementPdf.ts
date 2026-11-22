@@ -2,6 +2,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Directory, File, Paths } from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
+import * as ImageManipulator from "expo-image-manipulator";
 
 import { type PdfExportData } from "../domain";
 import { buildPdfExportData } from "../domain/pdfExport";
@@ -190,6 +191,12 @@ export function renderSettlementPdfHtml(
     (person) =>
       `<div class="row">${avatar(person.participantId, person.name)}<span class="person-heading grow"><span>${escapeHtml(person.name)}</span>${payerChip(person.participantId)}</span><strong>${money(person.consumedCents)}</strong></div>`,
   );
+  const overviewAdjustment = convertCents(data.totalCents, rate) - people.reduce(
+    (sum, person) => sum + convertCents(person.consumedCents, rate), 0,
+  );
+  if (overviewAdjustment) {
+    personRows.push(`<div class="row adjustment"><span class="grow">${escapeHtml(t("pdf.rounding"))}</span><strong>${overviewAdjustment > 0 ? "+" : "−"}${escapeHtml(formatPdfMoney(Math.abs(overviewAdjustment), currency, locale))}</strong></div>`);
+  }
   const personCards = [...data.personBreakdown]
     .sort((a, b) =>
       a.name.localeCompare(b.name, locale, { sensitivity: "base" }),
@@ -442,27 +449,22 @@ export async function buildSettlementPdfFile(
     }
   }
   const embeddedAvatars: PdfAvatarMap = {};
-  await Promise.all(
-    Object.entries(avatars).map(async ([id, avatar]) => {
+  for (const [id, avatar] of Object.entries(avatars)) {
       let photoUri = avatar.photoUri;
-      if (photoUri && !photoUri.startsWith("data:image/")) {
+      if (photoUri) {
         try {
-          const encoded = await LegacyFileSystem.readAsStringAsync(photoUri, {
-            encoding: LegacyFileSystem.EncodingType.Base64,
+          const thumbnail = await ImageManipulator.manipulateAsync(photoUri, [{ resize: { width: 96 } }], {
+            compress: 0.8,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
           });
-          const mime = /\.png(?:\?|$)/i.test(photoUri)
-            ? "image/png"
-            : /\.webp(?:\?|$)/i.test(photoUri)
-              ? "image/webp"
-              : "image/jpeg";
-          photoUri = `data:${mime};base64,${encoded}`;
+          photoUri = thumbnail.base64 ? `data:image/jpeg;base64,${thumbnail.base64}` : undefined;
         } catch {
           photoUri = undefined;
         }
       }
       embeddedAvatars[id] = { ...avatar, photoUri };
-    }),
-  );
+  }
   const html = renderSettlementPdfHtml(
     data,
     locale,

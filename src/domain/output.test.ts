@@ -19,15 +19,7 @@ describe("output contracts", () => {
         new Date(pdfFixture.assumptions.date),
         pdfFixture.assumptions.locale
       )
-    ).toMatchObject({
-      ...pdfFixture.expected,
-      items: pdfFixture.expected.items.map((item) => item.splitMode === "even" ? { ...item, shares: item.shares.map((share) => ({ ...share, allocationLabel: "Even split" })) } : item),
-      personBreakdown: pdfFixture.expected.personBreakdown.map((person) => ({ ...person, items: person.items.map((item) => item.itemId === "even-item" ? { ...item, allocationLabel: "Even split" } : item) })),
-      appName: "Split Bill",
-      splitName: "",
-      splitTitle: "Split Bill summary",
-      splitDateLabel: "Mar 9, 2026",
-    });
+    ).toEqual(pdfFixture.expected);
   });
 
   it("exports historical same-name items with different prices and categories", () => {

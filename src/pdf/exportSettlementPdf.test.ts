@@ -226,6 +226,18 @@ describe("mobile PDF export", () => {
     expect(html).toContain("Even split · 2 participants");
   });
 
+  it("shows a conversion rounding adjustment in the consumption overview", () => {
+    const data = buildPdfExportData(pdfFixture.input as SplitFormValues);
+    data.totalCents = 2;
+    data.people[0]!.consumedCents = 1;
+    data.people[1]!.consumedCents = 1;
+    data.exchangeRate = { sourceCurrency: "EUR", targetCurrency: "USD", rate: 0.5 };
+    const html = renderSettlementPdfHtml(data, "en-US", null);
+    const overview = html.split('<span class="page-section">Person breakdown</span>')[0]!;
+    expect(overview).toContain('class="row adjustment"');
+    expect(overview).toContain("−$0.01");
+  });
+
   it("paginates long cards, preserves zero amounts, and reconciles rounding", () => {
     const data = buildPdfExportData({
       currency: "EUR",
