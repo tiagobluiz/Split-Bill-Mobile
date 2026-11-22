@@ -856,6 +856,7 @@ const enPlain = {
   "clipboard.person.zero": "{name}: consumed {consumed} and owes {amount}.",
   "pdf.pageOf": "Page {page} of {total}",
   "pdf.overview": "Overview",
+  "pdf.subtitle": "Share the moment, not the math",
   "pdf.totalBill": "Total bill",
   "pdf.paidBy": "Paid by",
   "pdf.continued": "continued",

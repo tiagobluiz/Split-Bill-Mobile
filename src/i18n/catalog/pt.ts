@@ -702,6 +702,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "clipboard.person.getsBack": "{name}: recebe {amount}.", "clipboard.person.zero": "{name}: consumiu {consumed} e deve {amount}.",
   "pdf.pageOf": "Página {page} de {total}",
   "pdf.overview": "Visão geral",
+  "pdf.subtitle": "Partilha o momento, não as contas",
   "pdf.totalBill": "Total da conta",
   "pdf.paidBy": "Pago por",
   "pdf.continued": "continuação",

@@ -324,7 +324,7 @@ export function renderSettlementPdfHtml(
     : "";
   const header = (section: string) => `<header class="page-header">
     ${headerImageDataUri ? renderHeaderImage(headerImageDataUri, data.appName) : ""}
-    <div><strong>${escapeHtml(data.appName)}</strong><small>Share the moment, not the math</small></div>
+    <div><strong>${escapeHtml(data.appName)}</strong><small>${escapeHtml(t("pdf.subtitle"))}</small></div>
     <span class="page-section">${escapeHtml(section)}</span>
   </header>`;
   const payerBalanceLabel =
