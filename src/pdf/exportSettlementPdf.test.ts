@@ -903,7 +903,7 @@ describe("mobile PDF export", () => {
     );
 
     expect(html).not.toContain("data:image/png;base64,");
-    expect(html).not.toContain("brand-banner brand-banner-text");
+    expect(html).not.toContain("Share the moment, not the math");
     expect(html).toContain("Consumption breakdown");
   });
 });
