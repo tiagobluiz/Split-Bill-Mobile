@@ -1,71 +1,124 @@
-import { useEffect, useState } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from "react-native";
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "../../../../i18n/provider";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "../../../../storage/database";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
+import type { TranslationKey } from "../../../../i18n";
+import app from "../../../../../app.json";
 
-// Keep the latest announcement and replace its version and slides together.
-const RELEASE = "2.14.0";
 const CONTENT_GUTTER = 24;
 const MAX_CONTENT_WIDTH = 480;
-const slides = [
-  {
-    image: require("../../../../../assets/whats-new-people.jpg"),
-    title: "whatsNew.people.title",
-    paragraphs: ["whatsNew.people.directory", "whatsNew.people.profile"],
-  },
-  {
-    image: require("../../../../../assets/whats-new-quantities.jpg"),
-    title: "whatsNew.quantities.title",
-    paragraphs: ["whatsNew.quantities.description"],
-  },
-  {
-    image: require("../../../../../assets/whats-new-performance.jpg"),
-    title: "whatsNew.performance.title",
-    paragraphs: ["whatsNew.performance.description"],
-  },
-] as const;
+type Slide = {
+  image: ImageSourcePropType;
+  title: TranslationKey;
+  paragraphs: readonly TranslationKey[];
+  improved?: boolean;
+};
 
-export const hasWhatsNewSlides = slides.length > 0;
+// Retain earlier announcements so users who skip releases can catch up.
+const announcements: readonly { version: string; slides: readonly Slide[] }[] = [
+  {
+    version: "2.14.0",
+    slides: [
+      {
+        image: require("../../../../../assets/whats-new-people.jpg"),
+        title: "whatsNew.people.title",
+        paragraphs: ["whatsNew.people.directory", "whatsNew.people.profile"],
+      },
+      {
+        image: require("../../../../../assets/whats-new-quantities.jpg"),
+        title: "whatsNew.quantities.title",
+        paragraphs: ["whatsNew.quantities.description"],
+      },
+      {
+        image: require("../../../../../assets/whats-new-performance.jpg"),
+        title: "whatsNew.performance.title",
+        paragraphs: ["whatsNew.performance.description"],
+        improved: true,
+      },
+    ],
+  },
+];
 
-function hasSeenRelease(payload: string | undefined) {
-  if (!payload) return false;
+function compareVersions(left: string, right: string) {
+  const leftParts = left.split(".").map(Number);
+  const rightParts = right.split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    if (leftParts[i] !== rightParts[i]) return leftParts[i] - rightParts[i];
+  }
+  return 0;
+}
+
+function readSeenVersion(payload: string | undefined) {
+  if (!payload) return null;
   try {
     const seen: unknown = JSON.parse(payload);
-    if (typeof seen !== "string" || !/^\d+\.\d+\.\d+$/.test(seen)) return false;
-    const current = RELEASE.split(".").map(Number);
-    const saved = seen.split(".").map(Number);
-    for (let i = 0; i < current.length; i += 1) {
-      if (saved[i] !== current[i]) return saved[i] > current[i];
-    }
-    return true;
+    return typeof seen === "string" && /^\d+\.\d+\.\d+$/.test(seen) ? seen : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function WhatsNewGate() {
-  const setupCompleted = useSplitStore((state) => state.profileSetupCompleted);
-  const [eligibleAtLaunch] = useState(setupCompleted);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!eligibleAtLaunch || !hasWhatsNewSlides) return;
-    let active = true;
-    void withAppDatabaseRetry((db) => db.getFirstAsync<{ payload: string }>("SELECT payload FROM release_announcements WHERE key = ?", ["whats-new-seen"]))
-      .then((row) => { if (active && !hasSeenRelease(row?.payload)) setVisible(true); })
-      .catch((err) => console.warn("Could not load release announcement", err));
-    return () => { active = false; };
-  }, [eligibleAtLaunch]);
-
-  const close = () => setVisible(false);
-  return visible ? <WhatsNewModal onClose={close} onSeeLater={close} /> : null;
+export function getUnseenAnnouncements<T extends { version: string; slides: readonly unknown[] }>(
+  releases: readonly T[], installedVersion: string, seenVersion: string | null,
+) {
+  return releases.filter(({ version, slides }) => slides.length > 0 &&
+    compareVersions(version, installedVersion) <= 0 &&
+    (seenVersion === null || compareVersions(version, seenVersion) > 0),
+  ).sort((left, right) => compareVersions(left.version, right.version));
 }
 
-export function WhatsNewModal({ onClose, onSeeLater }: {
+const WhatsNewContext = createContext<{ open: () => void } | null>(null);
+
+export function useWhatsNew() {
+  return useContext(WhatsNewContext);
+}
+
+export function WhatsNewProvider({ children }: PropsWithChildren) {
+  const setupCompleted = useSplitStore((state) => state.profileSetupCompleted);
+  const [entry, setEntry] = useState<"launch" | "settings" | null>(() => setupCompleted ? "launch" : null);
+  const [seenVersion, setSeenVersion] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!announcements.length) return;
+    let active = true;
+    void withAppDatabaseRetry((db) => db.getFirstAsync<{ payload: string }>("SELECT payload FROM release_announcements WHERE key = ?", ["whats-new-seen"]))
+      .then((row) => { if (active) setSeenVersion(readSeenVersion(row?.payload)); })
+      .catch((err) => console.warn("Could not load release announcement", err));
+    return () => { active = false; };
+  }, []);
+
+  const unseen = seenVersion === undefined ? [] : getUnseenAnnouncements(announcements, app.expo.version, seenVersion);
+  const latest = unseen.at(-1);
+  const close = () => setEntry(null);
+  const acknowledge = async (version: string) => {
+    await withDatabaseTransaction(async (db) => {
+      await db.runAsync("INSERT INTO release_announcements (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["whats-new-seen", JSON.stringify(version)]);
+    });
+    setSeenVersion(version);
+  };
+
+  return (
+    <WhatsNewContext.Provider value={latest ? { open: () => setEntry("settings") } : null}>
+      {children}
+      {entry && latest ? (
+        <WhatsNewModal
+          slides={unseen.flatMap((release) => release.slides)}
+          onAcknowledge={() => acknowledge(latest.version)}
+          onClose={close}
+          onSeeLater={entry === "launch" ? close : undefined}
+        />
+      ) : null}
+    </WhatsNewContext.Provider>
+  );
+}
+
+function WhatsNewModal({ slides, onAcknowledge, onClose, onSeeLater }: {
+  slides: readonly Slide[];
+  onAcknowledge: () => Promise<void>;
   onClose: () => void;
   onSeeLater?: () => void;
 }) {
@@ -82,9 +135,7 @@ export function WhatsNewModal({ onClose, onSeeLater }: {
     setBusy(true);
     setError(false);
     try {
-      await withDatabaseTransaction(async (db) => {
-        await db.runAsync("INSERT INTO release_announcements (key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload", ["whats-new-seen", JSON.stringify(RELEASE)]);
-      });
+      await onAcknowledge();
       onClose();
     } catch {
       setError(true);
@@ -112,7 +163,7 @@ export function WhatsNewModal({ onClose, onSeeLater }: {
           <View style={styles.slideCopy}>
             <Text style={{ fontFamily: FONTS.headlineBold, fontSize: 24, color: PALETTE.onSurface }}>{t(slide.title)}</Text>
             {slide.paragraphs.map((key) => <Text key={key} style={styles.paragraph}>{t(key)}</Text>)}
-            <Text style={{ alignSelf: "flex-start", overflow: "hidden", backgroundColor: index === 2 ? PALETTE.successContainer : PALETTE.secondaryContainer, color: index === 2 ? PALETTE.onSuccessContainer : PALETTE.primary, fontFamily: FONTS.bodyBold, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginTop: 16 }}>{t(index === 2 ? "whatsNew.improved" : "whatsNew.new")}</Text>
+            <Text style={{ alignSelf: "flex-start", overflow: "hidden", backgroundColor: slide.improved ? PALETTE.successContainer : PALETTE.secondaryContainer, color: slide.improved ? PALETTE.onSuccessContainer : PALETTE.primary, fontFamily: FONTS.bodyBold, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginTop: 16 }}>{t(slide.improved ? "whatsNew.improved" : "whatsNew.new")}</Text>
           </View>
         </View>
         <View style={{ flex: 1, minHeight: 30 }} />

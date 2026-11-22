@@ -17,7 +17,7 @@ import { getDeviceLocale } from "../src/lib/device";
 import { normalizeInternalRoute } from "../src/lib/internalRoute";
 import { initializeTelemetry, recordError } from "../src/lib/telemetry";
 import { ProfileSetupGate } from "../src/features/split/screens/home/ProfileSetupGate";
-import { WhatsNewGate } from "../src/features/split/screens/home/WhatsNewGate";
+import { WhatsNewProvider } from "../src/features/split/screens/home/WhatsNewGate";
 
 export const unstable_settings = { initialRouteName: "index" };
 
@@ -222,9 +222,10 @@ export default function RootLayout() {
           backgroundColor={PALETTE.surface}
           translucent={false}
         />
-        <Stack screenOptions={{ headerShown: false, freezeOnBlur: true }} />
-        <ProfileSetupGate />
-        <WhatsNewGate />
+        <WhatsNewProvider>
+          <Stack screenOptions={{ headerShown: false, freezeOnBlur: true }} />
+          <ProfileSetupGate />
+        </WhatsNewProvider>
       </LocalizationProvider>
     </AppThemeProvider>
   );

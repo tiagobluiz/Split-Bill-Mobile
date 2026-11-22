@@ -29,7 +29,7 @@ import { FormBottomSheet } from "../shared/FormBottomSheet";
 import { TagChip } from "../shared/TagChips";
 import { TagEditorModal } from "../shared/TagEditorModal";
 import { HomeMainHeader } from "./HomeMainHeader";
-import { hasWhatsNewSlides, WhatsNewModal } from "./WhatsNewGate";
+import { useWhatsNew } from "./WhatsNewGate";
 
 const Text = TamaguiText as any;
 const YStack = TamaguiYStack as any;
@@ -93,7 +93,7 @@ export function HomeSettingsTabContent({
 }) {
   const { t } = useTranslation();
   const [page, setPage] = useState<"overview" | "tags">("overview");
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const whatsNew = useWhatsNew();
   useEffect(() => {
     if (page === "overview" || tagEditorOpen || pendingTagDeleteId) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -198,15 +198,14 @@ export function HomeSettingsTabContent({
                 <Text fontFamily={FONTS.bodyMedium} fontSize={14} lineHeight={20} color={PALETTE.onSurfaceVariant}>{t("settings.disclaimer.body")}</Text>
               </View>
             </SettingsSection>
-            {hasWhatsNewSlides ? (
+            {whatsNew ? (
               <SettingsSection title={t("settings.aboutApp")}>
-                <SettingsRow icon={Sparkles} label={t("settings.whatsNew")} onPress={() => setWhatsNewOpen(true)} />
+                <SettingsRow icon={Sparkles} label={t("settings.whatsNew")} onPress={whatsNew.open} />
               </SettingsSection>
             ) : null}
           </YStack>
         )}
       </ScrollView>
-      {whatsNewOpen ? <WhatsNewModal onClose={() => setWhatsNewOpen(false)} /> : null}
       {pendingDeleteTag && pendingDeleteTagUsageCount === null ? (
         <FormBottomSheet title={t("home.loadingSplits")} onClose={() => setPendingTagDeleteId("")}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("common.cancel")} style={screenStyles.formSheetCancel} onPress={() => setPendingTagDeleteId("")}>
