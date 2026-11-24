@@ -1,48 +1,16 @@
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "../../../../i18n/provider";
 import { withAppDatabaseRetry, withDatabaseTransaction } from "../../../../storage/database";
 import { FONTS, PALETTE } from "../../../../theme/palette";
 import { useSplitStore } from "../../store";
-import type { TranslationKey } from "../../../../i18n";
+import { announcements, type WhatsNewSlide } from "./whatsNewAnnouncements";
 import app from "../../../../../app.json";
 
 const CONTENT_GUTTER = 24;
 const MAX_CONTENT_WIDTH = 480;
-type Slide = {
-  image: ImageSourcePropType;
-  title: TranslationKey;
-  paragraphs: readonly TranslationKey[];
-  improved?: boolean;
-};
-
-// Retain earlier announcements so users who skip releases can catch up.
-const announcements: readonly { version: string; slides: readonly Slide[] }[] = [
-  {
-    version: "2.14.0",
-    slides: [
-      {
-        image: require("../../../../../assets/whats-new-people.jpg"),
-        title: "whatsNew.people.title",
-        paragraphs: ["whatsNew.people.directory", "whatsNew.people.profile"],
-      },
-      {
-        image: require("../../../../../assets/whats-new-quantities.jpg"),
-        title: "whatsNew.quantities.title",
-        paragraphs: ["whatsNew.quantities.description"],
-      },
-      {
-        image: require("../../../../../assets/whats-new-performance.jpg"),
-        title: "whatsNew.performance.title",
-        paragraphs: ["whatsNew.performance.description"],
-        improved: true,
-      },
-    ],
-  },
-];
-
 function compareVersions(left: string, right: string) {
   const leftParts = left.split(".").map(Number);
   const rightParts = right.split(".").map(Number);
@@ -101,6 +69,8 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
 
   const unseen = seenVersion === undefined ? [] : getUnseenAnnouncements(announcements, app.expo.version, seenVersion);
   const latest = unseen.at(-1);
+  const slides = unseen.flatMap((release) => release.slides)
+    .sort((left, right) => Number(!!left.improved) - Number(!!right.improved));
   const close = () => setEntry(null);
   const acknowledge = async (version: string) => {
     await withDatabaseTransaction(async (db) => {
@@ -114,7 +84,7 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
       {children}
       {entry && latest ? (
         <WhatsNewModal
-          slides={unseen.flatMap((release) => release.slides)}
+          slides={slides}
           onAcknowledge={() => acknowledge(latest.version)}
           onClose={close}
           onSeeLater={entry === "launch" ? close : undefined}
@@ -125,7 +95,7 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
 }
 
 function WhatsNewModal({ slides, onAcknowledge, onClose, onSeeLater }: {
-  slides: readonly Slide[];
+  slides: readonly WhatsNewSlide[];
   onAcknowledge: () => Promise<void>;
   onClose: () => void;
   onSeeLater?: () => void;
