@@ -63,7 +63,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "whatsNew.performance.description": "A Split Bill funciona de forma mais fluida quando geres várias divisões com muitas pessoas e itens.",
   "whatsNew.invoicePhotos.title": "Fotos de faturas",
   "whatsNew.invoicePhotos.attach": "Tira uma foto da fatura ou escolhe uma da galeria para a anexar a uma divisão. A foto é incluída quando partilhas a divisão em PDF.",
-  "whatsNew.invoicePhotos.handover": "Quando abres uma app de IA compatível no Android para importar itens, a Split Bill anexa automaticamente a foto e preenche as instruções de importação por ti.",
+  "whatsNew.invoicePhotos.handover": "Quando abres uma app de IA compatível no Android para importar itens, a Split Bill copia as instruções de importação e partilha a foto da fatura quando disponível. Confirma as instruções e o anexo, se houver, antes de enviares.",
   "settings.aboutData": "Sobre os teus dados",
   "settings.tagCountOne": "{count} tag",
   "settings.tagCount": "{count} tags",

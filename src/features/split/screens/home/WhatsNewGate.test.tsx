@@ -14,6 +14,21 @@ jest.mock("../../../../storage/database", () => ({
 jest.mock("../../store", () => ({
   useSplitStore: (select: (state: { profileSetupCompleted: boolean }) => boolean) => select({ profileSetupCompleted: mockSetupCompleted }),
 }));
+jest.mock("./whatsNewAnnouncements", () => ({
+  announcements: [
+    {
+      version: "2.9.0",
+      slides: [
+        { image: 1, title: "whatsNew.people.title", paragraphs: [] },
+        { image: 1, title: "whatsNew.performance.title", paragraphs: [], improved: true },
+      ],
+    },
+    {
+      version: "2.10.0",
+      slides: [{ image: 1, title: "whatsNew.quantities.title", paragraphs: [] }],
+    },
+  ],
+}));
 
 function SettingsEntry() {
   const whatsNew = useWhatsNew();
@@ -70,13 +85,6 @@ it("hides both entry points when the first-install marker covers the bundled ann
   expect(screen.queryByText("Open from Settings")).toBeNull();
 });
 
-it("shows the invoice photos slide to users who have seen the 2.14.0 announcement", async () => {
-  mockGetFirstAsync.mockResolvedValue({ payload: JSON.stringify("2.14.0") });
-  renderAnnouncements();
-  expect(await screen.findByText("Invoice Photos")).toBeTruthy();
-  expect(screen.getByText("1 of 1")).toBeTruthy();
-});
-
 it("shares the deferred announcement with Settings and clears it after a successful retry", async () => {
   let savedPayload: string | undefined;
   mockGetFirstAsync.mockImplementation(async () => savedPayload ? { payload: savedPayload } : null);
@@ -90,13 +98,11 @@ it("shares the deferred announcement with Settings and clears it after a success
   fireEvent.press(screen.getByRole("button", { name: "Close What’s New" }));
   expect(mockRunAsync).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText("Open from Settings"));
-  expect(screen.getByText("1 of 4")).toBeTruthy();
+  expect(screen.getByText("1 of 3")).toBeTruthy();
   expect(screen.getByText("People & Groups")).toBeTruthy();
 
   fireEvent.press(screen.getByText("Next"));
   expect(screen.getByText("Quantities & Discounts")).toBeTruthy();
-  fireEvent.press(screen.getByText("Next"));
-  expect(screen.getByText("Invoice Photos")).toBeTruthy();
   fireEvent.press(screen.getByText("Next"));
   expect(screen.getByText("Performance Improvements")).toBeTruthy();
   fireEvent.press(screen.getByText("Done"));
@@ -106,7 +112,7 @@ it("shares the deferred announcement with Settings and clears it after a success
   await act(async () => { fireEvent.press(screen.getByText("Done")); });
   await waitFor(() => expect(screen.queryByText("Open from Settings")).toBeNull());
   expect(screen.queryByText("Done")).toBeNull();
-  expect(savedPayload).toBe(JSON.stringify("2.15.2"));
+  expect(savedPayload).toBe(JSON.stringify("2.10.0"));
   appView.unmount();
   renderAnnouncements();
   await act(async () => {});
