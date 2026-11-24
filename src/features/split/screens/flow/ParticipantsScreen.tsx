@@ -430,7 +430,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                 <Pressable
                   key={person.id}
                   accessibilityRole="button"
-                  accessibilityLabel={t("flow.participants.addSavedPersonA11y", { name: person.name })}
+                  accessibilityLabel={t("flow.participants.addSavedPersonA11y", { name: getParticipantDisplayName(person.name, settings.ownerName) })}
                   onPress={() => {
                     const previousSearch = participantNameRef.current;
                     const revision = ++searchRevision.current;
@@ -451,7 +451,7 @@ export function ParticipantsScreenView({ draftId }: { draftId: string }) {
                       person={person}
                     />
                     <Text fontFamily={FONTS.bodyBold} fontSize={15} color={PALETTE.onSurface}>
-                      {person.name}
+                      {getParticipantDisplayName(person.name, settings.ownerName)}
                     </Text>
                   </XStack>
                 </Pressable>

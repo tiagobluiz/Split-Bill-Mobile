@@ -61,6 +61,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
   const longPressedPersonId = useRef<string | null>(null);
   const allPeople = useMemo(() => sortPeopleByName((settings.people ?? []).filter((person) => person.id !== settings.ownerPersonId)), [settings.people, settings.ownerPersonId]);
   const people = useMemo(() => allPeople.filter((p) => !p.archivedAt), [allPeople]);
+  const groupCandidates = useMemo(() => (settings.people ?? []).filter((person) => !person.archivedAt), [settings.people]);
   const groups = useMemo(() => [...(settings.participantGroups ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true })), [settings.participantGroups]);
   const filteredGroups = groups.filter((group) => group.name.toLowerCase().includes(search.trim().toLowerCase()));
   const showGroupsEmptyState = tab === "groups" && groups.length === 0 && !search.trim();
@@ -123,7 +124,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
     return () => subscription.remove();
   }, [editingOwner, onOwnerProfileEditorClose]);
 
-  if (editingGroup !== null) return <Modal visible animationType="slide" statusBarTranslucent={false} onRequestClose={() => { if (!groupSaveInProgress.current) setEditingGroup(null); }}><GroupEditor key={`${editingGroup === "new" ? "new" : editingGroup.id}:${groupEditorStep}`} group={editingGroup === "new" ? null : editingGroup} initialStep={groupEditorStep} people={people} allPeople={settings.people ?? []} groups={groups} ownerName={settings.ownerName} ownerProfileImageUri={settings.ownerProfileImageUri} onBusyChange={(busy) => { groupSaveInProgress.current = busy; }} onCancel={() => { if (!groupSaveInProgress.current) setEditingGroup(null); }} onSave={async (payload) => {
+  if (editingGroup !== null) return <Modal visible animationType="slide" statusBarTranslucent={false} onRequestClose={() => { if (!groupSaveInProgress.current) setEditingGroup(null); }}><GroupEditor key={`${editingGroup === "new" ? "new" : editingGroup.id}:${groupEditorStep}`} group={editingGroup === "new" ? null : editingGroup} initialStep={groupEditorStep} people={groupCandidates} allPeople={settings.people ?? []} groups={groups} ownerName={settings.ownerName} ownerProfileImageUri={settings.ownerProfileImageUri} onBusyChange={(busy) => { groupSaveInProgress.current = busy; }} onCancel={() => { if (!groupSaveInProgress.current) setEditingGroup(null); }} onSave={async (payload) => {
     const saved = editingGroup === "new"
       ? await onAddGroup(payload.name, payload.memberPersonIds, payload, payload.newPersonNames)
       : await onUpdateGroup(editingGroup.id, payload);
@@ -140,7 +141,7 @@ export function HomeGroupsTabContent({ topInset, footerInsetBottom, settings, re
         <View style={screenStyles.modePillSegmentedShell}>{(["people", "groups"] as const).map((key) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[screenStyles.modePillSegmentedButton, tab === key && screenStyles.modePillSegmentedButtonActive]} onPress={() => { setTab(key); setSearch(""); }}><Text fontFamily={FONTS.bodyBold} fontSize={13} color={tab === key ? PALETTE.primary : PALETTE.onSurfaceVariant}>{t(key === "groups" ? "groups.tabGroups" : "groups.tabPeople", { count: key === "groups" ? groups.length : people.length + 1 })}</Text></Pressable>)}</View>
         <View style={screenStyles.groupSearchShell}><Search color={PALETTE.onSurfaceVariant} size={17} /><TextInput value={search} onChangeText={setSearch} placeholder={t(tab === "people" ? "people.searchPeoplePlaceholder" : "groups.searchGroupsPlaceholder")} placeholderTextColor={PALETTE.inputPlaceholder} style={screenStyles.groupSearchInput} /></View>
         {tab === "groups" ? showGroupsEmptyState ? <DirectoryEmptyState title={t("groups.emptyTitle")} description={t("groups.emptyDescription")} actionLabel={t("groups.createGroupAction")} onAction={() => { setGroupEditorStep(1); setEditingGroup("new"); }} /> : <YStack gap="$2.5">{filteredGroups.map((group) => {
-          const members = group.memberPersonIds.map((id) => byId.get(id)).filter((p): p is SavedPerson => Boolean(p));
+          const members = sortPeopleByName(group.memberPersonIds.map((id) => byId.get(id)).filter((p): p is SavedPerson => Boolean(p)));
           return <View key={group.id} style={screenStyles.recentShadowWrap}>
             <Pressable accessibilityRole="button" accessibilityLabel={group.name} onLongPress={() => { longPressedGroupId.current = group.id; setGroupActionMenu(group); }} onPress={() => {
               if (longPressedGroupId.current === group.id) {

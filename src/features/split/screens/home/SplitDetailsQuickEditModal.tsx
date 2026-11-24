@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Pressable, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { SplitDatePicker } from "../shared/SplitDatePicker";
 import { InvoicePhotoField } from "../shared/InvoicePhotoField";
-import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { InvoicePhotoSaveError, saveDetailsWithInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { useSplitDetailsSave } from "../shared/useSplitDetailsSave";
 import { Plus } from "lucide-react-native";
 import {
   Text as TamaguiText,
@@ -77,7 +78,10 @@ export function SplitDetailsQuickEditModal({
   phaseRef.current = phase;
   const tagSavingRef = useRef(false);
   const [pendingCreatedTagLabel, setPendingCreatedTagLabel] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { save, savingRef, isBusy, onPickingChange, progressMessage } = useSplitDetailsSave();
+  const cancelDetails = () => {
+    if (!isBusy()) onCancel();
+  };
   const orderedTags = useMemo(
     () => sortTagsAlphabetically(tags, (tag) => getSplitTagDisplayLabel(tag, t)),
     [tags, t],
@@ -87,11 +91,11 @@ export function SplitDetailsQuickEditModal({
   const [formContentHeight, setFormContentHeight] = useState(0);
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (phaseRef.current === "details") onCancel();
+      if (phaseRef.current === "details" && !isBusy()) onCancel();
       return true;
     });
     return () => subscription.remove();
-  }, [onCancel]);
+  }, [onCancel, isBusy]);
 
   useEffect(() => {
     if (previousRecordIdRef.current === record.id) {
@@ -105,7 +109,6 @@ export function SplitDetailsQuickEditModal({
     setInvoicePhotoSize(record.values.invoicePhotoSize ?? null);
     setSelectedTagIds(normalizeSelectedTagIds(record.values.tagIds ?? [], tags));
     setError("");
-    setSaving(false);
   }, [record.id, record.values.splitName, record.values.tagIds, record.values.invoicePhotoUri, record.values.invoicePhotoName, record.values.invoicePhotoSize, tags]);
 
   useEffect(() => {
@@ -131,37 +134,35 @@ export function SplitDetailsQuickEditModal({
   }, [pendingCreatedTagLabel, tags]);
 
   const saveDetails = async () => {
+    if (isBusy()) return;
     const nextName = trimName(nameDraft);
     if (!nextName) {
       setError(t("home.editDetails.nameRequired"));
       return;
     }
 
-    setSaving(true);
     setError("");
     try {
-      const savedPhoto = await persistInvoicePhoto(invoicePhotoUri);
-      try {
-      await onSave({
-        splitName: nextName.slice(0, SPLIT_NAME_MAX_LENGTH),
-        tagIds: selectedTagIds,
-        splitDate,
-        invoicePhotoUri: savedPhoto,
-        invoicePhotoName: invoicePhotoUri ? invoicePhotoName : null,
-        invoicePhotoSize: invoicePhotoUri ? invoicePhotoSize : null,
+      await save(invoicePhotoUri, record.values.invoicePhotoUri, async () => {
+        await saveDetailsWithInvoicePhoto(invoicePhotoUri, record.values.invoicePhotoUri, (savedPhoto) => onSave({
+          splitName: nextName.slice(0, SPLIT_NAME_MAX_LENGTH),
+          tagIds: selectedTagIds,
+          splitDate,
+          invoicePhotoUri: savedPhoto,
+          invoicePhotoName: invoicePhotoUri ? invoicePhotoName : null,
+          invoicePhotoSize: invoicePhotoUri ? invoicePhotoSize : null,
+        }));
       });
-      } catch (error) {
-        if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
-        throw error;
-      }
-      if (!areSameInvoicePhotos(savedPhoto, record.values.invoicePhotoUri)) await removeInvoicePhoto(record.values.invoicePhotoUri);
     } catch (saveError) {
+      if (saveError instanceof InvoicePhotoSaveError) {
+        setError(t("splitDetails.photoSaveFailed"));
+        return;
+      }
       const message =
         saveError instanceof Error && saveError.message
           ? saveError.message
           : t("common.tryAgain");
       setError(t("home.editDetails.saveFailed", { error: message }));
-      setSaving(false);
     }
   };
 
@@ -190,7 +191,7 @@ export function SplitDetailsQuickEditModal({
 
   return (
     <>
-      <FormBottomSheet title={t("home.editDetails.title")} onClose={phase === "tag" ? closeTagEditor : onCancel} contentOverride={tagEditor} avoidKeyboard height={Math.min(windowHeight * 0.9, (formContentHeight || 450) + 230)}>
+      <FormBottomSheet title={t("home.editDetails.title")} onClose={phase === "tag" ? closeTagEditor : cancelDetails} contentOverride={tagEditor} avoidKeyboard height={Math.min(windowHeight * 0.9, (formContentHeight || 450) + 230)}>
           <YStack gap="$3" flex={1}>
             <ScrollView
               style={{ flex: 1 }}
@@ -248,7 +249,7 @@ export function SplitDetailsQuickEditModal({
                     accessibilityRole="button"
                     accessibilityLabel={t("tags.add")}
                     style={screenStyles.tagPickerAddInline}
-                    onPress={() => setPhase("tag")}
+                    onPress={() => { if (!isBusy()) setPhase("tag"); }}
                   >
                     <XStack alignItems="center" gap="$1.5">
                       <Plus color={PALETTE.primary} size={13} />
@@ -268,7 +269,10 @@ export function SplitDetailsQuickEditModal({
                 fileSize={invoicePhotoSize}
                 fileName={invoicePhotoName}
                 compact
+                disabled={Boolean(progressMessage)}
+                onPickingChange={onPickingChange}
                 onChange={(photo: InvoicePhotoSelection | null) => {
+                  if (savingRef.current) return;
                   setInvoicePhotoUri(photo?.uri ?? null);
                   setInvoicePhotoName(photo?.name ?? null);
                   setInvoicePhotoSize(photo?.size ?? null);
@@ -286,11 +290,11 @@ export function SplitDetailsQuickEditModal({
               ) : null}
             </ScrollView>
             <FormSheetFooter
-              primaryLabel={t("home.editDetails.save")}
+              primaryLabel={progressMessage || t("home.editDetails.save")}
               onPrimaryPress={() => void saveDetails()}
-              primaryDisabled={saving}
+              primaryDisabled={Boolean(progressMessage)}
               cancelLabel={t("common.cancel")}
-              onCancel={onCancel}
+              onCancel={cancelDetails}
             />
           </YStack>
       </FormBottomSheet>

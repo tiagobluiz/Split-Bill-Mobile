@@ -158,14 +158,16 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
   const [provider, setProvider] = useState<LlmProvider>("chatgpt");
   const [handoffPending, setHandoffPending] = useState(false);
   const handoffPendingRef = useRef(false);
-  const [needsManualPrompt, setNeedsManualPrompt] = useState(false);
+  const [showHandoffHint, setShowHandoffHint] = useState(false);
   const [importApplyPending, setImportApplyPending] = useState(false);
   const prompt = buildReceiptLlmPrompt();
-  const hasInvoicePhoto = !!record?.values.invoicePhotoUri;
+  const canShareInvoicePhoto = Platform.OS === "android" && provider !== "gemini";
   const askAiDescriptionKey =
-    Platform.OS !== "android"
-      ? "flow.import.askAiManual"
-      : "flow.import.askAiAndroid";
+    Platform.OS === "android"
+      ? canShareInvoicePhoto
+        ? "flow.import.askAiAndroid"
+        : "flow.import.askAiTextFirst"
+      : "flow.import.askAiManual";
   const parsedPreview = useMemo(() => parsePastedItems(input), [input]);
   const importPreviewRecord = importPreviewRecordRef.current ?? record;
   const hasPastedText = input.trim().length > 0;
@@ -359,23 +361,28 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
     try {
       await Clipboard.setStringAsync(prompt);
       if (Platform.OS === "android") {
-        const invoiceUri = resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory);
-        let result = await AiHandover.open({ provider, prompt, invoicePhotoUri: invoiceUri });
-        if (!result.opened && invoiceUri) {
-          result = await AiHandover.open({ provider, prompt });
+        // Gemini can open image shares while dropping the accompanying text.
+        const invoiceUri = canShareInvoicePhoto
+          ? resolveInvoicePhotoUri(record?.values.invoicePhotoUri, FileSystem.documentDirectory)
+          : null;
+        let result = await AiHandover.open({
+          provider,
+          prompt,
+          invoicePhotoUri: invoiceUri,
+        }).catch(() => null);
+        if (!result?.opened && invoiceUri) {
+          result = await AiHandover.open({ provider, prompt }).catch(() => null);
         }
-        setNeedsManualPrompt(result.opened && (!result.promptPrefilled || (!!invoiceUri && !result.imageAttached)));
-        if (!result.opened) {
+        setShowHandoffHint(!result?.opened || !result.promptPrefilled || !result.imageAttached);
+        if (!result?.opened) {
           try {
             await IntentLauncher.openApplication(getReceiptLlmAndroidPackage(provider));
-            setNeedsManualPrompt(true);
           } catch {
             await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
-            setNeedsManualPrompt(true);
           }
         }
       } else {
-        setNeedsManualPrompt(true);
+        setShowHandoffHint(true);
         await Linking.openURL(getReceiptLlmProviderUrl(provider, true));
       }
       openStepTwo();
@@ -663,7 +670,7 @@ export function PasteImportScreenView({ draftId }: { draftId: string }) {
               <Text fontFamily={FONTS.headlineBlack} fontSize={30} color={PALETTE.onSurface} letterSpacing={-0.8}>
                 {t("flow.import.pasteTitle")}
               </Text>
-              {needsManualPrompt ? (
+              {showHandoffHint ? (
                 <Paragraph marginTop="$2" color={PALETTE.onSurfaceVariant} fontFamily={FONTS.body} fontSize={13} lineHeight={19}>
                   {t("flow.import.pastePromptHint")}
                 </Paragraph>

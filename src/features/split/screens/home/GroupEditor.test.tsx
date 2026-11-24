@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
+import { PALETTE } from "../../../../theme/palette";
+import type { SavedPerson } from "../../people";
 import { GroupEditor } from "./GroupEditor";
 
 jest.mock("expo-image-picker", () => ({
@@ -28,6 +30,21 @@ jest.mock("../../groupPhotos", () => ({
 
 
 describe("GroupEditor", () => {
+  it("uses the Person name placeholder color in both group steps", () => {
+    render(
+      <LocalizationProvider language="en">
+        <GroupEditor group={null} people={[]} allPeople={[]} groups={[]} onCancel={jest.fn()} onSave={jest.fn()} />
+      </LocalizationProvider>,
+    );
+    const nameInput = screen.getByPlaceholderText("e.g. Roomies");
+    expect(nameInput.props.placeholderTextColor).toBe(PALETTE.onSurfaceVariant);
+    expect(screen.getByPlaceholderText("What is this group for?").props.placeholderTextColor).toBe(PALETTE.onSurfaceVariant);
+
+    fireEvent.changeText(nameInput, "Roomies");
+    fireEvent.press(screen.getByText("Continue to members"));
+    expect(screen.getByPlaceholderText("Search or add people").props.placeholderTextColor).toBe(PALETTE.onSurfaceVariant);
+  });
+
   it("keeps a new member in the draft until the group is finished", async () => {
     const onSave = jest.fn(async () => true);
     render(
@@ -160,6 +177,31 @@ describe("GroupEditor", () => {
     expect(screen.getByText("Members in Group (0)")).toBeTruthy();
   });
 
+  it("sorts saved, archived, and staged members together by name", () => {
+    const timestamps = { createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const people: SavedPerson[] = [
+      { ...timestamps, id: "zoe", name: "zoe" },
+      { ...timestamps, id: "ana-10", name: "\u00c1na 10" },
+      { ...timestamps, id: "bruno", name: "Bruno", archivedAt: "2026-02-01" },
+    ];
+    const group = { ...timestamps, id: "g1", name: "Roomies", memberPersonIds: people.map((person) => person.id), usageCount: 0 };
+    render(
+      <LocalizationProvider language="en">
+        <GroupEditor group={group} people={people.filter((person) => !person.archivedAt)} allPeople={people} groups={[group]} initialStep={2} onCancel={jest.fn()} onSave={jest.fn()} />
+      </LocalizationProvider>,
+    );
+
+    fireEvent.changeText(screen.getByPlaceholderText("Search or add people"), "Ana 2");
+    fireEvent.press(screen.getByLabelText("Add \u201cAna 2\u201d"));
+
+    expect(screen.getAllByLabelText(/^Remove .* from group$/).map((row) => row.props.accessibilityLabel)).toEqual([
+      "Remove Ana 2 from group",
+      "Remove \u00c1na 10 from group",
+      "Remove Bruno from group",
+      "Remove zoe from group",
+    ]);
+  });
+
   it("keeps archived members in the roster until removed", () => {
     const archived = { id: "p-archived", name: "Zoe Archived", archivedAt: "2026-02-01", createdAt: "2026-01-01", updatedAt: "2026-02-01" };
     render(
@@ -272,7 +314,9 @@ describe("GroupEditor", () => {
     render(<LocalizationProvider language="en"><GroupEditor group={null} people={[maya]} allPeople={[maya]} groups={[]} initialStep={2} onCancel={jest.fn()} onSave={onSave} /></LocalizationProvider>);
     fireEvent.press(screen.getByLabelText("Import from contacts"));
     await waitFor(() => expect(screen.getAllByText("Maya Patel").length).toBe(2));
-    fireEvent.changeText(screen.getByPlaceholderText("Search by name"), "Nina");
+    const contactSearch = screen.getByPlaceholderText("Search by name");
+    expect(contactSearch.props.placeholderTextColor).toBe(PALETTE.onSurfaceVariant);
+    fireEvent.changeText(contactSearch, "Nina");
     expect(screen.getByText("Nina")).toBeTruthy();
     expect(screen.queryByText("Maya Patel")).toBeNull();
     fireEvent.changeText(screen.getByPlaceholderText("Search by name"), "");

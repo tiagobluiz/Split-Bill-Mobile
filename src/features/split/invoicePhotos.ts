@@ -72,9 +72,44 @@ export async function persistInvoicePhoto(uri: string | null) {
     await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
     await FileSystem.copyAsync({ from: converted.uri, to: destination });
     return relativePath;
+  } catch (error) {
+    await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => undefined);
+    throw error;
   } finally {
     await FileSystem.deleteAsync(converted.uri, { idempotent: true }).catch(() => undefined);
   }
+}
+
+export class InvoicePhotoSaveError extends Error {
+  constructor(cause: unknown) {
+    super("Could not save invoice photo", { cause });
+  }
+}
+
+export async function saveDetailsWithInvoicePhoto(
+  selectedUri: string | null,
+  previousUri: string | null | undefined,
+  saveDetails: (savedUri: string | null) => Promise<void>,
+) {
+  let savedUri: string | null;
+  try {
+    savedUri = await persistInvoicePhoto(selectedUri);
+  } catch (error) {
+    throw new InvoicePhotoSaveError(error);
+  }
+
+  const attachmentChanged = !areSameInvoicePhotos(previousUri, savedUri);
+  try {
+    await saveDetails(savedUri);
+  } catch (error) {
+    if (attachmentChanged && !areSameInvoicePhotos(selectedUri, savedUri)) {
+      await removeInvoicePhoto(savedUri);
+    }
+    throw error;
+  }
+
+  if (attachmentChanged) await removeInvoicePhoto(previousUri);
+  return savedUri;
 }
 
 export async function removeInvoicePhoto(uri?: string | null) {

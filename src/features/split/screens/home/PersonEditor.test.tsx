@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { LocalizationProvider } from "../../../../i18n/provider";
+import { PALETTE } from "../../../../theme/palette";
 import type { ParticipantGroup, SavedPerson } from "../../people";
 import { getAvatarTone } from "../shared/participantUtils";
 import { PersonEditor } from "./PersonEditor";
@@ -323,9 +324,13 @@ describe("PersonEditor", () => {
   it("imports a selected contact name and photo into the draft without saving early", async () => {
     const onSave = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
     renderEditor({ onSave });
+    const personNamePlaceholderColor = screen.getByPlaceholderText("e.g. Marcus").props.placeholderTextColor;
+    expect(personNamePlaceholderColor).toBe(PALETTE.onSurfaceVariant);
     fireEvent.press(screen.getByText("Import from contacts"));
     await waitFor(() => expect(screen.getByText("Carla Silva")).toBeTruthy());
-    fireEvent.changeText(screen.getByPlaceholderText("Search contacts"), "Daniel");
+    const contactSearch = screen.getByPlaceholderText("Search contacts");
+    expect(contactSearch.props.placeholderTextColor).toBe(personNamePlaceholderColor);
+    fireEvent.changeText(contactSearch, "Daniel");
     expect(screen.getByText("Daniel")).toBeTruthy();
     expect(screen.queryByText("Carla Silva")).toBeNull();
     fireEvent.press(screen.getByLabelText("Back"));

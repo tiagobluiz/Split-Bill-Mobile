@@ -1,5 +1,9 @@
 import type { TranslationKey } from "./en";
 const ptPlain: Record<TranslationKey, string> = {
+  "splitDetails.savingPhoto": "A guardar a fotografia da fatura…",
+  "splitDetails.preparingPhoto": "A preparar a fotografia da fatura…",
+  "splitDetails.savingDetails": "A guardar os detalhes…",
+  "splitDetails.photoSaveFailed": "Não foi possível guardar a fotografia da fatura. Tenta novamente ou escolhe outra fotografia.",
   "splitDetails.date": "Data da divisão", "splitDetails.invoice": "Fotografia da fatura (opcional)", "splitDetails.choosePhoto": "Escolher fotografia da fatura", "splitDetails.changePhoto": "Alterar fotografia da fatura", "splitDetails.removePhoto": "Remover fotografia", "splitDetails.takePhoto": "Fotografar fatura", "splitDetails.preview": "Pré-visualizar fatura", "splitDetails.cameraDenied": "Permite o acesso à câmara nas definições do dispositivo.", "splitDetails.addInvoicePhoto": "Adicionar fotografia da fatura", "splitDetails.photoSourceHint": "Tira uma fotografia ou escolhe da galeria", "splitDetails.attachInvoice": "Anexar fatura", "splitDetails.fileNameUnknown": "Imagem da fatura", "splitDetails.fileSizeUnknown": "Tamanho indisponível", "pdf.attachments": "Anexos", "pdf.invoice": "Fatura", "pdf.exportedOn": "Exportado em {date}",
   "photoOptions.chooseFromLibrary": "Escolher fotografia", "photoOptions.takePhoto": "Tirar fotografia", "photoOptions.removePhoto": "Remover fotografia",
   "flow.participants.addSavedPersonA11y": "Adicionar pessoa guardada {name}", "flow.participants.savedPersonAvatarA11y": "Avatar da pessoa guardada {name}", "flow.participants.noSavedPersonMatches": "Não existe uma pessoa guardada chamada “{name}”. Toca em + para a adicionar.", "flow.participants.savedPersonAlreadyAdded": "Esta pessoa guardada já está nesta divisão.",
@@ -464,6 +468,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.stepTwo": "Passo 2 de 2",
   "flow.import.askAiTitle": "Pede à IA para ler o recibo",
   "flow.import.askAiAndroid": "O Split Bill copia o prompt, abre a IA que escolheste e partilha a foto da conta desta divisão, se existir. Confirma que o prompt e a foto aparecem. Se o prompt não estiver no chat, cola-o da área de transferência; se não houver uma imagem anexada, anexa manualmente o talão ou a foto da conta. Revê tudo e toca em Enviar. Quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
+  "flow.import.askAiTextFirst": "O Split Bill copia o prompt e partilha o texto com a IA que escolheste. Se o prompt não estiver no chat, cola-o da área de transferência. Anexa o talão ou a foto da conta antes de tocares em Enviar. Quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.askAiManual": "O Split Bill copia o prompt e abre a IA. Cola o prompt e anexa o talão ou a foto da conta. Revê tudo, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a no passo 2.",
   "flow.import.chooseTool": "Escolher ferramenta de IA",
   "flow.import.chooseToolA11y": "Escolher {provider}",
@@ -477,7 +482,7 @@ const ptPlain: Record<TranslationKey, string> = {
   "flow.import.mode.replace": "Substituir",
   "flow.import.pastedText": "Texto colado",
   "flow.import.copyOpenAi": "Copiar prompt e abrir IA",
-  "flow.import.pastePromptHint": "Se o prompt não estiver no chat da IA, cola-o da área de transferência. Anexa a foto da conta desta divisão ou um talão, se ainda não estiver no chat. Revê tudo, toca em Enviar e, quando tiveres a lista, volta ao Split Bill e cola-a aqui.",
+  "flow.import.pastePromptHint": "Se o prompt não estiver no chat da IA, cola-o da área de transferência. Se não houver uma imagem no chat, tira uma foto do talão ou anexa uma das tuas fotografias ou ficheiros. Revê tudo e toca em Enviar. Quando tiveres a lista, volta ao Split Bill e cola-a aqui.",
   "llm.receiptPrompt.readReceipt":
     "Lê o talão enviado e extrai apenas os itens comprados.",
   "llm.receiptPrompt.returnFormat":

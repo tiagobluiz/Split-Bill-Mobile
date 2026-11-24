@@ -1404,6 +1404,21 @@ describe("split store", () => {
     });
   });
 
+  it("persists setup details, invoice and next step in one record write", async () => {
+    const record = createRecord({ step: 1 });
+    const { storeModule, storageMocks } = await loadStore({ listRecords: [record] });
+    storeModule.useSplitStore.setState({ records: [record], activeRecordId: record.id });
+    const photo = "invoice-photos/receipt.jpg";
+
+    await storeModule.useSplitStore.getState().updateDraftMeta("Trip", "EUR", undefined, undefined, [], undefined, photo, "receipt.jpg", 128, record.id, 2);
+
+    expect(storageMocks.saveRecord).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveRecord).toHaveBeenCalledWith(expect.objectContaining({
+      step: 2,
+      values: expect.objectContaining({ splitName: "Trip", invoicePhotoUri: photo }),
+    }));
+  });
+
   it("saves selected split tags and manages tag deletion across existing records", async () => {
     const record = createRecord({
       values: {

@@ -172,6 +172,7 @@ type SplitStore = {
     invoicePhotoName?: string | null,
     invoicePhotoSize?: number | null,
     recordId?: string,
+    nextStep?: number,
   ) => Promise<void>;
   setStep: (step: number, recordId?: string) => Promise<void>;
   updateParticipants: (participants: ParticipantsUpdater, recordId?: string) => Promise<void>;
@@ -1262,7 +1263,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     }
   },
   async updateRecordDetails(recordId, details) {
-    await withRecordById(set, get, recordId, (record) =>
+    const saved = await withRecordById(set, get, recordId, (record) =>
       normalizeActiveRecordMutation(record, (draft) => {
         draft.values.splitName = details.splitName.slice(
           0,
@@ -1278,6 +1279,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         if (details.invoicePhotoSize !== undefined) draft.values.invoicePhotoSize = details.invoicePhotoSize;
       }),
     );
+    if (!saved) throw new Error("Split record is unavailable.");
   },
   async updateDraftMeta(
     splitName,
@@ -1290,8 +1292,9 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
     invoicePhotoName,
     invoicePhotoSize,
     recordId,
+    nextStep,
   ) {
-    await withActiveRecord(set, get, (record) =>
+    const saved = await withActiveRecord(set, get, (record) =>
       normalizeActiveRecordMutation(
         record,
         (draft) => {
@@ -1300,6 +1303,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
           if (invoicePhotoUri !== undefined) draft.values.invoicePhotoUri = invoicePhotoUri;
           if (invoicePhotoName !== undefined) draft.values.invoicePhotoName = invoicePhotoName;
           if (invoicePhotoSize !== undefined) draft.values.invoicePhotoSize = invoicePhotoSize;
+          if (nextStep !== undefined) draft.step = nextStep;
           draft.values.currency =
             currency.trim().toUpperCase() || get().settings.defaultCurrency;
           draft.values.exchangeRate = exchangeRate;
@@ -1313,6 +1317,7 @@ export const useSplitStore = create<SplitStore>((set, get) => ({
         { recomputeStatusOnValueChange: true },
       ), recordId,
     );
+    if (!saved && nextStep !== undefined) throw new Error("Split record is unavailable.");
   },
   async setStep(step, recordId) {
     await withActiveRecord(set, get, (record) =>
