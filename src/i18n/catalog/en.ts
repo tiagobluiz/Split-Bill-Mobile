@@ -98,7 +98,7 @@ const enPlain = {
   "whatsNew.performance.description": "Split Bill runs more smoothly when you’re managing several splits with lots of people and items.",
   "whatsNew.invoicePhotos.title": "Invoice Photos",
   "whatsNew.invoicePhotos.attach": "Take a photo of your invoice or choose one from your gallery to attach to a split. The photo is included when you share the split as a PDF.",
-  "whatsNew.invoicePhotos.handover": "When you open a supported AI app on Android to import items, Split Bill copies the import instructions and shares the invoice photo when available. Check the instructions and any attachment before sending.",
+  "whatsNew.invoicePhotos.handover": "When you open a supported AI app on Android to import items, Split Bill copies the import instructions and shares the invoice photo when available.",
   "settings.aboutData": "About your data",
   "settings.tagCountOne": "{count} tag",
   "settings.tagCount": "{count} tags",
