@@ -41,6 +41,16 @@ const announcements: readonly { version: string; slides: readonly Slide[] }[] = 
       },
     ],
   },
+  {
+    version: "2.15.2",
+    slides: [
+      {
+        image: require("../../../../../assets/whats-new-invoice-photos.jpg"),
+        title: "whatsNew.invoicePhotos.title",
+        paragraphs: ["whatsNew.invoicePhotos.attach", "whatsNew.invoicePhotos.handover"],
+      },
+    ],
+  },
 ];
 
 function compareVersions(left: string, right: string) {

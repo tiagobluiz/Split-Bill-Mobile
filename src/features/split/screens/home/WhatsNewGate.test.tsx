@@ -66,8 +66,15 @@ it("hides both entry points when the first-install marker covers the bundled ann
   mockGetFirstAsync.mockResolvedValue({ payload: JSON.stringify(app.expo.version) });
   renderAnnouncements();
   await act(async () => {});
-  expect(screen.queryByText("1 of 3")).toBeNull();
+  expect(screen.queryByText("What’s New")).toBeNull();
   expect(screen.queryByText("Open from Settings")).toBeNull();
+});
+
+it("shows the invoice photos slide to users who have seen the 2.14.0 announcement", async () => {
+  mockGetFirstAsync.mockResolvedValue({ payload: JSON.stringify("2.14.0") });
+  renderAnnouncements();
+  expect(await screen.findByText("Invoice Photos")).toBeTruthy();
+  expect(screen.getByText("1 of 1")).toBeTruthy();
 });
 
 it("shares the deferred announcement with Settings and clears it after a successful retry", async () => {
@@ -83,10 +90,12 @@ it("shares the deferred announcement with Settings and clears it after a success
   fireEvent.press(screen.getByRole("button", { name: "Close What’s New" }));
   expect(mockRunAsync).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText("Open from Settings"));
-  expect(screen.getByText("1 of 3")).toBeTruthy();
+  expect(screen.getByText("1 of 4")).toBeTruthy();
 
   fireEvent.press(screen.getByText("Next"));
   fireEvent.press(screen.getByText("Next"));
+  fireEvent.press(screen.getByText("Next"));
+  expect(screen.getByText("Invoice Photos")).toBeTruthy();
   fireEvent.press(screen.getByText("Done"));
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not save. Please try again.");
   expect(screen.getByText("Done")).toBeTruthy();
@@ -94,7 +103,7 @@ it("shares the deferred announcement with Settings and clears it after a success
   await act(async () => { fireEvent.press(screen.getByText("Done")); });
   await waitFor(() => expect(screen.queryByText("Open from Settings")).toBeNull());
   expect(screen.queryByText("Done")).toBeNull();
-  expect(savedPayload).toBe(JSON.stringify("2.14.0"));
+  expect(savedPayload).toBe(JSON.stringify("2.15.2"));
   appView.unmount();
   renderAnnouncements();
   await act(async () => {});
