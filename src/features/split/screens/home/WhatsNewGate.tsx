@@ -111,6 +111,8 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
 
   const unseen = seenVersion === undefined ? [] : getUnseenAnnouncements(announcements, app.expo.version, seenVersion);
   const latest = unseen.at(-1);
+  const slides = unseen.flatMap((release) => release.slides)
+    .sort((left, right) => Number(!!left.improved) - Number(!!right.improved));
   const close = () => setEntry(null);
   const acknowledge = async (version: string) => {
     await withDatabaseTransaction(async (db) => {
@@ -124,7 +126,7 @@ export function WhatsNewProvider({ children }: PropsWithChildren) {
       {children}
       {entry && latest ? (
         <WhatsNewModal
-          slides={unseen.flatMap((release) => release.slides)}
+          slides={slides}
           onAcknowledge={() => acknowledge(latest.version)}
           onClose={close}
           onSeeLater={entry === "launch" ? close : undefined}

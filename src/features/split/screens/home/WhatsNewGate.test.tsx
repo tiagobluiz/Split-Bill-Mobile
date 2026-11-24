@@ -91,11 +91,14 @@ it("shares the deferred announcement with Settings and clears it after a success
   expect(mockRunAsync).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText("Open from Settings"));
   expect(screen.getByText("1 of 4")).toBeTruthy();
+  expect(screen.getByText("People & Groups")).toBeTruthy();
 
   fireEvent.press(screen.getByText("Next"));
-  fireEvent.press(screen.getByText("Next"));
+  expect(screen.getByText("Quantities & Discounts")).toBeTruthy();
   fireEvent.press(screen.getByText("Next"));
   expect(screen.getByText("Invoice Photos")).toBeTruthy();
+  fireEvent.press(screen.getByText("Next"));
+  expect(screen.getByText("Performance Improvements")).toBeTruthy();
   fireEvent.press(screen.getByText("Done"));
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not save. Please try again.");
   expect(screen.getByText("Done")).toBeTruthy();
