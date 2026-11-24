@@ -4,12 +4,13 @@ const mockImageManipulator = { manipulateAsync: jest.fn(), SaveFormat: { JPEG: "
 let persistInvoicePhoto: typeof import("./invoicePhotos").persistInvoicePhoto;
 let removeInvoicePhoto: typeof import("./invoicePhotos").removeInvoicePhoto;
 let chooseInvoicePhoto: typeof import("./invoicePhotos").chooseInvoicePhoto;
+let saveDetailsWithInvoicePhoto: typeof import("./invoicePhotos").saveDetailsWithInvoicePhoto;
 beforeEach(() => {
   jest.resetModules();
   jest.doMock("expo-file-system/legacy", () => mockFs);
   jest.doMock("expo-image-picker", () => mockPicker);
   jest.doMock("expo-image-manipulator", () => mockImageManipulator);
-  ({ persistInvoicePhoto, removeInvoicePhoto, chooseInvoicePhoto } = require("./invoicePhotos"));
+  ({ persistInvoicePhoto, removeInvoicePhoto, chooseInvoicePhoto, saveDetailsWithInvoicePhoto } = require("./invoicePhotos"));
   jest.clearAllMocks();
   mockFs.deleteAsync.mockResolvedValue(undefined);
   mockImageManipulator.manipulateAsync.mockResolvedValue({ uri: "file:///cache/converted.jpg" });
@@ -84,6 +85,25 @@ it("normalizes legacy app-owned absolute URIs without recopying or deleting the 
 it("propagates copy failure so the previous attachment can remain saved", async () => {
   mockFs.copyAsync.mockRejectedValueOnce(new Error("disk full"));
   await expect(persistInvoicePhoto("file:///new.jpg")).rejects.toThrow("disk full");
+  const [[{ to }]] = mockFs.copyAsync.mock.calls;
+  expect(mockFs.deleteAsync).toHaveBeenCalledWith(to, { idempotent: true });
+});
+
+it.each([false, true])("keeps the right attachment across a record write (committed = %s)", async (committed) => {
+  const previous = "invoice-photos/previous.jpg";
+  const priorFile = `file:///app/${previous}`;
+  let newFile = "";
+  const writeRecord = jest.fn(async (uri: string | null) => {
+    newFile = `file:///app/${uri}`;
+    expect(mockFs.copyAsync).toHaveBeenCalledWith(expect.objectContaining({ to: newFile }));
+    expect(mockFs.deleteAsync).not.toHaveBeenCalledWith(priorFile, expect.anything());
+    if (!committed) throw new Error("write failed");
+  });
+  const save = saveDetailsWithInvoicePhoto("file:///picked.jpg", previous, writeRecord);
+  if (committed) await expect(save).resolves.toMatch(/^invoice-photos\//);
+  else await expect(save).rejects.toThrow("write failed");
+  expect(mockFs.deleteAsync).toHaveBeenCalledWith(committed ? priorFile : newFile, { idempotent: true });
+  expect(mockFs.deleteAsync).not.toHaveBeenCalledWith(committed ? newFile : priorFile, expect.anything());
 });
 
 it("requests base64 data for web camera captures", async () => {

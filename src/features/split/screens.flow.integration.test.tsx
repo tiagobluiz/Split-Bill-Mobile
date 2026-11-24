@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react-native";
 import {
   Alert,
+  BackHandler,
   Keyboard,
   Linking,
   Platform,
@@ -67,6 +68,8 @@ const mockTrackItemSplitModeUsedOnce = jest.fn(
   async (..._args: any[]) => undefined,
 );
 const mockTrackSplitTagsUsed = jest.fn(async (..._args: any[]) => undefined);
+const mockInvoiceCopy = jest.fn(async (_paths: { from: string; to: string }) => undefined);
+const mockPreventRemove = jest.fn();
 const mockRequestCameraPermissionsAsync = jest.fn(async () => ({
   granted: true,
 }));
@@ -98,6 +101,17 @@ jest.mock("expo-router", () => ({
   },
 }));
 
+jest.mock("@react-navigation/native", () => ({
+  usePreventRemove: (prevent: boolean) => mockPreventRemove(prevent),
+}));
+
+jest.mock("./screens/shared/InvoicePhotoField", () => ({
+  InvoicePhotoField: ({ onChange, disabled }: { onChange: (photo: object) => void; disabled: boolean }) => {
+    const { Pressable, Text } = require("react-native");
+    return <Pressable disabled={disabled} onPress={() => onChange({ uri: "file:///picked.jpg", name: "picked.jpg", size: 100 })}><Text>Pick QA photo</Text></Pressable>;
+  },
+}));
+
 jest.mock("./screens/flow/scanFrequentFriends", () => ({
   scanFrequentFriends: jest.fn(async (options: any) => require("./screens/shared/participantUtils").getFrequentFriends(
     mockStoreState.records, options.activeDraftId, options.ownerName,
@@ -115,6 +129,14 @@ jest.mock("expo-intent-launcher", () => ({
 
 jest.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///app/files/",
+  copyAsync: (paths: { from: string; to: string }) => mockInvoiceCopy(paths),
+  makeDirectoryAsync: jest.fn(async () => undefined),
+  deleteAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock("expo-image-manipulator", () => ({
+  manipulateAsync: jest.fn(async () => ({ uri: "file:///cache/converted.jpg" })),
+  SaveFormat: { JPEG: "jpeg" },
 }));
 
 jest.mock("../../../modules/ai-handover/src", () => ({
@@ -245,6 +267,8 @@ describe("split screens", () => {
     mockTrackSplitFlowStarted.mockReset();
     mockTrackSplitStepCompleted.mockReset();
     mockTrackSplitTagsUsed.mockReset();
+    mockInvoiceCopy.mockClear();
+    mockPreventRemove.mockClear();
     mockTrackItemSplitModeUsedOnce.mockReset();
     mockRequestCameraPermissionsAsync.mockReset();
     mockRequestMediaLibraryPermissionsAsync.mockReset();
@@ -330,14 +354,77 @@ describe("split screens", () => {
       null,
       null,
       null,
-     "draft-1");
+      "draft-1",
+      2,
+    );
     expect(mockTrackSplitTagsUsed).toHaveBeenCalledWith({
       tagCount: 2,
       builtInTagCount: 2,
       customTagCount: 0,
     });
-    expect(mockStoreState.setStep).toHaveBeenCalledWith(2, "draft-1");
+    expect(mockStoreState.setStep).not.toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith("/split/draft-1/participants");
+  });
+
+  it("blocks leaving setup during the photo copy and split write, then advances once", async () => {
+    let finishCopy!: () => void;
+    let finishWrite!: () => void;
+    mockInvoiceCopy.mockImplementationOnce(() => new Promise((resolve) => { finishCopy = () => resolve(undefined); }));
+    mockStoreState.updateDraftMeta.mockImplementationOnce(() => new Promise<void>((resolve) => { finishWrite = resolve; }));
+    const backHandler = jest.spyOn(BackHandler, "addEventListener");
+    render(<SetupScreen draftId="draft-1" />);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Weekend groceries"), "Photo test");
+    fireEvent.press(screen.getByText("Pick QA photo"));
+    const next = screen.getByText("Next: Add Participants");
+    await act(async () => {
+      fireEvent.press(next);
+      fireEvent.press(next);
+    });
+    expect(mockInvoiceCopy).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.updateDraftMeta).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Saving invoice photo…")).toBeDisabled();
+    expect(mockPreventRemove).toHaveBeenLastCalledWith(true);
+    const systemBack = backHandler.mock.calls.at(-1)![1];
+    expect(systemBack()).toBe(true);
+    fireEvent.press(screen.getByLabelText("Back"));
+    fireEvent.press(screen.getByLabelText("Close"));
+    expect(mockDismissTo).not.toHaveBeenCalled();
+
+    await act(async () => finishCopy());
+    expect(mockStoreState.updateDraftMeta).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.updateDraftMeta.mock.calls[0].slice(6)).toEqual([
+      expect.stringMatching(/^invoice-photos\//), "picked.jpg", 100, "draft-1", 2,
+    ]);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(systemBack()).toBe(true);
+
+    await act(async () => finishWrite());
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith("/split/draft-1/participants");
+    expect(mockDismissTo).not.toHaveBeenCalled();
+    expect(mockPreventRemove).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps the selected invoice and split name available after a failed save", async () => {
+    mockInvoiceCopy.mockRejectedValueOnce(new Error("copy failed"));
+    mockStoreState.updateDraftMeta.mockRejectedValueOnce(new Error("write failed"));
+    render(<SetupScreen draftId="draft-1" />);
+    fireEvent.changeText(screen.getByPlaceholderText("e.g. Weekend groceries"), "Retry photo");
+    fireEvent.press(screen.getByText("Pick QA photo"));
+    await act(async () => fireEvent.press(screen.getByText("Next: Add Participants")));
+    expect(screen.getByText(/Could not save the invoice photo/)).toBeTruthy();
+    expect(mockStoreState.updateDraftMeta).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+
+    await act(async () => fireEvent.press(screen.getByText("Next: Add Participants")));
+    expect(screen.getByText("Please try again.")).toBeTruthy();
+    expect(mockPush).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Dismiss split notice"));
+
+    await act(async () => fireEvent.press(screen.getByText("Next: Add Participants")));
+    expect(mockInvoiceCopy).toHaveBeenCalledTimes(3);
+    expect(mockStoreState.updateDraftMeta.mock.lastCall[0]).toBe("Retry photo");
+    expect(mockPush).toHaveBeenCalledTimes(1);
   });
 
   it("limits split names to 64 characters before saving", async () => {
@@ -361,7 +448,9 @@ describe("split screens", () => {
       null,
       null,
       null,
-     "draft-1");
+      "draft-1",
+      2,
+    );
   });
 
   it("renders the setup loading state and opens the currency dropdown", async () => {
@@ -757,12 +846,13 @@ describe("split screens", () => {
       screen.getAllByLabelText(/^Add saved person/).map((result) => result.props.accessibilityLabel),
     ).toEqual([
       "Add saved person Amy",
-      "Add saved person Ana",
+      "Add saved person Ana (You)",
       "Add saved person Zara",
     ]);
 
+    expect(screen.getByText("Ana (You)")).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Add saved person Ana"));
+      fireEvent.press(screen.getByLabelText("Add saved person Ana (You)"));
     });
     const updateCall = mockStoreState.updateParticipants.mock.calls.at(-1);
     expect(updateCall[0](current.values.participants)).toContainEqual(
@@ -2568,7 +2658,7 @@ describe("split screens", () => {
     expect(screen.getByText("Add & Review Items")).toBeTruthy();
   });
 
-  it("opens the selected Android AI with the prompt prefilled and advances to step two", async () => {
+  it("dispatches the Android prompt and advances to step two", async () => {
     mockAiHandoverOpen.mockResolvedValue({
       opened: true,
       promptPrefilled: true,
@@ -2591,7 +2681,7 @@ describe("split screens", () => {
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });
 
-  it("retries text-only when invoice image sharing fails and explains the manual image step", async () => {
+  it.each(["unavailable", "rejected"])("retries with text when the image share is %s", async (failure) => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -2600,19 +2690,22 @@ describe("split screens", () => {
         },
       }),
     ];
-    mockAiHandoverOpen
-      .mockResolvedValueOnce({
+    if (failure === "rejected") {
+      mockAiHandoverOpen.mockRejectedValueOnce(new Error("Share failed"));
+    } else {
+      mockAiHandoverOpen.mockResolvedValueOnce({
         opened: false,
         promptPrefilled: false,
         imageAttached: false,
-      })
-      .mockResolvedValueOnce({
-        opened: true,
-        promptPrefilled: true,
-        imageAttached: false,
       });
+    }
+    mockAiHandoverOpen.mockResolvedValueOnce({
+      opened: true,
+      promptPrefilled: true,
+      imageAttached: false,
+    });
     render(<PasteImportScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Choose Gemini"));
+    fireEvent.press(screen.getByLabelText("Choose ChatGPT"));
     expect(
       screen.getByText(
         /copies the prompt, opens your selected AI tool, and shares this split's invoice photo when available/i,
@@ -2630,19 +2723,24 @@ describe("split screens", () => {
       }),
     );
     expect(mockAiHandoverOpen.mock.calls[1][0]).toMatchObject({
-      provider: "gemini",
+      provider: "chatgpt",
       prompt: expect.any(String),
     });
     expect(mockAiHandoverOpen.mock.calls[1][0]).not.toHaveProperty(
       "invoicePhotoUri",
     );
+    expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
+    expect(mockSetStringAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockAiHandoverOpen.mock.invocationCallOrder[0],
+    );
+    expect(mockOpenApplication).not.toHaveBeenCalled();
     expect(
       screen.getByText(/If the prompt isn't in the AI chat.*return to Split Bill/i),
     ).toBeTruthy();
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });
 
-  it("keeps Gemini paste guidance until prompt prefill is fully device-verified", async () => {
+  it("copies the Gemini prompt and shares text only even when a saved photo exists", async () => {
     mockStoreState.records = [
       buildRecord({
         values: {
@@ -2654,33 +2752,38 @@ describe("split screens", () => {
     mockAiHandoverOpen.mockResolvedValue({
       opened: true,
       promptPrefilled: false,
-      imageAttached: true,
+      imageAttached: false,
     });
     render(<PasteImportScreen draftId="draft-1" />);
     fireEvent.press(screen.getByLabelText("Choose Gemini"));
+    expect(screen.getByText(/Attach your receipt or invoice photo before tapping Send/i)).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Copy Prompt & Open AI"));
     });
 
-    expect(mockAiHandoverOpen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "gemini",
-        invoicePhotoUri: "file:///app/files/invoice-photos/receipt-1.png",
-      }),
+    const prompt = domain.buildReceiptLlmPrompt();
+    expect(mockSetStringAsync).toHaveBeenCalledWith(prompt);
+    expect(mockSetStringAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockAiHandoverOpen.mock.invocationCallOrder[0],
     );
+    expect(mockAiHandoverOpen).toHaveBeenCalledTimes(1);
+    expect(mockAiHandoverOpen).toHaveBeenCalledWith({ provider: "gemini", prompt, invoicePhotoUri: null });
     expect(
-      screen.getByText(/If the prompt isn't in the AI chat.*attach this split's invoice photo/i),
+      screen.getByText(/If the prompt isn't in the AI chat.*take a photo of the receipt/i),
     ).toBeTruthy();
     expect(screen.getByText("Paste item list")).toBeTruthy();
   });
 
-  it("shares Claude the prompt and saved invoice photo on Android", async () => {
+  it.each([
+    ["ChatGPT", "chatgpt"],
+    ["Claude", "claude"],
+  ])("shares the prompt and saved invoice photo with %s on Android", async (label, provider) => {
     mockStoreState.records = [
       buildRecord({
         values: {
           ...buildRecord().values,
-          invoicePhotoUri: "invoice-photos/claude-receipt.png",
+          invoicePhotoUri: "invoice-photos/receipt.png",
         },
       }),
     ];
@@ -2690,7 +2793,7 @@ describe("split screens", () => {
       imageAttached: true,
     });
     render(<PasteImportScreen draftId="draft-1" />);
-    fireEvent.press(screen.getByLabelText("Choose Claude"));
+    fireEvent.press(screen.getByLabelText(`Choose ${label}`));
 
     expect(
       screen.getByText(/copies the prompt.*invoice photo when available/i),
@@ -2700,11 +2803,15 @@ describe("split screens", () => {
     });
 
     expect(mockAiHandoverOpen).toHaveBeenCalledWith({
-      provider: "claude",
+      provider,
       prompt: expect.stringContaining("Read the uploaded grocery receipt"),
       invoicePhotoUri:
-        "file:///app/files/invoice-photos/claude-receipt.png",
+        "file:///app/files/invoice-photos/receipt.png",
     });
+    expect(mockSetStringAsync).toHaveBeenCalledWith(domain.buildReceiptLlmPrompt());
+    expect(mockSetStringAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockAiHandoverOpen.mock.invocationCallOrder[0],
+    );
     expect(screen.getByText("Paste item list")).toBeTruthy();
     expect(
       screen.queryByText(/If the prompt isn't in the AI chat/i),
@@ -2729,6 +2836,9 @@ describe("split screens", () => {
       expect.stringContaining("Read the uploaded grocery receipt"),
     );
     expect(mockOpenURL).toHaveBeenCalled();
+    expect(mockSetStringAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockOpenURL.mock.invocationCallOrder[0],
+    );
     expect(
       screen.getByText(/If the prompt isn't in the AI chat.*return to Split Bill/i),
     ).toBeTruthy();
@@ -2896,7 +3006,14 @@ describe("split screens", () => {
         domain.buildReceiptLlmPrompt(),
       );
       expect(mockOpenApplication).toHaveBeenCalledWith(packageName);
+      expect(mockSetStringAsync.mock.invocationCallOrder[0]).toBeLessThan(
+        mockAiHandoverOpen.mock.invocationCallOrder[0],
+      );
+      expect(mockAiHandoverOpen.mock.invocationCallOrder[0]).toBeLessThan(
+        mockOpenApplication.mock.invocationCallOrder[0],
+      );
       expect(mockOpenURL).not.toHaveBeenCalled();
+      expect(screen.getByText(/If the prompt isn't in the AI chat/i)).toBeTruthy();
       expect(screen.getByText("Step 2 of 2")).toBeTruthy();
     },
   );
@@ -2964,6 +3081,10 @@ describe("split screens", () => {
       "com.google.android.apps.bard",
     );
     expect(mockOpenURL).toHaveBeenCalledWith("https://gemini.google.com/");
+    expect(mockOpenApplication.mock.invocationCallOrder[0]).toBeLessThan(
+      mockOpenURL.mock.invocationCallOrder[0],
+    );
+    expect(screen.getByText(/If the prompt isn't in the AI chat/i)).toBeTruthy();
     expect(screen.getByText("Step 2 of 2")).toBeTruthy();
   });
 

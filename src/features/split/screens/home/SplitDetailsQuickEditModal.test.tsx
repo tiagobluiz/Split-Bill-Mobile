@@ -1,9 +1,31 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
+import { Modal } from "react-native";
 
 import { buildRecordFixture } from "../../integrationTestUtils";
 import type { SplitTag } from "../../tags";
 import { SplitDetailsQuickEditModal } from "./SplitDetailsQuickEditModal";
+
+const mockInvoiceCopy = jest.fn(async (_paths: { from: string; to: string }) => undefined);
+
+jest.mock("expo-file-system/legacy", () => ({
+  documentDirectory: "file:///app/",
+  copyAsync: (paths: { from: string; to: string }) => mockInvoiceCopy(paths),
+  makeDirectoryAsync: jest.fn(async () => undefined),
+  deleteAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock("expo-image-manipulator", () => ({
+  manipulateAsync: jest.fn(async () => ({ uri: "file:///cache/converted.jpg" })),
+  SaveFormat: { JPEG: "jpeg" },
+}));
+
+jest.mock("../shared/InvoicePhotoField", () => ({
+  InvoicePhotoField: ({ onChange, disabled }: { onChange: (photo: object) => void; disabled: boolean }) => {
+    const { Pressable, Text } = require("react-native");
+    return <Pressable disabled={disabled} onPress={() => onChange({ uri: "file:///picked.jpg", name: "picked.jpg", size: 100 })}><Text>Pick QA photo</Text></Pressable>;
+  },
+}));
 
 const baseTags: SplitTag[] = [
   {
@@ -51,6 +73,56 @@ function renderModal(overrides: Partial<QuickEditProps> = {}) {
 }
 
 describe("SplitDetailsQuickEditModal", () => {
+  beforeEach(() => mockInvoiceCopy.mockClear());
+
+  it("keeps Edit details open during the photo copy and split write", async () => {
+    let finishCopy!: () => void;
+    let finishWrite!: () => void;
+    mockInvoiceCopy.mockImplementationOnce(() => new Promise((resolve) => { finishCopy = () => resolve(undefined); }));
+    const onSave = jest.fn(() => new Promise<void>((resolve) => { finishWrite = resolve; }));
+    const { props } = renderModal({ onSave });
+    fireEvent.press(screen.getByText("Pick QA photo"));
+    const submit = screen.getByLabelText("Save details");
+    await act(async () => { fireEvent.press(submit); fireEvent.press(submit); });
+
+    expect(mockInvoiceCopy).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Saving invoice photo…")).toBeDisabled();
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    fireEvent.press(screen.getByLabelText("Dismiss action sheet"));
+    fireEvent(screen.UNSAFE_getByType(Modal), "onRequestClose");
+    expect(props.onCancel).not.toHaveBeenCalled();
+
+    await act(async () => finishCopy());
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ invoicePhotoUri: expect.stringMatching(/^invoice-photos\//), invoicePhotoName: "picked.jpg", invoicePhotoSize: 100 }));
+    expect(screen.getByText("Edit split details")).toBeTruthy();
+    fireEvent(screen.UNSAFE_getByType(Modal), "onRequestClose");
+    expect(props.onCancel).not.toHaveBeenCalled();
+
+    await act(async () => finishWrite());
+    expect(screen.getByLabelText("Save details")).toBeEnabled();
+    expect(props.onCancel).not.toHaveBeenCalled();
+  });
+
+  it("keeps the selected photo on failure so saving can be retried", async () => {
+    mockInvoiceCopy.mockRejectedValueOnce(new Error("copy failed"));
+    const onSave = jest.fn<Promise<void>, [Parameters<QuickEditProps["onSave"]>[0]]>()
+      .mockRejectedValueOnce(new Error("write failed"))
+      .mockResolvedValue(undefined);
+    renderModal({ onSave });
+    fireEvent.press(screen.getByText("Pick QA photo"));
+    await act(async () => fireEvent.press(screen.getByLabelText("Save details")));
+    expect(screen.getByText(/Could not save the invoice photo/)).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Save details")));
+    expect(screen.getByText("Could not save split details. write failed")).toBeTruthy();
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Save details")));
+    expect(mockInvoiceCopy).toHaveBeenCalledTimes(3);
+    expect(onSave.mock.lastCall?.[0].invoicePhotoName).toBe("picked.jpg");
+  });
   it("cancels from the backdrop and keeps invalid stored tags out of saves", async () => {
     const { props } = renderModal();
 

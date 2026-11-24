@@ -20,13 +20,17 @@ export function InvoicePhotoField({
   fileSize,
   fileName,
   compact = false,
+  disabled = false,
   onChange,
+  onPickingChange,
 }: {
   value: string | null;
   fileSize?: number | null;
   fileName?: string | null;
   compact?: boolean;
+  disabled?: boolean;
   onChange: (photo: InvoicePhotoSelection | null) => void;
+  onPickingChange?: (picking: boolean) => void;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -35,25 +39,35 @@ export function InvoicePhotoField({
   const queuedPhotoPicker = useRef<boolean | null>(null);
   const displayUri = value ? getInvoicePhotoDisplayUri(value) ?? value : undefined;
 
+  const pickPhoto = async (camera: boolean) => {
+    try {
+      await chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
+    } finally {
+      onPickingChange?.(false);
+    }
+  };
+
   const selectSource = (camera: boolean) => {
+    if (disabled) return;
+    onPickingChange?.(true);
     if (Platform.OS !== "web") {
       queuedPhotoPicker.current = camera;
       setSourceOpen(false);
       return;
     }
     setSourceOpen(false);
-    void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
+    void pickPhoto(camera);
   };
 
   const launchQueuedPhotoPicker = () => {
     const camera = queuedPhotoPicker.current;
     queuedPhotoPicker.current = null;
     if (camera === null) return;
-    void chooseInvoicePhoto(camera, onChange, t("splitDetails.cameraDenied"), t("common.tryAgain"));
+    void pickPhoto(camera);
   };
 
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: 10 }} pointerEvents={disabled ? "none" : "auto"} accessibilityElementsHidden={disabled} importantForAccessibility={disabled ? "no-hide-descendants" : "auto"}>
       <FieldLabel>{t("splitDetails.invoice")}</FieldLabel>
       {value ? (
         compact ? (

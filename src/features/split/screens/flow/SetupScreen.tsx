@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
@@ -9,12 +10,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { usePreventRemove } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import { SplitDatePicker } from "../shared/SplitDatePicker";
 import { InvoicePhotoField } from "../shared/InvoicePhotoField";
 import { BottomActionSheet } from "../shared/BottomActionSheet";
-import { areSameInvoicePhotos, persistInvoicePhoto, removeInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { InvoicePhotoSaveError, saveDetailsWithInvoicePhoto, type InvoicePhotoSelection } from "../../invoicePhotos";
+import { useSplitDetailsSave } from "../shared/useSplitDetailsSave";
 import { localDay } from "../../../../domain/splitDate";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -186,11 +189,10 @@ const ITEM_CATEGORY_OPTIONS = [
 export function SetupScreenView({ draftId }: { draftId: string }) {
   const { t } = useTranslation();
   const record = useRecord(draftId);
-  const { updateDraftMeta, setStep, settings, getActiveRecord, addTag } =
+  const { updateDraftMeta, settings, getActiveRecord, addTag } =
     useSplitStore(
       useShallow((state) => ({
         updateDraftMeta: state.updateDraftMeta,
-        setStep: state.setStep,
         settings: state.settings,
         getActiveRecord: state.getActiveRecord,
         addTag: state.addTag,
@@ -236,6 +238,19 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   );
   const [showRateConfirmModal, setShowRateConfirmModal] = useState(false);
   const [setupNoticeMessages, setSetupNoticeMessages] = useState<string[]>([]);
+  const { save, savingRef, isBusy, onPickingChange, progressMessage } = useSplitDetailsSave();
+  const submittedRecordId = useRef<string | null>(null);
+  usePreventRemove(Boolean(progressMessage), () => undefined);
+  useFocusEffect(useCallback(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", isBusy);
+    return () => {
+      subscription.remove();
+      submittedRecordId.current = null;
+    };
+  }, [isBusy]));
+  const leaveSetup = () => {
+    if (!isBusy()) router.dismissTo("/");
+  };
   const activeRatePairRef = useRef("");
   const { insetBottom: footerInsetBottom, onMeasuredHeight } =
     useFloatingFooterInset({ fallbackHeight: 186 });
@@ -272,7 +287,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   };
 
   useEffect(() => {
-    if (record) {
+    // Optimistic writes and rollbacks must not replace the user's form on failure.
+    if (record && submittedRecordId.current !== record.id) {
       setSplitName(record.values.splitName ?? "");
       setSplitDate(record.values.splitDate ?? localDay(new Date(record.createdAt)));
       setInvoicePhotoUri(record.values.invoicePhotoUri ?? null);
@@ -383,6 +399,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
   };
 
   const handleInvoicePhotoChange = (photo: InvoicePhotoSelection | null) => {
+    if (savingRef.current) return;
     setInvoicePhotoUri(photo?.uri ?? null);
     setInvoicePhotoName(photo?.name ?? null);
     setInvoicePhotoSize(photo?.size ?? null);
@@ -481,7 +498,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
     );
   }
 
-  const persistAndContinue = async () => {
+  const persistAndContinue = () => save(invoicePhotoUri, record.values.invoicePhotoUri, async () => {
+    submittedRecordId.current = record.id;
     const pairKey = `${normalizedCurrency}->${normalizedTargetCurrency}`;
     const nextRateByPair = { ...rateByPair };
     if (needsConversion && hasValidRateInput) {
@@ -492,9 +510,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       };
     }
 
-    const savedPhoto = await persistInvoicePhoto(invoicePhotoUri);
-    try {
-    await updateDraftMeta(
+    const savedPhoto = await saveDetailsWithInvoicePhoto(invoicePhotoUri, record.values.invoicePhotoUri, (photoUri) => updateDraftMeta(
       splitName.trim().slice(0, SPLIT_NAME_MAX_LENGTH),
       normalizedCurrency,
       needsConversion
@@ -520,16 +536,12 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       ),
       selectedTagIds,
       splitDate,
-      savedPhoto,
+      photoUri,
       invoicePhotoUri ? invoicePhotoName : null,
       invoicePhotoUri ? invoicePhotoSize : null,
       draftId,
-    );
-    } catch (error) {
-      if (!areSameInvoicePhotos(savedPhoto, record?.values.invoicePhotoUri)) await removeInvoicePhoto(savedPhoto);
-      throw error;
-    }
-    if (!areSameInvoicePhotos(record?.values.invoicePhotoUri, savedPhoto)) await removeInvoicePhoto(record?.values.invoicePhotoUri);
+      2,
+    ));
     setInvoicePhotoUri(savedPhoto);
     const selectedTags = (settings.tags ?? []).filter((tag) =>
       selectedTagIds.includes(tag.id),
@@ -540,14 +552,15 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       customTagCount: selectedTags.filter((tag) => !isDefaultSplitTag(tag))
         .length,
     });
-    await setStep(2, draftId);
     const currentStatus = getActiveRecord()?.status ?? record.status;
-    await trackSplitStepCompleted({
+    void trackSplitStepCompleted({
       step: "setup",
       draftStatus: currentStatus,
     });
     router.push(`/split/${draftId}/participants`);
-  };
+  }).catch((error: unknown) => {
+    setSetupNoticeMessages([t(error instanceof InvoicePhotoSaveError ? "splitDetails.photoSaveFailed" : "common.tryAgain")]);
+  });
 
   return (
     <AppScreen
@@ -607,7 +620,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
               discardLabel={t("flow.setup.rateConfirmEdit")}
               onConfirm={() => {
                 setShowRateConfirmModal(false);
-                void persistAndContinue().catch(() => setSetupNoticeMessages([t("common.tryAgain")]));
+                void persistAndContinue();
               }}
               onDiscard={() => setShowRateConfirmModal(false)}
             />
@@ -618,11 +631,11 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
         tagModalOpen ? null : (
           <MeasuredFloatingFooter onMeasuredHeight={onMeasuredHeight}>
             <FlowContinueButton
-              accessibilityLabel={t("flow.setup.nextA11y")}
-              disabled={!isSetupStepReady}
-              label={t("flow.setup.next", undefined, { maxLength: 26 })}
-              onPress={async () => {
-                if (!canContinue) {
+              accessibilityLabel={progressMessage || t("flow.setup.nextA11y")}
+              disabled={!isSetupStepReady || Boolean(progressMessage)}
+              label={progressMessage || t("flow.setup.next", undefined, { maxLength: 26 })}
+              onPress={progressMessage ? undefined : async () => {
+                if (isBusy() || !canContinue) {
                   return;
                 }
                 if (!splitName.trim()) {
@@ -637,7 +650,7 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
                   setShowRateConfirmModal(true);
                   return;
                 }
-                await persistAndContinue().catch(() => setSetupNoticeMessages([t("common.tryAgain")]));
+                await persistAndContinue();
               }}
             />
           </MeasuredFloatingFooter>
@@ -652,7 +665,8 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
       >
         <FlowScreenHeader
           title={t("flow.setup.title", undefined, { maxLength: 16 })}
-          onBack={() => router.dismissTo("/")}
+          onBack={leaveSetup}
+          onClose={leaveSetup}
         />
       </View>
       <ScrollView
@@ -804,7 +818,9 @@ export function SetupScreenView({ draftId }: { draftId: string }) {
             <InvoicePhotoField
               value={invoicePhotoUri}
               fileSize={invoicePhotoSize}
+              disabled={Boolean(progressMessage)}
               onChange={handleInvoicePhotoChange}
+              onPickingChange={onPickingChange}
             />
           </YStack>
         </YStack>

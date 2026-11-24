@@ -107,7 +107,7 @@ export function PersonEditor({ person, people, groups, records, suggestedContact
         setUsedContactPhoto(Boolean(selectedContact.photoUri));
         setContactOpen(false);
       }}><Text color={selectedContact ? PALETTE.primary : PALETTE.onSurfaceVariant} fontFamily={FONTS.bodyBold}>{t("common.done")}</Text></Pressable></XStack>
-      <View style={screenStyles.groupSearchShell}><Search size={17} color={PALETTE.onSurfaceVariant} /><TextInput value={contactQuery} onChangeText={setContactQuery} placeholder={t("people.searchContacts")} style={screenStyles.groupSearchInput} /></View>
+      <View style={screenStyles.groupSearchShell}><Search size={17} color={PALETTE.onSurfaceVariant} /><TextInput value={contactQuery} onChangeText={setContactQuery} placeholder={t("people.searchContacts")} placeholderTextColor={PALETTE.onSurfaceVariant} style={screenStyles.groupSearchInput} /></View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8 }}>{filtered.map((contact) => <Pressable key={contact.id} onPress={() => setSelectedContact(contact)} style={[screenStyles.groupsCompactRow, { backgroundColor: PALETTE.surfaceContainerLowest }]}>
         {contact.photoUri ? <Image source={{ uri: contact.photoUri }} style={screenStyles.participantAvatar} /> : <View style={[screenStyles.groupsPersonAvatar, { backgroundColor: getTagColorStyle("orange").background }]}><Text fontFamily={FONTS.bodyBold}>{contact.name.slice(0, 1).toUpperCase()}</Text></View>}
         <Text flex={1} fontFamily={FONTS.bodyBold}>{contact.name}</Text>{selectedContact?.id === contact.id ? <Check color={PALETTE.primary} /> : null}

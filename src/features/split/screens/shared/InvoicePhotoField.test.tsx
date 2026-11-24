@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Modal, Platform } from "react-native";
 import { InvoicePhotoField } from "./InvoicePhotoField";
 
@@ -10,6 +10,20 @@ jest.mock("../../invoicePhotos", () => ({
 }));
 
 beforeEach(() => mockChooseInvoicePhoto.mockClear());
+
+it("reports photo selection as pending until the native picker result settles", async () => {
+  let completePicker!: () => void;
+  mockChooseInvoicePhoto.mockImplementationOnce(() => new Promise<void>((resolve) => { completePicker = resolve; }));
+  const onPickingChange = jest.fn();
+  render(<InvoicePhotoField value={null} onChange={jest.fn()} onPickingChange={onPickingChange} />);
+  fireEvent.press(screen.getByLabelText("Add invoice photo"));
+  fireEvent.press(screen.getByText("Choose photo"));
+  expect(onPickingChange.mock.calls).toEqual([[true]]);
+  fireEvent(screen.UNSAFE_getByType(Modal), "onDismiss");
+  expect(onPickingChange.mock.calls).toEqual([[true]]);
+  await act(async () => completePicker());
+  expect(onPickingChange.mock.calls).toEqual([[true], [false]]);
+});
 
 it("offers camera and gallery sources from the invoice card", () => {
   const onChange = jest.fn();

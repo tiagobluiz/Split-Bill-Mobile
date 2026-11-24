@@ -4,6 +4,10 @@ const enPlain = {
   "splitDetails.date": "Split date",
   "splitDetails.invoice": "Invoice photo (optional)",
   "splitDetails.choosePhoto": "Choose invoice photo",
+  "splitDetails.savingPhoto": "Saving invoice photo…",
+  "splitDetails.preparingPhoto": "Preparing invoice photo…",
+  "splitDetails.savingDetails": "Saving details…",
+  "splitDetails.photoSaveFailed": "Could not save the invoice photo. Try again or choose a different photo.",
   "splitDetails.changePhoto": "Change invoice photo",
   "splitDetails.removePhoto": "Remove photo",
   "splitDetails.takePhoto": "Take invoice photo",
@@ -619,6 +623,8 @@ const enPlain = {
   "flow.import.askAiTitle": "Ask AI to read your receipt",
   "flow.import.askAiAndroid":
     "Split Bill copies the prompt, opens your selected AI tool, and shares this split's invoice photo when available. Check that the prompt and photo appear. If the prompt is missing, paste it from your clipboard; if no image is attached, attach the receipt or invoice photo manually. Review everything, then tap Send. When you have the item list, return to Split Bill and paste it in step 2.",
+  "flow.import.askAiTextFirst":
+    "Split Bill copies the prompt and shares its text with your selected AI tool. If the prompt is missing, paste it from your clipboard. Attach your receipt or invoice photo before tapping Send. When you have the item list, return to Split Bill and paste it in step 2.",
   "flow.import.askAiManual":
     "Split Bill copies the prompt and opens the AI tool. Paste the prompt and attach the receipt or invoice photo. Review it, tap Send, then return to Split Bill and paste the item list in step 2.",
   "flow.import.chooseTool": "Choose AI tool",
@@ -634,7 +640,7 @@ const enPlain = {
   "flow.import.mode.replace": "Replace",
   "flow.import.pastedText": "Pasted text",
   "flow.import.copyOpenAi": "Copy Prompt & Open AI",
-  "flow.import.pastePromptHint": "If the prompt isn't in the AI chat, paste it from your clipboard. Attach this split's invoice photo or a receipt if it isn't already there, then review everything and tap Send. Once you have the item list, return to Split Bill and paste it here.",
+  "flow.import.pastePromptHint": "If the prompt isn't in the AI chat, paste it from your clipboard. If there is no image in the chat, take a photo of the receipt or attach one from your photos or files. Review everything and tap Send. Once you have the item list, return to Split Bill and paste it here.",
   "llm.receiptPrompt.readReceipt":
     "Read the uploaded grocery receipt and extract only the purchased receipt items.",
   "llm.receiptPrompt.returnFormat": "Return the result in this exact format:",

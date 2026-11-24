@@ -196,6 +196,42 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("People (1)")).toBeTruthy();
   });
 
+  it.each(["creating", "editing"])("finds and saves the owner as an existing person when %s a group", async (mode) => {
+    const owner = { id: "owner", name: "Amelia Costa", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+    const { onAddGroup, onUpdateGroup } = renderGroupsDirectory(undefined, {
+      ...settings, ownerName: owner.name, ownerPersonId: owner.id, people: [owner],
+    });
+    if (mode === "creating") {
+      fireEvent.press(screen.getByLabelText("Add group"));
+      fireEvent.changeText(screen.getByPlaceholderText("e.g. Roomies"), "Lisbon crew");
+      fireEvent.press(screen.getByText("Continue to members"));
+    } else {
+      fireEvent.press(screen.getByLabelText("Roomies"));
+      fireEvent.press(screen.getByText("Continue to members"));
+    }
+
+    const search = screen.getByPlaceholderText("Search or add people");
+    const addOwner = "Add Amelia Costa (You) to group";
+    fireEvent.changeText(search, "COSTA");
+    expect(screen.getByText("Amelia Costa (You)")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(addOwner));
+    fireEvent.changeText(search, "amelia costa");
+    expect(screen.queryByLabelText(addOwner)).toBeNull();
+    expect(screen.queryByText("Add \u201cAmelia Costa\u201d")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Remove Amelia Costa from group"));
+    fireEvent.press(screen.getByLabelText(addOwner));
+
+    await act(async () => { fireEvent.press(screen.getByText("Save group")); });
+    if (mode === "creating") {
+      expect(onAddGroup).toHaveBeenCalledWith("Lisbon crew", [owner.id], expect.any(Object), []);
+    } else {
+      expect(onUpdateGroup).toHaveBeenCalledWith(group.id, expect.objectContaining({
+        memberPersonIds: [owner.id],
+        newPersonNames: [],
+      }));
+    }
+  });
+
   it("creates a person from the People tab and persists the selected group membership", async () => {
     const onSavePerson = jest.fn(async () => ({ ok: true as const, personId: "person-new" }));
     renderDirectory(undefined, settings, undefined, { onSavePerson });
@@ -207,11 +243,16 @@ describe("HomeGroupsTabContent group actions", () => {
     expect(screen.getByText("People (1)")).toBeTruthy();
   });
 
-  it("opens group member editing directly from a member avatar and overflow control", () => {
-    const people = ["Ana", "Bruno", "Carla", "Daniel", "Eva"].map((name, index) => ({ id: `p${index}`, name, createdAt: "2026-01-01", updatedAt: "2026-01-01" }));
+  it("shows alphabetical avatars before overflow and opens the group roster from an avatar", () => {
+    const people = ["Eva", "daniel", "Bruno", "Carla", "\u00c1na"].map((name, index) => ({ id: `p${index}`, name, createdAt: "2026-01-01", updatedAt: "2026-01-01" }));
     const directorySettings = { ...settings, people, participantGroups: [{ ...group, memberPersonIds: people.map((person) => person.id) }] };
     renderGroupsDirectory(undefined, directorySettings);
-    fireEvent.press(screen.getByLabelText("Ana, edit members of Roomies"));
+    expect(screen.getAllByLabelText(/, edit members of Roomies$/).map((avatar) => avatar.props.accessibilityLabel)).toEqual([
+      "\u00c1na, edit members of Roomies",
+      "Bruno, edit members of Roomies",
+    ]);
+    expect(screen.getByLabelText("3 more members of Roomies, edit group members")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("\u00c1na, edit members of Roomies"));
     expect(screen.getByText("STEP 2 OF 2")).toBeTruthy();
   });
 

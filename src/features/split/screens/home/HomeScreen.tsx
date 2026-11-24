@@ -473,7 +473,7 @@ export function HomeScreenView() {
   }) => {
     const record = quickEditRecord;
     if (!record) {
-      return;
+      throw new Error("Split record is unavailable.");
     }
     const previousTagIds = record.values.tagIds ?? [];
     await updateRecordDetails(record.id, details);

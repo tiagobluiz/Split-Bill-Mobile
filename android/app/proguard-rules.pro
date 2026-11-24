@@ -20,4 +20,8 @@
 -keep class kotlin.Metadata { *; }
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
+# This Expo Notifications version does not pass its keep rule to R8.
+# Preserve the serialization methods used to store scheduled notifications.
+-keep class expo.modules.notifications.** { *; }
+
 # Add any project specific keep options here:
