@@ -165,6 +165,7 @@ function normalizeVersionFile(file, source) {
   if (file === "package.json") {
     const parsed = JSON.parse(source);
     delete parsed.version;
+    delete parsed.license;
     return JSON.stringify(parsed);
   }
 
@@ -173,6 +174,7 @@ function normalizeVersionFile(file, source) {
     delete parsed.version;
     if (parsed.packages?.[""]) {
       delete parsed.packages[""].version;
+      delete parsed.packages[""].license;
     }
     return JSON.stringify(parsed);
   }
