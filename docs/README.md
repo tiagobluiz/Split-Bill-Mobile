@@ -2,6 +2,12 @@
 
 This repository keeps the mobile implementation contract and build plan in-docs so the project is restartable without tribal knowledge.
 
+## License
+
+Copyright (c) 2026 Tiago Luiz
+
+Split-Bill Mobile is licensed under the [GNU Affero General Public License, version 3 only](../LICENSE).
+
 ## Start Here
 
 - [`docs/mobile-implementation-plan.md`](./mobile-implementation-plan.md)
